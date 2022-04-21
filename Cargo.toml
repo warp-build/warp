@@ -5,6 +5,7 @@ members = [
   "lib/zap-buildscript",
   "lib/zap-core",
 ]
+resolver="2"
 
 [profile.release]
 opt-level = 'z'
