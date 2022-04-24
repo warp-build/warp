@@ -1,4 +1,4 @@
-import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://zap.build/toolchains/erlang";
+import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "../toolchains/erlang.js";
 
 const impl = ctx => {
   const { name, deps, srcs, headers, behaviors } = ctx.cfg();

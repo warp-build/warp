@@ -1,16 +1,15 @@
-import ElixirToolchain, {BEAM_EXT} from "https://zap.build/toolchains/elixir";
+import ElixirToolchain, {BEAM_EXT} from "../toolchains/elixir.js";
 
 const impl = ctx => {
   const { name, deps, srcs, } = ctx.cfg();
 
-  const transitiveDeps = ctx.transitiveDeps().flatMap(dep => dep.outs);
-
-  const finalSrcs = transitiveDeps
-    .filter(path => path.endsWith(ERL_EXT))
-    .concat(srcs);
-
   const outputs = srcs
-    .map(erl => File.withExtension(erl, BEAM_EXT));
+    .map(label => {
+      let path = label.split("/").slice(0, -1).join("/")
+      let modName = label.split("/").map(part => part[0].toUpperCase() + part.slice(1)).join(".")
+      let out = File.join(path, File.withExtension(`Elixir.${modName}`, BEAM_EXT))
+      return out
+    });
 
   ctx.action().declareOutputs(outputs);
 

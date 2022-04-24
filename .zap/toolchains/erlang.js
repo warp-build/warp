@@ -11,15 +11,15 @@ const impl = ctx => {
 
   if (archiveKind === "source") {
     ctx.action().exec({
-      cmd: unarchivedRoot.join("otp_build"),
+      cmd: File.join(unarchivedRoot, "otp_build"),
       args: ["all"],
       cwd: unarchivedRoot
     });
   }
 
-  const binRoot = unarchivedRoot.join("bin");
-  const ERLC = binRoot.join("erlc");
-  const ERL = binRoot.join("erl");
+  const binRoot = File.join(unarchivedRoot, "bin");
+  const ERLC = File.join(binRoot, "erlc");
+  const ERL = File.join(binRoot, "erl");
   ctx.provides({ ERLC, ERL });
   ctx.action().declareOutputs([]);
 };
