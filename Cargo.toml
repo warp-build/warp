@@ -1,9 +1,7 @@
 [workspace]
 members = [
-  "lib/zap-bin",
-  "lib/zap-build-engine",
-  "lib/zap-buildscript",
-  "lib/zap-core",
+  "bin",
+  "core",
 ]
 resolver="2"
 

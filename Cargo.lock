@@ -1720,7 +1720,7 @@ dependencies = [
 
 [[package]]
 name = "zap-build"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1735,39 +1735,12 @@ dependencies = [
  "structopt",
  "termcolor",
  "tokio",
- "zap-build-engine",
  "zap-core",
-]
-
-[[package]]
-name = "zap-build-engine"
-version = "0.4.2"
-dependencies = [
- "anyhow",
- "chrono",
- "dashmap",
- "fs_extra",
- "log",
- "petgraph",
- "rust-crypto",
- "zap-buildscript",
- "zap-core",
-]
-
-[[package]]
-name = "zap-buildscript"
-version = "0.4.2"
-dependencies = [
- "chrono",
- "deno_core",
- "futures",
- "log",
- "thiserror",
 ]
 
 [[package]]
 name = "zap-core"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1777,14 +1750,24 @@ dependencies = [
  "deno_core",
  "directories",
  "env_logger",
+ "fixedbitset",
+ "fs_extra",
+ "futures",
  "glob",
  "guess_host_triple",
  "log",
  "petgraph",
  "regex",
  "rust-crypto",
+ "serde",
  "serde_json",
+ "thiserror",
  "toml",
+ "v8",
  "whoami",
- "zap-buildscript",
+ "zap-ext",
 ]
+
+[[package]]
+name = "zap-ext"
+version = "0.5.0"
