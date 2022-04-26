@@ -32,7 +32,7 @@ release:
 
 .PHONY: install
 install:
-	cargo install --path ./lib/zap-bin
+	cargo install --path ./bin
 
 .PHONY: setup
 setup:
