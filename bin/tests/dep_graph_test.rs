@@ -5,40 +5,40 @@ use zap_core::*;
 async fn it_reads_the_project_from_an_absolute_path() {
     let root = std::fs::canonicalize(PathBuf::from(&"./tests/sample_project")).unwrap();
 
-    let config = ZapConfig::new(None, None).unwrap();
-    let mut zap = ZapWorker::new(config).unwrap();
-    zap.load(&root).await.unwrap();
-    zap.build_dep_graph().unwrap();
+    let workspace: Workspace =
+        WorkspaceBuilder::build(root.clone(), None, None).unwrap();
+    let mut zap = LocalWorker::from_workspace(workspace);
+    zap.prepare(&Label::all()).await.unwrap();
 
     let workspace = zap.workspace;
-    assert_eq!("sample_project", workspace.name());
-    assert_eq!(root.to_str(), workspace.root().to_str());
-    assert_eq!(8, workspace.targets().len());
+    assert_eq!("sample_project", workspace.name);
+    assert_eq!(root.to_str(), workspace.paths.workspace_root.to_str());
+    assert_eq!(10, zap.targets.len());
 }
 
 #[tokio::test]
 async fn it_reads_the_project_from_a_relative_path() {
     let root = PathBuf::from(&"./tests/sample_project");
 
-    let config = ZapConfig::new(None, None).unwrap();
-    let mut zap = ZapWorker::new(config).unwrap();
-    zap.load(&root).await.unwrap();
-    zap.build_dep_graph().unwrap();
+    let workspace: Workspace =
+        WorkspaceBuilder::build(root.clone(), None, None).unwrap();
+    let mut zap = LocalWorker::from_workspace(workspace);
+    zap.prepare(&Label::all()).await.unwrap();
 
     let workspace = zap.workspace;
-    assert_eq!("sample_project", workspace.name());
-    assert_eq!(root.to_str(), workspace.root().to_str());
-    assert_eq!(8, workspace.targets().len());
+    assert_eq!("sample_project", workspace.name);
+    assert_eq!(std::fs::canonicalize(root).unwrap().to_str(), workspace.paths.workspace_root.to_str());
+    assert_eq!(10, zap.targets.len());
 }
 
 #[tokio::test]
 async fn build_dependency_graph_from_workspace() {
     let root = PathBuf::from(&"./tests/sample_project");
 
-    let config = ZapConfig::new(None, None).unwrap();
-    let mut zap = ZapWorker::new(config).unwrap();
-    zap.load(&root).await.unwrap();
-    zap.build_dep_graph().unwrap();
+    let workspace: Workspace =
+        WorkspaceBuilder::build(root.clone(), None, None).unwrap();
+    let mut zap = LocalWorker::from_workspace(workspace);
+    zap.prepare(&Label::all()).await.unwrap();
 
     let mut dep_graph = zap.dep_graph;
 
@@ -76,12 +76,12 @@ async fn build_dependency_graph_from_workspace() {
 async fn build_dependency_graph_from_workspace_and_scope() {
     let root = PathBuf::from(&"./tests/sample_project");
 
-    let config = ZapConfig::new(None, None).unwrap();
-    let mut zap = ZapWorker::new(config).unwrap();
-    zap.load(&root).await.unwrap();
-    zap.build_dep_graph().unwrap();
+    let workspace: Workspace =
+        WorkspaceBuilder::build(root.clone(), None, None).unwrap();
+    let mut zap = LocalWorker::from_workspace(workspace);
+    zap.prepare(&Label::new("//b/c:lib")).await.unwrap();
 
-    let dep_graph = zap.dep_graph.scoped(&Label::new("//b/c:lib")).unwrap();
+    let mut dep_graph = zap.dep_graph;
 
     let mut target_names_in_order = dep_graph.target_names();
     target_names_in_order.sort();
@@ -111,16 +111,4 @@ async fn build_dependency_graph_from_workspace_and_scope() {
         format!("{:?}", expected),
         format!("{:?}", target_names_in_order)
     );
-}
-
-#[tokio::test]
-async fn configure_toolchain_manager_when_reading_workspace() {
-    let root = std::fs::canonicalize(PathBuf::from(&"./tests/sample_project")).unwrap();
-
-    let config = ZapConfig::new(None, None).unwrap();
-    let mut zap = ZapWorker::new(config).unwrap();
-    zap.load(&root).await.unwrap();
-    zap.build_dep_graph().unwrap();
-
-    assert_eq!(2, (*zap.toolchain_manager).read().unwrap().targets().len());
 }

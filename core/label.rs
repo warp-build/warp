@@ -43,6 +43,9 @@ impl Default for Label {
 }
 
 impl Label {
+    pub fn all() -> Label { Label::default() }
+
+
     pub fn from_path_and_name(path: &PathBuf, name: &str) -> Label {
         Label::new(&format!("//{}:{}", path.to_str().unwrap(), name))
     }

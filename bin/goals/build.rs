@@ -49,7 +49,8 @@ impl BuildGoal {
         print!("🔨 Building {}...", name);
         io::stdout().flush().unwrap();
 
-        zap.execute(&target).await?;
+        zap.prepare(&target).await?;
+        zap.execute().await?;
 
         Ok(())
     }

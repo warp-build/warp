@@ -24,6 +24,10 @@ pub struct LocalWorker {
     pub cache: LocalCache,
 
     pub rule_exec_env: RuleExecEnv,
+
+    pub dep_graph: DepGraph,
+
+    pub targets: Vec<Target>,
 }
 
 impl LocalWorker {
@@ -32,16 +36,17 @@ impl LocalWorker {
             rule_exec_env: RuleExecEnv::new(&workspace),
             cache: LocalCache::new(&workspace),
             workspace,
+            targets: vec![],
+            dep_graph: DepGraph::default()
         }
     }
 
-    pub async fn load_rules(&mut self) -> Result<(), anyhow::Error> {
-        /*
+    async fn load_rules(&mut self) -> Result<(), anyhow::Error> {
+        self.rule_exec_env.setup()?;
         let built_in_rules = zap_ext::TOOLCHAINS
             .iter()
             .chain(zap_ext::RULES.iter())
             .map(|(name, src)| (name.to_string(), src.to_string()));
-        */
 
         let custom_rules = (self.workspace.local_toolchains.iter())
             .chain(self.workspace.local_rules.iter())
@@ -51,16 +56,13 @@ impl LocalWorker {
                 (name, src)
             });
 
-        // for (name, src) in built_in_rules.chain(custom_rules) {
-        for (name, src) in custom_rules {
+        for (name, src) in built_in_rules.chain(custom_rules) {
             self.rule_exec_env.load(&name, Some(src)).await?
         }
-
         Ok(())
     }
 
-    pub async fn execute(&mut self, target: &Label) -> Result<u32, anyhow::Error> {
-        self.rule_exec_env.setup()?;
+    pub async fn prepare(&mut self, target: &Label) -> Result<(), anyhow::Error> {
         self.load_rules().await?;
 
         let mut targets = (*self.rule_exec_env.toolchain_manager)
@@ -81,14 +83,23 @@ impl LocalWorker {
         debug!("Found {} build targets...", targets.len());
 
         let mut dep_graph = DepGraph::from_targets(&targets)?;
-        let mut walker = dep_graph.scope(&target)?.walk();
+        dep_graph.scope(&target)?;
+
+        self.dep_graph = dep_graph;
+        self.targets = targets;
+
+        Ok(())
+    }
+
+    pub async fn execute(&mut self) -> Result<u32, anyhow::Error> {
+        let mut walker = self.dep_graph.walk();
 
         let mut targets = 0;
 
-        while let Some(idx) = walker.next(&dep_graph._inner_graph) {
-            let target = dep_graph.get(idx);
+        while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
+            let target = self.dep_graph.get(idx);
             let sealed_target = self.rule_exec_env.compute_target(target)?;
-            let node = &dep_graph.put(idx, sealed_target);
+            let node = &self.dep_graph.put(idx, sealed_target);
 
             let name = node.label().clone();
             debug!("About to build {:?}...", name.to_string());
