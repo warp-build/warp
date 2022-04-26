@@ -315,7 +315,7 @@ impl RuleExecEnv {
                 reason: reason.to_string(),
             })?;
         trace!("evaluating {:?}", &module_name);
-        self.runtime.mod_evaluate(mod_id);
+        let _eval_future = self.runtime.mod_evaluate(mod_id);
         self.runtime.run_event_loop(false).await.map_err(|reason| {
             error::LoadError::ModuleEvaluationError {
                 module_name: module_name.to_string(),

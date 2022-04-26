@@ -1,5 +1,4 @@
 use super::*;
-use log::*;
 use dashmap::DashMap;
 use std::path::PathBuf;
 
@@ -12,7 +11,7 @@ pub struct ToolchainManager {
 
 impl ToolchainManager {
     pub fn new(arcs: Vec<Archive>) -> ToolchainManager {
-        let mut archives = DashMap::new();
+        let archives = DashMap::new();
         for archive in arcs {
             archives.insert(archive.name().to_string(), archive);
         }

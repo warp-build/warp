@@ -22,9 +22,6 @@ pub struct WorkspacePaths {
     /// The location of global toolchains
     pub global_toolchains_root: PathBuf,
 
-    /// The root of the zap directories within this workspace
-    local_zap_root: PathBuf,
-
     /// The location of the outputs for this workspace
     pub local_outputs_root: PathBuf,
 
@@ -102,7 +99,6 @@ impl WorkspacePaths {
             local_rules_root,
             local_sandbox_root,
             local_toolchains_root,
-            local_zap_root,
             workspace_output_link,
             workspace_root: workspace_root.to_path_buf(),
         };

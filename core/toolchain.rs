@@ -3,14 +3,13 @@ use super::*;
 #[derive(Clone, Debug)]
 pub struct Toolchain {
     target: Target,
-    rule: Rule,
 }
 
 impl Toolchain {
     pub fn new(rule: Rule, archive: Archive) -> Toolchain {
         let cfg = Toolchain::archive_to_config(&archive);
         let target = Target::global(Label::new(rule.name()), &rule, cfg, archive);
-        Toolchain { rule, target }
+        Toolchain { target }
     }
 
     pub fn label(&self) -> &Label {

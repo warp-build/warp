@@ -4,8 +4,6 @@ use std::io::Write;
 use structopt::StructOpt;
 use zap_core::*;
 
-use std::path::PathBuf;
-
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
     name = "build",

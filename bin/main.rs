@@ -16,9 +16,6 @@ struct Zap {
     #[structopt(subcommand, help = "the command to run")]
     cmd: Option<Goal>,
 
-    #[structopt(short = "v", long = "verbose", help = "turn on verbosity")]
-    verbose: bool,
-
     #[structopt(short = "q", long = "quiet", help = "turn off all logs")]
     quiet: bool,
 
