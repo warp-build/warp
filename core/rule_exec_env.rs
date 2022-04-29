@@ -10,6 +10,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+static JS_SNAPSHOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/JS_SNAPSHOT.bin"));
+
 mod error {
     use thiserror::Error;
     #[derive(Error, Debug)]
@@ -280,6 +282,7 @@ impl RuleExecEnv {
         };
 
         let rt_options = deno_core::RuntimeOptions {
+            startup_snapshot: Some(deno_core::Snapshot::Static(JS_SNAPSHOT)),
             module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
             extensions: vec![extension],
             ..Default::default()

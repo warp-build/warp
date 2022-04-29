@@ -34,3 +34,6 @@ thiserror = "1.0"
 toml = "0.5"
 v8 = "0.42"
 whoami = "1.2"
+
+[build-dependencies]
+deno_core = "0.130"
