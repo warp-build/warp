@@ -14,10 +14,11 @@ const impl = ctx => {
   }
 
   const binRoot = File.join(unarchivedRoot, "bin");
+  const ELIXIR = File.join(binRoot, "elixir");
   const ELIXIRC = File.join(binRoot, "elixirc");
   const IEX = File.join(binRoot, "iex");
-  ctx.provides({ ELIXIRC, IEX });
-  ctx.action().declareOutputs([]);
+  const MIX = File.join(binRoot, "mix");
+  ctx.provides({ ELIXIR, ELIXIRC, IEX, MIX });
 };
 
 export default Zap.Toolchain({
