@@ -1,5 +1,6 @@
 use super::*;
 use anyhow::*;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -18,8 +19,8 @@ impl Action {
         Action::Copy(CopyAction { src, dst })
     }
 
-    pub fn exec(cmd: PathBuf, args: Vec<String>, cwd: Option<PathBuf>) -> Action {
-        Action::Exec(ExecAction { cmd, args, cwd })
+    pub fn exec(cmd: PathBuf, args: Vec<String>, cwd: Option<PathBuf>, env: HashMap<String, String>) -> Action {
+        Action::Exec(ExecAction { cmd, args, cwd, env })
     }
 
     pub fn run(self) -> Result<(), anyhow::Error> {

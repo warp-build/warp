@@ -5,6 +5,7 @@ use deno_core::error::AnyError;
 use deno_core::*;
 use log::*;
 use serde::*;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -175,6 +176,7 @@ pub fn op_ctx_actions_copy(state: &mut OpState, args: CopyFile) -> Result<(), An
 #[serde(rename_all = "camelCase")]
 pub struct Exec {
     label: String,
+    env: HashMap<String, String>,
     cmd: String,
     args: Vec<String>,
     cwd: Option<String>,
@@ -187,7 +189,7 @@ pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyErr
 
     let label = Label::new(&args.label);
     let cwd: Option<PathBuf> = args.cwd.map(PathBuf::from);
-    let action = Action::exec(PathBuf::from(args.cmd), args.args, cwd);
+    let action = Action::exec(PathBuf::from(args.cmd), args.args, cwd, args.env);
     let new_actions = if let Some(entry) = action_map.get(&label) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
@@ -242,7 +244,9 @@ pub struct RuleExecEnv {
 
 impl RuleExecEnv {
     pub fn new(workspace: &Workspace) -> RuleExecEnv {
-        let toolchain_manager = Arc::new(RwLock::new(ToolchainManager::new(workspace.toolchain_archives.clone())));
+        let toolchain_manager = Arc::new(RwLock::new(ToolchainManager::new(
+            workspace.toolchain_archives.clone(),
+        )));
         let rule_map = Arc::new(DashMap::new());
         let action_map = Arc::new(DashMap::new());
         let output_map = Arc::new(DashMap::new());

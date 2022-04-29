@@ -73,7 +73,7 @@ Zap.Targets.compute = target => {
 
     action: () => ({
       declareOutputs: outs => ffi("op_ctx_actions_declare_outputs", {label, outs}),
-      exec: ({cmd, args, cwd}) => ffi("op_ctx_actions_exec", {label, cmd, args, cwd}),
+      exec: ({env, cmd, args, cwd}) => ffi("op_ctx_actions_exec", {label, cmd, args, cwd, env: env || {}}),
       copy: ({src, dst}) => ffi("op_ctx_actions_copy", {label, src, dst}),
       writeFile: ({data, dst}) => ffi("op_ctx_actions_write_file", {label, data, dst}),
     }),
