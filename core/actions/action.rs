@@ -8,9 +8,14 @@ pub enum Action {
     Exec(ExecAction),
     Copy(CopyAction),
     WriteFile(WriteFileAction),
+    RunShell(RunShellAction),
 }
 
 impl Action {
+    pub fn run_shell(script: String, env: HashMap<String, String>) -> Action {
+        Action::RunShell(RunShellAction { script, env })
+    }
+
     pub fn write_file(contents: String, dst: PathBuf) -> Action {
         Action::WriteFile(WriteFileAction { contents, dst })
     }
@@ -28,6 +33,7 @@ impl Action {
             Action::Exec(e) => e.run(),
             Action::Copy(e) => e.run(),
             Action::WriteFile(e) => e.run(),
+            Action::RunShell(e) => e.run(),
         }
     }
 }

@@ -32,11 +32,11 @@ release:
 
 .PHONY: install
 install:
-	cargo install --path ./bin
+	cargo install --debug --path ./bin
 
 .PHONY: setup
 setup:
-	cargo install cargo-strip cargo-insta mdbook 
+	cargo install cargo-strip cargo-insta mdbook
 
 .PHONY: clean
 clean:

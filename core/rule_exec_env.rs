@@ -113,6 +113,38 @@ pub fn op_ctx_actions_declare_outputs(
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+pub struct RunShell {
+    label: String,
+    script: String,
+    env: HashMap<String, String>,
+}
+
+#[op]
+pub fn op_ctx_actions_run_shell(state: &mut OpState, args: RunShell) -> Result<(), AnyError> {
+    debug!("op_ctx_actions_run_shell: {:?}", &args);
+    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let action_map = &inner_state.action_map;
+
+    let label = Label::new(&args.label);
+    let action = Action::run_shell(args.script, args.env);
+    let new_actions = if let Some(entry) = action_map.get(&label) {
+        let last_actions = entry.value();
+        let mut new_actions = vec![];
+        new_actions.extend(last_actions.to_vec());
+        new_actions.push(action);
+        debug!("Updating action_map: {:?}", &new_actions);
+        new_actions
+    } else {
+        vec![action]
+    };
+
+    action_map.insert(label, new_actions);
+
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct WriteFile {
     label: String,
     data: String,
@@ -266,17 +298,18 @@ impl RuleExecEnv {
             };
             Extension::builder()
                 .ops(vec![
-                    op_log::decl(),
-                    op_label_path::decl(),
-                    op_file_parent::decl(),
-                    op_file_filename::decl(),
-                    op_file_with_extension::decl(),
-                    op_ctx_actions_declare_outputs::decl(),
-                    op_ctx_actions_write_file::decl(),
                     op_ctx_actions_copy::decl(),
+                    op_ctx_actions_declare_outputs::decl(),
                     op_ctx_actions_exec::decl(),
-                    op_toolchain_new::decl(),
+                    op_ctx_actions_run_shell::decl(),
+                    op_ctx_actions_write_file::decl(),
+                    op_file_filename::decl(),
+                    op_file_parent::decl(),
+                    op_file_with_extension::decl(),
+                    op_label_path::decl(),
+                    op_log::decl(),
                     op_rule_new::decl(),
+                    op_toolchain_new::decl(),
                 ])
                 .state(move |state| {
                     state.put(inner_state.clone());
@@ -363,6 +396,15 @@ impl RuleExecEnv {
                     map.insert(
                         "label".to_string(),
                         serde_json::Value::String(dep.label.to_string()),
+                    );
+                    map.insert(
+                        "srcs".to_string(),
+                        serde_json::Value::Array(
+                            dep.srcs
+                                .iter()
+                                .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
+                                .collect(),
+                        ),
                     );
                     map.insert(
                         "outs".to_string(),

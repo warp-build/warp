@@ -63,6 +63,7 @@ impl ComputedTarget {
             label: self.target.label().clone(),
             hash: self.hash(),
             outs: self.outs(),
+            srcs: self.srcs(),
         }
     }
 

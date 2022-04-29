@@ -158,7 +158,7 @@ impl<'a> LocalSandbox<'a> {
         // No diff means we have the outputs we expected!
         if diff.is_empty() {
             self.status = ValidationStatus::Valid;
-            self.outputs = actual_outputs.iter().cloned().collect();
+            self.outputs = expected_outputs.iter().cloned().collect();
         } else {
             let expected_but_missing = expected_outputs
                 .difference(&actual_outputs)
