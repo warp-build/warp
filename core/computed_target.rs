@@ -1,9 +1,12 @@
-use super::{Action, Dependency, Label, Target};
+use super::*;
+use anyhow::{anyhow, Context};
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use log::*;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
+use std::process::Stdio;
 
 #[derive(Debug, Clone)]
 pub struct ComputedTarget {
@@ -133,6 +136,11 @@ impl ComputedTarget {
         archive_root: &PathBuf,
         cache_root: &PathBuf,
     ) -> Result<(), anyhow::Error> {
+        trace!(
+            "Executing {:?} target {}...",
+            self.target.kind(),
+            self.target.label().to_string(),
+        );
         if let Some(archive) = &self.target.archive() {
             trace!("Target has an archive, preparing...");
 
@@ -155,7 +163,36 @@ impl ComputedTarget {
             action.run()?
         }
 
-        Ok(())
+        if self.target.kind() == TargetKind::Runnable {
+            print!("🔨 Running {}...", self.target.label().to_string());
+
+            match &self.outs {
+                Some(outs) if outs.len() > 0 => {
+                    let mut cmd = Command::new(PathBuf::from(outs[0].clone()));
+
+                    cmd.stdin(Stdio::inherit())
+                        .stderr(Stdio::inherit())
+                        .stdout(Stdio::inherit());
+
+                    let mut proc = cmd.spawn()?;
+
+                    trace!("Waiting on {:?}", &cmd);
+                    proc.wait().map(|_| ()).context(format!(
+                        "Error executing {}",
+                        &self.target.label().to_string()
+                    ))?;
+
+                    trace!("Exited with status: {}", cmd.status()?);
+                    Ok(())
+                }
+                _ => Err(anyhow!(
+                    "Target {} has no outputs!",
+                    &self.target.label().to_string()
+                )),
+            }
+        } else {
+            Ok(())
+        }
     }
 
     /// The hash of a build node serves for caching work:

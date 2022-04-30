@@ -1,4 +1,7 @@
+use log::*;
+use std::io::Write;
 use structopt::StructOpt;
+use zap_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -21,7 +24,25 @@ build their dependencies and exit.
 }
 
 impl RunGoal {
-    pub fn run(self) -> Result<(), anyhow::Error> {
+    pub async fn run(self, workspace: Workspace) -> Result<(), anyhow::Error> {
+        let target: Label = self.target.into();
+        debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
+        debug!("Target: {}", &target.to_string());
+
+        let mut zap = LocalWorker::from_workspace(workspace);
+
+        let name = if target.is_all() {
+            "workspace".to_string()
+        } else {
+            target.to_string()
+        };
+
+        print!("🔨 Building {}...", name);
+        std::io::stdout().flush().unwrap();
+
+        zap.prepare(&target).await?;
+        zap.execute().await?;
+
         Ok(())
     }
 }

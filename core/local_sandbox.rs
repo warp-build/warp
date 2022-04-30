@@ -372,6 +372,11 @@ impl<'a> LocalSandbox<'a> {
             &self.workspace.paths.global_archive_root,
             &self.workspace.paths.global_cache_root,
         )?;
+
+        if self.node.target.kind() == TargetKind::Runnable {
+            return Ok(ValidationStatus::NoOutputs)
+        }
+
         debug!("Build rule executed successfully.");
 
         self.exit_sandbox(working_directory)?;

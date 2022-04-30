@@ -33,6 +33,9 @@ pub struct Rule {
 
     /// A map of default configuration values.
     defaults: RuleConfig,
+
+    /// Whether this rule is runnable or not
+    pub runnable: bool
 }
 
 impl Rule {
@@ -42,6 +45,7 @@ impl Rule {
         toolchains: Vec<Label>,
         cfg: ConfigSpec,
         defaults: RuleConfig,
+        runnable: bool,
     ) -> Rule {
         Rule {
             name,
@@ -49,6 +53,7 @@ impl Rule {
             toolchains,
             cfg,
             defaults,
+            runnable,
         }
     }
 
@@ -138,12 +143,15 @@ impl<'de> Deserialize<'de> for Rule {
             })
             .collect();
 
+        let runnable = rule_spec["runnable"].as_bool().unwrap_or(false);
+
         let rule = Rule::new(
             rule_spec["name"].as_str().unwrap().to_string(),
             rule_spec["mnemonic"].as_str().unwrap().to_string(),
             toolchains,
             config,
             defaults,
+            runnable,
         );
 
         Ok(rule)

@@ -84,7 +84,7 @@ enum Goal {
     // Lift(LiftGoal),
     // New(NewGoal),
     // Query(QueryGoal),
-    // Run(RunGoal),
+    Run(RunGoal),
     // Test(TestGoal),
 }
 
@@ -104,7 +104,7 @@ impl Goal {
             // Goal::Lift(x) => x.run(),
             // Goal::New(x) => x.run(),
             // Goal::Query(x) => x.run(),
-            // Goal::Run(x) => x.run(),
+            Goal::Run(x) => x.run(workspace).await,
             // Goal::Test(x) => x.run(),
         }
     }

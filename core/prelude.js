@@ -117,6 +117,7 @@ Zap.Rule = spec => {
   spec.toolchains = (spec.toolchains || []);
   spec.toolchains = spec.toolchains.map( toolchain => toolchain.name );
   spec.defaults = spec.defaults || {};
+  spec.runnable = spec.runnable || false;
 
   // if (Zap.Rules.exists(name)) err(`There already exists rule toolchain called ${name}, consider renaming yours`);
   Zap.Rules.register(name, spec);
@@ -160,6 +161,7 @@ Zap.Toolchain = spec => {
 
   __PROVIDES[name] = {};
   spec.provides = () => __PROVIDES[name];
+  spec.runnable = false;
 
   // if (Zap.Rules.exists(name)) err(`There already exists a toolchain called ${name}, consider renaming yours`);
   Zap.Rules.register(name, spec);

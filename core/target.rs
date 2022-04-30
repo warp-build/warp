@@ -33,6 +33,9 @@ pub struct LocalTarget {
 
     /// The target's configuration. To be type-checked against the rule.
     cfg: RuleConfig,
+
+    /// Whether this is a runnable or a buildable target
+    kind: TargetKind,
 }
 
 #[derive(Debug, Clone)]
@@ -49,6 +52,13 @@ pub struct GlobalTarget {
     /// Toolchain targets will have an archive that we need to download
     archive: Archive,
 }
+
+#[derive(Debug, Copy, PartialEq, Eq, Clone)]
+pub enum TargetKind {
+    Runnable,
+    Buildable,
+}
+
 
 impl Target {
     pub fn global(label: Label, rule: &Rule, cfg: RuleConfig, archive: Archive) -> Target {
@@ -74,7 +84,16 @@ impl Target {
             cfg,
             label,
             rule: rule.clone(),
+            kind: if rule.runnable { TargetKind::Runnable } else { TargetKind::Buildable },
         })
+    }
+
+    pub fn kind(&self) -> TargetKind {
+        match self {
+            Target::Local(LocalTarget{ kind , ..} ) => kind.clone(),
+            _ => TargetKind::Buildable,
+        }
+        
     }
 
     pub fn is_local(&self) -> bool {
