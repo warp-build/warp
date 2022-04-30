@@ -75,12 +75,12 @@ impl WorkspaceParser {
             })
             .unwrap_or(archive);
         let archive = cfg
-            .get("prefix")
+            .get("strip_prefix")
             .and_then(|x| x.as_str())
             .map(|prefix| archive.clone().with_prefix(prefix.to_string()))
             .unwrap_or(archive);
         let archive = cfg
-            .get("sha1")
+            .get("checksum")
             .and_then(|x| x.as_str())
             .map(|sha1| archive.clone().with_sha1(sha1.to_string()))
             .unwrap_or(archive);
