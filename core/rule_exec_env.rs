@@ -377,15 +377,16 @@ impl RuleExecEnv {
     pub fn compute_target(
         &mut self,
         mut computed_target: ComputedTarget,
+        dep_graph: &DepGraph,
     ) -> Result<ComputedTarget, anyhow::Error> {
         let label = computed_target.target.label().clone();
         trace!("Sealing Computed Target {:?}", label.to_string());
 
         let config: serde_json::Value = computed_target.target.config().clone().into();
 
-        let deps = computed_target.deps.clone();
+        let deps = computed_target.transitive_deps(&dep_graph).clone();
         let transitive_deps: serde_json::Value = serde_json::Value::Array(
-            deps.unwrap_or(vec![])
+            deps
                 .iter()
                 .map(|dep| {
                     let mut map = serde_json::Map::new();

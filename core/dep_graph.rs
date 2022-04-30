@@ -153,9 +153,9 @@ impl DepGraph {
         Some(&self._inner_graph[node_index])
     }
 
-    pub fn put(&mut self, node_index: NodeIndex, target: ComputedTarget) -> &ComputedTarget {
-        self._inner_graph[node_index] = target;
-        &(self._inner_graph[node_index])
+    pub fn put(&mut self, node_index: NodeIndex, target: ComputedTarget) -> ComputedTarget {
+        self._inner_graph[node_index] = target.clone();
+        target
     }
 
     pub fn get(&self, node_index: NodeIndex) -> ComputedTarget {

@@ -37,7 +37,7 @@ impl LocalWorker {
             cache: LocalCache::new(&workspace),
             workspace,
             targets: vec![],
-            dep_graph: DepGraph::default()
+            dep_graph: DepGraph::default(),
         }
     }
 
@@ -98,7 +98,9 @@ impl LocalWorker {
 
         while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
             let target = self.dep_graph.get(idx);
-            let sealed_target = self.rule_exec_env.compute_target(target)?;
+            let sealed_target = self
+                .rule_exec_env
+                .compute_target(target, &self.dep_graph)?;
             let node = &self.dep_graph.put(idx, sealed_target);
 
             let name = node.label().clone();
@@ -124,7 +126,7 @@ impl LocalWorker {
 
             let result = if node.target.is_local() {
                 let mut sandbox = LocalSandbox::for_node(&self.workspace, &node);
-                match sandbox.run(&self.cache)? {
+                match sandbox.run(&self.cache, &self.dep_graph)? {
                     ValidationStatus::Valid => {
                         self.cache.save(&sandbox)?;
                         sandbox.clear_sandbox()?;

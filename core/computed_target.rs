@@ -122,6 +122,19 @@ impl ComputedTarget {
         })
     }
 
+    pub fn transitive_deps(&self, dep_graph: &DepGraph) -> Vec<Dependency> {
+        let mut deps = vec![];
+
+        for dep in self.deps.as_ref().unwrap() {
+            let node = dep_graph.find_node(&dep.label).unwrap();
+            deps.push(dep.clone());
+            let mut dep_deps = node.transitive_deps(&dep_graph);
+            deps.append(&mut dep_deps);
+        }
+
+        deps
+    }
+
     pub fn actions(&self) -> Vec<Action> {
         self.actions.clone().unwrap_or_else(|| {
             panic!(

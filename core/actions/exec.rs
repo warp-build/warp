@@ -1,6 +1,8 @@
 use anyhow::*;
 use log::*;
 use std::collections::HashMap;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -31,6 +33,11 @@ impl ExecAction {
             .context(format!("Could not spawn {:?}", self.cmd))?;
 
         trace!("Got status code: {}", output.status.code().unwrap());
+
+        BufReader::new(&*output.stdout)
+            .lines()
+            .filter_map(|line| line.ok())
+            .for_each(|line| println!("{}", line));
 
         if output.status.success() {
             Ok(())

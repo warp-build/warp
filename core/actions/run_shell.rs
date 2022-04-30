@@ -1,6 +1,8 @@
 use anyhow::*;
 use log::*;
 use std::collections::HashMap;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::io::Write;
 use std::process::{Command, Stdio};
 
@@ -19,13 +21,18 @@ impl RunShellAction {
             .stdout(Stdio::piped())
             .args(&[ "-c", self.script.as_str() ]);
 
-        trace!("Running script: {:#?} {:#?}", &self.env, &cmd);
+        trace!("Running script: {:#?} {}", &self.env, &self.script);
 
         let output = cmd
             .output()
             .context("Could not spawn bash")?;
 
         trace!("Got status code: {}", output.status.code().unwrap());
+
+        BufReader::new(&*output.stdout)
+            .lines()
+            .filter_map(|line| line.ok())
+            .for_each(|line| println!("{}", line));
 
         if output.status.success() {
             Ok(())

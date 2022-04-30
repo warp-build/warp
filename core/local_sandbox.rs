@@ -206,11 +206,11 @@ impl<'a> LocalSandbox<'a> {
         Ok(current_dir)
     }
 
-    fn copy_dependences(&mut self, build_cache: &LocalCache) -> Result<(), anyhow::Error> {
+    fn copy_dependences(&mut self, build_cache: &LocalCache, dep_graph: &DepGraph) -> Result<(), anyhow::Error> {
         // copy all the direct dependency outputs
         let deps: Vec<(PathBuf, PathBuf)> = self
             .node
-            .deps()
+            .transitive_deps(&dep_graph)
             .iter()
             .flat_map(|dep| {
                 let outs: Vec<(PathBuf, PathBuf)> = dep
@@ -356,12 +356,12 @@ impl<'a> LocalSandbox<'a> {
     /// Run a build rule within a sandboxed environment.
     ///
     /// NOTE(@ostera): wouldn't this be nice as a free monad?
-    pub fn run(&mut self, build_cache: &LocalCache) -> Result<ValidationStatus, anyhow::Error> {
+    pub fn run(&mut self, build_cache: &LocalCache, dep_graph: &DepGraph) -> Result<ValidationStatus, anyhow::Error> {
         self.ensure_outputs_are_safe()?;
 
         let working_directory = self.prepare_sandbox_dir()?;
 
-        self.copy_dependences(&build_cache)?;
+        self.copy_dependences(&build_cache, &dep_graph)?;
 
         self.copy_inputs()?;
 
