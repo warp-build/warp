@@ -1,0 +1,40 @@
+[workspace]
+name = "zap-cloud"
+
+[toolchains.gleam]
+archive_url = "https://github.com/gleam-lang/gleam/archive/refs/tags/v0.21.0.tar.gz"
+checksum = "b185a2da6bc1d3575a48e528a2acadd971563dd0"
+strip_prefix = "gleam-0.21.0"
+
+[toolchains.erlang]
+archive_url = "https://github.com/erlang/otp/archive/OTP-25.0-rc3.tar.gz"
+checksum = "56ebb6c46ba551f0414e2c999fbbf73802f98e95"
+strip_prefix = "otp-OTP-25.0-rc3"
+
+[toolchains.elixir]
+archive_url = "https://github.com/elixir-lang/elixir/archive/refs/tags/v1.13.4.tar.gz"
+checksum = "d0269a1bd2e5256a1842b5b201649e9a39227bb2"
+strip_prefix = "elixir-1.13.4"
+
+[dependencies.hexpm]
+certifi = { version = "2.9.0", checksum = "266DA46BDB06D6C6D35FDE799BCB28D36D985D424AD7C08B5BB48F5B5CDD4641" }
+elli = { version = "3.3.0", checksum = "698B13B33D05661DB9FE7EFCBA41B84825A379CCE86E486CF6AFF9285BE0CCF8" }
+gleam_erlang = { version = "0.9.0", checksum = "E5AF86B3EC852CE14058D14A1A17CC73344651B4DE2D99FA1D4E907E9F2D1D19" }
+gleam_hackney = { version = "0.2.0", checksum = "560B3577E24F4105BB0EFEC24BB97E7CD8F1F4C8AA62A3AAC8FA6226F35DE8E4" }
+gleam_http = { version = "3.0.0", checksum = "FB65B42C7AF4C14F1DC0AD9A3ABCE50E9486D3F8D0A42C9E52A2B8BD651739DF" }
+gleam_otp = { version = "0.3.1",  checksum = "9F779074D0CD3760E280E24247BA17FC673D654234D56B3A8F187DC8FDE299B7" }
+gleam_stdlib = { version = "0.19.3", checksum = "CA579C2FF0621E93FF6EFEF61BAFFCF0505732BA073F616E28878042F1A1F401" }
+gleeunit = { version = "0.6.1", outer_checksum = "5BF486C3E135B7F5ED8C054925FC48E5B2C79016A39F416FD8CF2E860520EE55" }
+hackney = { version = "1.18.1", checksum = "A4ECDAFF44297E9B5894AE499E9A070EA1888C84AFDD1FD9B7B2BC384950128E" }
+idna = { version = "6.1.1", checksum = "92376EB7894412ED19AC475E4A86F7B413C1B9FBB5BD16DCCD57934157944CEA" }
+metrics = { version = "1.0.1", checksum = "69B09ADDDC4F74A40716AE54D140F93BEB0FB8978D8636EADED0C31B6F099F16" }
+mimerl = { version = "1.2.0", checksum = "F278585650AA581986264638EBF698F8BB19DF297F66AD91B18910DFC6E19323" }
+parse_trans = { version = "3.3.1", checksum = "07CD9577885F56362D414E8C4C4E6BDF10D43A8767ABB92D24CBE8B24C54888B" }
+plug = { version = "~> 2.0", checksum = "..." }
+plug_cowboy = { version = "~> 2.0", checksum = "..." }
+ssl_verify_fun = { version = "1.1.6", rce = "hex", checksum = "BDB0D2471F453C88FF3908E7686F86F9BE327D065CC1EC16FA4540197EA04680" }
+unicode_util_compat = { version = "0.7.0", checksum = "25EEE6D67DF61960CF6A794239566599B09E17E668D3700247BC498638152521" }
+
+
+[dependencies.npm]
+rescript = "~> 9.1"
