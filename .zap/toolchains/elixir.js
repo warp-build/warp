@@ -19,6 +19,7 @@ const impl = ctx => {
   const IEX = File.join(binRoot, "iex");
   const MIX = File.join(binRoot, "mix");
   ctx.provides({ ELIXIR, ELIXIRC, IEX, MIX });
+  ctx.action().declareOutputs([]);
 };
 
 export default Zap.Toolchain({
