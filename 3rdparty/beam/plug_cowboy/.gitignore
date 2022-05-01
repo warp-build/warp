@@ -1,0 +1,7 @@
+/_build
+/deps
+/docs
+/doc
+erl_crash.dump
+*.ez
+/test/fixtures/ssl/

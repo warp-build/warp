@@ -1,0 +1,7 @@
+[[mix_library]]
+name = "plug_cowboy"
+deps = [
+  "//3rdparty/beam/plug:plug",
+  "//3rdparty/beam/cowboy:cowboy",
+  "//3rdparty/beam/cowboy_telemetry:cowboy_telemetry",
+]

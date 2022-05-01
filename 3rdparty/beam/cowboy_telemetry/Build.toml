@@ -1,0 +1,6 @@
+[[mix_library]]
+name = "cowboy_telemetry"
+deps = [
+  "//3rdparty/beam/telemetry:telemetry"
+]
+

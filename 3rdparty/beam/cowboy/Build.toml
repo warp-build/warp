@@ -1,0 +1,6 @@
+[[erlangmk_library]]
+name = "cowboy"
+deps = [
+  "//3rdparty/beam/cowlib:cowlib",
+  "//3rdparty/beam/ranch:ranch"
+]
