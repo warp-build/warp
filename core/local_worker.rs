@@ -91,6 +91,20 @@ impl LocalWorker {
         Ok(())
     }
 
+    pub async fn compute_node(&mut self) -> Result<ComputedTarget, anyhow::Error> {
+        let mut walker = self.dep_graph.walk();
+
+        let mut return_node = None;
+        while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
+            let target = self.dep_graph.get(idx);
+            let sealed_target = self.rule_exec_env.compute_target(target, &self.dep_graph)?;
+            self.dep_graph.put(idx, sealed_target.clone());
+            return_node = Some(sealed_target)
+        }
+
+        Ok(return_node.unwrap())
+    }
+
     pub async fn execute(&mut self) -> Result<u32, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 
@@ -98,9 +112,7 @@ impl LocalWorker {
 
         while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
             let target = self.dep_graph.get(idx);
-            let sealed_target = self
-                .rule_exec_env
-                .compute_target(target, &self.dep_graph)?;
+            let sealed_target = self.rule_exec_env.compute_target(target, &self.dep_graph)?;
             let node = &self.dep_graph.put(idx, sealed_target);
 
             let name = node.label().clone();

@@ -71,41 +71,42 @@ impl Zap {
 
 #[derive(StructOpt, Debug, Clone)]
 enum Goal {
-    Build(BuildGoal),
     // Cache(CacheGoal),
     // DepGraph(DepGraphGoal),
-    // Rules(RulesGoal),
-    // Targets(TargetGoal),
-    // Toolchains(ToolchainGoal),
-    // Workspace(WorkspaceGoal),
-    // Clean(CleanGoal),
     // Deps(DepsGoal),
     // Fmt(FmtGoal),
     // Lift(LiftGoal),
     // New(NewGoal),
     // Query(QueryGoal),
-    Run(RunGoal),
+    // Rules(RulesGoal),
     // Test(TestGoal),
+    // Toolchains(ToolchainGoal),
+    // Workspace(WorkspaceGoal),
+    Build(BuildGoal),
+    Clean(CleanGoal),
+    Info(InfoGoal),
+    Run(RunGoal),
 }
 
 impl Goal {
     async fn run(self, workspace: Workspace) -> Result<(), anyhow::Error> {
         match self {
-            Goal::Build(x) => x.run(workspace).await,
             // Goal::Cache(x) => x.run(config).await,
             // Goal::DepGraph(x) => x.run(config).await,
-            // Goal::Rules(x) => x.run(config).await,
-            // Goal::Targets(x) => x.run(config).await,
-            // Goal::Toolchains(x) => x.run(config).await,
-            // Goal::Workspace(x) => x.run(config).await,
-            // Goal::Clean(x) => x.run(),
             // Goal::Deps(x) => x.run(),
             // Goal::Fmt(x) => x.run(),
             // Goal::Lift(x) => x.run(),
             // Goal::New(x) => x.run(),
             // Goal::Query(x) => x.run(),
-            Goal::Run(x) => x.run(workspace).await,
+            // Goal::Rules(x) => x.run(config).await,
+            // Goal::Targets(x) => x.run(config).await,
             // Goal::Test(x) => x.run(),
+            // Goal::Toolchains(x) => x.run(config).await,
+            // Goal::Workspace(x) => x.run(config).await,
+            Goal::Build(x) => x.run(workspace).await,
+            Goal::Clean(x) => x.run(workspace).await,
+            Goal::Info(x) => x.run(workspace).await,
+            Goal::Run(x) => x.run(workspace).await,
         }
     }
 }

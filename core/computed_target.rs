@@ -1,5 +1,6 @@
 use super::*;
 use anyhow::{anyhow, Context};
+use std::collections::HashSet;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use log::*;
@@ -123,13 +124,18 @@ impl ComputedTarget {
     }
 
     pub fn transitive_deps(&self, dep_graph: &DepGraph) -> Vec<Dependency> {
+        trace!("Getting deps for {}: {:?}", &self.label().to_string(), &self.deps);
+
         let mut deps = vec![];
 
-        for dep in self.deps.as_ref().unwrap() {
-            let node = dep_graph.find_node(&dep.label).unwrap();
-            deps.push(dep.clone());
-            let mut dep_deps = node.transitive_deps(&dep_graph);
-            deps.append(&mut dep_deps);
+        if let Some(this_deps) = &self.deps {
+            for dep in this_deps {
+                let node = dep_graph.find_node(&dep.label).unwrap();
+                trace!("Getting transitive deps for {}: {:?}", &node.label().to_string(), &node.deps);
+                deps.push(dep.clone());
+                let mut dep_deps = node.transitive_deps(&dep_graph);
+                deps.append(&mut dep_deps);
+            }
         }
 
         deps
@@ -221,23 +227,34 @@ impl ComputedTarget {
         let name = self.target.label();
         hasher.input_str(&name.to_string());
 
+        let mut seeds: HashSet<String> = HashSet::new();
+
         for d in self.deps.as_ref().unwrap() {
-            hasher.input_str(&d.hash);
+            seeds.insert(d.hash.clone());
         }
 
         for src_path in self.srcs.as_ref().unwrap() {
             let contents = fs::read_to_string(&src_path)
                 .unwrap_or_else(|_| panic!("Truly expected {:?} to be a readable file. Was it changed since the build started?", src_path));
+            let mut hasher = Sha1::new();
             hasher.input_str(&contents);
+            seeds.insert(hasher.result_str());
         }
 
         for o in self.outs.as_ref().unwrap() {
-            hasher.input_str(o.to_str().unwrap());
+            seeds.insert(o.to_str().unwrap().to_string());
         }
 
         for a in self.actions.as_ref().unwrap() {
             // TODO(@ostera): implement Hash for Action
-            hasher.input_str(&format!("{:?}", a));
+            seeds.insert(format!("{:?}", a));
+        }
+
+        let mut sorted_seeds: Vec<String> = seeds.iter().cloned().collect();
+        sorted_seeds.sort();
+
+        for seed in sorted_seeds {
+            hasher.input_str(&seed);
         }
 
         let hash = hasher.result_str();

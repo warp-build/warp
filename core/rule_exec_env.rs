@@ -384,9 +384,45 @@ impl RuleExecEnv {
 
         let config: serde_json::Value = computed_target.target.config().clone().into();
 
-        let deps = computed_target.transitive_deps(&dep_graph).clone();
+        let deps: serde_json::Value = serde_json::Value::Array(
+            computed_target
+                .deps()
+                .iter()
+                .map(|dep| {
+                    let mut map = serde_json::Map::new();
+                    map.insert(
+                        "name".to_string(),
+                        serde_json::Value::String(dep.label.name().to_string()),
+                    );
+                    map.insert(
+                        "label".to_string(),
+                        serde_json::Value::String(dep.label.to_string()),
+                    );
+                    map.insert(
+                        "srcs".to_string(),
+                        serde_json::Value::Array(
+                            dep.srcs
+                                .iter()
+                                .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
+                                .collect(),
+                        ),
+                    );
+                    map.insert(
+                        "outs".to_string(),
+                        serde_json::Value::Array(
+                            dep.outs
+                                .iter()
+                                .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
+                                .collect(),
+                        ),
+                    );
+                    serde_json::Value::Object(map)
+                })
+                .collect(),
+        );
         let transitive_deps: serde_json::Value = serde_json::Value::Array(
-            deps
+            computed_target
+                .transitive_deps(&dep_graph)
                 .iter()
                 .map(|dep| {
                     let mut map = serde_json::Map::new();
@@ -424,6 +460,7 @@ impl RuleExecEnv {
             .replace("{LABEL_NAME}", &label.to_string())
             .replace("{RULE_NAME}", computed_target.target.rule().name())
             .replace("{CONFIG}", &config.to_string())
+            .replace("{DEPS}", &deps.to_string())
             .replace("{TRANSITIVE_DEPS}", &transitive_deps.to_string());
 
         trace!("Executing: {}", &compute_program);
@@ -458,7 +495,7 @@ impl RuleExecEnv {
             vec![]
         };
 
-        computed_target.deps = Some(computed_target.deps.unwrap().to_vec());
+        computed_target.deps = Some(computed_target.deps.unwrap_or(vec![]).to_vec());
         computed_target.srcs = Some(srcs);
         computed_target.outs = Some(outs);
         computed_target.actions = Some(actions);

@@ -1,4 +1,4 @@
-use super::{ComputedTarget, Label, LocalSandbox, Workspace};
+use super::*;
 use anyhow::Context;
 use log::*;
 use std::collections::HashMap;
@@ -10,7 +10,6 @@ use std::path::PathBuf;
 #[derive(Debug, Clone)]
 pub struct LocalCache {
     root: PathBuf,
-    memcache: HashMap<String, Label>,
 }
 
 #[derive(Debug, Clone)]
@@ -24,14 +23,12 @@ impl LocalCache {
     pub fn new(workspace: &Workspace) -> LocalCache {
         LocalCache {
             root: workspace.paths.global_cache_root.clone(),
-            memcache: HashMap::<String, Label>::new(),
         }
     }
 
     pub fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
         let node = sandbox.node();
         let hash = node.hash();
-        self.memcache.insert(hash.clone(), node.label().clone());
         let cache_path = self.root.join(&hash);
 
         debug!(
@@ -144,5 +141,18 @@ impl LocalCache {
 
         debug!("No cache hit for {}", node.label().to_string());
         Ok(CacheHitType::Miss)
+    }
+
+    pub fn evict(&mut self, node: &ComputedTarget) -> Result<(), anyhow::Error> {
+        let hash = node.hash();
+
+        let hash_path = self.root.join(&hash);
+        debug!("Checking if {:?} is in the cache...", &hash_path);
+        if std::fs::metadata(&hash_path).is_ok() {
+            trace!("Found it, removing...");
+            std::fs::remove_dir_all(&hash_path)?;
+        }
+        trace!("Cleaned from cache: {:?}", &hash_path);
+        Ok(())
     }
 }

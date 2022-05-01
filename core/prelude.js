@@ -65,6 +65,7 @@ Zap.Targets.compute = target => {
 
   const ctx = {
     cfg: () => config,
+    deps: () => target.deps,
     transitiveDeps: () => target.transitiveDeps,
 
     provides: outs => {
