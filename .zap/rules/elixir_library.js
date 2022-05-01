@@ -50,8 +50,9 @@ const impl = ctx => {
 
 ${ELIXIRC} \
   ${elixirc_opts.join(" ")} \
+  -o ${Label.path(label)} \
   ${srcs.join(" ")} \
-  $(${ELIXIRC.replace("elixirc","elixir")} /Users/ostera/repos/github.com/AbstractMachinesLab/zap-cloud/tools/elixirdep/elixirdep.ex -- ${require.join(" ")} | xargs)
+  $(${ELIXIR} /Users/ostera/repos/github.com/AbstractMachinesLab/zap-cloud/tools/elixirdep/elixirdep.ex -- ${require.join(" ")} | xargs)
 `
   });
 };
