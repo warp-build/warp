@@ -1,11 +1,6 @@
 [workspace]
 name = "zap-cloud"
 
-[toolchains.gleam]
-archive_url = "https://github.com/gleam-lang/gleam/archive/refs/tags/v0.21.0.tar.gz"
-checksum = "b185a2da6bc1d3575a48e528a2acadd971563dd0"
-strip_prefix = "gleam-0.21.0"
-
 [toolchains.rescript]
 archive_url = "https://github.com/rescript-lang/rescript-compiler/archive/refs/tags/9.1.4.tar.gz"
 checksum = "d5279f085d19a2234d2024080ad90bf69a09ab66"
