@@ -1,0 +1,10 @@
+[[elixir_library]]
+name = "lib"
+deps = [
+]
+
+[[elixir_application]]
+name = "zap_rbe"
+mod = "Api.BuildScheduler.Application"
+apps = [ "kernel", "stdlib" ]
+deps = [ ":lib" ]
