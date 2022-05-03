@@ -32,6 +32,8 @@ Next up, I'll be building the actual API used to receive Github Webhooks. Not
 sure what that's gonna look like, but for the time being it'll just be a little
 Elixir+Plug.
 
+Sometime this week Zap Cloud will be building itself with Zap Cloud.
+
 # Mon Apr 25 01:18:42 CEST 2022
 
 Managed to get the thing up and running.
