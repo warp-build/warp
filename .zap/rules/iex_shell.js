@@ -1,5 +1,5 @@
 import {TAR_EXT} from "../rules/archive.js";
-import ElixirToolchain from "../toolchains/elixir.js";
+import ElixirToolchain, {BEAM_EXT} from "../toolchains/elixir.js";
 
 const impl = ctx => {
   const { label, name, srcs, deps, dot_iex, elixirc_opts} = ctx.cfg();
@@ -7,6 +7,14 @@ const impl = ctx => {
   const { IEX } = ElixirToolchain.provides()
 
   const transitiveDeps = ctx.transitiveDeps()
+
+  const extraPaths = transitiveDeps
+    .flatMap(dep => [
+      `${Label.path(dep.label)}/_build/dev/lib/${Label.name(dep.label)}/ebin`,
+      ...dep.outs.filter(out => out.endsWith(BEAM_EXT)) .map(path => File.parent(path)),
+    ])
+    .flatMap(path => ["-pa", path])
+    .join(" ")
 
   transitiveDeps.forEach(dep => {
     dep.outs.forEach(out => {
@@ -27,12 +35,10 @@ const impl = ctx => {
     dst: run,
     data: `#!/bin/bash -e
 
-# echo $(pwd)
-# tree -L 9 -C .
-
 ${IEX} \
   --dot-iex ${dot_iex} \
-  $(find . -name "ebin" -type d | sort -u | sed 's/\\(.*\\)/-pa \\1/' | xargs)
+  ${extraPaths}
+  
 `,
   })
   ctx.action().runShell({

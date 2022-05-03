@@ -10,11 +10,14 @@ const impl = ctx => {
   } = ctx.cfg();
 
   if (archiveKind === "source") {
-    ctx.action().exec({
-      cmd: File.join(unarchivedRoot, "otp_build"),
-      args: ["all"],
-      cwd: unarchivedRoot
-    });
+    ctx.action().runShell({
+      script: `#!/bin/bash -e
+
+      cd ${unarchivedRoot}
+      ./configure
+      ./otp_build all
+
+    `});
   }
 
   const binRoot = File.join(unarchivedRoot, "bin");

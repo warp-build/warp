@@ -1,5 +1,6 @@
 import {TAR_EXT} from "../rules/archive.js";
-import ElixirToolchain, {BEAM_EXT, EX_EXT} from "../toolchains/elixir.js";
+import ElixirToolchain, {EX_EXT} from "../toolchains/elixir.js";
+import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
 
 const impl = ctx => {
   const { label, name, deps, srcs, elixirc_opts} = ctx.cfg();
@@ -8,14 +9,9 @@ const impl = ctx => {
   const prefix = Label.path(label)
   const relativeRoot = prefix.split('/').map(_ => `..`).join("/")
 
-  // NOTE(@ostera): since most elixir libraries are built around their root
-  // mix.exs, we gotta make sure our paths are relative to that too. Here we do
-  // this by dropping the absolute prefix of the label form every source path.
-  // This means that for the library `//my/app:lib` with one source file
-  // `hello.ex`, the full source path will be `//my/app/hello.ex` and the the
-  // prefix will be `//my/lib/`. We want the source path to be just
-  // `./hello.ex` then.
-
+  // NOTE(@ostera): we are enforcing some naming conventions here, and 1 module
+  // per .ex file. We could also just request a list of module names that are
+  // being defined.
   const outputs = srcs
     .map(label => {
       let modName = label
@@ -25,7 +21,7 @@ const impl = ctx => {
         .join(".")
       return File.join(prefix, File.withExtension(`Elixir.${modName}`, BEAM_EXT))
     });
-  ctx.action().declareOutputs(outputs);
+  ctx.action().declareOutputs([...outputs, ...srcs]);
 
   const transitiveDeps = ctx.transitiveDeps()
   transitiveDeps.forEach(dep => {
@@ -40,19 +36,23 @@ const impl = ctx => {
     })
   });
 
-  const require = transitiveDeps
-    .flatMap(dep => dep.srcs)
-    .filter(src => src.endsWith(EX_EXT))
+  const extraPaths = transitiveDeps
+    .flatMap(dep => [
+      `${Label.path(dep.label)}/_build/dev/lib/${Label.name(dep.label)}/ebin`,
+      ...dep.outs.filter(out => out.endsWith(BEAM_EXT)) .map(path => File.parent(path)),
+    ])
+    .flatMap(path => ["-pa", path])
+    .join(" ")
 
   const { ELIXIR, ELIXIRC } = ElixirToolchain.provides()
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
 ${ELIXIRC} \
+  ${extraPaths} \
   ${elixirc_opts.join(" ")} \
   -o ${Label.path(label)} \
-  ${srcs.join(" ")} \
-  $(${ELIXIR} /Users/ostera/repos/github.com/AbstractMachinesLab/zap-cloud/tools/elixirdep/elixirdep.ex -- ${require.join(" ")} | xargs)
+  ${srcs.join(" ")}
 `
   });
 };
@@ -72,5 +72,5 @@ export default Zap.Rule({
 		deps: [],
     elixirc_opts: [ "--warnings-as-errors" ],
 	},
-  toolchains: [ElixirToolchain]
+  toolchains: [ElixirToolchain, ErlangToolchain]
 });

@@ -1,15 +1,12 @@
-import ElixirToolchain, {BEAM_EXT} from "../toolchains/elixir.js";
+import ElixirToolchain from "../toolchains/elixir.js";
+import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
 
 const impl = ctx => {
   const { label, name, deps, srcs, } = ctx.cfg();
   const cwd = Label.path(label)
 
-  const srcTarball = `${name}.src.tar`
   const appTarball = `${name}.app.tar`
-  const outputs = [
-    `${cwd}/${srcTarball}`,
-    `${cwd}/${appTarball}`,
-    ]
+  const outputs = [ `${cwd}/${appTarball}` ]
   ctx.action().declareOutputs(outputs);
 
   const { MIX } = ElixirToolchain.provides()
@@ -17,8 +14,7 @@ const impl = ctx => {
     script: `#!/bin/bash -xe
 
 cd ${cwd}
-tar cf ${srcTarball} . \
-&& ${MIX} deps.get \
+${MIX} deps.get \
 && ${MIX} compile \
 && tar cf ${appTarball} _build/dev/lib/${name}
 
@@ -50,6 +46,6 @@ export default Zap.Rule({
     ],
     deps: [],
 	},
-  toolchains: [ElixirToolchain]
+  toolchains: [ElixirToolchain, ErlangToolchain]
 });
 

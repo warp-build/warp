@@ -4,14 +4,14 @@ const impl = ctx => {
   const { unarchivedRoot, archiveKind } = ctx.cfg();
 
   let binRoot = unarchivedRoot
-  if (archiveKind === "source") {
-    ctx.action().exec({
-      cmd: "make",
-      args: ["build"],
-      cwd: unarchivedRoot
-    });
-    binRoot = File.join(File.join(unarchivedRoot, "target"), "release")
-  }
+  // if (archiveKind === "source") {
+  //   ctx.action().exec({
+  //     cmd: "make",
+  //     args: ["build"],
+  //     cwd: unarchivedRoot
+  //   });
+  //   binRoot = File.join(File.join(unarchivedRoot, "target"), "release")
+  // }
 
   const GLEAM = File.join(binRoot, "gleam");
   ctx.provides({ GLEAM });
