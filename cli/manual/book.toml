@@ -1,0 +1,21 @@
+[book]
+title = "⚡ Zap Manual"
+description = "⚡ Zap is a build system built for the modern polyglot teams."
+
+language = "en"
+multilingual = false
+
+authors = ["Leandro Ostera"]
+
+src = "src"
+
+[output.html]
+cname = "zap.build"
+google-analytics = "G-JXXV25JQD2"
+
+default-theme = "light"
+preferred-dark-theme = "ayu"
+
+git-repository-url = "https://github.com/AbstractMachinesLab/zap"
+git-repository-icon = "fa-github"
+

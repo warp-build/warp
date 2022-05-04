@@ -1,0 +1,9 @@
+# vim: ft=toml
+
+[[erlang_library]]
+name = "lib"
+
+[[archive]]
+name = "mathlib"
+srcs = []
+deps = [ ":lib" ]
