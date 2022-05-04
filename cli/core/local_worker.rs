@@ -91,21 +91,29 @@ impl LocalWorker {
         Ok(())
     }
 
-    pub async fn compute_node(&mut self) -> Result<ComputedTarget, anyhow::Error> {
+    pub async fn compute_nodes(&mut self) -> Result<Vec<ComputedTarget>, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 
-        let mut return_node = None;
+        let mut nodes = vec![];
         while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
             let target = self.dep_graph.get(idx);
             let sealed_target = self.rule_exec_env.compute_target(target, &self.dep_graph)?;
             self.dep_graph.put(idx, sealed_target.clone());
-            return_node = Some(sealed_target)
+            nodes.push(sealed_target);
         }
 
-        Ok(return_node.unwrap())
+        Ok(nodes)
     }
 
-    pub async fn execute(&mut self) -> Result<u32, anyhow::Error> {
+    pub async fn run(&mut self) -> Result<u32, anyhow::Error> {
+        self.execute(ExecutionMode::BuildAndRun).await
+    }
+
+    pub async fn build(&mut self) -> Result<u32, anyhow::Error> {
+        self.execute(ExecutionMode::OnlyBuild).await
+    }
+
+    pub async fn execute(&mut self, mode: ExecutionMode) -> Result<u32, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 
         let mut targets = 0;
@@ -126,10 +134,16 @@ impl LocalWorker {
                     continue;
                 }
                 CacheHitType::Local => {
-                    debug!("Skipping {}, but promoting outputs.", name.to_string());
-                    self.cache
-                        .promote_outputs(&node, &self.workspace.paths.local_outputs_root)?;
-                    continue;
+                    if node.target.kind() == TargetKind::Runnable
+                        && mode == ExecutionMode::BuildAndRun
+                    {
+                        debug!("Skipping {}, we're in running mode.", name.to_string());
+                    } else {
+                        debug!("Skipping {}, but promoting outputs.", name.to_string());
+                        self.cache
+                            .promote_outputs(&node, &self.workspace.paths.local_outputs_root)?;
+                        continue;
+                    }
                 }
                 CacheHitType::Miss => {
                     debug!("Cache miss! Proceeding to build...");
@@ -138,7 +152,7 @@ impl LocalWorker {
 
             let result = if node.target.is_local() {
                 let mut sandbox = LocalSandbox::for_node(&self.workspace, &node);
-                match sandbox.run(&self.cache, &self.dep_graph)? {
+                match sandbox.run(&self.cache, &self.dep_graph, mode)? {
                     ValidationStatus::Valid => {
                         self.cache.save(&sandbox)?;
                         sandbox.clear_sandbox()?;
@@ -171,6 +185,7 @@ impl LocalWorker {
                 node.execute(
                     &self.workspace.paths.global_archive_root,
                     &self.workspace.paths.global_cache_root,
+                    ExecutionMode::OnlyBuild,
                 )
             };
 

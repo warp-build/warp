@@ -54,7 +54,7 @@ impl Label {
         let name = name.replace("\"", "");
 
         let is_wildcard = name.starts_with("//") && name.ends_with("...");
-        let is_abs_name = name.starts_with("//") && name.contains(COLON);
+        let is_abs_name = name.starts_with("//");
 
         if is_wildcard {
             return Label::Wildcard;
@@ -62,6 +62,13 @@ impl Label {
 
         if is_abs_name {
             let parts: Vec<&str> = name.split(COLON).collect();
+            if parts.len() == 1 {
+                let path = PathBuf::from(name.strip_prefix("//").unwrap());
+                return Label::Absolute {
+                    name: path.file_name().unwrap().to_str().unwrap().to_string(),
+                    path: path,
+                };
+            }
             return Label::Absolute {
                 path: PathBuf::from(parts[0].strip_prefix("//").unwrap()),
                 name: parts[1].to_string(),

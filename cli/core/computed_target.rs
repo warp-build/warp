@@ -1,9 +1,9 @@
 use super::*;
 use anyhow::{anyhow, Context};
-use std::collections::HashSet;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use log::*;
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -124,14 +124,22 @@ impl ComputedTarget {
     }
 
     pub fn transitive_deps(&self, dep_graph: &DepGraph) -> Vec<Dependency> {
-        trace!("Getting deps for {}: {:?}", &self.label().to_string(), &self.deps);
+        trace!(
+            "Getting deps for {}: {:?}",
+            &self.label().to_string(),
+            &self.deps
+        );
 
         let mut deps = vec![];
 
         if let Some(this_deps) = &self.deps {
             for dep in this_deps {
                 let node = dep_graph.find_node(&dep.label).unwrap();
-                trace!("Getting transitive deps for {}: {:?}", &node.label().to_string(), &node.deps);
+                trace!(
+                    "Getting transitive deps for {}: {:?}",
+                    &node.label().to_string(),
+                    &node.deps
+                );
                 deps.push(dep.clone());
                 let mut dep_deps = node.transitive_deps(&dep_graph);
                 deps.append(&mut dep_deps);
@@ -154,6 +162,7 @@ impl ComputedTarget {
         &self,
         archive_root: &PathBuf,
         cache_root: &PathBuf,
+        mode: ExecutionMode,
     ) -> Result<(), anyhow::Error> {
         trace!(
             "Executing {:?} target {}...",
@@ -182,7 +191,7 @@ impl ComputedTarget {
             action.run()?
         }
 
-        if self.target.kind() == TargetKind::Runnable {
+        if self.target.kind() == TargetKind::Runnable && mode == ExecutionMode::BuildAndRun {
             print!("🔨 Running {}...", self.target.label().to_string());
 
             match &self.outs {

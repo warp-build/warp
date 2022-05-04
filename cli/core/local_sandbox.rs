@@ -356,7 +356,7 @@ impl<'a> LocalSandbox<'a> {
     /// Run a build rule within a sandboxed environment.
     ///
     /// NOTE(@ostera): wouldn't this be nice as a free monad?
-    pub fn run(&mut self, build_cache: &LocalCache, dep_graph: &DepGraph) -> Result<ValidationStatus, anyhow::Error> {
+    pub fn run(&mut self, build_cache: &LocalCache, dep_graph: &DepGraph, mode: ExecutionMode) -> Result<ValidationStatus, anyhow::Error> {
         self.ensure_outputs_are_safe()?;
 
         let working_directory = self.prepare_sandbox_dir()?;
@@ -371,9 +371,10 @@ impl<'a> LocalSandbox<'a> {
         self.node.execute(
             &self.workspace.paths.global_archive_root,
             &self.workspace.paths.global_cache_root,
+            mode,
         )?;
 
-        if self.node.target.kind() == TargetKind::Runnable {
+        if self.node.target.kind() == TargetKind::Runnable && mode == ExecutionMode::BuildAndRun {
             return Ok(ValidationStatus::NoOutputs)
         }
 

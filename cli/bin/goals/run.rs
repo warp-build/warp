@@ -40,8 +40,13 @@ impl RunGoal {
         print!("🔨 Building {}...", name);
         std::io::stdout().flush().unwrap();
 
+        if target.is_all() {
+            print!("You can't run everything. Please specify a target like this: zap build //my/app");
+            return Ok(())
+        }
+
         zap.prepare(&target).await?;
-        zap.execute().await?;
+        zap.run().await?;
 
         Ok(())
     }

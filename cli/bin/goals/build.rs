@@ -50,7 +50,7 @@ impl BuildGoal {
         io::stdout().flush().unwrap();
 
         zap.prepare(&target).await?;
-        zap.execute().await?;
+        zap.build().await?;
 
         Ok(())
     }
