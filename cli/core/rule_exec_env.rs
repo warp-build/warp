@@ -52,6 +52,11 @@ pub fn op_label_path(str: String) -> Result<String, AnyError> {
 }
 
 #[op]
+pub fn op_label_name(str: String) -> Result<String, AnyError> {
+    Ok(Label::new(&str).name().to_string())
+}
+
+#[op]
 pub fn op_file_parent(filepath: String) -> Result<String, AnyError> {
     let path = PathBuf::from(filepath);
     let parent = path.parent().unwrap().to_str().unwrap();
@@ -307,6 +312,7 @@ impl RuleExecEnv {
                     op_file_parent::decl(),
                     op_file_with_extension::decl(),
                     op_label_path::decl(),
+                    op_label_name::decl(),
                     op_log::decl(),
                     op_rule_new::decl(),
                     op_toolchain_new::decl(),
@@ -456,12 +462,19 @@ impl RuleExecEnv {
                 })
                 .collect(),
         );
+
+        let platform = {
+            let parts = guess_host_triple::guess_host_triple().unwrap();
+            serde_json::Value::String(parts.to_string())
+        };
+
         let compute_program = include_str!("compute_target.js")
             .replace("{LABEL_NAME}", &label.to_string())
             .replace("{RULE_NAME}", computed_target.target.rule().name())
             .replace("{CONFIG}", &config.to_string())
             .replace("{DEPS}", &deps.to_string())
-            .replace("{TRANSITIVE_DEPS}", &transitive_deps.to_string());
+            .replace("{TRANSITIVE_DEPS}", &transitive_deps.to_string())
+            .replace("{PLATFORM}", &platform.to_string());
 
         trace!("Executing: {}", &compute_program);
 

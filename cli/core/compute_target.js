@@ -5,5 +5,6 @@
     cfg: {CONFIG},
     deps: {DEPS},
     transitiveDeps: {TRANSITIVE_DEPS},
+    platform: {PLATFORM},
   });
 })();

@@ -68,6 +68,12 @@ Zap.Targets.compute = target => {
     deps: () => target.deps,
     transitiveDeps: () => target.transitiveDeps,
 
+    platform: {
+      os: target.platform.endsWith("darwin") ? "darwin" :
+          target.platform.endsWith("linux-gnu") ? "linux" :
+          target.platform.endsWith("win32") ? "win32" : "unknown",
+    },
+
     provides: outs => {
       __PROVIDES[label] = outs;
     },
@@ -185,7 +191,13 @@ File.parent = (path) => ffi("op_file_parent", path);
 File.filename = (path) => ffi("op_file_filename", path);
 File.withExtension = (path, ext) => ffi("op_file_with_extension", {path, ext});
 File.join = (a, b) => `${a}/${b}`
+File.changeRoot = (path, root) => {
+  let parts = path.split("/");
+  parts.shift(1)
+  return `${root}/${parts.join("/")}`
+}
 
 const Label = {};
 
 Label.path = (label) => ffi("op_label_path", label);
+Label.name = (label) => ffi("op_label_name", label);
