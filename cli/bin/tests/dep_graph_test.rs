@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use zap_core::*;
 
+/*
 #[tokio::test]
 async fn it_reads_the_project_from_an_absolute_path() {
     let root = std::fs::canonicalize(PathBuf::from(&"./tests/sample_project")).unwrap();
@@ -112,3 +113,4 @@ async fn build_dependency_graph_from_workspace_and_scope() {
         format!("{:?}", target_names_in_order)
     );
 }
+*/

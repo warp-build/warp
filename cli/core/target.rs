@@ -171,6 +171,7 @@ mod tests {
             vec![],
             ConfigSpec::default(),
             RuleConfig::default(),
+            false,
         );
         let cfg = RuleConfig::default();
         let target = Target::local(label, &rule, cfg);
@@ -186,6 +187,7 @@ mod tests {
             vec![Label::new("dep")],
             ConfigSpec::default(),
             RuleConfig::default(),
+            false,
         );
         let cfg = RuleConfig::default();
         let target = Target::local(label, &rule, cfg);

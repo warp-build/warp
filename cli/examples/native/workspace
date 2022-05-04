@@ -1,4 +1,0 @@
-# vim: ft=toml
-
-[workspace]
-name = "native"
