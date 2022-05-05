@@ -4,7 +4,7 @@ defmodule UUID.Mixfile do
   @version "1.2.1"
 
   def project do
-    [app: :elixir_uuid,
+    [app: :uuid,
      name: "UUID",
      version: @version,
      elixir: "~> 1.7",
@@ -19,14 +19,18 @@ defmodule UUID.Mixfile do
 
   # Application configuration.
   def application do
-    []
+    [
+      extra_applications: [:crypto]
+    ]
   end
 
   # List of dependencies.
   defp deps do
-    [{:ex_doc, "~> 0.19", only: :dev},
-     {:earmark, "~> 1.2", only: :dev},
-     {:benchfella, "~> 0.3", only: :dev}]
+    [
+      # {:ex_doc, "~> 0.19", only: :dev},
+      # {:earmark, "~> 1.2", only: :dev},
+      # {:benchfella, "~> 0.3", only: :dev}
+    ]
   end
 
   # Description.
