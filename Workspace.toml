@@ -34,6 +34,7 @@ plug = { version = "~> 2.0", checksum = "..." }
 plug_cowboy = { version = "~> 2.0", checksum = "..." }
 ssl_verify_fun = { version = "1.1.6", rce = "hex", checksum = "BDB0D2471F453C88FF3908E7686F86F9BE327D065CC1EC16FA4540197EA04680" }
 unicode_util_compat = { version = "0.7.0", checksum = "25EEE6D67DF61960CF6A794239566599B09E17E668D3700247BC498638152521" }
+uuid = { version = "1.2.1" }
 
 
 [dependencies.npm]
