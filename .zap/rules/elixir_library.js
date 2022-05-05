@@ -3,7 +3,7 @@ import ElixirToolchain, {EX_EXT} from "../toolchains/elixir.js";
 import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
 
 const impl = ctx => {
-  const { label, name, deps, srcs, elixirc_opts} = ctx.cfg();
+  const { label, name, deps, srcs, modules, elixirc_opts} = ctx.cfg();
 
 
   const prefix = Label.path(label)
@@ -14,14 +14,24 @@ const impl = ctx => {
   // being defined.
   const outputs = srcs
     .map(label => {
-      let modName = label
+      let [path, ext] = label
         .replace(prefix+"/lib/", "")
-        .split("/")
+        .split(".")
+
+      let modPath = path.split("/")
         .map(part => part[0].toUpperCase() + part.slice(1))
-        .join(".")
+        .map(part => part.split("_").map(word => word[0].toUpperCase() + word.slice(1)).join(""))
+        .reduce((acc, part) => {
+          if (acc.length == 0) { return [part] }
+          if (acc[acc.length - 1 ] == part) { return acc }
+          return acc.concat([part])
+        }, [])
+
+      let modName = modPath.join(".") + `.${ext}`
+
       return File.join(prefix, File.withExtension(`Elixir.${modName}`, BEAM_EXT))
     });
-  ctx.action().declareOutputs([...outputs, ...srcs]);
+  ctx.action().declareOutputs([...outputs]);
 
   const transitiveDeps = ctx.transitiveDeps()
   transitiveDeps.forEach(dep => {

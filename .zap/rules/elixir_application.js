@@ -2,7 +2,7 @@ import ElixirToolchain, {EX_EXT} from "../toolchains/elixir.js";
 import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
 
 const impl = ctx => {
-  const { label, name, mod, apps} = ctx.cfg();
+  const { label, name, app_name, mod, apps} = ctx.cfg();
 
   const ebin = File.join(Label.path(label), "ebin")
 
@@ -15,7 +15,7 @@ const impl = ctx => {
     beams
     .map( out => File.join(ebin, File.filename(out)) )
 
-  const appFile = `${ebin}/${name}.app`
+  const appFile = `${ebin}/${app_name}.app`
 
   ctx.action().declareOutputs([
     ...ebinBeams,
@@ -36,7 +36,7 @@ mv ${beams.join(" ")} ${ebin}
   ctx.action().writeFile({
     dst: appFile,
     data: `
-{application, '${name}', [
+{application, '${app_name}', [
   {description, ""},
   {vsn, "0.0.0"},
   {mod, {'Elixir.${mod}', []}},
@@ -60,6 +60,7 @@ export default Zap.Rule({
   impl,
   cfg: {
     name: label(),
+    app_name: string(),
     deps: [label()],
     mod: string(),
     apps: [string()],
