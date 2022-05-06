@@ -1,0 +1,5 @@
+[[mix_library]]
+name = "joken"
+deps = [
+  "//3rdparty/beam/jose",
+]

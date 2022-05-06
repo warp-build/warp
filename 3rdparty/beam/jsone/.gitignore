@@ -1,0 +1,16 @@
+.eunit
+deps
+*.o
+*.beam
+*.plt
+*.dump
+*.app
+*~
+doc/*
+!doc/overview.edoc
+!doc/*.md
+.rebar
+_build
+.*.sw?
+rebar3.crashdump
+.efmt/

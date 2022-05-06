@@ -1,0 +1,14 @@
+[[erlangmk_library]]
+name = "jose"
+
+[[elixir_library]]
+name = "lib"
+deps = [":jose"]
+modules = [
+  "JOSE",
+  "JOSE.JWA",
+  "JOSE.JWE",
+  "JOSE.JWK",
+  "JOSE.JWS",
+  "JOSE.JWT",
+]
