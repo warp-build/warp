@@ -56,16 +56,19 @@ impl Zap {
             WorkspaceBuilder::build(cwd, self.zap_home.clone(), self.user.clone())?;
 
         let cmd = self.cmd.unwrap_or_else(|| Goal::Build(BuildGoal::all()));
-        match cmd.run(workspace).await {
+        let result = cmd.run(workspace).await;
+
+        match result {
             Ok(()) => (),
-            Err(err) => error!("{:?}", &err),
+            Err(ref err) => error!("{:?}", &err),
         };
 
         let t1 = t0.elapsed().as_millis();
         if !self.quiet {
             println!("\x1B[1000D\x1B[K\r⚡ done in {}ms", t1);
         }
-        Ok(())
+
+        result
     }
 }
 
@@ -113,6 +116,5 @@ impl Goal {
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    Zap::from_args().run().await?;
-    Ok(())
+    Zap::from_args().run().await.map(|_| ())
 }
