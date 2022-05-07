@@ -13,6 +13,7 @@ const impl = ctx => {
       `${Label.path(dep.label)}/_build/dev/lib/${Label.name(dep.label)}/ebin`,
       ...dep.outs.filter(out => out.endsWith(BEAM_EXT)) .map(path => File.parent(path)),
     ])
+    .unique()
     .flatMap(path => ["-pa", path])
     .join(" ")
 
