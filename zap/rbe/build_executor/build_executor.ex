@@ -17,9 +17,7 @@ defmodule Zap.Rbe.BuildExecutor do
       :ok = clone(repo_url, workspace)
     end
 
-    :ok = build(workspace)
-
-    :ok
+    build(workspace)
   end
 
   def workspace_exists?(path) do
@@ -42,8 +40,10 @@ defmodule Zap.Rbe.BuildExecutor do
 
   def build(dir) do
     Logger.info("Running zap on #{dir}")
-    {_, 0} = System.cmd("zap", ["build", "//..."], cd: dir)
-    :ok
+    case System.cmd("zap", ["build", "//..."], cd: dir) do
+      {_, 0} -> :ok
+      {_, code} -> {:error, code}
+    end
   end
 
 end
