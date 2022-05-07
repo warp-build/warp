@@ -12,26 +12,29 @@ const impl = ctx => {
   // NOTE(@ostera): we are enforcing some naming conventions here, and 1 module
   // per .ex file. We could also just request a list of module names that are
   // being defined.
-  const outputs = srcs
-    .map(label => {
-      let [path, ext] = label
-        .replace(prefix+"/lib/", "")
-        .split(".")
+  let outputs = modules.map(name => `${prefix}/Elixir.${name}.beam`)
+  if (outputs.length == 0) {
+    outputs = srcs
+      .map(label => {
+        let [path, ext] = label
+          .replace(prefix+"/lib/", "")
+          .split(".")
 
-      let modPath = path.split("/")
-        .map(part => part[0].toUpperCase() + part.slice(1))
-        .map(part => part.split("_").map(word => word[0].toUpperCase() + word.slice(1)).join(""))
-        .reduce((acc, part) => {
-          if (acc.length == 0) { return [part] }
-          if (acc[acc.length - 1 ] == part) { return acc }
-          return acc.concat([part])
-        }, [])
+        let modPath = path.split("/")
+          .map(part => part[0].toUpperCase() + part.slice(1))
+          .map(part => part.split("_").map(word => word[0].toUpperCase() + word.slice(1)).join(""))
+          .reduce((acc, part) => {
+            if (acc.length == 0) { return [part] }
+            if (acc[acc.length - 1 ] == part) { return acc }
+            return acc.concat([part])
+          }, [])
 
-      let modName = modPath.join(".") + `.${ext}`
+        let modName = modPath.join(".") + `.${ext}`
 
-      return File.join(prefix, File.withExtension(`Elixir.${modName}`, BEAM_EXT))
-    });
-  ctx.action().declareOutputs([...outputs]);
+        return File.join(prefix, File.withExtension(`Elixir.${modName}`, BEAM_EXT))
+      });
+  }
+  ctx.action().declareOutputs(outputs);
 
   const transitiveDeps = ctx.transitiveDeps()
   transitiveDeps.forEach(dep => {
@@ -76,10 +79,12 @@ export default Zap.Rule({
     deps: [label()],
     srcs: [file()],
     elixirc_opts: [string()],
+    modules: [string()]
   },
 	defaults: {
     srcs: [ "*.ex", "lib/**/*.ex" ],
 		deps: [],
+    modules: [],
     elixirc_opts: [ "--warnings-as-errors" ],
 	},
   toolchains: [ElixirToolchain, ErlangToolchain]
