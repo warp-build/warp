@@ -12,7 +12,7 @@ defmodule Zap.Rbe.BuildExecutor do
     workspace = "/tmp/dev.abstractmachines.zap/repositories/#{repo_name}"
 
     if workspace_exists?(workspace) do
-      :ok = fetch(ref)
+      :ok = fetch(ref, workspace)
     else
       :ok = clone(repo_url, workspace)
     end
@@ -32,10 +32,11 @@ defmodule Zap.Rbe.BuildExecutor do
     :ok
   end
 
-  def fetch(ref) do
+  def fetch(ref, workspace) do
     Logger.info("Updating repo to #{ref}")
-    {_, 0} = System.cmd("git", ["fetch", ref])
-    {_, 0} = System.cmd("git", ["reset", "--hard", ref])
+
+    {_, 0} = System.cmd("git", ["fetch", ref], cd: workspace)
+    {_, 0} = System.cmd("git", ["reset", "--hard", ref], cd: workspace)
     :ok
   end
 
