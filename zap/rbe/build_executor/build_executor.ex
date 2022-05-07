@@ -35,7 +35,7 @@ defmodule Zap.Rbe.BuildExecutor do
   def fetch(ref, workspace) do
     Logger.info("Updating repo to #{ref}")
 
-    {_, 0} = System.cmd("git", ["fetch", ref], cd: workspace)
+    {_, 0} = System.cmd("git", ["fetch"], cd: workspace)
     {_, 0} = System.cmd("git", ["reset", "--hard", ref], cd: workspace)
     :ok
   end
