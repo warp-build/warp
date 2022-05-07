@@ -6,7 +6,10 @@ const impl = ctx => {
   const outputs = srcs
     .filter(file => file.endsWith(ERL_EXT))
     .map(erl => {
-      const parent = File.parent(File.parent(erl))
+      let parent = File.parent(File.parent(erl))
+      if (parent.endsWith("src")) {
+        parent = parent.replace(/\/src$/, "")
+      }
       const name = File.withExtension(File.filename(erl), BEAM_EXT)
       return File.join(parent, File.join("ebin", name))
     })
@@ -17,10 +20,10 @@ const impl = ctx => {
   ]);
 
   ctx.action().runShell({
-    script: `#!/bin/bash -xe
+    script: `#!/bin/bash
 
 cd ${Label.path(label)}
-make
+make clean app
 
 `,
   })
