@@ -47,7 +47,9 @@ impl CleanGoal {
 
         if target.is_all() {
             for node in &nodes {
-                cache.evict(&node)?;
+                if node.target.is_local() {
+                    cache.evict(&node)?;
+                }
             }
         } else {
             for node in &nodes {
