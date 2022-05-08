@@ -91,7 +91,7 @@ impl LocalWorker {
         Ok(())
     }
 
-    pub async fn compute_nodes(&mut self) -> Result<Vec<ComputedTarget>, anyhow::Error> {
+    pub fn compute_nodes(&mut self) -> Result<Vec<ComputedTarget>, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 
         let mut nodes = vec![];
@@ -105,15 +105,15 @@ impl LocalWorker {
         Ok(nodes)
     }
 
-    pub async fn run(&mut self) -> Result<u32, anyhow::Error> {
-        self.execute(ExecutionMode::BuildAndRun).await
+    pub fn run(&mut self) -> Result<u32, anyhow::Error> {
+        self.execute(ExecutionMode::BuildAndRun)
     }
 
-    pub async fn build(&mut self) -> Result<u32, anyhow::Error> {
-        self.execute(ExecutionMode::OnlyBuild).await
+    pub fn build(&mut self) -> Result<u32, anyhow::Error> {
+        self.execute(ExecutionMode::OnlyBuild)
     }
 
-    pub async fn execute(&mut self, mode: ExecutionMode) -> Result<u32, anyhow::Error> {
+    pub fn execute(&mut self, mode: ExecutionMode) -> Result<u32, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 
         let mut targets = 0;

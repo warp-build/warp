@@ -46,7 +46,7 @@ impl RunGoal {
         }
 
         zap.prepare(&target).await?;
-        zap.run().await?;
+        zap.run()?;
 
         Ok(())
     }

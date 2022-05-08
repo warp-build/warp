@@ -43,7 +43,7 @@ impl CleanGoal {
 
         zap.prepare(&target).await?;
 
-        let nodes = zap.compute_nodes().await?;
+        let nodes = zap.compute_nodes()?;
 
         if target.is_all() {
             for node in &nodes {
