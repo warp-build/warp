@@ -16,7 +16,7 @@ pub struct CleanGoal {
 NOTE that after cleaning it, we may need to recompile all the dependants of this target.
 
 A path to a directory with a zap file, followed by a colon
-and the name of the label to be built.
+and the name of the label to be cleaned.
 
 Example: //my/library:shell
 ")]
@@ -30,7 +30,7 @@ impl CleanGoal {
         debug!("Target: {}", &target.to_string());
 
         let mut cache = LocalCache::new(&workspace);
-        let mut zap = LocalWorker::from_workspace(workspace);
+        let mut zap = LocalWorker::from_workspace(workspace.clone());
 
         let name = if target.is_all() {
             "workspace".to_string()
@@ -48,12 +48,16 @@ impl CleanGoal {
         if target.is_all() {
             for node in &nodes {
                 if node.target.is_local() {
+                    let sandbox = LocalSandbox::for_node(&workspace, &node);
+                    sandbox.clear_sandbox()?;
                     cache.evict(&node)?;
                 }
             }
         } else {
             for node in &nodes {
                 if *node.target.label() == target {
+                    let sandbox = LocalSandbox::for_node(&workspace, &node);
+                    sandbox.clear_sandbox()?;
                     cache.evict(&node)?;
                 }
             }
