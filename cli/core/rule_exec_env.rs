@@ -1,11 +1,11 @@
 use super::*;
-use anyhow::Context;
 use dashmap::DashMap;
 use deno_core::error::AnyError;
 use deno_core::*;
 use log::*;
 use serde::*;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -13,8 +13,11 @@ use std::sync::RwLock;
 
 static JS_SNAPSHOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/JS_SNAPSHOT.bin"));
 
-mod error {
+pub mod error {
+    use crate::ComputedTargetError;
+    use crate::Label;
     use thiserror::Error;
+
     #[derive(Error, Debug)]
     pub enum LoadError {
         #[error("The module name `{module_name}` is invalid: {reason:?}")]
@@ -25,6 +28,21 @@ mod error {
 
         #[error("The module name `{module_name}` could not be evaluated: {reason:?}")]
         ModuleEvaluationError { module_name: String, reason: String },
+
+        #[error("Something went wrong.")]
+        Unknown,
+    }
+
+    #[derive(Error, Debug)]
+    pub enum RuleExecError {
+        #[error(transparent)]
+        MissingDependencies(ComputedTargetError),
+
+        #[error("Could not find declared outputs for target {label:?}")]
+        MissingDeclaredOutputs { label: Label },
+
+        #[error(transparent)]
+        ExecutionError(anyhow::Error),
 
         #[error("Something went wrong.")]
         Unknown,
@@ -341,6 +359,11 @@ impl RuleExecEnv {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.action_map.clear();
+        self.output_map.clear();
+    }
+
     pub async fn load(
         &mut self,
         module_name: &str,
@@ -383,8 +406,8 @@ impl RuleExecEnv {
     pub fn compute_target(
         &mut self,
         mut computed_target: ComputedTarget,
-        dep_graph: &DepGraph,
-    ) -> Result<ComputedTarget, anyhow::Error> {
+        find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
+    ) -> Result<ComputedTarget, error::RuleExecError> {
         let label = computed_target.target.label().clone();
         trace!("Sealing Computed Target {:?}", label.to_string());
 
@@ -428,7 +451,8 @@ impl RuleExecEnv {
         );
         let transitive_deps: serde_json::Value = serde_json::Value::Array(
             computed_target
-                .transitive_deps(&dep_graph)
+                .transitive_deps(find_node)
+                .map_err(error::RuleExecError::MissingDependencies)?
                 .iter()
                 .map(|dep| {
                     let mut map = serde_json::Map::new();
@@ -478,10 +502,12 @@ impl RuleExecEnv {
 
         trace!("Executing: {}", &compute_program);
 
-        self.runtime.execute_script(
-            &format!("<computed_target: {:?}>", &label.to_string()),
-            &compute_program,
-        )?;
+        self.runtime
+            .execute_script(
+                &format!("<computed_target: {:?}>", &label.to_string()),
+                &compute_program,
+            )
+            .map_err(error::RuleExecError::ExecutionError)?;
 
         let actions = self
             .action_map
@@ -489,36 +515,41 @@ impl RuleExecEnv {
             .map(|entry| entry.value().clone())
             .unwrap_or_default();
 
-        let outs = self
+        let outs: HashSet<PathBuf> = self
             .output_map
             .get(&label)
-            .context(format!(
-                "Could not find declared outputs for target  {:?}  - ",
-                &label.to_string()
-            ))?
-            .clone();
+            .ok_or(error::RuleExecError::MissingDeclaredOutputs {
+                label: label.clone(),
+            })?
+            .iter()
+            .cloned()
+            .collect();
 
-        let srcs = if computed_target.target.is_local() {
+        let srcs: HashSet<PathBuf> = if computed_target.target.is_local() {
             computed_target
                 .target
                 .config()
                 .get_file_lists()
                 .unwrap_or_default()
+                .iter()
+                .cloned()
+                .collect()
         } else {
-            vec![]
+            HashSet::new()
         };
 
-        computed_target.deps = Some(computed_target.deps.unwrap_or(vec![]).to_vec());
+        computed_target.deps = Some(computed_target.deps.unwrap_or(HashSet::new()));
         computed_target.srcs = Some(srcs);
         computed_target.outs = Some(outs);
         computed_target.actions = Some(actions);
 
         computed_target.recompute_hash();
 
-        debug!(
-            "Sealed ComputedTarget {} with Hash {:?}",
+        trace!(
+            "Sealed ComputedTarget {} with Hash {:?}: {:#?}",
             label.to_string(),
-            computed_target.hash.as_ref().unwrap()
+            computed_target.hash.as_ref().unwrap(),
+            &computed_target,
         );
 
         Ok(computed_target)

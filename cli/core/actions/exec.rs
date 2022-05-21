@@ -16,14 +16,16 @@ pub struct ExecAction {
 }
 
 impl ExecAction {
-    pub fn run(self) -> Result<(), anyhow::Error> {
+    pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         let mut cmd = Command::new(&self.cmd);
 
         cmd.envs(&self.env);
 
         cmd.stdout(Stdio::piped()).args(&self.args);
         if let Some(cwd) = self.cwd {
-            cmd.current_dir(cwd);
+            cmd.current_dir(sandbox_root.join(cwd));
+        } else {
+            cmd.current_dir(sandbox_root);
         }
 
         trace!("Executing {:#?} {:#?}", &self.env, &cmd);
@@ -34,10 +36,12 @@ impl ExecAction {
 
         trace!("Got status code: {}", output.status.code().unwrap());
 
+        /*
         BufReader::new(&*output.stdout)
             .lines()
             .filter_map(|line| line.ok())
             .for_each(|line| println!("{}", line));
+        */
 
         if output.status.success() {
             Ok(())

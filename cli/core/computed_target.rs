@@ -8,6 +8,16 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum ComputedTargetError {
+    #[error("The target name `{label:?}` is missing dependencies: {deps:?}")]
+    MissingDependencies { label: Label, deps: Vec<Label> },
+
+    #[error("Something went wrong.")]
+    Unknown,
+}
 
 #[derive(Debug, Clone)]
 pub struct ComputedTarget {
@@ -18,13 +28,13 @@ pub struct ComputedTarget {
     pub hash: Option<String>,
 
     /// The dependencies of this target.
-    pub deps: Option<Vec<Dependency>>,
+    pub deps: Option<HashSet<Dependency>>,
 
     /// The outputs of this node
-    pub outs: Option<Vec<PathBuf>>,
+    pub outs: Option<HashSet<PathBuf>>,
 
     /// The inputs of this node
-    pub srcs: Option<Vec<PathBuf>>,
+    pub srcs: Option<HashSet<PathBuf>>,
 
     /// The actions to reify this target
     pub actions: Option<Vec<Action>>,
@@ -50,6 +60,18 @@ impl Default for ComputeStatus {
 }
 
 impl ComputedTarget {
+    pub fn from_global_target(target: Target) -> ComputedTarget {
+        ComputedTarget {
+            target,
+            status: ComputeStatus::Pending,
+            actions: None,
+            deps: Some(HashSet::new()),
+            hash: None,
+            outs: Some(HashSet::new()),
+            srcs: Some(HashSet::new()),
+        }
+    }
+
     pub fn from_target(target: Target) -> ComputedTarget {
         ComputedTarget {
             target,
@@ -60,6 +82,39 @@ impl ComputedTarget {
             outs: None,
             srcs: None,
         }
+    }
+
+    pub fn from_target_with_deps(
+        target: Target,
+        find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
+    ) -> Result<ComputedTarget, ComputedTargetError> {
+        let mut deps: HashSet<Dependency> = HashSet::new();
+        let mut missing_deps: HashSet<Label> = HashSet::new();
+
+        for dep in target.deps() {
+            if let Some(node) = find_node(dep.clone()) {
+                deps.insert(node.as_dep());
+            } else {
+                missing_deps.insert(dep.clone());
+            }
+        }
+
+        if missing_deps.len() > 0 {
+            return Err(ComputedTargetError::MissingDependencies {
+                label: target.label().clone(),
+                deps: missing_deps.iter().cloned().collect(),
+            });
+        }
+
+        Ok(ComputedTarget {
+            target,
+            status: ComputeStatus::Pending,
+            actions: None,
+            deps: Some(deps),
+            hash: None,
+            outs: None,
+            srcs: None,
+        })
     }
 
     pub fn as_dep(&self) -> Dependency {
@@ -97,56 +152,82 @@ impl ComputedTarget {
     }
 
     pub fn srcs(&self) -> Vec<PathBuf> {
-        self.srcs.clone().unwrap_or_else(|| {
+        let mut srcs: Vec<PathBuf> = self.srcs.as_ref().unwrap_or_else(|| {
             panic!(
                 "ComputedTarget {:?} does not have computed inputs yet!",
                 self.label().to_string()
             )
-        })
+        }).iter().cloned().collect();
+        srcs.sort();
+        srcs
     }
 
     pub fn outs(&self) -> Vec<PathBuf> {
-        self.outs.clone().unwrap_or_else(|| {
+        let mut outs: Vec<PathBuf> = self.outs.as_ref().unwrap_or_else(|| {
             panic!(
                 "ComputedTarget {:?} does not have computed outputs yet!",
                 self.label().to_string()
             )
-        })
+        }).iter().cloned().collect();
+        outs.sort();
+        outs
     }
 
     pub fn deps(&self) -> Vec<Dependency> {
-        self.deps.clone().unwrap_or_else(|| {
+        let mut deps: Vec<Dependency> = self.deps.as_ref().unwrap_or_else(|| {
             panic!(
                 "ComputedTarget {:?} does not have computed dependencies yet!",
                 self.label().to_string()
             )
-        })
+        }).iter().cloned().collect();
+        deps.sort();
+        deps
     }
 
-    pub fn transitive_deps(&self, dep_graph: &DepGraph) -> Vec<Dependency> {
+    pub fn transitive_deps(
+        &self,
+        find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
+    ) -> Result<Vec<Dependency>, ComputedTargetError> {
         trace!(
             "Getting deps for {}: {:?}",
             &self.label().to_string(),
             &self.deps
         );
 
-        let mut deps = vec![];
+        let mut deps: HashSet<Dependency> = HashSet::new();
+        let mut missing_deps: HashSet<Label> = HashSet::new();
 
         if let Some(this_deps) = &self.deps {
             for dep in this_deps {
-                let node = dep_graph.find_node(&dep.label).unwrap();
-                trace!(
-                    "Getting transitive deps for {}: {:?}",
-                    &node.label().to_string(),
-                    &node.deps
-                );
-                deps.push(dep.clone());
-                let mut dep_deps = node.transitive_deps(&dep_graph);
-                deps.append(&mut dep_deps);
+                if let Some(node) = find_node(dep.label.clone()) {
+                    trace!(
+                        "Getting transitive deps for {}: {:?}",
+                        &node.label().to_string(),
+                        &node.deps
+                    );
+                    deps.insert(dep.clone());
+                    for dep in node.transitive_deps(find_node)? {
+                        deps.insert(dep);
+                    }
+                } else {
+                    missing_deps.insert(dep.label.clone());
+                }
             }
         }
 
-        deps
+        let mut deps = deps.iter().cloned().collect::<Vec<Dependency>>();
+        deps.sort();
+        let mut missing_deps = missing_deps.iter().cloned().collect::<Vec<Label>>();
+        missing_deps.sort();
+
+        if missing_deps.len() > 0 {
+            Err(ComputedTargetError::MissingDependencies {
+                label: self.target.label().clone(),
+                deps: missing_deps,
+            })
+        } else {
+            Ok(deps)
+        }
     }
 
     pub fn actions(&self) -> Vec<Action> {
@@ -162,6 +243,7 @@ impl ComputedTarget {
         &self,
         archive_root: &PathBuf,
         cache_root: &PathBuf,
+        sandbox_root: &PathBuf,
         mode: ExecutionMode,
     ) -> Result<(), anyhow::Error> {
         trace!(
@@ -187,8 +269,9 @@ impl ComputedTarget {
             }
         }
 
+        trace!("Running actions for {}...", self.target.label().to_string());
         for action in self.actions() {
-            action.run()?
+            action.run(&sandbox_root)?
         }
 
         if self.target.kind() == TargetKind::Runnable && mode == ExecutionMode::BuildAndRun {
@@ -196,12 +279,16 @@ impl ComputedTarget {
 
             match &self.outs {
                 Some(outs) if outs.len() > 0 => {
-                    let mut cmd = Command::new(PathBuf::from(outs[0].clone()));
+                    let outs: Vec<PathBuf> = outs.iter().cloned().collect();
+                    let path = sandbox_root.join(PathBuf::from(outs[0].clone()));
+                    let mut cmd = Command::new(path);
 
+                    cmd.current_dir(sandbox_root);
                     cmd.stdin(Stdio::inherit())
                         .stderr(Stdio::inherit())
                         .stdout(Stdio::inherit());
 
+                    trace!("Spawning {:?}", &cmd);
                     let mut proc = cmd.spawn()?;
 
                     trace!("Waiting on {:?}", &cmd);

@@ -4,6 +4,29 @@ use log::*;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+mod error {
+    use crate::ComputedTargetError;
+    use crate::Label;
+    use std::path::PathBuf;
+    use thiserror::Error;
+
+    #[derive(Error, Debug)]
+    pub enum SandboxError {
+        #[error(transparent)]
+        MissingDependencies(ComputedTargetError),
+
+        #[error("Could not create directory for transitive dependency {dst:?} at: {dst_parent:?}")]
+        CouldNotCreateDirForTransitiveDependency { dst: PathBuf, dst_parent: PathBuf },
+
+        #[error("When building {label:?}, could not copy transitive dependency {src:?} into sandbox at {dst:?}")]
+        CouldNotCopyTransitiveDependencyToSandbox {
+            label: Label,
+            src: PathBuf,
+            dst: PathBuf,
+        },
+    }
+}
+
 /// A build Sandbox.
 ///
 /// This is a spot where we isolate build nodes to execute them.
@@ -206,11 +229,16 @@ impl<'a> LocalSandbox<'a> {
         Ok(current_dir)
     }
 
-    fn copy_dependences(&mut self, build_cache: &LocalCache, dep_graph: &DepGraph) -> Result<(), anyhow::Error> {
+    fn copy_dependences(
+        &mut self,
+        build_cache: &LocalCache,
+        find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
+    ) -> Result<(), error::SandboxError> {
         // copy all the direct dependency outputs
         let deps: Vec<(PathBuf, PathBuf)> = self
             .node
-            .transitive_deps(&dep_graph)
+            .transitive_deps(find_node)
+            .map_err(error::SandboxError::MissingDependencies)?
             .iter()
             .flat_map(|dep| {
                 let outs: Vec<(PathBuf, PathBuf)> = dep
@@ -230,19 +258,22 @@ impl<'a> LocalSandbox<'a> {
         for (src, dst) in deps {
             if let Some(dst_parent) = &dst.parent() {
                 std::fs::create_dir_all(dst_parent)
-                    .context(format!(
-                        "Could not create directory for transitive dependency {:?} at: {:?}",
-                        &dst, &dst_parent
-                    ))
+                    .map_err(
+                        |_| error::SandboxError::CouldNotCreateDirForTransitiveDependency {
+                            dst: dst.clone(),
+                            dst_parent: dst_parent.to_path_buf(),
+                        },
+                    )
                     .map(|_| ())?;
             };
 
-            std::fs::copy(&src, &dst).context(format!(
-            "When building {:?}, could not copy transitive dependency {:?} into sandbox at {:?}",
-            self.node.label().to_string(),
-            &src,
-            &dst
-        ))?;
+            std::fs::copy(&src, &dst).map_err(|_| {
+                error::SandboxError::CouldNotCopyTransitiveDependencyToSandbox {
+                    label: self.node.label().clone(),
+                    src: src.clone(),
+                    dst: dst.clone(),
+                }
+            })?;
             debug!("Copied {:?} to {:?}", &src, &dst);
         }
 
@@ -271,28 +302,6 @@ impl<'a> LocalSandbox<'a> {
             ))?;
             debug!("Copied {:?} to {:?}", &src, &dst);
         }
-        Ok(())
-    }
-
-    fn enter_sandbox(&mut self) -> Result<(), anyhow::Error> {
-        // move into the sandbox
-        std::env::set_current_dir(&self.root).context(format!(
-            "Could not move into the created sandbox at: {:?} when building {:?}",
-            &self.root,
-            self.node.label().to_string()
-        ))?;
-        debug!("Entered sandbox at: {:?}", &self.root);
-        Ok(())
-    }
-
-    fn exit_sandbox(&mut self, working_directory: PathBuf) -> Result<(), anyhow::Error> {
-        // move out of the sandbox
-        std::env::set_current_dir(&working_directory).context(format!(
-            "Could not move out of the created sandbox at: {:?} when building {:?}",
-            &self.root,
-            self.node.label().to_string()
-        ))?;
-        debug!("Exited sandbox at: {:?}", &self.root);
         Ok(())
     }
 
@@ -356,31 +365,35 @@ impl<'a> LocalSandbox<'a> {
     /// Run a build rule within a sandboxed environment.
     ///
     /// NOTE(@ostera): wouldn't this be nice as a free monad?
-    pub fn run(&mut self, build_cache: &LocalCache, dep_graph: &DepGraph, mode: ExecutionMode) -> Result<ValidationStatus, anyhow::Error> {
+    pub fn run(
+        &mut self,
+        build_cache: &LocalCache,
+        find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
+        mode: ExecutionMode,
+    ) -> Result<ValidationStatus, anyhow::Error> {
+        debug!("Running sandbox at: {:?}", &self.root);
+
         self.ensure_outputs_are_safe()?;
 
-        let working_directory = self.prepare_sandbox_dir()?;
+        self.prepare_sandbox_dir()?;
 
-        self.copy_dependences(&build_cache, &dep_graph)?;
+        self.copy_dependences(&build_cache, find_node)?;
 
         self.copy_inputs()?;
-
-        self.enter_sandbox()?;
 
         debug!("Executing build rule...");
         self.node.execute(
             &self.workspace.paths.global_archive_root,
-            &self.workspace.paths.global_cache_root,
+            &self.workspace.paths.local_cache_root,
+            &self.root,
             mode,
         )?;
 
         if self.node.target.kind() == TargetKind::Runnable && mode == ExecutionMode::BuildAndRun {
-            return Ok(ValidationStatus::NoOutputs)
+            return Ok(ValidationStatus::NoOutputs);
         }
 
         debug!("Build rule executed successfully.");
-
-        self.exit_sandbox(working_directory)?;
 
         self.validate_outputs()?;
 

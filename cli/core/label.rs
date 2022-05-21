@@ -5,14 +5,12 @@ static DOT: &str = ".";
 
 static WILDCARD: &str = "//...";
 
-#[derive(Debug, Clone, Hash, PartialEq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Label {
     Wildcard,
     Relative { name: String },
     Absolute { name: String, path: PathBuf },
 }
-
-impl Eq for Label {}
 
 impl From<&str> for Label {
     fn from(name: &str) -> Label {

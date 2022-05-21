@@ -69,7 +69,7 @@ impl LocalWorker {
             .read()
             .unwrap()
             .targets();
-
+        
         for build_file in &self.workspace.build_files {
             let buildfile = Buildfile::from_file(
                 &self.workspace.paths.workspace_root,
@@ -97,7 +97,10 @@ impl LocalWorker {
         let mut nodes = vec![];
         while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
             let target = self.dep_graph.get(idx);
-            let sealed_target = self.rule_exec_env.compute_target(target, &self.dep_graph)?;
+            let sealed_target = {
+                let find_node = |label| (&self.dep_graph).find_node(&label).clone();
+                self.rule_exec_env.compute_target(target, &find_node)?
+            };
             self.dep_graph.put(idx, sealed_target.clone());
             nodes.push(sealed_target);
         }
@@ -120,7 +123,10 @@ impl LocalWorker {
 
         while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
             let target = self.dep_graph.get(idx);
-            let sealed_target = self.rule_exec_env.compute_target(target, &self.dep_graph)?;
+            let sealed_target = {
+                let find_node = |label| (&self.dep_graph).find_node(&label).clone();
+                self.rule_exec_env.compute_target(target, &find_node)?
+            };
             let node = &self.dep_graph.put(idx, sealed_target);
 
             let name = node.label().clone();
@@ -152,7 +158,13 @@ impl LocalWorker {
 
             let result = if node.target.is_local() {
                 let mut sandbox = LocalSandbox::for_node(&self.workspace, &node);
-                match sandbox.run(&self.cache, &self.dep_graph, mode)? {
+
+                let result = {
+                    let find_node = |label| (&self.dep_graph).find_node(&label).clone();
+                    sandbox.run(&self.cache, &find_node, mode)?
+                };
+
+                match result {
                     ValidationStatus::Valid => {
                         self.cache.save(&sandbox)?;
                         sandbox.clear_sandbox()?;
@@ -185,6 +197,7 @@ impl LocalWorker {
                 node.execute(
                     &self.workspace.paths.global_archive_root,
                     &self.workspace.paths.global_cache_root,
+                    &self.workspace.paths.global_sandbox_root,
                     ExecutionMode::OnlyBuild,
                 )
             };

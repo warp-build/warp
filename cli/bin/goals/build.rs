@@ -24,12 +24,20 @@ Use //... to build the entire project.
         default_value = "//..."
     )]
     target: String,
+
+    #[structopt(
+        help = r"The amount of workers to use to execute any necessary build tasks.",
+        short = "p",
+        long = "parallel"
+    )]
+    parallel: Option<usize>,
 }
 
 impl BuildGoal {
     pub fn all() -> BuildGoal {
         BuildGoal {
             target: "//...".to_string(),
+            parallel: None,
         }
     }
 
@@ -37,8 +45,6 @@ impl BuildGoal {
         let target: Label = self.target.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
         debug!("Target: {}", &target.to_string());
-
-        let mut zap = LocalWorker::from_workspace(workspace);
 
         let name = if target.is_all() {
             "workspace".to_string()
@@ -49,8 +55,14 @@ impl BuildGoal {
         print!("🔨 Building {}...", name);
         io::stdout().flush().unwrap();
 
-        zap.prepare(&target).await?;
-        zap.build()?;
+        if let Some(worker_limit) = self.parallel {
+            let zap = BuildExecutor::from_workspace(workspace, worker_limit);
+            zap.build(target).await?;
+        } else {
+            let mut zap = LocalWorker::from_workspace(workspace);
+            zap.prepare(&target).await?;
+            zap.build()?;
+        }
 
         Ok(())
     }

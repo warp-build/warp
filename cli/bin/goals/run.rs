@@ -21,6 +21,13 @@ NOTE: not all targets are runnable. Non-runnable targets will
 build their dependencies and exit.
 ")]
     target: String,
+
+    #[structopt(
+        help = r"The amount of workers to use to execute any necessary build tasks.",
+        short = "p",
+        long = "parallel"
+    )]
+    parallel: Option<usize>,
 }
 
 impl RunGoal {
@@ -28,8 +35,6 @@ impl RunGoal {
         let target: Label = self.target.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
         debug!("Target: {}", &target.to_string());
-
-        let mut zap = LocalWorker::from_workspace(workspace);
 
         let name = if target.is_all() {
             "workspace".to_string()
@@ -45,8 +50,14 @@ impl RunGoal {
             return Ok(())
         }
 
-        zap.prepare(&target).await?;
-        zap.run()?;
+        if let Some(worker_limit) = self.parallel {
+            let zap = BuildExecutor::from_workspace(workspace, worker_limit);
+            zap.run(target).await?;
+        } else {
+            let mut zap = LocalWorker::from_workspace(workspace);
+            zap.prepare(&target).await?;
+            zap.run()?;
+        }
 
         Ok(())
     }

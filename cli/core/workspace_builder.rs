@@ -6,7 +6,8 @@ pub struct WorkspaceBuilder {}
 
 impl WorkspaceBuilder {
     pub fn build(cwd: PathBuf, home: Option<String>, user: Option<String>) -> Result<Workspace, anyhow::Error> {
-        let (root, workspace_file) = WorkspaceScanner::find_workspace_file(&cwd)?;
+        let abs_cwd = std::fs::canonicalize(&cwd).unwrap();
+        let (root, workspace_file) = WorkspaceScanner::find_workspace_file(&abs_cwd)?;
         let paths = WorkspacePaths::new(&root, home, user)?;
         let (build_files, local_rules, local_toolchains) = {
             let scanner = WorkspaceScanner::from_paths(&paths);

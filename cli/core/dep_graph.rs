@@ -6,6 +6,7 @@ use petgraph::dot;
 use petgraph::visit::Topo;
 use petgraph::{stable_graph::StableDiGraph, Direction};
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 /// The DepGraph contains the graph of all the targets in this project.
 ///
@@ -144,13 +145,13 @@ impl DepGraph {
         )
     }
 
-    pub fn find_nodes(&self, labels: &[Label]) -> Vec<&ComputedTarget> {
+    pub fn find_nodes(&self, labels: &[Label]) -> Vec<ComputedTarget> {
         labels.iter().flat_map(|l| self.find_node(l)).collect()
     }
 
-    pub fn find_node(&self, label: &Label) -> Option<&ComputedTarget> {
+    pub fn find_node(&self, label: &Label) -> Option<ComputedTarget> {
         let node_index = *self.nodes.get(label)?;
-        Some(&self._inner_graph[node_index])
+        Some(self._inner_graph[node_index].clone())
     }
 
     pub fn put(&mut self, node_index: NodeIndex, target: ComputedTarget) -> ComputedTarget {
@@ -161,7 +162,7 @@ impl DepGraph {
     pub fn get(&self, node_index: NodeIndex) -> ComputedTarget {
         let labels = self._inner_graph[node_index].target.deps();
 
-        let deps: Vec<Dependency> = self
+        let deps: HashSet<Dependency> = self
             .find_nodes(&labels)
             .iter()
             .map(|computed_target| computed_target.as_dep())

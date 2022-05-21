@@ -8,11 +8,11 @@ pub struct WriteFileAction {
 }
 
 impl WriteFileAction {
-    pub fn run(self) -> Result<(), anyhow::Error> {
+    pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         if let Some(parent) = self.dst.parent() {
-            std::fs::create_dir_all(parent)?;
+            std::fs::create_dir_all(sandbox_root.join(parent))?;
         }
-        std::fs::write(&self.dst, &self.contents)
+        std::fs::write(sandbox_root.join(&self.dst), &self.contents)
             .map(|_| ())
             .context(format!("Could not run action {:#?}", &self))
     }

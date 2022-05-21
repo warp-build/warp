@@ -9,7 +9,8 @@ use std::path::PathBuf;
 ///
 #[derive(Debug, Clone)]
 pub struct LocalCache {
-    root: PathBuf,
+    global_root: PathBuf,
+    local_root: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -22,14 +23,19 @@ pub enum CacheHitType {
 impl LocalCache {
     pub fn new(workspace: &Workspace) -> LocalCache {
         LocalCache {
-            root: workspace.paths.global_cache_root.clone(),
+            global_root: workspace.paths.global_cache_root.clone(),
+            local_root: workspace.paths.local_cache_root.clone(),
         }
     }
 
     pub fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
         let node = sandbox.node();
         let hash = node.hash();
-        let cache_path = self.root.join(&hash);
+        let cache_path = if node.target.is_local() {
+            self.local_root.join(&hash)
+        } else {
+            self.global_root.join(&hash)
+        };
 
         debug!(
             "Caching node {:?} hashed {:?}: {:?} outputs",
@@ -80,7 +86,11 @@ impl LocalCache {
     ) -> Result<(), anyhow::Error> {
         trace!("Promoting outputs for {}", node.target.label().to_string());
         let hash = node.hash();
-        let hash_path = self.root.join(&hash);
+        let hash_path = if node.target.is_local() {
+            self.local_root.join(&hash)
+        } else {
+            self.global_root.join(&hash)
+        };
 
         let mut paths: HashMap<PathBuf, ()> = HashMap::new();
         let mut outs: HashMap<PathBuf, PathBuf> = HashMap::new();
@@ -99,13 +109,18 @@ impl LocalCache {
     }
 
     pub fn absolute_path_by_hash(&self, hash: &str) -> PathBuf {
-        let path = self.root.join(hash);
-        std::fs::canonicalize(&path).unwrap_or_else(|_| {
-            panic!(
-                "Could not find {:?} in disk, has the cache been modified manually?",
-                &path
-            )
-        })
+        match std::fs::canonicalize(&self.local_root.join(hash)) {
+            Err(_) => {
+                let path = self.global_root.join(hash);
+                std::fs::canonicalize(&path).unwrap_or_else(|_| {
+                    panic!(
+                        "Could not find {:?} in disk, has the cache been modified manually?",
+                        &path
+                    )
+                })
+            }
+            Ok(path) => path,
+        }
     }
 
     /// Determine if a given node has been cached already or not.
@@ -117,7 +132,7 @@ impl LocalCache {
     pub fn is_cached(&mut self, node: &ComputedTarget) -> Result<CacheHitType, anyhow::Error> {
         let hash = node.hash();
 
-        let hash_path = self.root.join(&hash);
+        let hash_path = self.local_root.join(&hash);
         debug!("Checking if {:?} is in the cache...", hash_path);
         if std::fs::metadata(&hash_path).is_ok() {
             debug!(
@@ -128,7 +143,20 @@ impl LocalCache {
             return Ok(CacheHitType::Local);
         }
 
-        let named_path = self.root.join(format!("{}-{}", node.label().name(), &hash));
+        let hash_path = self.global_root.join(&hash);
+        debug!("Checking if {:?} is in the cache...", hash_path);
+        if std::fs::metadata(&hash_path).is_ok() {
+            debug!(
+                "Cache hit for {} at {:?}",
+                node.label().to_string(),
+                hash_path
+            );
+            return Ok(CacheHitType::Global);
+        }
+
+        let named_path = self
+            .global_root
+            .join(format!("{}-{}", node.label().name(), &hash));
         debug!("Checking if {:?} is in the cache...", named_path);
         if std::fs::metadata(&named_path).is_ok() {
             debug!(
@@ -146,7 +174,7 @@ impl LocalCache {
     pub fn evict(&mut self, node: &ComputedTarget) -> Result<(), anyhow::Error> {
         let hash = node.hash();
 
-        let hash_path = self.root.join(&hash);
+        let hash_path = self.local_root.join(&hash);
         debug!("Checking if {:?} is in the cache...", &hash_path);
         if std::fs::metadata(&hash_path).is_ok() {
             trace!("Found it, removing...");

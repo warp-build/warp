@@ -1,4 +1,5 @@
 pub mod actions;
+pub mod build_executor;
 pub mod archive;
 pub mod buildfile;
 pub mod computed_target;
@@ -45,3 +46,4 @@ pub use workspace_builder::*;
 pub use workspace_parser::*;
 pub use workspace_paths::*;
 pub use workspace_scanner::*;
+pub use build_executor::*;

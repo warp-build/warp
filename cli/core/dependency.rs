@@ -1,7 +1,7 @@
 use super::Label;
 use std::path::PathBuf;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Dependency {
     pub label: Label,
     pub hash: String,

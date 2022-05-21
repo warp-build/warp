@@ -175,7 +175,7 @@ Zap.Toolchain = spec => {
 
   ffi("op_toolchain_new", spec);
 
-  return __RULES[name];
+  return spec;
 };
 
 

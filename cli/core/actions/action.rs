@@ -28,12 +28,12 @@ impl Action {
         Action::Exec(ExecAction { cmd, args, cwd, env })
     }
 
-    pub fn run(self) -> Result<(), anyhow::Error> {
+    pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         match self {
-            Action::Exec(e) => e.run(),
-            Action::Copy(e) => e.run(),
-            Action::WriteFile(e) => e.run(),
-            Action::RunShell(e) => e.run(),
+            Action::Exec(e) => e.run(&sandbox_root),
+            Action::Copy(e) => e.run(&sandbox_root),
+            Action::WriteFile(e) => e.run(&sandbox_root),
+            Action::RunShell(e) => e.run(&sandbox_root),
         }
     }
 }

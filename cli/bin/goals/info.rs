@@ -66,9 +66,10 @@ impl InfoGoal {
                 for out in outs {
                     println!("    - {}", out.to_str().unwrap());
                 }
+                let find_node = |label| (&zap.dep_graph).find_node(&label).clone();
                 println!(" - Dependencies: ");
                 let mut deps: Vec<Dependency> = node
-                    .transitive_deps(&zap.dep_graph)
+                    .transitive_deps(&find_node)?
                     .iter()
                     .cloned()
                     .collect::<HashSet<Dependency>>()

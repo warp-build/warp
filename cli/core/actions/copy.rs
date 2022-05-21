@@ -8,11 +8,11 @@ pub struct CopyAction {
 }
 
 impl CopyAction {
-    pub fn run(self) -> Result<(), anyhow::Error> {
+    pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         if let Some(parent) = self.dst.parent() {
-            std::fs::create_dir_all(parent)?;
+            std::fs::create_dir_all(sandbox_root.join(parent))?;
         }
-        std::fs::copy(&self.src, &self.dst)
+        std::fs::copy(sandbox_root.join(&self.src), sandbox_root.join(&self.dst))
             .map(|_| ())
             .context(format!("Could not run action {:#?}", &self))
     }
