@@ -47,8 +47,6 @@ impl BuildExecutor {
         let build_queue = Arc::new(crossbeam::deque::Injector::new());
         let result_queue = Arc::new(crossbeam::deque::Injector::new());
 
-        build_queue.push(target.clone());
-
         let worker_limit = self.worker_limit;
         debug!("Starting build executor with {} workers...", &worker_limit);
 
@@ -62,6 +60,7 @@ impl BuildExecutor {
             target.clone(),
         );
         worker.load_rules().await?;
+        worker.queue(target.clone())?;
 
         crossbeam::scope(move |scope| {
             let mut worker_threads = vec![];
@@ -129,6 +128,8 @@ pub struct LazyWorker {
         std::sync::Arc<crossbeam::deque::Injector<Result<ComputedTarget, WorkerError>>>,
 
     pub target: Label,
+
+    pub target_count: usize,
 }
 
 impl LazyWorker {
@@ -154,7 +155,32 @@ impl LazyWorker {
             build_queue,
             result_queue,
             target,
+            target_count: 0,
         }
+    }
+
+    pub fn queue(&mut self, target: Label) -> Result<(), anyhow::Error> {
+        if target.is_all() {
+            trace!("Queueing all targets...");
+            let scanner = WorkspaceScanner::from_paths(&self.workspace.paths);
+            for build_file in scanner.find_build_files()? {
+                let buildfile = Buildfile::from_file(
+                    &self.workspace.paths.workspace_root,
+                    &build_file,
+                    &self.rule_exec_env.rule_map,
+                )?;
+                for target in buildfile.targets {
+                    trace!("QUEUED {}", target.label().to_string());
+                    self.build_queue.push(target.label().clone());
+                    self.target_count += 1;
+                }
+            }
+        } else {
+            self.build_queue.push(target);
+            self.target_count = 1;
+        }
+        trace!("Queued {} targets...", self.target_count);
+        Ok(())
     }
 
     pub fn run(&mut self, is_main: bool, mode: ExecutionMode) -> Result<(), anyhow::Error> {
@@ -162,10 +188,13 @@ impl LazyWorker {
         loop {
             std::thread::sleep(std::time::Duration::from_millis(1));
             if is_main {
-                if let crossbeam::deque::Steal::Success(result) = self.result_queue.steal() {
-                    trace!("Receiving result: {:?}", result);
-                    self.result_queue.push(result);
-                    return Ok(());
+                match self.result_queue.steal() {
+                    crossbeam::deque::Steal::Success(result) => {
+                        trace!("Receiving result: {:?}", result);
+                        self.result_queue.push(result);
+                        return Ok(());
+                    }
+                    _ => (),
                 }
             }
 
@@ -207,7 +236,9 @@ impl LazyWorker {
                             node.target.label().to_string()
                         );
                         // We built the thing we wanted to build!
-                        if *node.target.label() == self.target {
+                        if *node.target.label() == self.target
+                            || self.computed_targets.len() == self.target_count
+                        {
                             trace!("We're done! Pushing result: {:?}", &node);
                             self.result_queue.push(Ok(node.clone()));
                         }
