@@ -9,7 +9,6 @@ impl WorkspaceParser {
     pub fn from_toml(
         toml: toml::Value,
         paths: WorkspacePaths,
-        build_files: &[PathBuf],
         local_rules: &[PathBuf],
         local_toolchains: &[PathBuf],
     ) -> Result<Workspace, anyhow::Error> {
@@ -37,7 +36,7 @@ impl WorkspaceParser {
         Ok(Workspace {
             name,
             paths,
-            build_files: build_files.to_vec(),
+            build_files: vec![],
             local_rules: local_rules.to_vec(),
             local_toolchains: local_toolchains.to_vec(),
             toolchain_archives,
@@ -94,7 +93,7 @@ mod tests {
 
     fn parse(toml: toml::Value, root: &PathBuf) -> Result<Workspace, anyhow::Error> {
         let paths = WorkspacePaths::new(&root, None, None).unwrap();
-        WorkspaceParser::from_toml(toml, paths, &vec![], &vec![], &vec![])
+        WorkspaceParser::from_toml(toml, paths, &vec![], &vec![])
     }
 
     #[test]
