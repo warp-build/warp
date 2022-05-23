@@ -2,6 +2,11 @@
 'use strict';
 
 
+function f(param) {
+  
+}
+
 console.log("Hello, ReScript");
 
+exports.f = f;
 /*  Not a pure module */

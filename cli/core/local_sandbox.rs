@@ -1,8 +1,8 @@
 use super::*;
 use anyhow::{anyhow, Context};
 use log::*;
-use std::collections::HashSet;
 use std::path::PathBuf;
+use fxhash::*;
 
 mod error {
     use crate::ComputedTargetError;
@@ -137,8 +137,8 @@ impl<'a> LocalSandbox<'a> {
     /// dependency outputs that will be present in the sandbox.
     ///
     fn validate_outputs(&mut self) -> Result<(), anyhow::Error> {
-        let node_inputs: HashSet<PathBuf> = self.node.srcs().iter().cloned().collect();
-        let deps_inputs: HashSet<PathBuf> = self
+        let node_inputs: FxHashSet<PathBuf> = self.node.srcs().iter().cloned().collect();
+        let deps_inputs: FxHashSet<PathBuf> = self
             .node
             .deps()
             .iter()
@@ -148,11 +148,11 @@ impl<'a> LocalSandbox<'a> {
         debug!("Sandboxed Node Inputs: {:?}", &node_inputs);
         debug!("Sandboxed Deps Outputs: {:?}", &deps_inputs);
 
-        let inputs: HashSet<PathBuf> = node_inputs.union(&deps_inputs).cloned().collect();
+        let inputs: FxHashSet<PathBuf> = node_inputs.union(&deps_inputs).cloned().collect();
 
-        let expected_outputs: HashSet<PathBuf> = self.node.outs().iter().cloned().collect();
+        let expected_outputs: FxHashSet<PathBuf> = self.node.outs().iter().cloned().collect();
 
-        let all_outputs: HashSet<PathBuf> = LocalSandbox::scan_files(&self.root)
+        let all_outputs: FxHashSet<PathBuf> = LocalSandbox::scan_files(&self.root)
             .iter()
             .flat_map(|path| path.strip_prefix(&self.root))
             .map(|path| path.to_path_buf())
@@ -165,7 +165,7 @@ impl<'a> LocalSandbox<'a> {
         }
 
         // All files found minus Inputs
-        let actual_outputs: HashSet<PathBuf> = all_outputs
+        let actual_outputs: FxHashSet<PathBuf> = all_outputs
             .iter()
             .filter(|path| {
                 !inputs.contains(&path.to_path_buf())
@@ -306,19 +306,22 @@ impl<'a> LocalSandbox<'a> {
     }
 
     pub fn clear_sandbox(&self) -> Result<(), anyhow::Error> {
-        std::fs::remove_dir_all(&self.root).context(format!(
-            "Could not clean sandbox for node {:?} at {:?}",
-            self.node.label().to_string(),
-            &self.root,
-        ))
+        if let Ok(_) = std::fs::metadata(&self.root) {
+            std::fs::remove_dir_all(&self.root).context(format!(
+                "Could not clean sandbox for node {:?} at {:?}",
+                self.node.label().to_string(),
+                &self.root,
+            ))?;
+        }
+        Ok(())
     }
 
     /// check that transitive output names and current rule output names
     /// do not collide.
     fn ensure_outputs_are_safe(&mut self) -> Result<(), anyhow::Error> {
-        let output_set: HashSet<PathBuf> = self.node.outs().iter().cloned().collect();
+        let output_set: FxHashSet<PathBuf> = self.node.outs().iter().cloned().collect();
 
-        let dep_output_set: HashSet<PathBuf> = self
+        let dep_output_set: FxHashSet<PathBuf> = self
             .node
             .deps()
             .iter()

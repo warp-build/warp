@@ -5,8 +5,7 @@ use log::debug;
 use petgraph::dot;
 use petgraph::visit::Topo;
 use petgraph::{stable_graph::StableDiGraph, Direction};
-use std::collections::HashMap;
-use std::collections::HashSet;
+use fxhash::*;
 
 /// The DepGraph contains the graph of all the targets in this project.
 ///
@@ -34,13 +33,13 @@ pub struct DepGraph {
     pub _inner_graph: StableDiGraph<ComputedTarget, ()>,
 
     /// A lookup map used to find a node in the graph by its label alone
-    nodes: HashMap<Label, NodeIndex>,
+    nodes: FxHashMap<Label, NodeIndex>,
 }
 
 impl DepGraph {
     pub fn from_targets(targets: &[Target]) -> Result<DepGraph, anyhow::Error> {
         let mut dag: Dag<ComputedTarget, (), u32> = Dag::new();
-        let mut nodes: HashMap<Label, NodeIndex> = HashMap::new();
+        let mut nodes: FxHashMap<Label, NodeIndex> = FxHashMap::default();
 
         debug!("Building table of labels to node indices...");
         for target in targets {
@@ -83,7 +82,7 @@ impl DepGraph {
         );
 
         let mut _inner_graph: StableDiGraph<ComputedTarget, ()> = dag.into_graph().into();
-        let mut nodes: HashMap<Label, NodeIndex> = HashMap::new();
+        let mut nodes: FxHashMap<Label, NodeIndex> = FxHashMap::default();
 
         let mut walker = Topo::new(&_inner_graph);
         while let Some(idx) = walker.next(&_inner_graph) {
@@ -120,8 +119,8 @@ impl DepGraph {
     fn subgraph(
         mut graph: &mut StableDiGraph<ComputedTarget, ()>,
         node: NodeIndex,
-    ) -> HashMap<NodeIndex, Label> {
-        let mut nodes = HashMap::new();
+    ) -> FxHashMap<NodeIndex, Label> {
+        let mut nodes = FxHashMap::default();
         nodes.insert(node, graph[node].target.label().clone());
 
         let mut walker = graph.neighbors_directed(node, Direction::Incoming).detach();
@@ -162,7 +161,7 @@ impl DepGraph {
     pub fn get(&self, node_index: NodeIndex) -> ComputedTarget {
         let labels = self._inner_graph[node_index].target.deps();
 
-        let deps: HashSet<Dependency> = self
+        let deps: FxHashSet<Dependency> = self
             .find_nodes(&labels)
             .iter()
             .map(|computed_target| computed_target.as_dep())

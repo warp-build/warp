@@ -4,8 +4,7 @@ use deno_core::error::AnyError;
 use deno_core::*;
 use log::*;
 use serde::*;
-use std::collections::HashMap;
-use std::collections::HashSet;
+use fxhash::*;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -139,7 +138,7 @@ pub fn op_ctx_actions_declare_outputs(
 pub struct RunShell {
     label: String,
     script: String,
-    env: HashMap<String, String>,
+    env: std::collections::HashMap<String, String>,
 }
 
 #[op]
@@ -231,7 +230,7 @@ pub fn op_ctx_actions_copy(state: &mut OpState, args: CopyFile) -> Result<(), An
 #[serde(rename_all = "camelCase")]
 pub struct Exec {
     label: String,
-    env: HashMap<String, String>,
+    env: std::collections::HashMap<String, String>,
     cmd: String,
     args: Vec<String>,
     cwd: Option<String>,
@@ -515,7 +514,7 @@ impl RuleExecEnv {
             .map(|entry| entry.value().clone())
             .unwrap_or_default();
 
-        let outs: HashSet<PathBuf> = self
+        let outs: FxHashSet<PathBuf> = self
             .output_map
             .get(&label)
             .ok_or(error::RuleExecError::MissingDeclaredOutputs {
@@ -525,7 +524,7 @@ impl RuleExecEnv {
             .cloned()
             .collect();
 
-        let srcs: HashSet<PathBuf> = if computed_target.target.is_local() {
+        let srcs: FxHashSet<PathBuf> = if computed_target.target.is_local() {
             computed_target
                 .target
                 .config()
@@ -535,10 +534,10 @@ impl RuleExecEnv {
                 .cloned()
                 .collect()
         } else {
-            HashSet::new()
+            FxHashSet::default()
         };
 
-        computed_target.deps = Some(computed_target.deps.unwrap_or(HashSet::new()));
+        computed_target.deps = Some(computed_target.deps.unwrap_or(FxHashSet::default()));
         computed_target.srcs = Some(srcs);
         computed_target.outs = Some(outs);
         computed_target.actions = Some(actions);
@@ -546,7 +545,7 @@ impl RuleExecEnv {
         computed_target.recompute_hash();
 
         trace!(
-            "Sealed ComputedTarget {} with Hash {:?}: {:#?}",
+            "Sealed ComputedTarget {} with FxHash {:?}: {:#?}",
             label.to_string(),
             computed_target.hash.as_ref().unwrap(),
             &computed_target,

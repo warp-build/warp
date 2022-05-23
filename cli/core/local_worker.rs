@@ -167,12 +167,12 @@ impl LocalWorker {
                 match result {
                     ValidationStatus::Valid => {
                         self.cache.save(&sandbox)?;
-                        sandbox.clear_sandbox()?;
+                        // sandbox.clear_sandbox()?;
                         targets += 1;
                         Ok(())
                     }
                     ValidationStatus::NoOutputs if node.outs().is_empty() => {
-                        sandbox.clear_sandbox()?;
+                        // sandbox.clear_sandbox()?;
                         targets += 1;
                         Ok(())
                     }

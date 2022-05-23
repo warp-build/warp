@@ -1,10 +1,10 @@
 use super::*;
 use anyhow::{anyhow, Context};
-use crypto::digest::Digest;
-use crypto::sha1::Sha1;
+use fxhash::*;
 use log::*;
-use std::collections::HashSet;
+use seahash::SeaHasher;
 use std::fs;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
@@ -28,13 +28,13 @@ pub struct ComputedTarget {
     pub hash: Option<String>,
 
     /// The dependencies of this target.
-    pub deps: Option<HashSet<Dependency>>,
+    pub deps: Option<FxHashSet<Dependency>>,
 
     /// The outputs of this node
-    pub outs: Option<HashSet<PathBuf>>,
+    pub outs: Option<FxHashSet<PathBuf>>,
 
     /// The inputs of this node
-    pub srcs: Option<HashSet<PathBuf>>,
+    pub srcs: Option<FxHashSet<PathBuf>>,
 
     /// The actions to reify this target
     pub actions: Option<Vec<Action>>,
@@ -65,10 +65,10 @@ impl ComputedTarget {
             target,
             status: ComputeStatus::Pending,
             actions: None,
-            deps: Some(HashSet::new()),
+            deps: Some(FxHashSet::default()),
             hash: None,
-            outs: Some(HashSet::new()),
-            srcs: Some(HashSet::new()),
+            outs: Some(FxHashSet::default()),
+            srcs: Some(FxHashSet::default()),
         }
     }
 
@@ -88,8 +88,8 @@ impl ComputedTarget {
         target: Target,
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
     ) -> Result<ComputedTarget, ComputedTargetError> {
-        let mut deps: HashSet<Dependency> = HashSet::new();
-        let mut missing_deps: HashSet<Label> = HashSet::new();
+        let mut deps: FxHashSet<Dependency> = FxHashSet::default();
+        let mut missing_deps: FxHashSet<Label> = FxHashSet::default();
 
         for dep in target.deps() {
             if let Some(node) = find_node(dep.clone()) {
@@ -152,34 +152,52 @@ impl ComputedTarget {
     }
 
     pub fn srcs(&self) -> Vec<PathBuf> {
-        let mut srcs: Vec<PathBuf> = self.srcs.as_ref().unwrap_or_else(|| {
-            panic!(
-                "ComputedTarget {:?} does not have computed inputs yet!",
-                self.label().to_string()
-            )
-        }).iter().cloned().collect();
+        let mut srcs: Vec<PathBuf> = self
+            .srcs
+            .as_ref()
+            .unwrap_or_else(|| {
+                panic!(
+                    "ComputedTarget {:?} does not have computed inputs yet!",
+                    self.label().to_string()
+                )
+            })
+            .iter()
+            .cloned()
+            .collect();
         srcs.sort();
         srcs
     }
 
     pub fn outs(&self) -> Vec<PathBuf> {
-        let mut outs: Vec<PathBuf> = self.outs.as_ref().unwrap_or_else(|| {
-            panic!(
-                "ComputedTarget {:?} does not have computed outputs yet!",
-                self.label().to_string()
-            )
-        }).iter().cloned().collect();
+        let mut outs: Vec<PathBuf> = self
+            .outs
+            .as_ref()
+            .unwrap_or_else(|| {
+                panic!(
+                    "ComputedTarget {:?} does not have computed outputs yet!",
+                    self.label().to_string()
+                )
+            })
+            .iter()
+            .cloned()
+            .collect();
         outs.sort();
         outs
     }
 
     pub fn deps(&self) -> Vec<Dependency> {
-        let mut deps: Vec<Dependency> = self.deps.as_ref().unwrap_or_else(|| {
-            panic!(
-                "ComputedTarget {:?} does not have computed dependencies yet!",
-                self.label().to_string()
-            )
-        }).iter().cloned().collect();
+        let mut deps: Vec<Dependency> = self
+            .deps
+            .as_ref()
+            .unwrap_or_else(|| {
+                panic!(
+                    "ComputedTarget {:?} does not have computed dependencies yet!",
+                    self.label().to_string()
+                )
+            })
+            .iter()
+            .cloned()
+            .collect();
         deps.sort();
         deps
     }
@@ -194,8 +212,8 @@ impl ComputedTarget {
             &self.deps
         );
 
-        let mut deps: HashSet<Dependency> = HashSet::new();
-        let mut missing_deps: HashSet<Label> = HashSet::new();
+        let mut deps: FxHashSet<Dependency> = FxHashSet::default();
+        let mut missing_deps: FxHashSet<Label> = FxHashSet::default();
 
         if let Some(this_deps) = &self.deps {
             for dep in this_deps {
@@ -318,43 +336,53 @@ impl ComputedTarget {
     /// * the hash of the computed actions that this target will execute
     ///
     pub fn recompute_hash(&mut self) {
-        let mut hasher = Sha1::new();
+        let mut s = SeaHasher::new();
 
-        let name = self.target.label();
-        hasher.input_str(&name.to_string());
+        self.target.label().hash(&mut s);
 
-        let mut seeds: HashSet<String> = HashSet::new();
+        let deps = self
+            .deps
+            .as_ref()
+            .unwrap()
+            .into_iter()
+            .map(|d| d.hash.as_str());
 
-        for d in self.deps.as_ref().unwrap() {
-            seeds.insert(d.hash.clone());
+        let actions: Vec<String> = self
+            .actions
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|a| format!("{:?}", a))
+            .collect();
+
+        let mut srcs: Vec<&PathBuf> = self.srcs.as_ref().unwrap().iter().collect();
+        srcs.dedup_by(|a, b| a == b);
+        let srcs: Vec<String> = srcs.iter()
+            .map(|src| fs::read_to_string(&src).unwrap_or_else(|_| panic!("Truly expected {:?} to be a readable file. Was it changed since the build started?", src)))
+            .collect();
+
+        let mut seeds: Vec<&str> = {
+            deps.chain(
+                self.outs
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|o| o.to_str().unwrap()),
+            )
+            .chain(actions.iter().map(|a| a.as_str()))
+            .chain(srcs.iter().map(|s| s.as_str()))
+            .collect()
+        };
+
+        seeds.dedup_by(|a, b| a == b);
+        seeds.sort();
+
+        for seed in seeds {
+            seed.hash(&mut s);
         }
 
-        for src_path in self.srcs.as_ref().unwrap() {
-            let contents = fs::read_to_string(&src_path)
-                .unwrap_or_else(|_| panic!("Truly expected {:?} to be a readable file. Was it changed since the build started?", src_path));
-            let mut hasher = Sha1::new();
-            hasher.input_str(&contents);
-            seeds.insert(hasher.result_str());
-        }
-
-        for o in self.outs.as_ref().unwrap() {
-            seeds.insert(o.to_str().unwrap().to_string());
-        }
-
-        for a in self.actions.as_ref().unwrap() {
-            // TODO(@ostera): implement Hash for Action
-            seeds.insert(format!("{:?}", a));
-        }
-
-        let mut sorted_seeds: Vec<String> = seeds.iter().cloned().collect();
-        sorted_seeds.sort();
-
-        for seed in sorted_seeds {
-            hasher.input_str(&seed);
-        }
-
-        let hash = hasher.result_str();
-        self.hash = Some(hash);
+        let hash = s.finish();
+        self.hash = Some(hash.to_string());
     }
 }
 
