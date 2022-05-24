@@ -1,8 +1,8 @@
 use super::*;
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use log::*;
-use std::collections::HashMap;
 use std::path::PathBuf;
+use fxhash::*;
 
 /// The LocalCache implements an in-memory and persisted cache for build nodes
 /// based on their hashes.
@@ -92,8 +92,8 @@ impl LocalCache {
             self.global_root.join(&hash)
         };
 
-        let mut paths: HashMap<PathBuf, ()> = HashMap::new();
-        let mut outs: HashMap<PathBuf, PathBuf> = HashMap::new();
+        let mut paths: FxHashMap<PathBuf, ()> = FxHashMap::default();
+        let mut outs: FxHashMap<PathBuf, PathBuf> = FxHashMap::default();
         for out in node.outs() {
             paths.insert(dst.join(&out).parent().unwrap().to_path_buf(), ());
             outs.insert(hash_path.join(&out), dst.join(&out).to_path_buf());
@@ -103,8 +103,21 @@ impl LocalCache {
             std::fs::create_dir_all(&path)?;
         }
         for (src, dst) in outs {
-            std::fs::copy(&src, &dst)?;
+            #[cfg(target_os = "windows")]
+            match std::os::windows::fs::symlink(&src, &dst) {
+                Ok(_) => Ok(()),
+                Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+                err => Err(anyhow!("Could not create symlink because of: {:?}", err)),
+            }?;
+
+            #[cfg(not(target_os = "windows"))]
+            match std::os::unix::fs::symlink(&src, &dst) {
+                Ok(_) => Ok(()),
+                Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+                err => Err(anyhow!("Could not create symlink because of: {:?}", err)),
+            }?;
         }
+
         Ok(())
     }
 

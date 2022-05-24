@@ -1,7 +1,7 @@
 use super::Label;
 use anyhow::*;
 use dashmap::DashMap;
-use std::collections::HashMap;
+use fxhash::*;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
@@ -58,7 +58,7 @@ impl Into<serde_json::Value> for CfgValue {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ConfigSpec(pub HashMap<String, CfgValueType>);
+pub struct ConfigSpec(pub FxHashMap<String, CfgValueType>);
 
 impl ConfigSpec {
     pub fn get(&self, key: &str) -> Option<&CfgValueType> {
@@ -69,7 +69,7 @@ impl ConfigSpec {
         self.0.keys().map(|k| k.to_string()).collect()
     }
 
-    pub fn as_map(&self) -> &HashMap<String, CfgValueType> {
+    pub fn as_map(&self) -> &FxHashMap<String, CfgValueType> {
         &self.0
     }
 }

@@ -2,7 +2,7 @@ use super::*;
 use dashmap::DashMap;
 use serde::de;
 use serde::Deserialize;
-use std::collections::HashMap;
+use fxhash::*;
 
 pub type RuleName = String;
 
@@ -97,7 +97,7 @@ impl<'de> Deserialize<'de> for Rule {
                 &rule_spec["cfg"]
             )))?;
 
-        let mut cfg = HashMap::new();
+        let mut cfg = FxHashMap::default();
         for (k, t) in json_cfg.iter() {
             let value_type = match t.as_str().unwrap() {
                     "label" => Ok(CfgValueType::Label),

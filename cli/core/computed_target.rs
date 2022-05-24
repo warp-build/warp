@@ -3,8 +3,9 @@ use anyhow::{anyhow, Context};
 use fxhash::*;
 use log::*;
 use seahash::SeaHasher;
-use std::fs;
 use std::hash::{Hash, Hasher};
+use std::io::{Read, BufReader};
+use std::fs::File;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
@@ -357,9 +358,6 @@ impl ComputedTarget {
 
         let mut srcs: Vec<&PathBuf> = self.srcs.as_ref().unwrap().iter().collect();
         srcs.dedup_by(|a, b| a == b);
-        let srcs: Vec<String> = srcs.iter()
-            .map(|src| fs::read_to_string(&src).unwrap_or_else(|_| panic!("Truly expected {:?} to be a readable file. Was it changed since the build started?", src)))
-            .collect();
 
         let mut seeds: Vec<&str> = {
             deps.chain(
@@ -370,7 +368,7 @@ impl ComputedTarget {
                     .map(|o| o.to_str().unwrap()),
             )
             .chain(actions.iter().map(|a| a.as_str()))
-            .chain(srcs.iter().map(|s| s.as_str()))
+            .chain(srcs.iter().map(|s| s.to_str().unwrap()))
             .collect()
         };
 
@@ -379,6 +377,19 @@ impl ComputedTarget {
 
         for seed in seeds {
             seed.hash(&mut s);
+        }
+
+        for src in srcs {
+            let f = File::open(&src).expect("Unable to open the provided file.");
+            let mut buffer = [0; 2048];
+            let mut reader = BufReader::new(f);
+            loop {
+                let len = reader.read(&mut buffer).expect("Failed to read");
+                if len == 0 {
+                    break;
+                }
+                buffer[..len].hash(&mut s);
+            }
         }
 
         let hash = s.finish();
