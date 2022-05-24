@@ -51,10 +51,8 @@ export default Zap.Rule({
   },
 	defaults: {
     srcs: [
-      "*.res",
-      "*.resi",
-      "**/*.res",
-      "**/*.resi",
+      "src/**/*.res",
+      "src/**/*.resi",
       "bsconfig.json",
     ],
     deps: [],
