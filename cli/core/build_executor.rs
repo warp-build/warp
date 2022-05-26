@@ -74,7 +74,6 @@ impl BuildExecutor {
         let main_worker_span = main_worker_span.exit();
 
         crossbeam::scope(move |scope| {
-
             let mut worker_threads = vec![];
             for worker_id in 1..worker_limit {
                 let sub_worker_span = trace_span!("BuildExecutor::sub_worker");

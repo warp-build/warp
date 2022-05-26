@@ -1,7 +1,7 @@
-use tracing::*;
 use std::io;
 use std::io::Write;
 use structopt::StructOpt;
+use tracing::*;
 use zap_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -41,7 +41,7 @@ impl BuildGoal {
         }
     }
 
-    #[tracing::instrument(name="BuildGoal::run", skip(workspace))]
+    #[tracing::instrument(name = "BuildGoal::run", skip(workspace))]
     pub async fn run(self, workspace: Workspace) -> Result<(), anyhow::Error> {
         let target: Label = self.target.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());

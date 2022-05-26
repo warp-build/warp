@@ -1,8 +1,8 @@
 use super::*;
 use anyhow::Context;
-use tracing::*;
 use std::fs;
 use std::path::PathBuf;
+use tracing::*;
 
 /// A struct to scan Workspace paths to find different files.
 pub struct WorkspaceScanner {

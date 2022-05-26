@@ -77,20 +77,22 @@ impl Zap {
         let root_span = trace_span!("Zap::run");
 
         async move {
-        let result = self.start().await;
+            let result = self.start().await;
 
-        match result {
-            Ok(()) => (),
-            Err(ref err) => error!("{:?}", &err),
-        };
+            match result {
+                Ok(()) => (),
+                Err(ref err) => error!("{:?}", &err),
+            };
 
-        let t1 = t0.elapsed().as_millis();
-        if !self.quiet {
-            println!("\x1B[1000D\x1B[K\r⚡ done in {}ms", t1);
+            let t1 = t0.elapsed().as_millis();
+            if !self.quiet {
+                println!("\x1B[1000D\x1B[K\r⚡ done in {}ms", t1);
+            }
+
+            result
         }
-
-        result
-        }.instrument(root_span).await
+        .instrument(root_span)
+        .await
     }
 
     #[tracing::instrument(name = "Zap::start")]
@@ -129,7 +131,7 @@ enum Goal {
 }
 
 impl Goal {
-    #[tracing::instrument(name="Goal::run", skip(self, workspace))]
+    #[tracing::instrument(name = "Goal::run", skip(self, workspace))]
     async fn run(self, workspace: Workspace) -> Result<(), anyhow::Error> {
         match self {
             // Goal::Cache(x) => x.run(config).await,

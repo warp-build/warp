@@ -3,12 +3,12 @@ use dashmap::DashMap;
 use deno_core::error::AnyError;
 use deno_core::*;
 use fxhash::*;
-use tracing::*;
 use serde::*;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::RwLock;
+use tracing::*;
 
 static JS_SNAPSHOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/JS_SNAPSHOT.bin"));
 
@@ -404,7 +404,10 @@ impl RuleExecEnv {
         Ok(())
     }
 
-    #[tracing::instrument(name="RuleExecEnv::compute_target", skip(self, find_node, computed_target))]
+    #[tracing::instrument(
+        name = "RuleExecEnv::compute_target",
+        skip(self, find_node, computed_target)
+    )]
     pub fn compute_target(
         &mut self,
         mut computed_target: ComputedTarget,

@@ -1,6 +1,6 @@
-use tracing::*;
 use std::io::Write;
 use structopt::StructOpt;
+use tracing::*;
 use zap_core::*;
 
 #[derive(StructOpt, Debug, Clone)]

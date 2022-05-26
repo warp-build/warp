@@ -1,12 +1,11 @@
 use super::*;
-use tracing::*;
 use std::path::PathBuf;
+use tracing::*;
 
 pub struct WorkspaceBuilder {}
 
 impl WorkspaceBuilder {
-
-    #[tracing::instrument(name="WorkspaceBuilder::build")]
+    #[tracing::instrument(name = "WorkspaceBuilder::build")]
     pub fn build(
         cwd: PathBuf,
         home: Option<String>,

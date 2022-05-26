@@ -41,7 +41,7 @@ impl LocalWorker {
         }
     }
 
-    #[tracing::instrument(name="LocalWorker::load_rules", skip(self))]
+    #[tracing::instrument(name = "LocalWorker::load_rules", skip(self))]
     async fn load_rules(&mut self) -> Result<(), anyhow::Error> {
         self.rule_exec_env.setup()?;
         let built_in_rules = zap_ext::TOOLCHAINS
@@ -63,7 +63,7 @@ impl LocalWorker {
         Ok(())
     }
 
-    #[tracing::instrument(name="LocalWorker::prepare", skip(self))]
+    #[tracing::instrument(name = "LocalWorker::prepare", skip(self))]
     pub async fn prepare(&mut self, target: &Label) -> Result<(), anyhow::Error> {
         self.load_rules().await?;
 
@@ -95,7 +95,7 @@ impl LocalWorker {
         Ok(())
     }
 
-    #[tracing::instrument(name="LocalWorker::compute_nodes", skip(self))]
+    #[tracing::instrument(name = "LocalWorker::compute_nodes", skip(self))]
     pub fn compute_nodes(&mut self) -> Result<Vec<ComputedTarget>, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 
@@ -121,7 +121,7 @@ impl LocalWorker {
         self.execute(ExecutionMode::OnlyBuild)
     }
 
-    #[tracing::instrument(name="LocalWorker::execute", skip(self))]
+    #[tracing::instrument(name = "LocalWorker::execute", skip(self))]
     pub fn execute(&mut self, mode: ExecutionMode) -> Result<u32, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 

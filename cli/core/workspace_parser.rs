@@ -1,13 +1,15 @@
 use super::*;
 use anyhow::Context;
-use tracing::*;
 use std::path::PathBuf;
+use tracing::*;
 
 pub struct WorkspaceParser {}
 
 impl WorkspaceParser {
-
-    #[tracing::instrument(name="WorkspaceParser::from_toml", skip(toml, paths, local_rules, local_toolchains))]
+    #[tracing::instrument(
+        name = "WorkspaceParser::from_toml",
+        skip(toml, paths, local_rules, local_toolchains)
+    )]
     pub fn from_toml(
         toml: toml::Value,
         paths: WorkspacePaths,

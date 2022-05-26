@@ -1,7 +1,6 @@
 use super::*;
 use anyhow::{anyhow, Context};
 use fxhash::*;
-use tracing::*;
 use seahash::SeaHasher;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
@@ -10,6 +9,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
 use thiserror::Error;
+use tracing::*;
 
 #[derive(Error, Debug)]
 pub enum ComputedTargetError {
@@ -248,7 +248,7 @@ impl ComputedTarget {
         })
     }
 
-    #[tracing::instrument(name="ComputedTarget::execute", skip(self))]
+    #[tracing::instrument(name = "ComputedTarget::execute", skip(self))]
     pub fn execute(
         &self,
         archive_root: &PathBuf,

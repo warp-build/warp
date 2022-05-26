@@ -1,6 +1,6 @@
-use tracing::*;
 use std::io::Write;
 use structopt::StructOpt;
+use tracing::*;
 use zap_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -24,7 +24,7 @@ Example: //my/library:shell
 }
 
 impl CleanGoal {
-    #[tracing::instrument(name="CleanGoal::run", skip(workspace))]
+    #[tracing::instrument(name = "CleanGoal::run", skip(workspace))]
     pub async fn run(self, workspace: Workspace) -> Result<(), anyhow::Error> {
         let target: Label = self.target.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());

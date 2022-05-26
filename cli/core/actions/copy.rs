@@ -8,7 +8,7 @@ pub struct CopyAction {
 }
 
 impl CopyAction {
-    #[tracing::instrument(name="action::CopyAction::run")]
+    #[tracing::instrument(name = "action::CopyAction::run")]
     pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         if let Some(parent) = self.dst.parent() {
             std::fs::create_dir_all(sandbox_root.join(parent))?;

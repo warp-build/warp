@@ -1,11 +1,11 @@
 use anyhow::*;
-use tracing::*;
 use std::collections::HashMap;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use tracing::*;
 
 #[derive(Debug, Clone)]
 pub struct ExecAction {
@@ -17,7 +17,7 @@ pub struct ExecAction {
 }
 
 impl ExecAction {
-    #[tracing::instrument(name="action::ExecAction::run")]
+    #[tracing::instrument(name = "action::ExecAction::run")]
     pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         let mut cmd = Command::new(&self.cmd);
 

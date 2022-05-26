@@ -1,11 +1,11 @@
 use super::*;
 use anyhow::*;
 use dashmap::DashMap;
-use tracing::*;
 use std::fs;
 use std::path::PathBuf;
 use std::vec::Vec;
 use toml::Value;
+use tracing::*;
 
 pub const ZAPFILE: &str = "Build.toml";
 
@@ -33,7 +33,7 @@ impl Buildfile {
     ///
     /// Unknown rules will be rejected.
     ///
-    #[tracing::instrument(name="Buildfile::from_file", skip(rule_manager))]
+    #[tracing::instrument(name = "Buildfile::from_file", skip(rule_manager))]
     pub fn from_file(
         workspace_prefix: &PathBuf,
         zapfile_path: &PathBuf,

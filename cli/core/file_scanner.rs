@@ -1,8 +1,8 @@
 use anyhow::Context;
-use tracing::*;
 use regex::Regex;
 use std::fs;
 use std::path::PathBuf;
+use tracing::*;
 
 #[derive(Debug, Clone)]
 pub struct FileScanner {
@@ -34,7 +34,7 @@ impl FileScanner {
         Ok(self)
     }
 
-    #[tracing::instrument(name="FileScanner::find_files")]
+    #[tracing::instrument(name = "FileScanner::find_files")]
     pub fn find_files(&self) -> Result<Vec<PathBuf>, anyhow::Error> {
         let root = fs::canonicalize(&self.root.clone())?;
         self.find_files_aux(root)

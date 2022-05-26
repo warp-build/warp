@@ -2,10 +2,10 @@ use super::{ComputedTarget, Dependency, Label, Target};
 use anyhow::{anyhow, Context};
 use daggy::{Dag, NodeIndex};
 use fxhash::*;
-use tracing::debug;
 use petgraph::dot;
 use petgraph::visit::Topo;
 use petgraph::{stable_graph::StableDiGraph, Direction};
+use tracing::debug;
 
 /// The DepGraph contains the graph of all the targets in this project.
 ///
@@ -37,7 +37,7 @@ pub struct DepGraph {
 }
 
 impl DepGraph {
-    #[tracing::instrument(name="DepGraph::from_targets", skip(targets))]
+    #[tracing::instrument(name = "DepGraph::from_targets", skip(targets))]
     pub fn from_targets(targets: &[Target]) -> Result<DepGraph, anyhow::Error> {
         let mut dag: Dag<ComputedTarget, (), u32> = Dag::new();
         let mut nodes: FxHashMap<Label, NodeIndex> = FxHashMap::default();
@@ -94,7 +94,7 @@ impl DepGraph {
         })
     }
 
-    #[tracing::instrument(name="DepGraph::scope", skip(self))]
+    #[tracing::instrument(name = "DepGraph::scope", skip(self))]
     pub fn scope(&mut self, target: &Label) -> Result<&mut DepGraph, anyhow::Error> {
         if target.is_all() {
             Ok(self)

@@ -1,8 +1,8 @@
-use tracing::*;
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;
 use structopt::StructOpt;
+use tracing::*;
 use zap_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
