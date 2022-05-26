@@ -113,16 +113,16 @@ impl LocalWorker {
         Ok(nodes)
     }
 
-    pub fn run(&mut self) -> Result<u32, anyhow::Error> {
-        self.execute(ExecutionMode::BuildAndRun)
+    pub async fn run(&mut self) -> Result<u32, anyhow::Error> {
+        self.execute(ExecutionMode::BuildAndRun).await
     }
 
-    pub fn build(&mut self) -> Result<u32, anyhow::Error> {
-        self.execute(ExecutionMode::OnlyBuild)
+    pub async fn build(&mut self) -> Result<u32, anyhow::Error> {
+        self.execute(ExecutionMode::OnlyBuild).await
     }
 
     #[tracing::instrument(name = "LocalWorker::execute", skip(self))]
-    pub fn execute(&mut self, mode: ExecutionMode) -> Result<u32, anyhow::Error> {
+    pub async fn execute(&mut self, mode: ExecutionMode) -> Result<u32, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 
         let mut targets = 0;
@@ -137,7 +137,7 @@ impl LocalWorker {
 
             let name = node.label().clone();
 
-            match self.cache.is_cached(&node)? {
+            match self.cache.is_cached(&node).await? {
                 CacheHitType::Global => {
                     debug!("Skipping {}. Nothing to do.", name.to_string());
                     continue;
@@ -150,7 +150,8 @@ impl LocalWorker {
                     } else {
                         debug!("Skipping {}, but promoting outputs.", name.to_string());
                         self.cache
-                            .promote_outputs(&node, &self.workspace.paths.local_outputs_root)?;
+                            .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
+                            .await?;
                         continue;
                     }
                 }
@@ -160,16 +161,16 @@ impl LocalWorker {
             }
 
             let result = if node.target.is_local() {
-                let mut sandbox = LocalSandbox::for_node(&self.workspace, &node);
+                let mut sandbox = LocalSandbox::for_node(&self.workspace, node.clone());
 
                 let result = {
                     let find_node = |label| (&self.dep_graph).find_node(&label).clone();
-                    sandbox.run(&self.cache, &find_node, mode)?
+                    sandbox.run(&self.cache, &find_node, mode).await?
                 };
 
                 match result {
                     ValidationStatus::Valid => {
-                        self.cache.save(&sandbox)?;
+                        self.cache.save(&sandbox).await?;
                         // sandbox.clear_sandbox()?;
                         targets += 1;
                         Ok(())

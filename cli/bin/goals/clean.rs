@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
 use zap_core::*;
@@ -25,7 +26,11 @@ Example: //my/library:shell
 
 impl CleanGoal {
     #[tracing::instrument(name = "CleanGoal::run", skip(workspace))]
-    pub async fn run(self, workspace: Workspace) -> Result<(), anyhow::Error> {
+    pub async fn run(
+        self,
+        workspace: Workspace,
+        event_channel: Arc<EventChannel>,
+    ) -> Result<(), anyhow::Error> {
         let target: Label = self.target.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
         debug!("Target: {}", &target.to_string());
@@ -49,17 +54,17 @@ impl CleanGoal {
         if target.is_all() {
             for node in &nodes {
                 if node.target.is_local() {
-                    let sandbox = LocalSandbox::for_node(&workspace, &node);
-                    sandbox.clear_sandbox()?;
-                    cache.evict(&node)?;
+                    let sandbox = LocalSandbox::for_node(&workspace, node.clone());
+                    sandbox.clear_sandbox().await?;
+                    cache.evict(&node).await?;
                 }
             }
         } else {
             for node in &nodes {
                 if *node.target.label() == target {
-                    let sandbox = LocalSandbox::for_node(&workspace, &node);
-                    sandbox.clear_sandbox()?;
-                    cache.evict(&node)?;
+                    let sandbox = LocalSandbox::for_node(&workspace, node.clone());
+                    sandbox.clear_sandbox().await?;
+                    cache.evict(&node).await?;
                 }
             }
         }

@@ -1,7 +1,9 @@
 use super::*;
 use anyhow::{anyhow, Context};
+use futures::FutureExt;
 use fxhash::*;
 use std::path::PathBuf;
+use tokio::fs;
 use tracing::*;
 
 mod error {
@@ -46,9 +48,9 @@ mod error {
 ///   7. exit sandbox
 ///
 ///
-pub struct LocalSandbox<'a> {
+pub struct LocalSandbox {
     /// The node to be built.
-    node: &'a ComputedTarget,
+    node: ComputedTarget,
 
     /// The path to this sandbox on disk
     root: PathBuf,
@@ -74,9 +76,9 @@ pub enum ValidationStatus {
     Valid,
 }
 
-impl<'a> LocalSandbox<'a> {
+impl LocalSandbox {
     #[tracing::instrument(name="LocalSandbox::for_node", skip(workspace, node), fields(zap.target = %node.target.label().to_string()))]
-    pub fn for_node(workspace: &Workspace, node: &'a ComputedTarget) -> LocalSandbox<'a> {
+    pub fn for_node(workspace: &Workspace, node: ComputedTarget) -> LocalSandbox {
         let workspace = workspace.clone();
         let root = workspace.paths.local_sandbox_root.join(node.hash());
         let outputs_root = workspace.paths.local_outputs_root.clone();
@@ -102,25 +104,28 @@ impl<'a> LocalSandbox<'a> {
         self.outputs.clone()
     }
 
-    fn scan_files(root: &PathBuf) -> Vec<PathBuf> {
-        if root.is_dir() {
-            std::fs::read_dir(root)
-                .unwrap_or_else(|err| {
+    fn scan_files(root: &PathBuf) -> futures::future::BoxFuture<'_, Vec<PathBuf>> {
+        async move {
+            if root.is_dir() {
+                let mut entries = vec![];
+                let mut read_dir = fs::read_dir(root).await.unwrap_or_else(|err| {
                     panic!("Could not read directory: {:?} due to {:?}", root, err)
-                })
-                .flat_map(|entry| {
-                    let entry = entry.unwrap_or_else(|_| panic!("Could not read entry"));
+                });
+                while let Ok(Some(entry)) = read_dir.next_entry().await {
                     let path = entry.path();
-                    if path.is_dir() {
-                        LocalSandbox::scan_files(&path)
+                    let mut rest = if path.is_dir() {
+                        LocalSandbox::scan_files(&path).await
                     } else {
                         vec![path]
-                    }
-                })
-                .collect()
-        } else {
-            vec![]
+                    };
+                    entries.append(&mut rest);
+                }
+                entries
+            } else {
+                vec![]
+            }
         }
+        .boxed()
     }
 
     /// Update the validation status of this sandbox by comparing the expected
@@ -133,7 +138,7 @@ impl<'a> LocalSandbox<'a> {
     /// dependency outputs that will be present in the sandbox.
     ///
     #[tracing::instrument(name = "LocalSandbox::validate_outputs", skip(self))]
-    fn validate_outputs(&mut self) -> Result<(), anyhow::Error> {
+    async fn validate_outputs(&mut self) -> Result<(), anyhow::Error> {
         let node_inputs: FxHashSet<PathBuf> = self.node.srcs().iter().cloned().collect();
         let deps_inputs: FxHashSet<PathBuf> = self
             .node
@@ -147,6 +152,7 @@ impl<'a> LocalSandbox<'a> {
         let expected_outputs: FxHashSet<PathBuf> = self.node.outs().iter().cloned().collect();
 
         let all_outputs: FxHashSet<PathBuf> = LocalSandbox::scan_files(&self.root)
+            .await
             .iter()
             .flat_map(|path| path.strip_prefix(&self.root))
             .map(|path| path.to_path_buf())
@@ -202,14 +208,15 @@ impl<'a> LocalSandbox<'a> {
     }
 
     #[tracing::instrument(name = "LocalSandbox::prepare_sandbox_dir", skip(self))]
-    fn prepare_sandbox_dir(&mut self) -> Result<PathBuf, anyhow::Error> {
+    async fn prepare_sandbox_dir(&mut self) -> Result<PathBuf, anyhow::Error> {
         let current_dir = std::env::current_dir().context(format!(
             "Could not get the current directory while building sandbox for node {:?}",
             self.node.label().to_string(),
         ))?;
 
-        let _ = std::fs::remove_dir_all(&self.root);
-        std::fs::create_dir_all(&self.root)
+        let _ = fs::remove_dir_all(&self.root).await;
+        fs::create_dir_all(&self.root)
+            .await
             .context(format!(
                 "Could not create sandbox directory for node {:?} at: {:?}",
                 self.node.label().to_string(),
@@ -223,43 +230,36 @@ impl<'a> LocalSandbox<'a> {
     }
 
     #[tracing::instrument(name = "LocalSandbox::copy_dependences", skip(self, find_node))]
-    fn copy_dependences(
+    async fn copy_dependences(
         &mut self,
         build_cache: &LocalCache,
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
     ) -> Result<(), error::SandboxError> {
         // copy all the direct dependency outputs
-        let deps: Vec<(PathBuf, PathBuf)> = self
+        for dep in self
             .node
             .transitive_deps(find_node)
             .map_err(error::SandboxError::MissingDependencies)?
             .iter()
-            .flat_map(|dep| {
-                let outs: Vec<(PathBuf, PathBuf)> = dep
-                    .outs
-                    .iter()
-                    .map(|out| {
-                        (
-                            build_cache.absolute_path_by_hash(&dep.hash).join(&out),
-                            self.root.join(&out),
-                        )
-                    })
-                    .collect();
-                outs
-            })
-            .collect();
-
-        for (src, dst) in deps {
-            self.copy_file(&src, &dst)?;
+        {
+            for out in dep.outs.iter() {
+                let src = build_cache
+                    .absolute_path_by_hash(&dep.hash)
+                    .await
+                    .join(&out);
+                let dst = self.root.join(&out);
+                self.copy_file(&src, &dst).await?;
+            }
         }
 
         Ok(())
     }
 
     #[tracing::instrument(name="LocalSandbox::copy_file", skip(self), fields(zap.target = %self.node().label().to_string()))]
-    fn copy_file(&self, src: &PathBuf, dst: &PathBuf) -> Result<(), error::SandboxError> {
+    async fn copy_file(&self, src: &PathBuf, dst: &PathBuf) -> Result<(), error::SandboxError> {
         if let Some(dst_parent) = &dst.parent() {
-            std::fs::create_dir_all(dst_parent)
+            fs::create_dir_all(dst_parent)
+                .await
                 .map_err(|_| error::SandboxError::CouldNotCreateDir {
                     dst: dst.clone(),
                     dst_parent: dst_parent.to_path_buf(),
@@ -291,20 +291,20 @@ impl<'a> LocalSandbox<'a> {
     }
 
     #[tracing::instrument(name = "LocalSandbox::copy_inputs", skip(self))]
-    fn copy_inputs(&mut self) -> Result<(), anyhow::Error> {
+    async fn copy_inputs(&mut self) -> Result<(), anyhow::Error> {
         let inputs = &self.node.srcs();
         for src in inputs {
             let dst = self.root.join(&src);
-            let src = std::fs::canonicalize(&src)?;
-            self.copy_file(&src, &dst)?;
+            let src = fs::canonicalize(&src).await?;
+            self.copy_file(&src, &dst).await?;
         }
         Ok(())
     }
 
     #[tracing::instrument(name = "LocalSandbox::clear_sandbox", skip(self))]
-    pub fn clear_sandbox(&self) -> Result<(), anyhow::Error> {
-        if let Ok(_) = std::fs::metadata(&self.root) {
-            std::fs::remove_dir_all(&self.root).context(format!(
+    pub async fn clear_sandbox(&self) -> Result<(), anyhow::Error> {
+        if let Ok(_) = fs::metadata(&self.root).await {
+            fs::remove_dir_all(&self.root).await.context(format!(
                 "Could not clean sandbox for node {:?} at {:?}",
                 self.node.label().to_string(),
                 &self.root,
@@ -316,7 +316,7 @@ impl<'a> LocalSandbox<'a> {
     /// check that transitive output names and current rule output names
     /// do not collide.
     #[tracing::instrument(name = "LocalSandbox::ensure_outputs_are_safe", skip(self))]
-    fn ensure_outputs_are_safe(&mut self) -> Result<(), anyhow::Error> {
+    async fn ensure_outputs_are_safe(&mut self) -> Result<(), anyhow::Error> {
         let output_set: FxHashSet<PathBuf> = self.node.outs().iter().cloned().collect();
 
         let dep_output_set: FxHashSet<PathBuf> = self
@@ -339,13 +339,14 @@ impl<'a> LocalSandbox<'a> {
     }
 
     #[tracing::instrument(name = "LocalSandbox::promote_outputs", skip(self))]
-    fn promote_outputs(&mut self) -> Result<(), anyhow::Error> {
+    async fn promote_outputs(&mut self) -> Result<(), anyhow::Error> {
         for out in &self.outputs {
             let src = self.root.join(&out);
             let dst = self.outputs_root.join(&out);
 
             let dst_dir = dst.parent().context("Could not find parent dir")?;
-            std::fs::create_dir_all(&dst_dir)
+            fs::create_dir_all(&dst_dir)
+                .await
                 .context(format!(
                     "Could not create sandbox directory for node {:?} at: {:?}",
                     self.node.label().to_string(),
@@ -353,7 +354,7 @@ impl<'a> LocalSandbox<'a> {
                 ))
                 .map(|_| ())?;
 
-            self.copy_file(&src, &dst)?;
+            self.copy_file(&src, &dst).await?;
         }
         Ok(())
     }
@@ -361,7 +362,7 @@ impl<'a> LocalSandbox<'a> {
     /// Run a build rule within a sandboxed environment.
     ///
     #[tracing::instrument(name = "LocalSandbox::run", skip(self, find_node))]
-    pub fn run(
+    pub async fn run(
         &mut self,
         build_cache: &LocalCache,
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
@@ -369,13 +370,13 @@ impl<'a> LocalSandbox<'a> {
     ) -> Result<ValidationStatus, anyhow::Error> {
         debug!("Running sandbox at: {:?}", &self.root);
 
-        self.ensure_outputs_are_safe()?;
+        self.ensure_outputs_are_safe().await?;
 
-        self.prepare_sandbox_dir()?;
+        self.prepare_sandbox_dir().await?;
 
-        self.copy_dependences(&build_cache, find_node)?;
+        self.copy_dependences(&build_cache, find_node).await?;
 
-        self.copy_inputs()?;
+        self.copy_inputs().await?;
 
         debug!("Executing build rule...");
         self.node.execute(
@@ -391,10 +392,10 @@ impl<'a> LocalSandbox<'a> {
 
         debug!("Build rule executed successfully.");
 
-        self.validate_outputs()?;
+        self.validate_outputs().await?;
 
         if let ValidationStatus::Valid = self.status {
-            self.promote_outputs()?;
+            self.promote_outputs().await?;
         }
 
         debug!(

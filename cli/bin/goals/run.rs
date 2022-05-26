@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
 use zap_core::*;
@@ -31,7 +32,11 @@ build their dependencies and exit.
 }
 
 impl RunGoal {
-    pub async fn run(self, workspace: Workspace) -> Result<(), anyhow::Error> {
+    pub async fn run(
+        self,
+        workspace: Workspace,
+        event_channel: Arc<EventChannel>,
+    ) -> Result<(), anyhow::Error> {
         let target: Label = self.target.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
         debug!("Target: {}", &target.to_string());
@@ -55,8 +60,23 @@ impl RunGoal {
         let worker_limit = self.max_workers.unwrap_or(num_cpus::get());
 
         let zap = BuildExecutor::from_workspace(workspace, worker_limit);
-        zap.run(target).await?;
 
-        Ok(())
+        let (result, ()) =
+            futures::future::join(zap.run(target, event_channel.clone()), async move {
+                let event_channel = event_channel.clone();
+                println!("🔨 Building {}...", name);
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                    if let Some(event) = event_channel.recv() {
+                        println!("{:?}", event);
+                        if event == zap_core::Event::BuildCompleted {
+                            return;
+                        }
+                    }
+                }
+            })
+            .await;
+
+        result
     }
 }

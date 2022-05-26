@@ -2,6 +2,7 @@ use super::*;
 use anyhow::{anyhow, Context};
 use fxhash::*;
 use std::path::PathBuf;
+use tokio::fs;
 use tracing::*;
 
 /// The LocalCache implements an in-memory and persisted cache for build nodes
@@ -30,7 +31,7 @@ impl LocalCache {
     }
 
     #[tracing::instrument(name = "LocalCache::save", skip(sandbox))]
-    pub fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
+    pub async fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
         let node = sandbox.node();
         let hash = node.hash();
         let cache_path = if node.target.is_local() {
@@ -46,43 +47,40 @@ impl LocalCache {
             sandbox.outputs().len()
         );
 
-        sandbox
-            .outputs()
-            .iter()
-            .cloned()
-            .map(|artifact| {
-                debug!("Caching build artifact: {:?}", &artifact);
-                let cached_file = cache_path.join(&artifact);
+        for artifact in sandbox.outputs().iter() {
+            debug!("Caching build artifact: {:?}", &artifact);
+            let cached_file = cache_path.join(&artifact);
 
-                // ensure all dirs are there for this file
-                let cached_dir = &cached_file.parent().unwrap();
-                debug!("Creating artifact cache path: {:?}", &cached_dir);
-                std::fs::create_dir_all(&cached_dir)
-                    .context(format!(
-                        "Could not prepare directory for artifact {:?} into cache path: {:?}",
-                        &artifact, &cached_dir
-                    ))
-                    .map(|_| ())?;
+            // ensure all dirs are there for this file
+            let cached_dir = &cached_file.parent().unwrap();
+            debug!("Creating artifact cache path: {:?}", &cached_dir);
+            fs::create_dir_all(&cached_dir)
+                .await
+                .context(format!(
+                    "Could not prepare directory for artifact {:?} into cache path: {:?}",
+                    &artifact, &cached_dir
+                ))
+                .map(|_| ())?;
 
-                let sandboxed_artifact = &sandbox.root().join(artifact);
-                debug!(
-                    "Moving artifact from sandbox path {:?} to cache path {:?}",
-                    &sandboxed_artifact, &cached_file
-                );
-                std::fs::rename(&sandboxed_artifact, &cached_file)
-                    .context(format!(
-                        "Could not move artifact {:?} into cache path: {:?}",
-                        sandboxed_artifact, cached_file
-                    ))
-                    .map(|_| ())?;
+            let sandboxed_artifact = &sandbox.root().join(artifact);
+            debug!(
+                "Moving artifact from sandbox path {:?} to cache path {:?}",
+                &sandboxed_artifact, &cached_file
+            );
+            fs::rename(&sandboxed_artifact, &cached_file)
+                .await
+                .context(format!(
+                    "Could not move artifact {:?} into cache path: {:?}",
+                    sandboxed_artifact, cached_file
+                ))
+                .map(|_| ())?;
+        }
 
-                Ok(())
-            })
-            .collect::<Result<(), anyhow::Error>>()
+        Ok(())
     }
 
     #[tracing::instrument(name = "LocalCache::promote_outputs", skip(node))]
-    pub fn promote_outputs(
+    pub async fn promote_outputs(
         &self,
         node: &ComputedTarget,
         dst: &PathBuf,
@@ -103,7 +101,7 @@ impl LocalCache {
         }
 
         for (path, _) in paths {
-            std::fs::create_dir_all(&path)?;
+            fs::create_dir_all(&path).await?;
         }
         for (src, dst) in outs {
             #[cfg(target_os = "windows")]
@@ -125,11 +123,11 @@ impl LocalCache {
     }
 
     #[tracing::instrument(name = "LocalCache::absolute_path_by_hash")]
-    pub fn absolute_path_by_hash(&self, hash: &str) -> PathBuf {
-        match std::fs::canonicalize(&self.local_root.join(hash)) {
+    pub async fn absolute_path_by_hash(&self, hash: &str) -> PathBuf {
+        match fs::canonicalize(&self.local_root.join(hash)).await {
             Err(_) => {
                 let path = self.global_root.join(hash);
-                std::fs::canonicalize(&path).unwrap_or_else(|_| {
+                fs::canonicalize(&path).await.unwrap_or_else(|_| {
                     panic!(
                         "Could not find {:?} in disk, has the cache been modified manually?",
                         &path
@@ -147,12 +145,15 @@ impl LocalCache {
     /// FIXME: check if the expected hashes of the inputs match the actual
     /// hash of the files to determine if the cache is corrupted.
     #[tracing::instrument(name = "LocalCache::is_cached", skip(node))]
-    pub fn is_cached(&mut self, node: &ComputedTarget) -> Result<CacheHitType, anyhow::Error> {
+    pub async fn is_cached(
+        &mut self,
+        node: &ComputedTarget,
+    ) -> Result<CacheHitType, anyhow::Error> {
         let hash = node.hash();
 
         let hash_path = self.local_root.join(&hash);
         debug!("Checking if {:?} is in the cache...", hash_path);
-        if std::fs::metadata(&hash_path).is_ok() {
+        if fs::metadata(&hash_path).await.is_ok() {
             debug!(
                 "Cache hit for {} at {:?}",
                 node.label().to_string(),
@@ -163,7 +164,7 @@ impl LocalCache {
 
         let hash_path = self.global_root.join(&hash);
         debug!("Checking if {:?} is in the cache...", hash_path);
-        if std::fs::metadata(&hash_path).is_ok() {
+        if fs::metadata(&hash_path).await.is_ok() {
             debug!(
                 "Cache hit for {} at {:?}",
                 node.label().to_string(),
@@ -176,7 +177,7 @@ impl LocalCache {
             .global_root
             .join(format!("{}-{}", node.label().name(), &hash));
         debug!("Checking if {:?} is in the cache...", named_path);
-        if std::fs::metadata(&named_path).is_ok() {
+        if fs::metadata(&named_path).await.is_ok() {
             debug!(
                 "Cache hit for {} at {:?}",
                 node.label().to_string(),
@@ -190,14 +191,14 @@ impl LocalCache {
     }
 
     #[tracing::instrument(name = "LocalCache::evict", skip(node))]
-    pub fn evict(&mut self, node: &ComputedTarget) -> Result<(), anyhow::Error> {
+    pub async fn evict(&mut self, node: &ComputedTarget) -> Result<(), anyhow::Error> {
         let hash = node.hash();
 
         let hash_path = self.local_root.join(&hash);
         debug!("Checking if {:?} is in the cache...", &hash_path);
-        if std::fs::metadata(&hash_path).is_ok() {
+        if fs::metadata(&hash_path).await.is_ok() {
             trace!("Found it, removing...");
-            std::fs::remove_dir_all(&hash_path)?;
+            fs::remove_dir_all(&hash_path).await?;
         }
         trace!("Cleaned from cache: {:?}", &hash_path);
         Ok(())

@@ -3,6 +3,7 @@ use goals::*;
 
 use opentelemetry::global::shutdown_tracer_provider;
 use std::path::PathBuf;
+use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -97,6 +98,8 @@ impl Zap {
 
     #[tracing::instrument(name = "Zap::start")]
     async fn start(&self) -> Result<(), anyhow::Error> {
+        let event_channel = Arc::new(EventChannel::new());
+
         let cwd = PathBuf::from(&".");
         let workspace: Workspace =
             WorkspaceBuilder::build(cwd, self.zap_home.clone(), self.user.clone())?;
@@ -106,7 +109,7 @@ impl Zap {
         } else {
             Goal::Build(BuildGoal::all())
         }
-        .run(workspace)
+        .run(workspace, event_channel)
         .await
     }
 }
@@ -132,7 +135,11 @@ enum Goal {
 
 impl Goal {
     #[tracing::instrument(name = "Goal::run", skip(self, workspace))]
-    async fn run(self, workspace: Workspace) -> Result<(), anyhow::Error> {
+    async fn run(
+        self,
+        workspace: Workspace,
+        event_channel: Arc<EventChannel>,
+    ) -> Result<(), anyhow::Error> {
         match self {
             // Goal::Cache(x) => x.run(config).await,
             // Goal::DepGraph(x) => x.run(config).await,
@@ -146,15 +153,15 @@ impl Goal {
             // Goal::Test(x) => x.run(),
             // Goal::Toolchains(x) => x.run(config).await,
             // Goal::Workspace(x) => x.run(config).await,
-            Goal::Build(x) => x.run(workspace).await,
-            Goal::Clean(x) => x.run(workspace).await,
-            Goal::Info(x) => x.run(workspace).await,
-            Goal::Run(x) => x.run(workspace).await,
+            Goal::Build(x) => x.run(workspace, event_channel).await,
+            Goal::Clean(x) => x.run(workspace, event_channel).await,
+            Goal::Info(x) => x.run(workspace, event_channel).await,
+            Goal::Run(x) => x.run(workspace, event_channel).await,
         }
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), anyhow::Error> {
     Zap::from_args().run().await.map(|_| ())?;
     shutdown_tracer_provider();
