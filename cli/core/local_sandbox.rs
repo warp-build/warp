@@ -15,11 +15,11 @@ mod error {
         #[error(transparent)]
         MissingDependencies(ComputedTargetError),
 
-        #[error("Could not create directory for transitive dependency {dst:?} at: {dst_parent:?}")]
-        CouldNotCreateDirForTransitiveDependency { dst: PathBuf, dst_parent: PathBuf },
+        #[error("Could not create directory {dst:?} at: {dst_parent:?}")]
+        CouldNotCreateDir { dst: PathBuf, dst_parent: PathBuf },
 
-        #[error("When building {label:?}, could not copy transitive dependency {src:?} into sandbox at {dst:?}")]
-        CouldNotCopyTransitiveDependencyToSandbox {
+        #[error("When building {label:?}, could not link {src:?} into sandbox at {dst:?}")]
+        CouldNotLink {
             label: Label,
             src: PathBuf,
             dst: PathBuf,
@@ -47,10 +47,6 @@ mod error {
 ///
 ///
 pub struct LocalSandbox<'a> {
-    /// The name of this sandbox, not to be confused by the `node.label()`, which
-    /// is a Label.
-    name: String,
-
     /// The node to be built.
     node: &'a ComputedTarget,
 
@@ -85,7 +81,6 @@ impl<'a> LocalSandbox<'a> {
         let root = workspace.paths.local_sandbox_root.join(node.hash());
         let outputs_root = workspace.paths.local_outputs_root.clone();
         LocalSandbox {
-            name: node.hash(),
             node,
             outputs: vec![],
             root,
@@ -267,36 +262,41 @@ impl<'a> LocalSandbox<'a> {
             std::fs::create_dir_all(dst_parent)
                 .map_err(|_| error::SandboxError::CouldNotCreateDir {
                     dst: dst.clone(),
-                }
-            })?;
-            debug!("Copied {:?} to {:?}", &src, &dst);
-        }
+                    dst_parent: dst_parent.to_path_buf(),
+                })
+                .map(|_| ())?;
+        };
+
+        #[cfg(target_os = "windows")]
+        let link_result = match std::os::windows::fs::symlink(&src, &dst) {
+            Ok(_) => Ok(()),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+            err => err,
+        };
+
+        #[cfg(not(target_os = "windows"))]
+        let link_result = match std::os::unix::fs::symlink(&src, &dst) {
+            Ok(_) => Ok(()),
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+            err => err,
+        };
+
+        link_result.map_err(|_| error::SandboxError::CouldNotLink {
+            label: self.node.label().clone(),
+            src: src.clone(),
+            dst: dst.clone(),
+        })?;
 
         Ok(())
     }
 
     #[tracing::instrument(name = "LocalSandbox::copy_inputs", skip(self))]
     fn copy_inputs(&mut self) -> Result<(), anyhow::Error> {
-        // copy all inputs there
         let inputs = &self.node.srcs();
         for src in inputs {
-            // find in cache
             let dst = self.root.join(&src);
-            if let Some(dst_parent) = &dst.parent() {
-                std::fs::create_dir_all(dst_parent)
-                    .context(format!(
-                        "Could not create directory for transitive dependency {:?} at: {:?}",
-                        &dst, &dst_parent
-                    ))
-                    .map(|_| ())?;
-            };
-            std::fs::copy(&src, &dst).context(format!(
-                "When building {:?}, could not copy input {:?} into sandbox at {:?}",
-                self.name.to_string(),
-                &src,
-                &dst
-            ))?;
-            debug!("Copied {:?} to {:?}", &src, &dst);
+            let src = std::fs::canonicalize(&src)?;
+            self.copy_file(&src, &dst)?;
         }
         Ok(())
     }
@@ -353,13 +353,7 @@ impl<'a> LocalSandbox<'a> {
                 ))
                 .map(|_| ())?;
 
-            trace!("Promoting {:?} to {:?}", src, dst);
-            std::fs::copy(&src, &dst).context(format!(
-                "When promoting outputs for target {:?}, could not copy {:?} into outputs at {:?}",
-                self.node.label().to_string(),
-                &src,
-                &dst
-            ))?;
+            self.copy_file(&src, &dst)?;
         }
         Ok(())
     }
