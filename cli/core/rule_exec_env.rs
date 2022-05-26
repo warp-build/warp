@@ -138,22 +138,21 @@ pub struct RunShell {
     label: String,
     script: String,
     env: std::collections::HashMap<String, String>,
+    needs_tty: bool,
 }
 
 #[op]
 pub fn op_ctx_actions_run_shell(state: &mut OpState, args: RunShell) -> Result<(), AnyError> {
-    debug!("op_ctx_actions_run_shell: {:?}", &args);
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let action_map = &inner_state.action_map;
 
     let label = Label::new(&args.label);
-    let action = Action::run_shell(args.script, args.env);
+    let action = Action::run_shell(args.script, args.env, args.needs_tty);
     let new_actions = if let Some(entry) = action_map.get(&label) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
         new_actions.push(action);
-        debug!("Updating action_map: {:?}", &new_actions);
         new_actions
     } else {
         vec![action]
@@ -231,6 +230,7 @@ pub struct Exec {
     cmd: String,
     args: Vec<String>,
     cwd: Option<String>,
+    needs_tty: bool,
 }
 
 #[op]
@@ -240,13 +240,18 @@ pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyErr
 
     let label = Label::new(&args.label);
     let cwd: Option<PathBuf> = args.cwd.map(PathBuf::from);
-    let action = Action::exec(PathBuf::from(args.cmd), args.args, cwd, args.env);
+    let action = Action::exec(
+        PathBuf::from(args.cmd),
+        args.args,
+        cwd,
+        args.env,
+        args.needs_tty,
+    );
     let new_actions = if let Some(entry) = action_map.get(&label) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
         new_actions.push(action);
-        debug!("Updating action_map: {:?}", &new_actions);
         new_actions
     } else {
         vec![action]

@@ -11,6 +11,7 @@ use std::process::{Command, Stdio};
 pub struct RunShellAction {
     pub env: HashMap<String, String>,
     pub script: String,
+    pub needs_tty: bool,
 }
 
 impl RunShellAction {
@@ -29,12 +30,12 @@ impl RunShellAction {
 
         trace!("Got status code: {}", output.status.code().unwrap());
 
-        /*
-        BufReader::new(&*output.stdout)
-            .lines()
-            .filter_map(|line| line.ok())
-            .for_each(|line| println!("{}", line));
-        */
+        if self.needs_tty {
+            BufReader::new(&*output.stdout)
+                .lines()
+                .filter_map(|line| line.ok())
+                .for_each(|line| println!("{}", line));
+        }
 
         if output.status.success() {
             Ok(())

@@ -13,6 +13,7 @@ pub struct ExecAction {
     pub cmd: PathBuf,
     pub args: Vec<String>,
     pub cwd: Option<PathBuf>,
+    pub needs_tty: bool,
 }
 
 impl ExecAction {
@@ -37,12 +38,12 @@ impl ExecAction {
 
         trace!("Got status code: {}", output.status.code().unwrap());
 
-        /*
-        BufReader::new(&*output.stdout)
-            .lines()
-            .filter_map(|line| line.ok())
-            .for_each(|line| println!("{}", line));
-        */
+        if self.needs_tty {
+            BufReader::new(&*output.stdout)
+                .lines()
+                .filter_map(|line| line.ok())
+                .for_each(|line| println!("{}", line));
+        }
 
         if output.status.success() {
             Ok(())

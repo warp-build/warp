@@ -12,8 +12,12 @@ pub enum Action {
 }
 
 impl Action {
-    pub fn run_shell(script: String, env: HashMap<String, String>) -> Action {
-        Action::RunShell(RunShellAction { script, env })
+    pub fn run_shell(script: String, env: HashMap<String, String>, needs_tty: bool) -> Action {
+        Action::RunShell(RunShellAction {
+            script,
+            env,
+            needs_tty,
+        })
     }
 
     pub fn write_file(contents: String, dst: PathBuf) -> Action {
@@ -24,8 +28,20 @@ impl Action {
         Action::Copy(CopyAction { src, dst })
     }
 
-    pub fn exec(cmd: PathBuf, args: Vec<String>, cwd: Option<PathBuf>, env: HashMap<String, String>) -> Action {
-        Action::Exec(ExecAction { cmd, args, cwd, env })
+    pub fn exec(
+        cmd: PathBuf,
+        args: Vec<String>,
+        cwd: Option<PathBuf>,
+        env: HashMap<String, String>,
+        needs_tty: bool,
+    ) -> Action {
+        Action::Exec(ExecAction {
+            cmd,
+            args,
+            cwd,
+            env,
+            needs_tty,
+        })
     }
 
     pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {

@@ -43,6 +43,7 @@ ${IEX} \
 `,
   })
   ctx.action().runShell({
+    needsTty: true,
     script: `#!/bin/bash -xe
 
 chmod +x ${run}
