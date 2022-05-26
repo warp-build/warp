@@ -24,10 +24,10 @@ build their dependencies and exit.
 
     #[structopt(
         help = r"The amount of workers to use to execute any necessary build tasks.",
-        short = "p",
-        long = "parallel"
+        short = "w",
+        long = "max-workers"
     )]
-    parallel: Option<usize>,
+    max_workers: Option<usize>,
 }
 
 impl RunGoal {
@@ -52,14 +52,10 @@ impl RunGoal {
             return Ok(());
         }
 
-        if let Some(worker_limit) = self.parallel {
-            let zap = BuildExecutor::from_workspace(workspace, worker_limit);
-            zap.run(target).await?;
-        } else {
-            let mut zap = LocalWorker::from_workspace(workspace);
-            zap.prepare(&target).await?;
-            zap.run()?;
-        }
+        let worker_limit = self.max_workers.unwrap_or(num_cpus::get());
+
+        let zap = BuildExecutor::from_workspace(workspace, worker_limit);
+        zap.run(target).await?;
 
         Ok(())
     }

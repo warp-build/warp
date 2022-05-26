@@ -27,17 +27,17 @@ Use //... to build the entire project.
 
     #[structopt(
         help = r"The amount of workers to use to execute any necessary build tasks.",
-        short = "p",
-        long = "parallel"
+        short = "w",
+        long = "max-workers"
     )]
-    parallel: Option<usize>,
+    max_workers: Option<usize>,
 }
 
 impl BuildGoal {
     pub fn all() -> BuildGoal {
         BuildGoal {
             target: "//...".to_string(),
-            parallel: None,
+            max_workers: None,
         }
     }
 
@@ -56,14 +56,10 @@ impl BuildGoal {
         print!("🔨 Building {}...", name);
         io::stdout().flush().unwrap();
 
-        if let Some(worker_limit) = self.parallel {
-            let zap = BuildExecutor::from_workspace(workspace, worker_limit);
-            zap.build(target).await?;
-        } else {
-            let mut zap = LocalWorker::from_workspace(workspace);
-            zap.prepare(&target).await?;
-            zap.build()?;
-        }
+        let worker_limit = self.max_workers.unwrap_or(num_cpus::get());
+
+        let zap = BuildExecutor::from_workspace(workspace, worker_limit);
+        zap.build(target).await?;
 
         Ok(())
     }

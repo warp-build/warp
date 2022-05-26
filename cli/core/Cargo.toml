@@ -26,7 +26,7 @@ fxhash = "0.2"
 glob = "0.3"
 guess_host_triple = "0.1"
 log = "0.4"
-num_cpus = "1.0"
+num_cpus = "1"
 opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
 opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"]  }
 petgraph = "0.6"
