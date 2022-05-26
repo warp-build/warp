@@ -1,5 +1,5 @@
 use anyhow::*;
-use log::*;
+use tracing::*;
 use std::collections::HashMap;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -14,6 +14,7 @@ pub struct RunShellAction {
 }
 
 impl RunShellAction {
+    #[tracing::instrument(name="action::RunShellAction::run")]
     pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         let mut cmd = Command::new("bash");
 

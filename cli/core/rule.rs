@@ -1,8 +1,8 @@
 use super::*;
 use dashmap::DashMap;
+use fxhash::*;
 use serde::de;
 use serde::Deserialize;
-use fxhash::*;
 
 pub type RuleName = String;
 
@@ -35,7 +35,7 @@ pub struct Rule {
     defaults: RuleConfig,
 
     /// Whether this rule is runnable or not
-    pub runnable: bool
+    pub runnable: bool,
 }
 
 impl Rule {

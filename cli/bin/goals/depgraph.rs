@@ -27,6 +27,7 @@ enum Action {
 }
 
 impl DepGraphGoal {
+    #[tracing::instrument(name="DepGraphGoal::run")]
     pub async fn run(self, config: ZapConfig) -> Result<(), anyhow::Error> {
         let mut zap = ZapWorker::new(config)?;
         zap.load(&PathBuf::from(&".")).await?;
@@ -37,6 +38,7 @@ impl DepGraphGoal {
         }
     }
 
+    #[tracing::instrument(name="DepGraphGoal::print")]
     fn print(&self, target: &str, zap: &mut ZapWorker) -> Result<(), anyhow::Error> {
         let label: Label = target.into();
         let dep_graph = &mut zap.dep_graph.scoped(&label)?.seal(

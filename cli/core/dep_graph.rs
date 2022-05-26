@@ -1,11 +1,11 @@
 use super::{ComputedTarget, Dependency, Label, Target};
 use anyhow::{anyhow, Context};
 use daggy::{Dag, NodeIndex};
-use log::debug;
+use fxhash::*;
+use tracing::debug;
 use petgraph::dot;
 use petgraph::visit::Topo;
 use petgraph::{stable_graph::StableDiGraph, Direction};
-use fxhash::*;
 
 /// The DepGraph contains the graph of all the targets in this project.
 ///
@@ -37,6 +37,7 @@ pub struct DepGraph {
 }
 
 impl DepGraph {
+    #[tracing::instrument(name="DepGraph::from_targets", skip(targets))]
     pub fn from_targets(targets: &[Target]) -> Result<DepGraph, anyhow::Error> {
         let mut dag: Dag<ComputedTarget, (), u32> = Dag::new();
         let mut nodes: FxHashMap<Label, NodeIndex> = FxHashMap::default();
@@ -45,7 +46,6 @@ impl DepGraph {
         for target in targets {
             let label = target.label().clone();
             let node = dag.add_node(ComputedTarget::from_target(target.clone()));
-            debug!("{:?} -> {:?}", &label, &node);
             nodes.insert(label, node);
         }
         debug!("Added {} nodes to table.", nodes.len());
@@ -54,10 +54,8 @@ impl DepGraph {
         debug!("Building dependency adjacency matrix...");
         for node_idx in nodes.values() {
             let node = dag.node_weight(*node_idx).unwrap();
-            debug!("{:?} depends on:", node.label());
             for label in node.target.deps().iter().cloned() {
                 let dep = nodes.get(&label);
-                debug!("-> {:?} ({:?})", &label, &dep);
                 if let Some(dep) = dep {
                     let edge = (*dep, *node_idx);
                     edges.push(edge);
@@ -96,6 +94,7 @@ impl DepGraph {
         })
     }
 
+    #[tracing::instrument(name="DepGraph::scope", skip(self))]
     pub fn scope(&mut self, target: &Label) -> Result<&mut DepGraph, anyhow::Error> {
         if target.is_all() {
             Ok(self)

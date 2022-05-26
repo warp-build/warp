@@ -1,10 +1,12 @@
 mod goals;
 use goals::*;
 
-use log::*;
-use structopt::StructOpt;
-use zap_core::*;
+use opentelemetry::global::shutdown_tracer_provider;
 use std::path::PathBuf;
+use structopt::StructOpt;
+use tracing::*;
+use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
+use zap_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -26,6 +28,12 @@ struct Zap {
     user: Option<String>,
 
     #[structopt(
+        long = "enable-tracing",
+        help = "turns on the tracing options for remote debugging"
+    )]
+    enable_tracing: bool,
+
+    #[structopt(
         long = "zap-home",
         help = "the root directory for the Zap global configuration"
     )]
@@ -43,6 +51,21 @@ impl Zap {
             homepage: "https://zap.build".into(),
         });
 
+        if self.enable_tracing {
+            let tracer = opentelemetry_jaeger::new_pipeline()
+                .install_batch(opentelemetry::runtime::Tokio)?;
+
+            // Create a tracing layer with the configured tracer
+            let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+
+            // Use the tracing subscriber `Registry`, or any other subscriber
+            // that impls `LookupSpan`
+            let subscriber = tracing_subscriber::Registry::default().with(telemetry);
+
+            // Trace executed code
+            tracing::subscriber::set_global_default(subscriber)?;
+        }
+
         env_logger::Builder::new()
             .filter_level(log::LevelFilter::Info)
             .format_timestamp_micros()
@@ -51,12 +74,10 @@ impl Zap {
             .try_init()
             .unwrap();
 
-        let cwd = PathBuf::from(&".");
-        let workspace: Workspace =
-            WorkspaceBuilder::build(cwd, self.zap_home.clone(), self.user.clone())?;
+        let root_span = trace_span!("Zap::run");
 
-        let cmd = self.cmd.unwrap_or_else(|| Goal::Build(BuildGoal::all()));
-        let result = cmd.run(workspace).await;
+        async move {
+        let result = self.start().await;
 
         match result {
             Ok(()) => (),
@@ -69,6 +90,22 @@ impl Zap {
         }
 
         result
+        }.instrument(root_span).await
+    }
+
+    #[tracing::instrument(name = "Zap::start")]
+    async fn start(&self) -> Result<(), anyhow::Error> {
+        let cwd = PathBuf::from(&".");
+        let workspace: Workspace =
+            WorkspaceBuilder::build(cwd, self.zap_home.clone(), self.user.clone())?;
+
+        if let Some(cmd) = self.cmd.clone() {
+            cmd
+        } else {
+            Goal::Build(BuildGoal::all())
+        }
+        .run(workspace)
+        .await
     }
 }
 
@@ -92,6 +129,7 @@ enum Goal {
 }
 
 impl Goal {
+    #[tracing::instrument(name="Goal::run", skip(self, workspace))]
     async fn run(self, workspace: Workspace) -> Result<(), anyhow::Error> {
         match self {
             // Goal::Cache(x) => x.run(config).await,
@@ -116,5 +154,7 @@ impl Goal {
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    Zap::from_args().run().await.map(|_| ())
+    Zap::from_args().run().await.map(|_| ())?;
+    shutdown_tracer_provider();
+    Ok(())
 }

@@ -1,5 +1,5 @@
-pub mod toolchains;
 pub mod rules;
+pub mod toolchains;
 
-pub use toolchains::*;
 pub use rules::*;
+pub use toolchains::*;

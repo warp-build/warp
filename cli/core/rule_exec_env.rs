@@ -2,9 +2,9 @@ use super::*;
 use dashmap::DashMap;
 use deno_core::error::AnyError;
 use deno_core::*;
-use log::*;
-use serde::*;
 use fxhash::*;
+use tracing::*;
+use serde::*;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -125,7 +125,6 @@ pub fn op_ctx_actions_declare_outputs(
             let mut new_outs = vec![];
             new_outs.extend(last_outs.to_vec());
             new_outs.extend(outs);
-            debug!("Updating output_map: {:?}", &new_outs);
             new_outs
         }
     };
@@ -185,7 +184,6 @@ pub fn op_ctx_actions_write_file(state: &mut OpState, args: WriteFile) -> Result
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
         new_actions.push(action);
-        debug!("Updating action_map: {:?}", &new_actions);
         new_actions
     } else {
         vec![action]
@@ -216,7 +214,6 @@ pub fn op_ctx_actions_copy(state: &mut OpState, args: CopyFile) -> Result<(), An
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
         new_actions.push(action);
-        debug!("Updating action_map: {:?}", &new_actions);
         new_actions
     } else {
         vec![action]
@@ -402,6 +399,7 @@ impl RuleExecEnv {
         Ok(())
     }
 
+    #[tracing::instrument(name="RuleExecEnv::compute_target", skip(self, find_node, computed_target))]
     pub fn compute_target(
         &mut self,
         mut computed_target: ComputedTarget,
@@ -499,8 +497,6 @@ impl RuleExecEnv {
             .replace("{TRANSITIVE_DEPS}", &transitive_deps.to_string())
             .replace("{PLATFORM}", &platform.to_string());
 
-        trace!("Executing: {}", &compute_program);
-
         self.runtime
             .execute_script(
                 &format!("<computed_target: {:?}>", &label.to_string()),
@@ -545,10 +541,9 @@ impl RuleExecEnv {
         computed_target.recompute_hash();
 
         trace!(
-            "Sealed ComputedTarget {} with FxHash {:?}: {:#?}",
+            "Sealed ComputedTarget {} with FxHash {:?}",
             label.to_string(),
             computed_target.hash.as_ref().unwrap(),
-            &computed_target,
         );
 
         Ok(computed_target)

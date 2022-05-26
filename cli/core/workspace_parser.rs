@@ -1,19 +1,19 @@
 use super::*;
 use anyhow::Context;
-use log::*;
+use tracing::*;
 use std::path::PathBuf;
 
 pub struct WorkspaceParser {}
 
 impl WorkspaceParser {
+
+    #[tracing::instrument(name="WorkspaceParser::from_toml", skip(toml, paths, local_rules, local_toolchains))]
     pub fn from_toml(
         toml: toml::Value,
         paths: WorkspacePaths,
         local_rules: &[PathBuf],
         local_toolchains: &[PathBuf],
     ) -> Result<Workspace, anyhow::Error> {
-        debug!("Found workspace: {:?}", &toml);
-
         let workspace = toml
             .get("workspace")
             .context("Workspace file must have a workspace section")?;

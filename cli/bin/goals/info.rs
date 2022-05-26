@@ -1,4 +1,4 @@
-use log::*;
+use tracing::*;
 use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;

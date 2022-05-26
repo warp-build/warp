@@ -59,7 +59,6 @@ pub enum TargetKind {
     Buildable,
 }
 
-
 impl Target {
     pub fn global(label: Label, rule: &Rule, cfg: RuleConfig, archive: Archive) -> Target {
         Target::Global(GlobalTarget {
@@ -84,16 +83,19 @@ impl Target {
             cfg,
             label,
             rule: rule.clone(),
-            kind: if rule.runnable { TargetKind::Runnable } else { TargetKind::Buildable },
+            kind: if rule.runnable {
+                TargetKind::Runnable
+            } else {
+                TargetKind::Buildable
+            },
         })
     }
 
     pub fn kind(&self) -> TargetKind {
         match self {
-            Target::Local(LocalTarget{ kind , ..} ) => kind.clone(),
+            Target::Local(LocalTarget { kind, .. }) => kind.clone(),
             _ => TargetKind::Buildable,
         }
-        
     }
 
     pub fn is_local(&self) -> bool {

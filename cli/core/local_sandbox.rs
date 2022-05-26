@@ -1,8 +1,8 @@
 use super::*;
 use anyhow::{anyhow, Context};
-use log::*;
-use std::path::PathBuf;
 use fxhash::*;
+use std::path::PathBuf;
+use tracing::*;
 
 mod error {
     use crate::ComputedTargetError;
@@ -79,6 +79,7 @@ pub enum ValidationStatus {
 }
 
 impl<'a> LocalSandbox<'a> {
+    #[tracing::instrument(name="LocalSandbox::for_node", skip(workspace, node), fields(zap.target = %node.target.label().to_string()))]
     pub fn for_node(workspace: &Workspace, node: &'a ComputedTarget) -> LocalSandbox<'a> {
         let workspace = workspace.clone();
         let root = workspace.paths.local_sandbox_root.join(node.hash());
@@ -136,6 +137,7 @@ impl<'a> LocalSandbox<'a> {
     /// No undeclared outputs will be accepted, as they may collide with transitive
     /// dependency outputs that will be present in the sandbox.
     ///
+    #[tracing::instrument(name = "LocalSandbox::validate_outputs", skip(self))]
     fn validate_outputs(&mut self) -> Result<(), anyhow::Error> {
         let node_inputs: FxHashSet<PathBuf> = self.node.srcs().iter().cloned().collect();
         let deps_inputs: FxHashSet<PathBuf> = self
@@ -144,9 +146,6 @@ impl<'a> LocalSandbox<'a> {
             .iter()
             .flat_map(|n| n.outs.clone())
             .collect();
-
-        debug!("Sandboxed Node Inputs: {:?}", &node_inputs);
-        debug!("Sandboxed Deps Outputs: {:?}", &deps_inputs);
 
         let inputs: FxHashSet<PathBuf> = node_inputs.union(&deps_inputs).cloned().collect();
 
@@ -173,8 +172,6 @@ impl<'a> LocalSandbox<'a> {
             })
             .cloned()
             .collect();
-
-        debug!("Sandboxed Node Outputs: {:?}", &actual_outputs);
 
         let diff: Vec<&PathBuf> = expected_outputs.difference(&actual_outputs).collect();
 
@@ -209,6 +206,7 @@ impl<'a> LocalSandbox<'a> {
         Ok(())
     }
 
+    #[tracing::instrument(name = "LocalSandbox::prepare_sandbox_dir", skip(self))]
     fn prepare_sandbox_dir(&mut self) -> Result<PathBuf, anyhow::Error> {
         let current_dir = std::env::current_dir().context(format!(
             "Could not get the current directory while building sandbox for node {:?}",
@@ -229,6 +227,7 @@ impl<'a> LocalSandbox<'a> {
         Ok(current_dir)
     }
 
+    #[tracing::instrument(name = "LocalSandbox::copy_dependences", skip(self, find_node))]
     fn copy_dependences(
         &mut self,
         build_cache: &LocalCache,
@@ -256,21 +255,17 @@ impl<'a> LocalSandbox<'a> {
             .collect();
 
         for (src, dst) in deps {
-            if let Some(dst_parent) = &dst.parent() {
-                std::fs::create_dir_all(dst_parent)
-                    .map_err(
-                        |_| error::SandboxError::CouldNotCreateDirForTransitiveDependency {
-                            dst: dst.clone(),
-                            dst_parent: dst_parent.to_path_buf(),
-                        },
-                    )
-                    .map(|_| ())?;
-            };
+            self.copy_file(&src, &dst)?;
+        }
 
-            std::fs::copy(&src, &dst).map_err(|_| {
-                error::SandboxError::CouldNotCopyTransitiveDependencyToSandbox {
-                    label: self.node.label().clone(),
-                    src: src.clone(),
+        Ok(())
+    }
+
+    #[tracing::instrument(name="LocalSandbox::copy_file", skip(self), fields(zap.target = %self.node().label().to_string()))]
+    fn copy_file(&self, src: &PathBuf, dst: &PathBuf) -> Result<(), error::SandboxError> {
+        if let Some(dst_parent) = &dst.parent() {
+            std::fs::create_dir_all(dst_parent)
+                .map_err(|_| error::SandboxError::CouldNotCreateDir {
                     dst: dst.clone(),
                 }
             })?;
@@ -280,6 +275,7 @@ impl<'a> LocalSandbox<'a> {
         Ok(())
     }
 
+    #[tracing::instrument(name = "LocalSandbox::copy_inputs", skip(self))]
     fn copy_inputs(&mut self) -> Result<(), anyhow::Error> {
         // copy all inputs there
         let inputs = &self.node.srcs();
@@ -305,6 +301,7 @@ impl<'a> LocalSandbox<'a> {
         Ok(())
     }
 
+    #[tracing::instrument(name = "LocalSandbox::clear_sandbox", skip(self))]
     pub fn clear_sandbox(&self) -> Result<(), anyhow::Error> {
         if let Ok(_) = std::fs::metadata(&self.root) {
             std::fs::remove_dir_all(&self.root).context(format!(
@@ -318,6 +315,7 @@ impl<'a> LocalSandbox<'a> {
 
     /// check that transitive output names and current rule output names
     /// do not collide.
+    #[tracing::instrument(name = "LocalSandbox::ensure_outputs_are_safe", skip(self))]
     fn ensure_outputs_are_safe(&mut self) -> Result<(), anyhow::Error> {
         let output_set: FxHashSet<PathBuf> = self.node.outs().iter().cloned().collect();
 
@@ -340,6 +338,7 @@ impl<'a> LocalSandbox<'a> {
         }
     }
 
+    #[tracing::instrument(name = "LocalSandbox::promote_outputs", skip(self))]
     fn promote_outputs(&mut self) -> Result<(), anyhow::Error> {
         for out in &self.outputs {
             let src = self.root.join(&out);
@@ -367,7 +366,7 @@ impl<'a> LocalSandbox<'a> {
 
     /// Run a build rule within a sandboxed environment.
     ///
-    /// NOTE(@ostera): wouldn't this be nice as a free monad?
+    #[tracing::instrument(name = "LocalSandbox::run", skip(self, find_node))]
     pub fn run(
         &mut self,
         build_cache: &LocalCache,

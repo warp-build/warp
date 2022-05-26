@@ -1,6 +1,6 @@
 use super::*;
 use anyhow::Context;
-use log::*;
+use tracing::*;
 use std::fs;
 use std::path::PathBuf;
 
@@ -43,9 +43,6 @@ impl WorkspaceScanner {
             .find_files()?;
 
         debug!("Found {} build files...", paths.len());
-        for p in &paths {
-            debug!("* {:?}", p.to_str().unwrap())
-        }
 
         Ok(paths)
     }
@@ -61,9 +58,6 @@ impl WorkspaceScanner {
             .find_files()?;
 
         debug!("Found {} local rules...", paths.len());
-        for p in &paths {
-            debug!("* {}", p.to_str().unwrap())
-        }
 
         Ok(paths)
     }
@@ -80,9 +74,6 @@ impl WorkspaceScanner {
             .find_files()?;
 
         debug!("Found {} local toolchains...", paths.len());
-        for p in &paths {
-            debug!("* {}", p.to_str().unwrap())
-        }
 
         Ok(paths)
     }

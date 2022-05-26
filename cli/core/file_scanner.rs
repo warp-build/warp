@@ -1,5 +1,5 @@
 use anyhow::Context;
-use log::*;
+use tracing::*;
 use regex::Regex;
 use std::fs;
 use std::path::PathBuf;
@@ -34,6 +34,7 @@ impl FileScanner {
         Ok(self)
     }
 
+    #[tracing::instrument(name="FileScanner::find_files")]
     pub fn find_files(&self) -> Result<Vec<PathBuf>, anyhow::Error> {
         let root = fs::canonicalize(&self.root.clone())?;
         self.find_files_aux(root)
@@ -41,7 +42,6 @@ impl FileScanner {
 
     fn find_files_aux(&self, current: PathBuf) -> Result<Vec<PathBuf>, anyhow::Error> {
         if current.is_dir() {
-            trace!("Reading dir {:?}", current);
             Ok(fs::read_dir(&current)?
                 .flat_map(|entry| {
                     let path = entry?.path();
@@ -56,7 +56,6 @@ impl FileScanner {
                 .flatten()
                 .collect())
         } else {
-            trace!("Skipping path {:?}", current);
             Ok(vec![])
         }
     }

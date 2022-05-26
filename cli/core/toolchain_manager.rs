@@ -18,7 +18,7 @@ impl ToolchainManager {
         ToolchainManager {
             toolchains: DashMap::new(),
             available_toolchains: DashMap::new(),
-            archives
+            archives,
         }
     }
 

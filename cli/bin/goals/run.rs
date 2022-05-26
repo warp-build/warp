@@ -1,4 +1,4 @@
-use log::*;
+use tracing::*;
 use std::io::Write;
 use structopt::StructOpt;
 use zap_core::*;
@@ -46,8 +46,10 @@ impl RunGoal {
         std::io::stdout().flush().unwrap();
 
         if target.is_all() {
-            print!("You can't run everything. Please specify a target like this: zap build //my/app");
-            return Ok(())
+            print!(
+                "You can't run everything. Please specify a target like this: zap build //my/app"
+            );
+            return Ok(());
         }
 
         if let Some(worker_limit) = self.parallel {

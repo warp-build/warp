@@ -13,17 +13,22 @@ path = "main.rs"
 zap-core = { path = "../core", version = "*" }
 
 anyhow = "1.0"
-human-panic = "1.0"
 chrono = "0.4"
+crossbeam-channel = "0.4.0"
 env_logger="0.9"
 futures = "0.3"
 guess_host_triple = "0.1"
+human-panic = "1.0"
 log = "0.4"
+notify = "5.0.0-pre.15"
+opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
+opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"]  }
 structopt = "0.3"
 termcolor = "1.1"
 tokio = { version = "1", features = ["full"] }
-crossbeam-channel = "0.4.0"
-notify = "5.0.0-pre.15"
+tracing = { version = "0.1", features = ["log", "attributes"] }
+tracing-opentelemetry = "0.17"
+tracing-subscriber = "0.3"
 
 [dev-dependencies]
 insta = "1.14"

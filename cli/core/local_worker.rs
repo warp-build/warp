@@ -1,6 +1,6 @@
 use super::*;
 use anyhow::anyhow;
-use log::*;
+use tracing::*;
 
 /// A LocalWorker orchestrates a local build.
 ///
@@ -41,6 +41,7 @@ impl LocalWorker {
         }
     }
 
+    #[tracing::instrument(name="LocalWorker::load_rules", skip(self))]
     async fn load_rules(&mut self) -> Result<(), anyhow::Error> {
         self.rule_exec_env.setup()?;
         let built_in_rules = zap_ext::TOOLCHAINS
@@ -62,6 +63,7 @@ impl LocalWorker {
         Ok(())
     }
 
+    #[tracing::instrument(name="LocalWorker::prepare", skip(self))]
     pub async fn prepare(&mut self, target: &Label) -> Result<(), anyhow::Error> {
         self.load_rules().await?;
 
@@ -71,7 +73,7 @@ impl LocalWorker {
             .targets();
 
         let scanner = WorkspaceScanner::from_paths(&self.workspace.paths);
-        
+
         for build_file in scanner.find_build_files()? {
             let buildfile = Buildfile::from_file(
                 &self.workspace.paths.workspace_root,
@@ -93,6 +95,7 @@ impl LocalWorker {
         Ok(())
     }
 
+    #[tracing::instrument(name="LocalWorker::compute_nodes", skip(self))]
     pub fn compute_nodes(&mut self) -> Result<Vec<ComputedTarget>, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 
@@ -118,6 +121,7 @@ impl LocalWorker {
         self.execute(ExecutionMode::OnlyBuild)
     }
 
+    #[tracing::instrument(name="LocalWorker::execute", skip(self))]
     pub fn execute(&mut self, mode: ExecutionMode) -> Result<u32, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 
@@ -132,9 +136,6 @@ impl LocalWorker {
             let node = &self.dep_graph.put(idx, sealed_target);
 
             let name = node.label().clone();
-            debug!("About to build {:?}...", name.to_string());
-            debug!("with sources {:?}...", &node.srcs());
-            debug!("with dependencies {:?}...", &node.deps());
 
             match self.cache.is_cached(&node)? {
                 CacheHitType::Global => {

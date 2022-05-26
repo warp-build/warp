@@ -1,6 +1,6 @@
 pub mod actions;
-pub mod build_executor;
 pub mod archive;
+pub mod build_executor;
 pub mod buildfile;
 pub mod computed_target;
 pub mod dep_graph;
@@ -25,6 +25,7 @@ pub mod workspace_scanner;
 
 pub use actions::*;
 pub use archive::*;
+pub use build_executor::*;
 pub use buildfile::*;
 pub use computed_target::*;
 pub use dep_graph::*;
@@ -46,4 +47,3 @@ pub use workspace_builder::*;
 pub use workspace_parser::*;
 pub use workspace_paths::*;
 pub use workspace_scanner::*;
-pub use build_executor::*;

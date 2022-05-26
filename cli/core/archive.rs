@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context};
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
-use log::{debug, info};
+use tracing::{debug, info};
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::Command;

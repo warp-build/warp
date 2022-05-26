@@ -1,8 +1,8 @@
 use super::*;
 use anyhow::{anyhow, Context};
-use log::*;
-use std::path::PathBuf;
 use fxhash::*;
+use tracing::*;
+use std::path::PathBuf;
 
 /// The LocalCache implements an in-memory and persisted cache for build nodes
 /// based on their hashes.
@@ -21,6 +21,7 @@ pub enum CacheHitType {
 }
 
 impl LocalCache {
+    #[tracing::instrument(name="LocalCache::new", skip(workspace))]
     pub fn new(workspace: &Workspace) -> LocalCache {
         LocalCache {
             global_root: workspace.paths.global_cache_root.clone(),
@@ -28,6 +29,7 @@ impl LocalCache {
         }
     }
 
+    #[tracing::instrument(name="LocalCache::save", skip(sandbox))]
     pub fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
         let node = sandbox.node();
         let hash = node.hash();
@@ -79,6 +81,7 @@ impl LocalCache {
             .collect::<Result<(), anyhow::Error>>()
     }
 
+    #[tracing::instrument(name="LocalCache::promote_outputs", skip(node))]
     pub fn promote_outputs(
         &self,
         node: &ComputedTarget,
@@ -121,6 +124,7 @@ impl LocalCache {
         Ok(())
     }
 
+    #[tracing::instrument(name="LocalCache::absolute_path_by_hash")]
     pub fn absolute_path_by_hash(&self, hash: &str) -> PathBuf {
         match std::fs::canonicalize(&self.local_root.join(hash)) {
             Err(_) => {
@@ -142,6 +146,7 @@ impl LocalCache {
     ///
     /// FIXME: check if the expected hashes of the inputs match the actual
     /// hash of the files to determine if the cache is corrupted.
+    #[tracing::instrument(name="LocalCache::is_cached", skip(node))]
     pub fn is_cached(&mut self, node: &ComputedTarget) -> Result<CacheHitType, anyhow::Error> {
         let hash = node.hash();
 
@@ -184,6 +189,7 @@ impl LocalCache {
         Ok(CacheHitType::Miss)
     }
 
+    #[tracing::instrument(name="LocalCache::evict", skip(node))]
     pub fn evict(&mut self, node: &ComputedTarget) -> Result<(), anyhow::Error> {
         let hash = node.hash();
 

@@ -3,12 +3,12 @@
 use super::*;
 use anyhow::anyhow;
 use dashmap::DashMap;
-use log::*;
 use std::sync::Arc;
 use thiserror::*;
+use tracing::*;
 
-/// A LazyWorker orchestrates a local build starting from the target and
-/// building things upwards from it, if they are not cached yet.
+/// A BuildExecutor orchestrates a local build starting from the target and
+/// building dependencies as needed.
 ///
 pub struct BuildExecutor {
     /// The workspace this worker is currently executing.
@@ -27,6 +27,7 @@ pub struct BuildExecutor {
 }
 
 impl BuildExecutor {
+    #[tracing::instrument(name = "BuildExecutor::from_workspace")]
     pub fn from_workspace(workspace: Workspace, worker_limit: usize) -> BuildExecutor {
         BuildExecutor {
             workspace,
@@ -43,12 +44,15 @@ impl BuildExecutor {
         self.execute(target, ExecutionMode::OnlyBuild).await
     }
 
+    #[tracing::instrument(name = "BuildExecutor::execute", skip(self))]
     pub async fn execute(&self, target: Label, mode: ExecutionMode) -> Result<(), anyhow::Error> {
         let build_queue = Arc::new(crossbeam::deque::Injector::new());
         let result_queue = Arc::new(crossbeam::deque::Injector::new());
 
         let worker_limit = self.worker_limit;
         debug!("Starting build executor with {} workers...", &worker_limit);
+
+        let main_worker_span = trace_span!("BuildExecutor::main_worker").entered();
 
         let mut worker = LazyWorker::new(
             0,
@@ -59,34 +63,47 @@ impl BuildExecutor {
             self.busy_targets.clone(),
             target.clone(),
         );
-        worker.load_rules().await?;
-        worker.queue(target.clone())?;
+
+        let rules_span = trace_span!("LazyWorker::load_rules").or_current();
+        {
+            let _ = rules_span.enter();
+            worker.load_rules().await?;
+            worker.queue(target.clone())?;
+        };
+
+        let main_worker_span = main_worker_span.exit();
 
         crossbeam::scope(move |scope| {
+
             let mut worker_threads = vec![];
             for worker_id in 1..worker_limit {
+                let sub_worker_span = trace_span!("BuildExecutor::sub_worker");
                 let build_queue = build_queue.clone();
                 let result_queue = result_queue.clone();
                 let target = target.clone();
                 let thread = scope.spawn(move |_| {
                     let rt = tokio::runtime::Runtime::new().unwrap();
-                    rt.block_on(async {
-                        let mut worker = LazyWorker::new(
-                            worker_id,
-                            &self.workspace,
-                            build_queue,
-                            result_queue,
-                            self.computed_targets.clone(),
-                            self.busy_targets.clone(),
-                            target,
-                        );
-                        worker.load_rules().await?;
-                        worker.run(false, mode)
-                    })
+                    rt.block_on(
+                        async {
+                            let mut worker = LazyWorker::new(
+                                worker_id,
+                                &self.workspace,
+                                build_queue,
+                                result_queue,
+                                self.computed_targets.clone(),
+                                self.busy_targets.clone(),
+                                target,
+                            );
+                            worker.load_rules().await?;
+                            worker.run(false, mode)
+                        }
+                        .instrument(sub_worker_span),
+                    )
                 });
                 worker_threads.push(thread);
             }
 
+            let _span = main_worker_span.enter();
             worker.run(true, mode)
         })
         .map_err(|_| anyhow!("Something went wrong when running the workers"))?
@@ -133,6 +150,10 @@ pub struct LazyWorker {
 }
 
 impl LazyWorker {
+    #[tracing::instrument(
+        name = "LazyWorker::new",
+        skip(workspace, build_queue, result_queue, computed_targets, busy_targets)
+    )]
     pub fn new(
         id: usize,
         workspace: &Workspace,
@@ -144,7 +165,6 @@ impl LazyWorker {
         busy_targets: Arc<DashMap<Label, ()>>,
         target: Label,
     ) -> LazyWorker {
-        debug!("[Worker={}] Initialized worker!", id);
         LazyWorker {
             id,
             rule_exec_env: RuleExecEnv::new(&workspace),
@@ -159,6 +179,7 @@ impl LazyWorker {
         }
     }
 
+    #[tracing::instrument(name = "LazyWorker::queue", skip(self))]
     pub fn queue(&mut self, target: Label) -> Result<(), anyhow::Error> {
         if target.is_all() {
             trace!("Queueing all targets...");
@@ -170,7 +191,6 @@ impl LazyWorker {
                     &self.rule_exec_env.rule_map,
                 )?;
                 for target in buildfile.targets {
-                    trace!("QUEUED {}", target.label().to_string());
                     self.build_queue.push(target.label().clone());
                     self.target_count += 1;
                 }
@@ -183,40 +203,34 @@ impl LazyWorker {
         Ok(())
     }
 
+    #[tracing::instrument(name = "LazyWorker::run", skip(self))]
     pub fn run(&mut self, is_main: bool, mode: ExecutionMode) -> Result<(), anyhow::Error> {
-        debug!("[Worker={}] Running...", self.id);
         loop {
+            let loop_span = trace_span!("LazyWorker::run_loop").or_current();
+            let _span = loop_span.enter();
+            // NOTE(@ostera): we don't want things to burn CPU cycles
             std::thread::sleep(std::time::Duration::from_millis(1));
+
             if is_main {
-                match self.result_queue.steal() {
-                    crossbeam::deque::Steal::Success(result) => {
-                        trace!("Receiving result: {:?}", result);
-                        self.result_queue.push(result);
-                        return Ok(());
-                    }
-                    _ => (),
+                if let crossbeam::deque::Steal::Success(result) = self.result_queue.steal() {
+                    self.result_queue.push(result);
+                    return Ok(());
                 }
             }
 
+            // When there is no more work to do and we are not the main thread...
             if !is_main && !self.result_queue.is_empty() {
                 return Ok(());
             }
 
             if let crossbeam::deque::Steal::Success(label) = self.build_queue.steal() {
                 if self.computed_targets.contains_key(&label) {
-                    debug!(
-                        "[Worker={}] ALREADY BUILT TARGET {}",
-                        self.id,
-                        label.to_string()
-                    );
+                    debug!("ALREADY BUILT TARGET {}", label.to_string());
                     continue;
                 }
+
                 if self.busy_targets.contains_key(&label) {
-                    debug!(
-                        "[Worker={}] BEING BUILT TARGET {}",
-                        self.id,
-                        label.to_string()
-                    );
+                    debug!("BEING BUILT TARGET {}", label.to_string());
                     continue;
                 }
 
@@ -230,16 +244,11 @@ impl LazyWorker {
                 match self.execute(&label, mode) {
                     Ok(node) => {
                         self.busy_targets.remove(&label);
-                        debug!(
-                            "[Worker={}] TARGET {} BUILT",
-                            self.id,
-                            node.target.label().to_string()
-                        );
+                        debug!("TARGET {} BUILT", node.target.label().to_string());
                         // We built the thing we wanted to build!
                         if *node.target.label() == self.target
                             || self.computed_targets.len() == self.target_count
                         {
-                            trace!("We're done! Pushing result: {:?}", &node);
                             self.result_queue.push(Ok(node.clone()));
                         }
                     }
@@ -256,7 +265,7 @@ impl LazyWorker {
                     )) => {
                         self.busy_targets.remove(&label);
 
-                        debug!("[Worker={}] SKIPPED {}", self.id, label.to_string());
+                        debug!("SKIPPED {}", label.to_string());
                         debug!("Missing {} dependencies", deps.len());
                         for dep in deps {
                             if self.computed_targets.contains_key(&label) {
@@ -265,24 +274,19 @@ impl LazyWorker {
                             if self.busy_targets.contains_key(&label) {
                                 continue;
                             }
-                            debug!("[Worker={}] WAITING FOR: {}", self.id, dep.to_string());
-                            debug!("Queueing {:?}", &dep);
+                            debug!("WAITING FOR: {}", dep.to_string());
                             self.build_queue.push(dep);
                         }
-                        debug!("Queueing {:?}", &label);
+                        debug!("Queueing {}", label.to_string());
                         self.build_queue.push(label);
                     }
-                    Err(err) => panic!(
-                        "[Worker={}] Something has gone horribly wrong: {:?}",
-                        self.id, err
-                    ),
+                    Err(err) => panic!("Something has gone horribly wrong: {:?}", err),
                 }
-            } else {
-                trace!("[Worker={}] FAILED TO STEAL WORK", self.id);
             }
         }
     }
 
+    #[tracing::instrument(name = "LazyWorker::load_rules", skip(self))]
     async fn load_rules(&mut self) -> Result<(), anyhow::Error> {
         self.rule_exec_env.setup()?;
         let built_in_rules = zap_ext::TOOLCHAINS
@@ -301,24 +305,21 @@ impl LazyWorker {
         for (name, src) in built_in_rules.chain(custom_rules) {
             self.rule_exec_env.load(&name, Some(src)).await?
         }
-        debug!("[Worker={}] Loaded rules", self.id);
-
-        debug!("[Worker={}] Reading toolchains", self.id);
-
         let toolchains = (*self.rule_exec_env.toolchain_manager)
             .read()
             .unwrap()
             .targets();
 
+        let rule_span = trace_span!("LazyWorker::build_toolchains").or_current();
         for toolchain in toolchains {
+            let _span = rule_span.enter();
             self.execute_target(toolchain, ExecutionMode::OnlyBuild)?;
         }
-
-        debug!("[Worker={}] Toolchains ready!", self.id);
 
         Ok(())
     }
 
+    #[tracing::instrument(name = "LazyWorker::execute", skip(self))]
     pub fn execute(
         &mut self,
         label: &Label,
@@ -342,7 +343,6 @@ impl LazyWorker {
                 &self.rule_exec_env.rule_map,
             )
             .map_err(WorkerError::Unknown)?;
-            debug!("Found buildfile {:?}", &buildfile);
 
             buildfile
                 .targets
@@ -355,6 +355,12 @@ impl LazyWorker {
         self.execute_target(target, mode)
     }
 
+    #[tracing::instrument]
+    pub fn done() -> () {
+        ()
+    }
+
+    #[tracing::instrument(name="LazyWorker::execute_target", skip(self), fields(zap.target = %target.label().to_string()))]
     pub fn execute_target(
         &mut self,
         target: Target,
@@ -363,23 +369,16 @@ impl LazyWorker {
         let label = target.label().clone();
         self.rule_exec_env.clear();
 
-        debug!("Executing {:?}", &label);
-
         let find_node = |label| self.computed_targets.get(&label).map(|r| r.clone());
         let computed_target = ComputedTarget::from_target_with_deps(target, &find_node)
             .map_err(WorkerError::ComputedTargetError)?;
-        debug!("Sealing target {:?}", &label);
+
         let node = self
             .rule_exec_env
             .compute_target(computed_target, &find_node)
             .map_err(WorkerError::RuleExecError)?;
 
-        debug!("[Worker={}] Building {}...", self.id, label.to_string());
-
         let name = node.label().clone();
-        debug!("About to build {:?}...", name.to_string());
-        debug!("with sources {:?}...", &node.srcs());
-        debug!("with dependencies {:?}...", &node.deps());
 
         match self.cache.is_cached(&node).map_err(WorkerError::Unknown)? {
             CacheHitType::Global => {
@@ -419,18 +418,27 @@ impl LazyWorker {
                 ValidationStatus::Valid => {
                     self.computed_targets.insert(label.clone(), node.clone());
                     self.cache.save(&sandbox).map_err(WorkerError::Unknown)?;
-                    sandbox.clear_sandbox().map_err(WorkerError::Unknown)?;
+                    // sandbox.clear_sandbox().map_err(WorkerError::Unknown)?;
                     Ok(node)
-                }
-                ValidationStatus::NoOutputs if node.outs().is_empty() => {
-                    self.computed_targets.insert(label.clone(), node.clone());
-                    sandbox.clear_sandbox().map_err(WorkerError::Unknown)?;
-                    Ok(node)
-                }
-                ValidationStatus::NoOutputs => Err(anyhow!(
-                    "Expected {} outputs, but found none.",
-                    node.outs().len()
-                )),
+                },
+                ValidationStatus::NoOutputs => {
+                    if node.outs().is_empty() {
+                        self.computed_targets.insert(label.clone(), node.clone());
+                        // sandbox.clear_sandbox().map_err(WorkerError::Unknown)?;
+                        return Ok(node);
+                    }
+
+                    if node.target.kind() == TargetKind::Runnable && mode == ExecutionMode::BuildAndRun
+                    {
+                        return Ok(node);
+                    }
+
+
+                    Err(anyhow!(
+                            "Expected {} outputs, but found none.",
+                            node.outs().len()
+                    ))
+                },
                 ValidationStatus::Pending => Err(anyhow!(
                     "Node {} is somehow still pending...",
                     &name.to_string()

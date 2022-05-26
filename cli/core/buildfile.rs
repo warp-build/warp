@@ -1,7 +1,7 @@
 use super::*;
 use anyhow::*;
 use dashmap::DashMap;
-use log::*;
+use tracing::*;
 use std::fs;
 use std::path::PathBuf;
 use std::vec::Vec;
@@ -33,6 +33,7 @@ impl Buildfile {
     ///
     /// Unknown rules will be rejected.
     ///
+    #[tracing::instrument(name="Buildfile::from_file", skip(rule_manager))]
     pub fn from_file(
         workspace_prefix: &PathBuf,
         zapfile_path: &PathBuf,
@@ -161,7 +162,6 @@ impl Buildfile {
         value: CfgValue,
         zapfile_path: &PathBuf,
     ) -> Result<CfgValue, anyhow::Error> {
-        trace!("Expanding {:?}", value);
         match value {
             CfgValue::File(path) => {
                 if path.to_str().unwrap().contains("*") {
@@ -172,11 +172,6 @@ impl Buildfile {
                     for entry in entries {
                         files.push(CfgValue::File(entry?));
                     }
-                    trace!(
-                        "Expanded glob {:?} into: {:?}",
-                        zapfile_path.join(path),
-                        files
-                    );
                     Ok(CfgValue::List(files))
                 } else {
                     Ok(CfgValue::File(zapfile_path.join(&path)))

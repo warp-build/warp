@@ -1,11 +1,11 @@
 use super::*;
 use anyhow::{anyhow, Context};
 use fxhash::*;
-use log::*;
+use tracing::*;
 use seahash::SeaHasher;
-use std::hash::{Hash, Hasher};
-use std::io::{Read, BufReader};
 use std::fs::File;
+use std::hash::{Hash, Hasher};
+use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
@@ -203,27 +203,17 @@ impl ComputedTarget {
         deps
     }
 
+    #[tracing::instrument(name="ComputedTarget::transitive_deps", skip(self, find_node), fields(zap.target = %self.label().to_string()))]
     pub fn transitive_deps(
         &self,
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
     ) -> Result<Vec<Dependency>, ComputedTargetError> {
-        trace!(
-            "Getting deps for {}: {:?}",
-            &self.label().to_string(),
-            &self.deps
-        );
-
         let mut deps: FxHashSet<Dependency> = FxHashSet::default();
         let mut missing_deps: FxHashSet<Label> = FxHashSet::default();
 
         if let Some(this_deps) = &self.deps {
             for dep in this_deps {
                 if let Some(node) = find_node(dep.label.clone()) {
-                    trace!(
-                        "Getting transitive deps for {}: {:?}",
-                        &node.label().to_string(),
-                        &node.deps
-                    );
                     deps.insert(dep.clone());
                     for dep in node.transitive_deps(find_node)? {
                         deps.insert(dep);
@@ -258,6 +248,7 @@ impl ComputedTarget {
         })
     }
 
+    #[tracing::instrument(name="ComputedTarget::execute", skip(self))]
     pub fn execute(
         &self,
         archive_root: &PathBuf,
