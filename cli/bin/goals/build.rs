@@ -78,6 +78,8 @@ impl BuildGoal {
             })
             .await;
 
-        result
+        result?;
+
+        Ok(())
     }
 }

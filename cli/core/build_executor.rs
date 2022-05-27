@@ -38,19 +38,12 @@ impl BuildExecutor {
         }
     }
 
-    pub async fn run(
-        &self,
-        target: Label,
-        event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
-        self.execute(target, ExecutionMode::BuildAndRun, event_channel)
-            .await
-    }
+    #[tracing::instrument(name = "BuildExecutor::build", skip(self))]
     pub async fn build(
         &self,
         target: Label,
         event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<ComputedTarget, anyhow::Error> {
         self.execute(target, ExecutionMode::OnlyBuild, event_channel)
             .await
     }
@@ -61,7 +54,7 @@ impl BuildExecutor {
         target: Label,
         mode: ExecutionMode,
         event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<ComputedTarget, anyhow::Error> {
         let build_queue = Arc::new(crossbeam::deque::Injector::new());
         let result_queue = Arc::new(crossbeam::deque::Injector::new());
 
@@ -127,7 +120,9 @@ impl BuildExecutor {
         )
         .await;
 
-        result
+        result?;
+
+        Ok(self.computed_targets.get(&target).unwrap().clone())
     }
 }
 
@@ -238,13 +233,11 @@ impl LazyWorker {
             // the other workers to stop working and submit a BuildCompleted event
             if is_main {
                 if let crossbeam::deque::Steal::Success(result) = self.result_queue.steal() {
-                    debug!("We got something! {:?}", result);
                     self.result_queue.push(result);
                     self.event_channel.send(Event::BuildCompleted);
                     return Ok(());
                 }
 
-                debug!("should we stop? {} {}", self.computed_targets.len(), self.target_count);
                 if self.target.is_all() && self.computed_targets.len() >= self.target_count {
                     self.result_queue.push(Ok(self.target.clone()));
                     self.event_channel.send(Event::BuildCompleted);
@@ -265,12 +258,6 @@ impl LazyWorker {
                     continue;
                 }
 
-                // If we are not the main worker, we will skip the runnable target once we found it
-                if !is_main && mode == ExecutionMode::BuildAndRun && label == self.target {
-                    self.build_queue.push(label);
-                    continue;
-                }
-
                 self.busy_targets.insert(label.clone(), ());
 
                 match self.execute(&label, mode).await {
@@ -278,7 +265,14 @@ impl LazyWorker {
                         self.busy_targets.remove(&label);
                         self.event_channel
                             .send(Event::TargetBuilt(node_label.clone()));
-                        debug!("TARGET BUILT {} {} {} {} {}", label.to_string(), node_label.to_string(), self.target.to_string(), self.target_count, self.computed_targets.len());
+                        debug!(
+                            "TARGET BUILT {} {} {} {} {}",
+                            label.to_string(),
+                            node_label.to_string(),
+                            self.target.to_string(),
+                            self.target_count,
+                            self.computed_targets.len()
+                        );
 
                         // We built the thing we wanted to build!
                         if node_label == self.target {
@@ -293,7 +287,6 @@ impl LazyWorker {
                             self.result_queue.push(Ok(node_label));
 
                             continue;
-
                         }
                     }
 
@@ -428,19 +421,15 @@ impl LazyWorker {
                 return Ok(label.clone());
             }
             CacheHitType::Local(cache_path) => {
-                if node.target.kind() == TargetKind::Runnable && mode == ExecutionMode::BuildAndRun
-                {
-                    debug!("Skipping {}, we're in running mode.", name.to_string());
-                } else {
-                    debug!("Skipping {}, but promoting outputs.", name.to_string());
-                    self.computed_targets.insert(label.clone(), node.clone());
-                    self.cache
-                        .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
-                        .await
-                        .map_err(WorkerError::Unknown)?;
-                    self.event_channel.send(Event::CacheHit(label.clone(), cache_path));
-                    return Ok(label.clone());
-                }
+                debug!("Skipping {}, but promoting outputs.", name.to_string());
+                self.computed_targets.insert(label.clone(), node.clone());
+                self.cache
+                    .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
+                    .await
+                    .map_err(WorkerError::Unknown)?;
+                self.event_channel
+                    .send(Event::CacheHit(label.clone(), cache_path));
+                return Ok(label.clone());
             }
             CacheHitType::Miss => {
                 debug!("Cache miss! Proceeding to build...");
@@ -469,7 +458,7 @@ impl LazyWorker {
                     Ok(label.clone())
                 },
                 ValidationStatus::NoOutputs => {
-                    if node.outs().is_empty() || (node.target.kind() == TargetKind::Runnable && mode == ExecutionMode::BuildAndRun) {
+                    if node.outs().is_empty() {
                         self.computed_targets.insert(label.clone(), node.clone());
                         Ok(label.clone())
                     } else {

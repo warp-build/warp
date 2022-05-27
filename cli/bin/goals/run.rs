@@ -1,4 +1,7 @@
+use anyhow::*;
 use std::io::Write;
+use std::path::PathBuf;
+use std::process::*;
 use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
@@ -47,9 +50,6 @@ impl RunGoal {
             target.to_string()
         };
 
-        print!("🔨 Building {}...", name);
-        std::io::stdout().flush().unwrap();
-
         if target.is_all() {
             print!(
                 "You can't run everything. Please specify a target like this: zap build //my/app"
@@ -59,10 +59,12 @@ impl RunGoal {
 
         let worker_limit = self.max_workers.unwrap_or(num_cpus::get());
 
+        let local_outputs_root = workspace.paths.local_outputs_root.clone();
         let zap = BuildExecutor::from_workspace(workspace, worker_limit);
 
-        let (result, ()) =
-            futures::future::join(zap.run(target, event_channel.clone()), async move {
+        let (result, ()) = futures::future::join(
+            zap.build(target.clone(), event_channel.clone()),
+            async move {
                 let event_channel = event_channel.clone();
                 println!("🔨 Building {}...", name);
                 loop {
@@ -74,9 +76,30 @@ impl RunGoal {
                         }
                     }
                 }
-            })
-            .await;
+            },
+        )
+        .await;
+        let computed_target = result?;
+        if let Some(run_script) = computed_target.run_script {
+            let path = local_outputs_root.join(&run_script);
+            let mut cmd = Command::new(path);
 
-        result
+            cmd.stdin(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .stdout(Stdio::inherit());
+
+            trace!("Spawning {:?}", &cmd);
+            let mut proc = cmd.spawn()?;
+
+            trace!("Waiting on {:?}", &cmd);
+            proc.wait()
+                .map(|_| ())
+                .context(format!("Error executing {}", &target.to_string()))?;
+
+            trace!("Exited with status: {}", cmd.status()?);
+            Ok(())
+        } else {
+            Err(anyhow!("Target {} has no outputs!", &target.to_string()))
+        }
     }
 }

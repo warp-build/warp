@@ -53,6 +53,7 @@ pub struct InnerState {
     pub paths: WorkspacePaths,
     pub rule_map: Arc<DashMap<String, Rule>>,
     pub toolchain_manager: Arc<RwLock<ToolchainManager>>,
+    pub run_script_map: Arc<DashMap<Label, PathBuf>>,
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
 }
@@ -99,6 +100,30 @@ pub fn op_file_with_extension(args: FileWithExtension) -> Result<String, AnyErro
     let path = PathBuf::from(args.path);
     let final_path = path.with_extension(args.ext.strip_prefix(".").unwrap());
     Ok(final_path.to_str().unwrap().to_string())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DeclareRunScript {
+    label: String,
+    run_script: String,
+}
+
+#[op]
+pub fn op_ctx_actions_declare_run_script(
+    state: &mut OpState,
+    args: DeclareRunScript,
+) -> Result<(), AnyError> {
+    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let run_script_map = &inner_state.run_script_map;
+
+    let label = Label::new(&args.label);
+    let run_script = match run_script_map.get(&label) {
+        None => PathBuf::from(args.run_script),
+        Some(entry) => panic!("RunScript already declared!") ,
+    };
+    run_script_map.insert(label, run_script);
+    Ok(())
 }
 
 #[derive(Deserialize, Debug)]
@@ -296,6 +321,7 @@ pub struct RuleExecEnv {
     pub toolchain_manager: Arc<RwLock<ToolchainManager>>,
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
+    pub run_script_map: Arc<DashMap<Label, PathBuf>>,
 }
 
 impl RuleExecEnv {
@@ -306,6 +332,7 @@ impl RuleExecEnv {
         let rule_map = Arc::new(DashMap::new());
         let action_map = Arc::new(DashMap::new());
         let output_map = Arc::new(DashMap::new());
+        let run_script_map = Arc::new(DashMap::new());
 
         let extension = {
             let a = toolchain_manager.clone();
@@ -313,25 +340,28 @@ impl RuleExecEnv {
             let inner_rule_map = Arc::clone(&rule_map);
             let action_map = action_map.clone();
             let output_map = output_map.clone();
+            let run_script_map = run_script_map.clone();
             let inner_state = InnerState {
                 paths: paths,
                 toolchain_manager: a,
                 rule_map: inner_rule_map,
                 action_map: action_map,
                 output_map: output_map,
+                run_script_map: run_script_map,
             };
             Extension::builder()
                 .ops(vec![
                     op_ctx_actions_copy::decl(),
                     op_ctx_actions_declare_outputs::decl(),
+                    op_ctx_actions_declare_run_script::decl(),
                     op_ctx_actions_exec::decl(),
                     op_ctx_actions_run_shell::decl(),
                     op_ctx_actions_write_file::decl(),
                     op_file_filename::decl(),
                     op_file_parent::decl(),
                     op_file_with_extension::decl(),
-                    op_label_path::decl(),
                     op_label_name::decl(),
+                    op_label_path::decl(),
                     op_log::decl(),
                     op_rule_new::decl(),
                     op_toolchain_new::decl(),
@@ -357,6 +387,7 @@ impl RuleExecEnv {
             rule_map,
             action_map,
             output_map,
+            run_script_map,
         }
     }
 
@@ -528,6 +559,9 @@ impl RuleExecEnv {
             .cloned()
             .collect();
 
+        let run_script: Option<PathBuf> = self
+            .run_script_map.get(&label).map(|path| path.clone());
+
         let srcs: FxHashSet<PathBuf> = if computed_target.target.is_local() {
             computed_target
                 .target
@@ -545,6 +579,7 @@ impl RuleExecEnv {
         computed_target.srcs = Some(srcs);
         computed_target.outs = Some(outs);
         computed_target.actions = Some(actions);
+        computed_target.run_script = run_script;
 
         computed_target.recompute_hash();
 

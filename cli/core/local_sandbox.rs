@@ -386,10 +386,6 @@ impl LocalSandbox {
             mode,
         )?;
 
-        if self.node.target.kind() == TargetKind::Runnable && mode == ExecutionMode::BuildAndRun {
-            return Ok(ValidationStatus::NoOutputs);
-        }
-
         debug!("Build rule executed successfully.");
 
         self.validate_outputs().await?;

@@ -34,6 +34,8 @@ pub struct ComputedTarget {
     /// The outputs of this node
     pub outs: Option<FxHashSet<PathBuf>>,
 
+    pub run_script: Option<PathBuf>,
+
     /// The inputs of this node
     pub srcs: Option<FxHashSet<PathBuf>>,
 
@@ -70,6 +72,7 @@ impl ComputedTarget {
             hash: None,
             outs: Some(FxHashSet::default()),
             srcs: Some(FxHashSet::default()),
+            run_script: None,
         }
     }
 
@@ -82,6 +85,7 @@ impl ComputedTarget {
             hash: None,
             outs: None,
             srcs: None,
+            run_script: None,
         }
     }
 
@@ -115,6 +119,7 @@ impl ComputedTarget {
             hash: None,
             outs: None,
             srcs: None,
+            run_script: None,
         })
     }
 
@@ -284,40 +289,7 @@ impl ComputedTarget {
             action.run(&sandbox_root)?
         }
 
-        if self.target.kind() == TargetKind::Runnable && mode == ExecutionMode::BuildAndRun {
-            print!("🔨 Running {}...", self.target.label().to_string());
-
-            match &self.outs {
-                Some(outs) if outs.len() > 0 => {
-                    let outs: Vec<PathBuf> = outs.iter().cloned().collect();
-                    let path = sandbox_root.join(PathBuf::from(outs[0].clone()));
-                    let mut cmd = Command::new(path);
-
-                    cmd.current_dir(sandbox_root);
-                    cmd.stdin(Stdio::inherit())
-                        .stderr(Stdio::inherit())
-                        .stdout(Stdio::inherit());
-
-                    trace!("Spawning {:?}", &cmd);
-                    let mut proc = cmd.spawn()?;
-
-                    trace!("Waiting on {:?}", &cmd);
-                    proc.wait().map(|_| ()).context(format!(
-                        "Error executing {}",
-                        &self.target.label().to_string()
-                    ))?;
-
-                    trace!("Exited with status: {}", cmd.status()?);
-                    Ok(())
-                }
-                _ => Err(anyhow!(
-                    "Target {} has no outputs!",
-                    &self.target.label().to_string()
-                )),
-            }
-        } else {
-            Ok(())
-        }
+        Ok(())
     }
 
     /// The hash of a build node serves for caching work:

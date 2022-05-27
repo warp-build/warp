@@ -24,19 +24,20 @@ impl ExecAction {
         cmd.envs(&self.env);
 
         cmd.stdout(Stdio::piped()).args(&self.args);
-        if let Some(cwd) = self.cwd {
-            cmd.current_dir(sandbox_root.join(cwd));
+        let cwd = if let Some(cwd) = self.cwd {
+            sandbox_root.join(cwd)
         } else {
-            cmd.current_dir(sandbox_root);
-        }
+            sandbox_root.to_path_buf()
+        };
+        cmd.current_dir(&cwd);
 
-        trace!("Executing {:#?} {:#?}", &self.env, &cmd);
+        debug!("Executing {:#?} in {:?}", &cmd, &cwd);
 
         let output = cmd
             .output()
             .context(format!("Could not spawn {:?}", self.cmd))?;
 
-        trace!("Got status code: {}", output.status.code().unwrap());
+        debug!("Got status code: {}", output.status.code().unwrap());
 
         if self.needs_tty {
             BufReader::new(&*output.stdout)
