@@ -21,6 +21,7 @@ env_logger="0.9"
 futures = "0.3"
 guess_host_triple = "0.1"
 human-panic = "1.0"
+humantime = "2"
 notify = "5.0.0-pre.15"
 num_cpus = "1"
 opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
