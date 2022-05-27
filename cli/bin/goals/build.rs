@@ -69,7 +69,7 @@ impl BuildGoal {
                 loop {
                     tokio::time::sleep(std::time::Duration::from_millis(1)).await;
                     if let Some(event) = event_channel.recv() {
-                        // println!("{:?}", event);
+                        println!("{:?}", event);
                         if event == zap_core::Event::BuildCompleted {
                             return;
                         }

@@ -85,8 +85,8 @@ impl Zap {
                 Err(ref err) => error!("{:?}", &err),
             };
 
-            let t1 = t0.elapsed().as_millis();
             if !self.quiet {
+                let t1 = t0.elapsed().as_millis();
                 println!("\x1B[1000D\x1B[K\r⚡ done in {}ms", t1);
             }
 
