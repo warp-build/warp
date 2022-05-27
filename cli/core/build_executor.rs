@@ -422,12 +422,12 @@ impl LazyWorker {
             .await
             .map_err(WorkerError::Unknown)?
         {
-            CacheHitType::Global => {
+            CacheHitType::Global(_cache_path) => {
                 self.computed_targets.insert(label.clone(), node.clone());
-                debug!("Skipping {}. Nothing to do.", name.to_string());
+                // self.event_channel.send(Event::CacheHit(label.clone(), cache_path));
                 return Ok(label.clone());
             }
-            CacheHitType::Local => {
+            CacheHitType::Local(cache_path) => {
                 if node.target.kind() == TargetKind::Runnable && mode == ExecutionMode::BuildAndRun
                 {
                     debug!("Skipping {}, we're in running mode.", name.to_string());
@@ -438,7 +438,7 @@ impl LazyWorker {
                         .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
                         .await
                         .map_err(WorkerError::Unknown)?;
-                    self.event_channel.send(Event::CacheHit(label.clone()));
+                    self.event_channel.send(Event::CacheHit(label.clone(), cache_path));
                     return Ok(label.clone());
                 }
             }
@@ -462,6 +462,10 @@ impl LazyWorker {
                 ValidationStatus::Valid => {
                     self.computed_targets.insert(label.clone(), node.clone());
                     self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
+                    self.cache
+                        .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
+                        .await
+                        .map_err(WorkerError::Unknown)?;
                     Ok(label.clone())
                 },
                 ValidationStatus::NoOutputs => {

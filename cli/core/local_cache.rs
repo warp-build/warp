@@ -17,8 +17,8 @@ pub struct LocalCache {
 #[derive(Debug, Clone)]
 pub enum CacheHitType {
     Miss,
-    Global,
-    Local,
+    Global(PathBuf),
+    Local(PathBuf),
 }
 
 impl LocalCache {
@@ -67,7 +67,7 @@ impl LocalCache {
                 "Moving artifact from sandbox path {:?} to cache path {:?}",
                 &sandboxed_artifact, &cached_file
             );
-            fs::rename(&sandboxed_artifact, &cached_file)
+            fs::copy(&sandboxed_artifact, &cached_file)
                 .await
                 .context(format!(
                     "Could not move artifact {:?} into cache path: {:?}",
@@ -104,6 +104,8 @@ impl LocalCache {
             fs::create_dir_all(&path).await?;
         }
         for (src, dst) in outs {
+            let _ = fs::remove_file(&dst).await;
+
             #[cfg(target_os = "windows")]
             match std::os::windows::fs::symlink(&src, &dst) {
                 Ok(_) => Ok(()),
@@ -159,7 +161,7 @@ impl LocalCache {
                 node.label().to_string(),
                 hash_path
             );
-            return Ok(CacheHitType::Local);
+            return Ok(CacheHitType::Local(hash_path));
         }
 
         let hash_path = self.global_root.join(&hash);
@@ -170,7 +172,7 @@ impl LocalCache {
                 node.label().to_string(),
                 hash_path
             );
-            return Ok(CacheHitType::Global);
+            return Ok(CacheHitType::Global(hash_path));
         }
 
         let named_path = self
@@ -183,7 +185,7 @@ impl LocalCache {
                 node.label().to_string(),
                 named_path
             );
-            return Ok(CacheHitType::Global);
+            return Ok(CacheHitType::Global(hash_path));
         }
 
         debug!("No cache hit for {}", node.label().to_string());

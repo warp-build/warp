@@ -371,15 +371,19 @@ impl ComputedTarget {
         }
 
         for src in srcs {
-            let f = File::open(&src).expect("Unable to open the provided file.");
+            let f = File::open(&src).expect(&format!("Unable to open: {:?}", &src));
             let mut buffer = [0; 2048];
             let mut reader = BufReader::new(f);
             loop {
-                let len = reader.read(&mut buffer).expect("Failed to read");
-                if len == 0 {
-                    break;
+                match reader.read(&mut buffer) {
+                    Ok(len) => {
+                        if len == 0 {
+                            break;
+                        }
+                        buffer[..len].hash(&mut s);
+                    }
+                    Err(_) => break,
                 }
-                buffer[..len].hash(&mut s);
             }
         }
 

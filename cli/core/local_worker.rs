@@ -138,11 +138,11 @@ impl LocalWorker {
             let name = node.label().clone();
 
             match self.cache.is_cached(&node).await? {
-                CacheHitType::Global => {
+                CacheHitType::Global(_) => {
                     debug!("Skipping {}. Nothing to do.", name.to_string());
                     continue;
                 }
-                CacheHitType::Local => {
+                CacheHitType::Local(_) => {
                     if node.target.kind() == TargetKind::Runnable
                         && mode == ExecutionMode::BuildAndRun
                     {
