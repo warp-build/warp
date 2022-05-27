@@ -61,6 +61,7 @@ export default Zap.Rule({
   cfg: {
     name: label(),
     app_name: string(),
+    config: file(),
     deps: [label()],
     mod: string(),
     apps: [string()],
@@ -68,6 +69,7 @@ export default Zap.Rule({
 	defaults: {
     apps: ["kernel", "stdlib"],
 		deps: [],
+    config: "config.exs",
 	},
   toolchains: [ElixirToolchain, ErlangToolchain]
 });

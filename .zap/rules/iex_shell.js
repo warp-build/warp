@@ -14,30 +14,31 @@ const impl = ctx => {
       ...dep.outs.filter(out => out.endsWith(BEAM_EXT)) .map(path => File.parent(path)),
     ])
     .unique()
-    .flatMap(path => ["-pa", path])
+    .sort()
+  // NOTE(@ostera): how do we get zap-outputs, but nice?
+    .flatMap(path => ["-pa", `zap-outputs/${path}`])
     .join(" ")
 
-  transitiveDeps.forEach(dep => {
-    dep.outs.forEach(out => {
-      if (out.endsWith(TAR_EXT)) {
-        ctx.action().exec({
-          cmd: "tar",
-          args: ["xf", File.filename(out)],
-          cwd: Label.path(dep.label)
-        })
-      }
-    })
-  });
+  const run = `${Label.path(label)}/run_shell`
 
-  const run = `${Label.path(label)}/run2`
-
-  ctx.action().declareOutputs([run])
+  ctx.action().declareOutputs([run, dot_iex])
+  ctx.action().declareRunScript(run)
   ctx.action().writeFile({
     dst: run,
     data: `#!/bin/bash -e
 
+${
+  transitiveDeps.flatMap(dep => dep.outs.flatMap(out => {
+      if (out.endsWith(TAR_EXT)) {
+        return [`cd zap-outputs/${Label.path(dep.label)}; tar xf ${File.filename(out)}; cd - > /dev/null;`];
+      } else {
+        return []
+      }
+  })).join("\n")
+}
+
 ${IEX} \
-  --dot-iex ${dot_iex} \
+  --dot-iex $(dirname "\${BASH_SOURCE[0]}")/${File.filename(dot_iex)} \
   ${extraPaths}
   
 `,
