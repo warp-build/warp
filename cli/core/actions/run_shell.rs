@@ -28,7 +28,6 @@ impl RunShellAction {
         trace!("Running script: {:#?} {}", &self.env, &self.script);
 
         let output = cmd.output().await.expect("could not run bash :(");
-        println!("stderr of ls: {:?}", output.stderr);
 
         trace!("Got status code: {}", output.status.code().unwrap());
 
