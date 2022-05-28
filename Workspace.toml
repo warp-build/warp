@@ -15,6 +15,3 @@ strip_prefix = "otp-OTP-25.0"
 archive_url = "https://github.com/elixir-lang/elixir/archive/refs/tags/v1.13.4.tar.gz"
 checksum = "d0269a1bd2e5256a1842b5b201649e9a39227bb2"
 strip_prefix = "elixir-1.13.4"
-
-[dependencies.npm]
-rescript = "~> 9.1"
