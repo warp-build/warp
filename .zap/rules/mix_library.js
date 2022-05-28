@@ -13,11 +13,13 @@ const impl = ctx => {
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
+export MIX_ENV=prod
+
 cd ${cwd}
 rm -rf _build deps
-${MIX} deps.get ${deps_args.join(" ")} \
-&& ${MIX} compile ${compile_args.join(" ")} \
-&& tar cf ${appTarball} _build/dev/lib/${name}
+${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")} \
+&& ${MIX} compile --no-deps-check ${compile_args.join(" ")} \
+&& tar cf ${appTarball} _build/prod/lib/${name}
 
 `,
   })

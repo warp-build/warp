@@ -1,7 +1,0 @@
-[[mix_library]]
-name = "earmark_ast_dsl"
-deps = [
-  "//3rdparty/hexpm/dialyxir",
-  "//3rdparty/hexpm/excoveralls",
-  "//3rdparty/hexpm/extractly"
-]

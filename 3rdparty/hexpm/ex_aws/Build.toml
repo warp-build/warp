@@ -1,16 +1,17 @@
 [[mix_library]]
 name = "ex_aws"
+srcs = [
+  "README.md",
+      "lib/**/*.eex",
+      "lib/**/*.ex",
+      "mix.exs",
+      "src/**/*.app.src",
+      "src/**/*.erl",
+      "src/**/*.hrl",
+      "include/**/*.hrl",
+      "priv/**/*",
+    ]
 deps = [
-  "//3rdparty/hexpm/bypass",
-  "//3rdparty/hexpm/dialyxir",
-  "//3rdparty/hexpm/ex_doc",
-  "//3rdparty/hexpm/excoveralls",
-  "//3rdparty/hexpm/hackney",
-  "//3rdparty/hexpm/httpotion",
-  "//3rdparty/hexpm/jason",
-  "//3rdparty/hexpm/jsx",
   "//3rdparty/hexpm/mime",
-  "//3rdparty/hexpm/mox",
-  "//3rdparty/hexpm/sweet_xml",
   "//3rdparty/hexpm/telemetry"
 ]

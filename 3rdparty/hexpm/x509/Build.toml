@@ -1,5 +1,0 @@
-[[mix_library]]
-name = "x509"
-deps = [
-  "//3rdparty/hexpm/ex_doc"
-]

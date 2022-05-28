@@ -1,7 +1,5 @@
 [[mix_library]]
 name = "erlex"
 deps = [
-  "//3rdparty/hexpm/credo",
-  "//3rdparty/hexpm/ex_doc",
-  "//3rdparty/hexpm/excoveralls"
+  
 ]

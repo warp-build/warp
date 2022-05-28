@@ -1,11 +1,5 @@
 [[mix_library]]
 name = "statistex"
 deps = [
-  "//3rdparty/hexpm/credo",
-  "//3rdparty/hexpm/dialyxir",
-  "//3rdparty/hexpm/earmark",
-  "//3rdparty/hexpm/ex_doc",
-  "//3rdparty/hexpm/excoveralls",
-  "//3rdparty/hexpm/inch_ex",
-  "//3rdparty/hexpm/stream_data"
+  
 ]

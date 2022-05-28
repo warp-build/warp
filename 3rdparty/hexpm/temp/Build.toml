@@ -1,6 +1,0 @@
-[[mix_library]]
-name = "temp"
-deps = [
-  "//3rdparty/hexpm/earmark",
-  "//3rdparty/hexpm/ex_doc"
-]

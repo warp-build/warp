@@ -1,11 +1,5 @@
 [[mix_library]]
 name = "ex_aws_s3"
 deps = [
-  "//3rdparty/hexpm/bypass",
-  "//3rdparty/hexpm/dialyxir",
-  "//3rdparty/hexpm/ex_aws",
-  "//3rdparty/hexpm/ex_doc",
-  "//3rdparty/hexpm/hackney",
-  "//3rdparty/hexpm/jason",
-  "//3rdparty/hexpm/sweet_xml"
+  "//3rdparty/hexpm/ex_aws"
 ]

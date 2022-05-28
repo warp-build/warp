@@ -1,9 +1,6 @@
 [[mix_library]]
 name = "excoveralls"
 deps = [
-  "//3rdparty/hexpm/ex_doc",
   "//3rdparty/hexpm/hackney",
-  "//3rdparty/hexpm/jason",
-  "//3rdparty/hexpm/meck",
-  "//3rdparty/hexpm/mock"
+  "//3rdparty/hexpm/jason"
 ]

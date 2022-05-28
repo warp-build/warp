@@ -1,7 +1,5 @@
 [[mix_library]]
 name = "mix_test_watch"
 deps = [
-  "//3rdparty/hexpm/ex_doc",
-  "//3rdparty/hexpm/file_system",
-  "//3rdparty/hexpm/temporary_env"
+  "//3rdparty/hexpm/file_system"
 ]

@@ -1,12 +1,5 @@
 [[mix_library]]
 name = "earmark"
 deps = [
-  "//3rdparty/hexpm/benchfella",
-  "//3rdparty/hexpm/dialyxir",
-  "//3rdparty/hexpm/earmark_ast_dsl",
-  "//3rdparty/hexpm/earmark_parser",
-  "//3rdparty/hexpm/excoveralls",
-  "//3rdparty/hexpm/extractly",
-  "//3rdparty/hexpm/floki",
-  "//3rdparty/hexpm/traverse"
+  "//3rdparty/hexpm/earmark_parser"
 ]

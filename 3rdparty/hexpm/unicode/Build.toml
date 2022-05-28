@@ -1,7 +1,16 @@
 [[mix_library]]
 name = "unicode"
+srcs = [
+  "data/*.txt",
+      "lib/**/*.eex",
+      "lib/**/*.ex",
+      "mix.exs",
+      "src/**/*.app.src",
+      "src/**/*.erl",
+      "src/**/*.hrl",
+      "include/**/*.hrl",
+      "priv/**/*",
+    ]
 deps = [
-  "//3rdparty/hexpm/benchee",
-  "//3rdparty/hexpm/dialyxir",
-  "//3rdparty/hexpm/ex_doc"
+  
 ]

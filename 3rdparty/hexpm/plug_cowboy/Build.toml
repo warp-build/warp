@@ -3,9 +3,5 @@ name = "plug_cowboy"
 deps = [
   "//3rdparty/hexpm/cowboy",
   "//3rdparty/hexpm/cowboy_telemetry",
-  "//3rdparty/hexpm/ex_doc",
-  "//3rdparty/hexpm/hackney",
-  "//3rdparty/hexpm/kadabra",
-  "//3rdparty/hexpm/plug",
-  "//3rdparty/hexpm/x509"
+  "//3rdparty/hexpm/plug"
 ]

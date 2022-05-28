@@ -1,6 +1,5 @@
 [[mix_library]]
 name = "makeup_erlang"
 deps = [
-  "//3rdparty/hexpm/assert_value",
   "//3rdparty/hexpm/makeup"
 ]

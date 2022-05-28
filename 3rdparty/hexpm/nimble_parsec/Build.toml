@@ -1,7 +1,7 @@
 [[mix_library]]
 name = "nimble_parsec"
 srcs = [
-"README.md",
+  "README.md",
       "lib/**/*.eex",
       "lib/**/*.ex",
       "mix.exs",

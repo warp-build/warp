@@ -1,7 +1,6 @@
 [[mix_library]]
 name = "plug"
 deps = [
-  "//3rdparty/hexpm/ex_doc",
   "//3rdparty/hexpm/mime",
   "//3rdparty/hexpm/plug_crypto",
   "//3rdparty/hexpm/telemetry"

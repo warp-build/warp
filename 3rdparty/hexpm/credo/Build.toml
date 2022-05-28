@@ -2,9 +2,6 @@
 name = "credo"
 deps = [
   "//3rdparty/hexpm/bunt",
-  "//3rdparty/hexpm/ex_doc",
-  "//3rdparty/hexpm/excoveralls",
   "//3rdparty/hexpm/file_system",
-  "//3rdparty/hexpm/inch_ex",
   "//3rdparty/hexpm/jason"
 ]

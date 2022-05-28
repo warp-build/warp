@@ -1,19 +1,16 @@
 [[mix_library]]
 name = "poison"
+srcs = [
+  "VERSION",
+      "lib/**/*.eex",
+      "lib/**/*.ex",
+      "mix.exs",
+      "src/**/*.app.src",
+      "src/**/*.erl",
+      "src/**/*.hrl",
+      "include/**/*.hrl",
+      "priv/**/*",
+    ]
 deps = [
-  "//3rdparty/hexpm/benchee",
-  "//3rdparty/hexpm/benchee_html",
-  "//3rdparty/hexpm/credo",
-  "//3rdparty/hexpm/decimal",
-  "//3rdparty/hexpm/dialyxir",
-  "//3rdparty/hexpm/ex_doc",
-  "//3rdparty/hexpm/excoveralls",
-  "//3rdparty/hexpm/exjsx",
-  "//3rdparty/hexpm/jason",
-  "//3rdparty/hexpm/jiffy",
-  "//3rdparty/hexpm/json",
-  "//3rdparty/hexpm/jsone",
-  "//3rdparty/hexpm/junit_formatter",
-  "//3rdparty/hexpm/stream_data",
-  "//3rdparty/hexpm/tiny"
+  
 ]

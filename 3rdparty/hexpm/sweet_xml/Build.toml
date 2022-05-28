@@ -1,5 +1,0 @@
-[[mix_library]]
-name = "sweet_xml"
-deps = [
-  "//3rdparty/hexpm/ex_doc"
-]

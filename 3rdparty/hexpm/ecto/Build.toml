@@ -2,7 +2,5 @@
 name = "ecto"
 deps = [
   "//3rdparty/hexpm/decimal",
-  "//3rdparty/hexpm/ex_doc",
-  "//3rdparty/hexpm/jason",
   "//3rdparty/hexpm/telemetry"
 ]

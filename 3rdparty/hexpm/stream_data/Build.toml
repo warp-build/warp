@@ -1,5 +1,0 @@
-[[mix_library]]
-name = "stream_data"
-deps = [
-  "//3rdparty/hexpm/ex_doc"
-]

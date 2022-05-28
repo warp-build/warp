@@ -1,5 +1,0 @@
-[[mix_library]]
-name = "benchfella"
-deps = [
-  "//3rdparty/hexpm/ex_doc"
-]
