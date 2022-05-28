@@ -1,5 +1,3 @@
-use std::io;
-use std::io::Write;
 use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;

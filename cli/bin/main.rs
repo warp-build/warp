@@ -102,7 +102,7 @@ impl Zap {
 
         let cwd = PathBuf::from(&".");
         let workspace: Workspace =
-            WorkspaceBuilder::build(cwd, self.zap_home.clone(), self.user.clone())?;
+            WorkspaceBuilder::build(cwd, self.zap_home.clone(), self.user.clone()).await?;
 
         if let Some(cmd) = self.cmd.clone() {
             cmd

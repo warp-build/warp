@@ -44,18 +44,23 @@ impl BuildExecutor {
         &self,
         target: Label,
         event_channel: Arc<EventChannel>,
-    ) -> Result<ComputedTarget, anyhow::Error> {
-        self.execute(target, ExecutionMode::OnlyBuild, event_channel)
-            .await
+    ) -> Result<Option<ComputedTarget>, anyhow::Error> {
+        self.execute(&target, ExecutionMode::OnlyBuild, event_channel)
+            .await?;
+        Ok(self
+            .computed_targets
+            .get(&target)
+            .map(|n| n.clone())
+            .clone())
     }
 
     #[tracing::instrument(name = "BuildExecutor::execute", skip(self))]
     pub async fn execute(
         &self,
-        target: Label,
+        target: &Label,
         mode: ExecutionMode,
         event_channel: Arc<EventChannel>,
-    ) -> Result<ComputedTarget, anyhow::Error> {
+    ) -> Result<(), anyhow::Error> {
         let build_queue = Arc::new(crossbeam::deque::Injector::new());
         let result_queue = Arc::new(crossbeam::deque::Injector::new());
         let toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>> =
@@ -82,7 +87,7 @@ impl BuildExecutor {
         {
             let _ = rules_span.enter();
             worker.load_rules().await?;
-            worker.queue(target.clone())?;
+            worker.queue(target.clone(), worker_limit).await?;
         };
 
         let main_worker_span = main_worker_span.exit();
@@ -126,9 +131,7 @@ impl BuildExecutor {
         )
         .await;
 
-        result?;
-
-        Ok(self.computed_targets.get(&target).unwrap().clone())
+        result
     }
 }
 
@@ -204,11 +207,11 @@ impl LazyWorker {
     }
 
     #[tracing::instrument(name = "LazyWorker::queue", skip(self))]
-    pub fn queue(&mut self, target: Label) -> Result<(), anyhow::Error> {
+    pub async fn queue(&mut self, target: Label, max_concurrency: usize) -> Result<(), anyhow::Error> {
         if target.is_all() {
             debug!("Queueing all targets...");
             let scanner = WorkspaceScanner::from_paths(&self.workspace.paths);
-            for build_file in scanner.find_build_files()? {
+            for build_file in scanner.find_build_files(max_concurrency).await? {
                 let buildfile = Buildfile::from_file(
                     &self.workspace.paths.workspace_root,
                     &build_file,

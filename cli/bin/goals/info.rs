@@ -27,7 +27,7 @@ impl InfoGoal {
     pub async fn run(
         self,
         workspace: Workspace,
-        event_channel: Arc<EventChannel>,
+        _event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         let target: Label = self.target.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());

@@ -4,8 +4,8 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
 use std::path::PathBuf;
-use tokio::process::Command;
 use std::process::Stdio;
+use tokio::process::Command;
 use tracing::*;
 
 #[derive(Debug, Clone)]
@@ -19,7 +19,7 @@ impl RunShellAction {
     #[tracing::instrument(name = "action::RunShellAction::run")]
     pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         let mut cmd = Command::new("bash");
-        
+
         cmd.current_dir(sandbox_root)
             .envs(&self.env)
             .stdout(Stdio::piped())

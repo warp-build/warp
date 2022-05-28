@@ -79,7 +79,7 @@ impl LocalWorker {
 
         let scanner = WorkspaceScanner::from_paths(&self.workspace.paths);
 
-        for build_file in scanner.find_build_files()? {
+        for build_file in scanner.find_build_files(10).await? {
             let buildfile = Buildfile::from_file(
                 &self.workspace.paths.workspace_root,
                 &build_file,

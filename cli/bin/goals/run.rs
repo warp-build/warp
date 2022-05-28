@@ -1,6 +1,4 @@
 use anyhow::*;
-use std::io::Write;
-use std::path::PathBuf;
 use std::process::*;
 use std::sync::Arc;
 use structopt::StructOpt;
@@ -79,7 +77,7 @@ impl RunGoal {
             },
         )
         .await;
-        let computed_target = result?;
+        let computed_target = result?.unwrap();
         if let Some(run_script) = computed_target.run_script {
             let path = local_outputs_root.join(&run_script);
             let mut cmd = Command::new(path);
