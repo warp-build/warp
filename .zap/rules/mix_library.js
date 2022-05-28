@@ -2,7 +2,7 @@ import ElixirToolchain from "../toolchains/elixir.js";
 import ErlangToolchain, { BEAM_EXT } from "../toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { label, name, deps, srcs, deps_args, compile_args } = ctx.cfg();
+  const { label, name, deps, srcs, skip_deps, deps_args, compile_args } = ctx.cfg();
   const cwd = Label.path(label);
 
   const appTarball = `${name}.app.tar`;
@@ -10,6 +10,10 @@ const impl = (ctx) => {
   ctx.action().declareOutputs(outputs);
 
   const { MIX } = ElixirToolchain.provides();
+
+  const depsGet =
+    skip_deps === "true" ? "" : `${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")}`
+
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
@@ -17,8 +21,8 @@ export MIX_ENV=prod
 
 cd ${cwd}
 rm -rf _build deps
-${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")} \
-&& ${MIX} compile --no-deps-check ${compile_args.join(" ")} \
+${depsGet}
+${MIX} compile --no-deps-check ${compile_args.join(" ")} \
 && tar cf ${appTarball} _build/prod/lib/${name}
 
 `,
@@ -35,6 +39,7 @@ export default Zap.Rule({
     extra_srcs: [file()],
     deps: [label()],
     deps_args: [string()],
+    skip_deps: string(),
     compile_args: [string()],
   },
   defaults: {
@@ -51,6 +56,7 @@ export default Zap.Rule({
     extra_srcs: [],
     deps: [],
     deps_args: [],
+    skip_deps: "false",
     compile_args: [],
   },
   toolchains: [ElixirToolchain, ErlangToolchain],
