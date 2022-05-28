@@ -18,7 +18,7 @@ pub struct ExecAction {
 
 impl ExecAction {
     #[tracing::instrument(name = "action::ExecAction::run")]
-    pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         let mut cmd = Command::new(&self.cmd);
 
         cmd.envs(&self.env);

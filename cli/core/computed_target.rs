@@ -254,7 +254,7 @@ impl ComputedTarget {
     }
 
     #[tracing::instrument(name = "ComputedTarget::execute", skip(self))]
-    pub fn execute(
+    pub async fn execute(
         &self,
         archive_root: &PathBuf,
         cache_root: &PathBuf,
@@ -272,12 +272,12 @@ impl ComputedTarget {
             // TODO(@ostera): move this _into_ the Archive
             let archive_root = archive_root.join(format!("{}-{}", archive.name(), archive.hash()));
 
-            if !archive.is_cached(&archive_root)? {
-                archive.download(&archive_root)?;
-                match archive.checksum(&archive_root) {
-                    Ok(_) => archive.unpack(&archive_root, &cache_root),
+            if !archive.is_cached(&archive_root).await? {
+                archive.download(&archive_root).await?;
+                match archive.checksum(&archive_root).await {
+                    Ok(_) => archive.unpack(&archive_root, &cache_root).await,
                     Err(e) => {
-                        archive.clean(&archive_root)?;
+                        archive.clean(&archive_root).await?;
                         Err(e)
                     }
                 }?
@@ -286,7 +286,7 @@ impl ComputedTarget {
 
         trace!("Running actions for {}...", self.target.label().to_string());
         for action in self.actions() {
-            action.run(&sandbox_root)?
+            action.run(&sandbox_root).await?
         }
 
         Ok(())

@@ -4,7 +4,8 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use tokio::process::Command;
+use std::process::Stdio;
 use tracing::*;
 
 #[derive(Debug, Clone)]
@@ -16,9 +17,9 @@ pub struct RunShellAction {
 
 impl RunShellAction {
     #[tracing::instrument(name = "action::RunShellAction::run")]
-    pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         let mut cmd = Command::new("bash");
-
+        
         cmd.current_dir(sandbox_root)
             .envs(&self.env)
             .stdout(Stdio::piped())
@@ -26,7 +27,8 @@ impl RunShellAction {
 
         trace!("Running script: {:#?} {}", &self.env, &self.script);
 
-        let output = cmd.output().context("Could not spawn bash")?;
+        let output = cmd.output().await.expect("could not run bash :(");
+        println!("stderr of ls: {:?}", output.stderr);
 
         trace!("Got status code: {}", output.status.code().unwrap());
 

@@ -4,6 +4,7 @@ use deno_core::error::AnyError;
 use deno_core::*;
 use fxhash::*;
 use serde::*;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -56,6 +57,7 @@ pub struct InnerState {
     pub run_script_map: Arc<DashMap<Label, PathBuf>>,
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
+    pub toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
 }
 
 #[op]
@@ -120,7 +122,7 @@ pub fn op_ctx_actions_declare_run_script(
     let label = Label::new(&args.label);
     let run_script = match run_script_map.get(&label) {
         None => PathBuf::from(args.run_script),
-        Some(entry) => panic!("RunScript already declared!") ,
+        Some(_entry) => panic!("RunScript already declared for: {:?}", &label),
     };
     run_script_map.insert(label, run_script);
     Ok(())
@@ -155,6 +157,48 @@ pub fn op_ctx_actions_declare_outputs(
     };
     output_map.insert(label, new_outs);
     Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DeclareProvides {
+    label: String,
+    provides: std::collections::HashMap<String, String>,
+}
+
+#[op]
+pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Result<(), AnyError> {
+    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let toolchain_provides_map = &inner_state.toolchain_provides_map;
+
+    let label = Label::new(&args.label);
+    let new_provides = match toolchain_provides_map.get(&label) {
+        None => args.provides,
+        Some(_) => panic!("You can't specify provides twice!"),
+    };
+    toolchain_provides_map.insert(label, new_provides);
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchProvides {
+    label: String,
+}
+
+#[op]
+pub fn op_ctx_fetch_provides(
+    state: &mut OpState,
+    args: FetchProvides,
+) -> Result<HashMap<String, String>, AnyError> {
+    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let toolchain_provides_map = &inner_state.toolchain_provides_map;
+
+    let label = Label::new(&args.label);
+    match toolchain_provides_map.get(&label) {
+        None => panic!("Undefined provides for label: {:?}", &label),
+        Some(provides) => Ok(provides.clone()),
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -321,11 +365,15 @@ pub struct RuleExecEnv {
     pub toolchain_manager: Arc<RwLock<ToolchainManager>>,
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
+    pub toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
     pub run_script_map: Arc<DashMap<Label, PathBuf>>,
 }
 
 impl RuleExecEnv {
-    pub fn new(workspace: &Workspace) -> RuleExecEnv {
+    pub fn new(
+        workspace: &Workspace,
+        toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
+    ) -> RuleExecEnv {
         let toolchain_manager = Arc::new(RwLock::new(ToolchainManager::new(
             workspace.toolchain_archives.clone(),
         )));
@@ -341,6 +389,7 @@ impl RuleExecEnv {
             let action_map = action_map.clone();
             let output_map = output_map.clone();
             let run_script_map = run_script_map.clone();
+            let toolchain_provides_map = toolchain_provides_map.clone();
             let inner_state = InnerState {
                 paths: paths,
                 toolchain_manager: a,
@@ -348,6 +397,7 @@ impl RuleExecEnv {
                 action_map: action_map,
                 output_map: output_map,
                 run_script_map: run_script_map,
+                toolchain_provides_map: toolchain_provides_map,
             };
             Extension::builder()
                 .ops(vec![
@@ -357,6 +407,8 @@ impl RuleExecEnv {
                     op_ctx_actions_exec::decl(),
                     op_ctx_actions_run_shell::decl(),
                     op_ctx_actions_write_file::decl(),
+                    op_ctx_declare_provides::decl(),
+                    op_ctx_fetch_provides::decl(),
                     op_file_filename::decl(),
                     op_file_parent::decl(),
                     op_file_with_extension::decl(),
@@ -388,6 +440,7 @@ impl RuleExecEnv {
             action_map,
             output_map,
             run_script_map,
+            toolchain_provides_map,
         }
     }
 
@@ -559,8 +612,7 @@ impl RuleExecEnv {
             .cloned()
             .collect();
 
-        let run_script: Option<PathBuf> = self
-            .run_script_map.get(&label).map(|path| path.clone());
+        let run_script: Option<PathBuf> = self.run_script_map.get(&label).map(|path| path.clone());
 
         let srcs: FxHashSet<PathBuf> = if computed_target.target.is_local() {
             computed_target

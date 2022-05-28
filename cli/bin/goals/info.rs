@@ -46,7 +46,7 @@ impl InfoGoal {
 
         zap.prepare(&target).await?;
 
-        for node in &zap.compute_nodes()? {
+        for node in &zap.compute_nodes().await? {
             if *node.target.label() == target {
                 println!("");
                 println!("Target info:");

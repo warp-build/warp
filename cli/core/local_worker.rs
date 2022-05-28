@@ -1,5 +1,8 @@
 use super::*;
 use anyhow::anyhow;
+use dashmap::DashMap;
+use std::collections::HashMap;
+use std::sync::Arc;
 use tracing::*;
 
 /// A LocalWorker orchestrates a local build.
@@ -32,8 +35,10 @@ pub struct LocalWorker {
 
 impl LocalWorker {
     pub fn from_workspace(workspace: Workspace) -> LocalWorker {
+        let toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>> =
+            Arc::new(DashMap::new());
         LocalWorker {
-            rule_exec_env: RuleExecEnv::new(&workspace),
+            rule_exec_env: RuleExecEnv::new(&workspace, toolchain_provides_map),
             cache: LocalCache::new(&workspace),
             workspace,
             targets: vec![],
@@ -96,7 +101,7 @@ impl LocalWorker {
     }
 
     #[tracing::instrument(name = "LocalWorker::compute_nodes", skip(self))]
-    pub fn compute_nodes(&mut self) -> Result<Vec<ComputedTarget>, anyhow::Error> {
+    pub async fn compute_nodes(&mut self) -> Result<Vec<ComputedTarget>, anyhow::Error> {
         let mut walker = self.dep_graph.walk();
 
         let mut nodes = vec![];
@@ -204,6 +209,7 @@ impl LocalWorker {
                     &self.workspace.paths.global_sandbox_root,
                     ExecutionMode::OnlyBuild,
                 )
+                .await
             };
 
             result?

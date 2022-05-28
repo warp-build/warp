@@ -11,10 +11,9 @@ const impl = ctx => {
 
   if (archiveKind === "source") {
     ctx.action().runShell({
-      script: `#!/bin/bash -e
+      script: `#!/bin/bash -xe
 
       cd ${unarchivedRoot}
-      ./configure
       ./otp_build all
 
     `});

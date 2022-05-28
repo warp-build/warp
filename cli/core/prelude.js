@@ -23,7 +23,6 @@ const console = {
  * Global stores
  ******************************************************************************/
 const __RULES = {};
-const __PROVIDES = {};
 
 /*******************************************************************************
  *
@@ -74,9 +73,7 @@ Zap.Targets.compute = target => {
           target.platform.endsWith("win32") ? "win32" : "unknown",
     },
 
-    provides: outs => {
-      __PROVIDES[label] = outs;
-    },
+    provides: provides => ffi("op_ctx_declare_provides", {label, provides}),
 
     action: () => ({
       runShell: ({script, env = {}, needsTty = false}) => ffi("op_ctx_actions_run_shell", {label, script, env, needsTty}),
@@ -167,8 +164,7 @@ Zap.Toolchain = spec => {
 
   spec.toolchains = []
 
-  __PROVIDES[name] = {};
-  spec.provides = () => __PROVIDES[name];
+  spec.provides = () => ffi("op_ctx_fetch_provides", {label: name}),
   spec.runnable = false;
 
   // if (Zap.Rules.exists(name)) err(`There already exists a toolchain called ${name}, consider renaming yours`);

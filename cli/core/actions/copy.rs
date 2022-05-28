@@ -1,5 +1,6 @@
 use anyhow::*;
 use std::path::PathBuf;
+use tokio::fs;
 
 #[derive(Debug, Clone)]
 pub struct CopyAction {
@@ -9,11 +10,12 @@ pub struct CopyAction {
 
 impl CopyAction {
     #[tracing::instrument(name = "action::CopyAction::run")]
-    pub fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         if let Some(parent) = self.dst.parent() {
-            std::fs::create_dir_all(sandbox_root.join(parent))?;
+            fs::create_dir_all(sandbox_root.join(parent)).await?;
         }
-        std::fs::copy(sandbox_root.join(&self.src), sandbox_root.join(&self.dst))
+        fs::copy(sandbox_root.join(&self.src), sandbox_root.join(&self.dst))
+            .await
             .map(|_| ())
             .context(format!("Could not run action {:#?}", &self))
     }

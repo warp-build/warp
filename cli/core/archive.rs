@@ -4,6 +4,8 @@ use crypto::sha1::Sha1;
 use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::Command;
+use tokio::fs;
+use tokio::io::AsyncReadExt;
 use tracing::{debug, info};
 
 #[derive(Debug, Clone)]
@@ -122,26 +124,27 @@ impl Archive {
         }
     }
 
-    pub fn is_cached(&self, outdir: &PathBuf) -> Result<bool, anyhow::Error> {
+    pub async fn is_cached(&self, outdir: &PathBuf) -> Result<bool, anyhow::Error> {
         let path = outdir.join(self.file_name());
-        let result = std::fs::metadata(&path).is_ok();
+        let result = fs::metadata(&path).await.is_ok();
         debug!("Checking if toolchain exists in {:?}: {:?}", path, result);
         Ok(result)
     }
 
-    pub fn checksum(&self, outdir: &PathBuf) -> Result<bool, anyhow::Error> {
+    pub async fn checksum(&self, outdir: &PathBuf) -> Result<bool, anyhow::Error> {
         let mut hasher = Sha1::new();
         let archive = &outdir.join(&self.file_name());
         debug!(
             "Checking if archive at: {:?} has checksum {:?}",
             &archive, &self.sha1
         );
-        let mut file = std::fs::File::open(&archive).context(format!(
+        let mut file = fs::File::open(&archive).await.context(format!(
             "Truly expected {:?} to be a readable file. Was it changed since the build started?",
             archive
         ))?;
-        let mut contents: Vec<u8> = std::vec::Vec::with_capacity(file.metadata()?.len() as usize);
-        file.read_to_end(&mut contents)?;
+        let mut contents: Vec<u8> =
+            std::vec::Vec::with_capacity(file.metadata().await?.len() as usize);
+        file.read_to_end(&mut contents).await?;
         hasher.input(&contents);
         let hash = hasher.result_str();
         if hash == self.sha1 {
@@ -167,22 +170,23 @@ sha1 = "{found_sha}"
         }
     }
 
-    pub fn clean(&self, outdir: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn clean(&self, outdir: &PathBuf) -> Result<(), anyhow::Error> {
         info!("Cleaning archive {:?}", &outdir);
 
-        let _ = std::fs::remove_dir_all(&outdir);
+        let _ = fs::remove_dir_all(&outdir).await;
+        info!("cleaned {:?}", &outdir);
 
         Ok(())
     }
 
-    pub fn download(&self, outdir: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn download(&self, outdir: &PathBuf) -> Result<(), anyhow::Error> {
         info!(
             "Downloading toolchain from {:?} into {:?}",
             self.url(),
             &outdir
         );
 
-        std::fs::create_dir_all(&outdir).context(format!(
+        fs::create_dir_all(&outdir).await.context(format!(
             "Failed to create toolchain root folder at {:?}",
             &outdir
         ))?;
@@ -203,15 +207,21 @@ sha1 = "{found_sha}"
         }
     }
 
-    pub fn unpack(&self, archive_dir: &PathBuf, final_dir: &PathBuf) -> Result<(), anyhow::Error> {
+    #[tracing::instrument(name = "Archive::unpack")]
+    pub async fn unpack(
+        &self,
+        archive_dir: &PathBuf,
+        final_dir: &PathBuf,
+    ) -> Result<(), anyhow::Error> {
         let final_dir = final_dir.join(self.hash());
 
-        std::fs::create_dir_all(&final_dir)?;
+        fs::create_dir_all(&final_dir).await?;
 
         let tar = Command::new("tar")
             .args(&[
                 "xzf",
-                std::fs::canonicalize(archive_dir.join("toolchain.tar.gz"))?
+                fs::canonicalize(archive_dir.join("toolchain.tar.gz"))
+                    .await?
                     .to_str()
                     .unwrap(),
             ])

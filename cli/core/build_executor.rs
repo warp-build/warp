@@ -1,9 +1,10 @@
-use super::Event;
 /// WARNING: He-man, stateful, multi-threaded programming happening below.
 ///
+use super::Event;
 use super::*;
 use anyhow::anyhow;
 use dashmap::DashMap;
+use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
@@ -57,6 +58,8 @@ impl BuildExecutor {
     ) -> Result<ComputedTarget, anyhow::Error> {
         let build_queue = Arc::new(crossbeam::deque::Injector::new());
         let result_queue = Arc::new(crossbeam::deque::Injector::new());
+        let toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>> =
+            Arc::new(DashMap::new());
 
         let worker_limit = self.worker_limit;
         debug!("Starting build executor with {} workers...", &worker_limit);
@@ -71,6 +74,7 @@ impl BuildExecutor {
             self.computed_targets.clone(),
             self.busy_targets.clone(),
             event_channel.clone(),
+            toolchain_provides_map.clone(),
             target.clone(),
         );
 
@@ -95,6 +99,7 @@ impl BuildExecutor {
                 let computed_targets = self.computed_targets.clone();
                 let busy_targets = self.busy_targets.clone();
                 let event_channel = event_channel.clone();
+                let toolchain_provides_map = toolchain_provides_map.clone();
                 let thread = worker_pool.spawn_pinned(move || async move {
                     let mut worker = LazyWorker::new(
                         worker_id,
@@ -104,6 +109,7 @@ impl BuildExecutor {
                         computed_targets,
                         busy_targets,
                         event_channel,
+                        toolchain_provides_map,
                         target,
                     );
                     worker.load_rules().await?;
@@ -179,11 +185,12 @@ impl LazyWorker {
         computed_targets: Arc<DashMap<Label, ComputedTarget>>,
         busy_targets: Arc<DashMap<Label, ()>>,
         event_channel: Arc<EventChannel>,
+        toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
         target: Label,
     ) -> LazyWorker {
         LazyWorker {
             id,
-            rule_exec_env: RuleExecEnv::new(&workspace),
+            rule_exec_env: RuleExecEnv::new(&workspace, toolchain_provides_map),
             cache: LocalCache::new(&workspace),
             workspace: workspace.clone(),
             computed_targets,
@@ -199,7 +206,7 @@ impl LazyWorker {
     #[tracing::instrument(name = "LazyWorker::queue", skip(self))]
     pub fn queue(&mut self, target: Label) -> Result<(), anyhow::Error> {
         if target.is_all() {
-            trace!("Queueing all targets...");
+            debug!("Queueing all targets...");
             let scanner = WorkspaceScanner::from_paths(&self.workspace.paths);
             for build_file in scanner.find_build_files()? {
                 let buildfile = Buildfile::from_file(
@@ -212,11 +219,11 @@ impl LazyWorker {
                     self.target_count += 1;
                 }
             }
+            debug!("Queued {} targets...", self.target_count);
         } else {
             self.build_queue.push(target);
-            self.target_count = 1;
+            debug!("Queued 1 target...");
         }
-        trace!("Queued {} targets...", self.target_count);
         Ok(())
     }
 
@@ -338,17 +345,6 @@ impl LazyWorker {
         for (name, src) in built_in_rules.chain(custom_rules) {
             self.rule_exec_env.load(&name, Some(src)).await?
         }
-        let toolchains = (*self.rule_exec_env.toolchain_manager)
-            .read()
-            .unwrap()
-            .targets();
-
-        let rule_span = trace_span!("LazyWorker::build_toolchains").or_current();
-        for toolchain in toolchains {
-            let _span = rule_span.enter();
-            self.execute_target(toolchain, ExecutionMode::OnlyBuild)
-                .await?;
-        }
 
         Ok(())
     }
@@ -415,9 +411,10 @@ impl LazyWorker {
             .await
             .map_err(WorkerError::Unknown)?
         {
-            CacheHitType::Global(_cache_path) => {
+            CacheHitType::Global(cache_path) => {
                 self.computed_targets.insert(label.clone(), node.clone());
-                // self.event_channel.send(Event::CacheHit(label.clone(), cache_path));
+                self.event_channel
+                    .send(Event::CacheHit(label.clone(), cache_path));
                 return Ok(label.clone());
             }
             CacheHitType::Local(cache_path) => {
@@ -436,11 +433,12 @@ impl LazyWorker {
             }
         }
 
+        self.event_channel
+            .send(Event::BuildingTarget(label.clone()));
         let result: Result<Label, WorkerError> = if node.target.is_local() {
             let mut sandbox = LocalSandbox::for_node(&self.workspace, node.clone());
 
             let result = {
-                self.event_channel.send(Event::BuildingTarget(label.clone()));
                 let find_node = |label| self.computed_targets.get(&label).map(|r| r.clone());
                 sandbox
                     .run(&self.cache, &find_node, mode).await
@@ -478,13 +476,15 @@ impl LazyWorker {
                         &name.to_string(), expected_but_missing, unexpected_but_present)),
             }
         } else {
-            debug!("Building global target...");
+            println!("Building global target...");
             let res = node.execute(
                 &self.workspace.paths.global_archive_root,
                 &self.workspace.paths.global_cache_root,
-                &self.workspace.paths.global_sandbox_root,
+                &self.workspace.paths.global_cache_root,
                 ExecutionMode::OnlyBuild,
-            );
+            ).await;
+
+            self.computed_targets.insert(label.clone(), node.clone());
 
             res.map(|_| label.clone())
 
