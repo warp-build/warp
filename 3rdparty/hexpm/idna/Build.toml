@@ -3,3 +3,4 @@ name = "idna"
 deps = [
   "//3rdparty/hexpm/unicode_util_compat"
 ]
+

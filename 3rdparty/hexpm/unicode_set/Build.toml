@@ -1,5 +1,7 @@
 [[mix_library]]
 name = "unicode_set"
 deps = [
+  "//3rdparty/hexpm/nimble_parsec",
   "//3rdparty/hexpm/unicode"
 ]
+

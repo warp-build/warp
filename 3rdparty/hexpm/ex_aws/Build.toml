@@ -1,17 +1,7 @@
 [[mix_library]]
 name = "ex_aws"
-srcs = [
-  "README.md",
-      "lib/**/*.eex",
-      "lib/**/*.ex",
-      "mix.exs",
-      "src/**/*.app.src",
-      "src/**/*.erl",
-      "src/**/*.hrl",
-      "include/**/*.hrl",
-      "priv/**/*",
-    ]
 deps = [
   "//3rdparty/hexpm/mime",
   "//3rdparty/hexpm/telemetry"
 ]
+

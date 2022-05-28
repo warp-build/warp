@@ -1,15 +1,15 @@
 import ElixirToolchain from "../toolchains/elixir.js";
-import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
+import ErlangToolchain, { BEAM_EXT } from "../toolchains/erlang.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { label, name, deps, srcs, deps_args, compile_args } = ctx.cfg();
-  const cwd = Label.path(label)
+  const cwd = Label.path(label);
 
-  const appTarball = `${name}.app.tar`
-  const outputs = [ `${cwd}/${appTarball}` ]
+  const appTarball = `${name}.app.tar`;
+  const outputs = [`${cwd}/${appTarball}`];
   ctx.action().declareOutputs(outputs);
 
-  const { MIX } = ElixirToolchain.provides()
+  const { MIX } = ElixirToolchain.provides();
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
@@ -22,7 +22,7 @@ ${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")} \
 && tar cf ${appTarball} _build/prod/lib/${name}
 
 `,
-  })
+  });
 };
 
 export default Zap.Rule({
@@ -32,11 +32,12 @@ export default Zap.Rule({
   cfg: {
     name: label(),
     srcs: [file()],
+    extra_srcs: [file()],
     deps: [label()],
     deps_args: [string()],
     compile_args: [string()],
   },
-	defaults: {
+  defaults: {
     srcs: [
       "lib/**/*.eex",
       "lib/**/*.ex",
@@ -47,10 +48,10 @@ export default Zap.Rule({
       "include/**/*.hrl",
       "priv/**/*",
     ],
+    extra_srcs: [],
     deps: [],
     deps_args: [],
     compile_args: [],
-	},
-  toolchains: [ElixirToolchain, ErlangToolchain]
+  },
+  toolchains: [ElixirToolchain, ErlangToolchain],
 });
-

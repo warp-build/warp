@@ -3,3 +3,4 @@ name = "httpotion"
 deps = [
   "//3rdparty/hexpm/ibrowse"
 ]
+

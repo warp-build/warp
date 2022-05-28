@@ -1,16 +1,6 @@
 [[mix_library]]
 name = "file_system"
-srcs = [
-  "README.md",
-      "lib/**/*.eex",
-      "lib/**/*.ex",
-      "mix.exs",
-      "src/**/*.app.src",
-      "src/**/*.erl",
-      "src/**/*.hrl",
-      "include/**/*.hrl",
-      "priv/**/*",
-    ]
 deps = [
   
 ]
+

@@ -9,3 +9,4 @@ deps = [
   "//3rdparty/hexpm/ssl_verify_fun",
   "//3rdparty/hexpm/unicode_util_compat"
 ]
+

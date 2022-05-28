@@ -1,16 +1,6 @@
 [[mix_library]]
 name = "hpax"
-srcs = [
-  "lib/hpax/hufman_table",
-      "lib/**/*.eex",
-      "lib/**/*.ex",
-      "mix.exs",
-      "src/**/*.app.src",
-      "src/**/*.erl",
-      "src/**/*.hrl",
-      "include/**/*.hrl",
-      "priv/**/*",
-    ]
 deps = [
   
 ]
+

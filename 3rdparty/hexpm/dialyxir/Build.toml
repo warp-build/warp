@@ -3,3 +3,4 @@ name = "dialyxir"
 deps = [
   "//3rdparty/hexpm/erlex"
 ]
+

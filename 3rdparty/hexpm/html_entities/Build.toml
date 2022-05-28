@@ -1,16 +1,6 @@
 [[mix_library]]
 name = "html_entities"
-srcs = [
-  "lib/*.txt",
-      "lib/**/*.eex",
-      "lib/**/*.ex",
-      "mix.exs",
-      "src/**/*.app.src",
-      "src/**/*.erl",
-      "src/**/*.hrl",
-      "include/**/*.hrl",
-      "priv/**/*",
-    ]
 deps = [
   
 ]
+

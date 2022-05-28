@@ -3,3 +3,4 @@ name = "makeup_erlang"
 deps = [
   "//3rdparty/hexpm/makeup"
 ]
+

@@ -5,3 +5,4 @@ deps = [
   "//3rdparty/hexpm/cowboy_telemetry",
   "//3rdparty/hexpm/plug"
 ]
+
