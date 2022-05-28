@@ -1,5 +1,8 @@
 [[mix_library]]
 name = "mint"
 deps = [
-  
+  "//3rdparty/hexpm/dialyxir",
+  "//3rdparty/hexpm/ex_doc",
+  "//3rdparty/hexpm/hpax",
+  "//3rdparty/hexpm/stream_data"
 ]

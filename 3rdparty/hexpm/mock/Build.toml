@@ -1,5 +1,7 @@
 [[mix_library]]
 name = "mock"
 deps = [
-  
+  "//3rdparty/hexpm/ex_doc",
+  "//3rdparty/hexpm/markdown",
+  "//3rdparty/hexpm/meck"
 ]

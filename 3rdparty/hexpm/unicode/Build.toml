@@ -1,5 +1,7 @@
 [[mix_library]]
 name = "unicode"
 deps = [
-  
+  "//3rdparty/hexpm/benchee",
+  "//3rdparty/hexpm/dialyxir",
+  "//3rdparty/hexpm/ex_doc"
 ]

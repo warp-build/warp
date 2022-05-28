@@ -1,16 +1,8 @@
 [[mix_library]]
 name = "hpax"
-srcs = [
-  "lib/hpax/huffman_table",
-  "lib/**/*.eex",
-  "lib/**/*.ex",
-  "mix.exs",
-  "src/**/*.app.src",
-  "src/**/*.erl",
-  "src/**/*.hrl",
-  "include/**/*.hrl",
-  "priv/**/*.exs",
-]
 deps = [
-  
+  "//3rdparty/hexpm/dialyxir",
+  "//3rdparty/hexpm/ex_doc",
+  "//3rdparty/hexpm/hpack",
+  "//3rdparty/hexpm/stream_data"
 ]

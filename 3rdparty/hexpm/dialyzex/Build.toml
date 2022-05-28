@@ -1,5 +1,6 @@
 [[mix_library]]
 name = "dialyzex"
 deps = [
-  
+  "//3rdparty/hexpm/credo",
+  "//3rdparty/hexpm/ex_doc"
 ]

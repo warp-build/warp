@@ -1,5 +1,10 @@
 [[mix_library]]
 name = "bypass"
 deps = [
-  
+  "//3rdparty/hexpm/espec",
+  "//3rdparty/hexpm/ex_doc",
+  "//3rdparty/hexpm/mint",
+  "//3rdparty/hexpm/plug",
+  "//3rdparty/hexpm/plug_cowboy",
+  "//3rdparty/hexpm/ranch"
 ]

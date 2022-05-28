@@ -1,0 +1,5 @@
+[[rebar3_library]]
+name = "certifi"
+deps = [
+  
+]

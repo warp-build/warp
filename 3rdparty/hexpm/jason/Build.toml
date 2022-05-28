@@ -1,5 +1,7 @@
 [[mix_library]]
 name = "jason"
 deps = [
-  
+  "//3rdparty/hexpm/decimal",
+  "//3rdparty/hexpm/dialyxir",
+  "//3rdparty/hexpm/stream_data"
 ]

@@ -1,16 +1,6 @@
 [[mix_library]]
 name = "makeup"
-srcs = [
-  "lib/**/*.js",
-  "lib/**/*.eex",
-  "lib/**/*.ex",
-  "mix.exs",
-  "src/**/*.app.src",
-  "src/**/*.erl",
-  "src/**/*.hrl",
-  "include/**/*.hrl",
-  "priv/**/*.exs",
-]
 deps = [
-  
+  "//3rdparty/hexpm/nimble_parsec",
+  "//3rdparty/hexpm/stream_data"
 ]

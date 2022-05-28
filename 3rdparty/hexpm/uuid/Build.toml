@@ -1,5 +1,7 @@
 [[mix_library]]
 name = "uuid"
 deps = [
-  
+  "//3rdparty/hexpm/benchfella",
+  "//3rdparty/hexpm/earmark",
+  "//3rdparty/hexpm/ex_doc"
 ]

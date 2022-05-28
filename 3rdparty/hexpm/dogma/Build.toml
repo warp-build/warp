@@ -1,5 +1,12 @@
 [[mix_library]]
 name = "dogma"
 deps = [
-  
+  "//3rdparty/hexpm/benchfella",
+  "//3rdparty/hexpm/earmark",
+  "//3rdparty/hexpm/ex_doc",
+  "//3rdparty/hexpm/excoveralls",
+  "//3rdparty/hexpm/inch_ex",
+  "//3rdparty/hexpm/mix_test_watch",
+  "//3rdparty/hexpm/poison",
+  "//3rdparty/hexpm/temporary_env"
 ]

@@ -1,5 +1,6 @@
 [[mix_library]]
 name = "dialyxir"
 deps = [
-  
+  "//3rdparty/hexpm/erlex",
+  "//3rdparty/hexpm/ex_doc"
 ]

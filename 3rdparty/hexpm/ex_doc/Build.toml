@@ -1,5 +1,10 @@
 [[mix_library]]
 name = "ex_doc"
 deps = [
-  
+  "//3rdparty/hexpm/earmark_parser",
+  "//3rdparty/hexpm/floki",
+  "//3rdparty/hexpm/jason",
+  "//3rdparty/hexpm/makeup_elixir",
+  "//3rdparty/hexpm/makeup_erlang",
+  "//3rdparty/hexpm/makeup_html"
 ]

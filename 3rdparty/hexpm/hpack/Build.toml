@@ -1,5 +1,7 @@
 [[rebar3_library]]
 name = "hpack"
 deps = [
-  
+  "//3rdparty/hexpm/credo",
+  "//3rdparty/hexpm/dialyxir",
+  "//3rdparty/hexpm/ex_doc"
 ]

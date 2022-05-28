@@ -1,12 +1,11 @@
 [[rebar3_library]]
 name = "hackney"
-srcs = [
-  "c_src/**/*",
-  "src/**/*.app.src",
-  "src/**/*.erl",
-  "src/**/*.hrl",
-  "include/**/*.hrl",
-]
 deps = [
-  "//3rdparty/hexpm/parse_trans"
+  "//3rdparty/hexpm/certifi",
+  "//3rdparty/hexpm/idna",
+  "//3rdparty/hexpm/metrics",
+  "//3rdparty/hexpm/mimerl",
+  "//3rdparty/hexpm/parse_trans",
+  "//3rdparty/hexpm/ssl_verify_fun",
+  "//3rdparty/hexpm/unicode_util_compat"
 ]

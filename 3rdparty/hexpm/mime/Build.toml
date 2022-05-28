@@ -1,5 +1,5 @@
 [[mix_library]]
 name = "mime"
 deps = [
-  
+  "//3rdparty/hexpm/ex_doc"
 ]

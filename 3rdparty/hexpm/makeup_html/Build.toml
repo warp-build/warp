@@ -1,5 +1,6 @@
 [[mix_library]]
 name = "makeup_html"
 deps = [
-  
+  "//3rdparty/hexpm/makeup",
+  "//3rdparty/hexpm/stream_data"
 ]

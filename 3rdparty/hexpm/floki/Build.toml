@@ -1,5 +1,9 @@
 [[mix_library]]
 name = "floki"
 deps = [
-  
+  "//3rdparty/hexpm/benchee",
+  "//3rdparty/hexpm/credo",
+  "//3rdparty/hexpm/dialyxir",
+  "//3rdparty/hexpm/html_entities",
+  "//3rdparty/hexpm/jason"
 ]

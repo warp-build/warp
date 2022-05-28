@@ -1,5 +1,10 @@
 [[mix_library]]
 name = "junit_formatter"
 deps = [
-  
+  "//3rdparty/hexpm/credo",
+  "//3rdparty/hexpm/earmark",
+  "//3rdparty/hexpm/ex_doc",
+  "//3rdparty/hexpm/excoveralls",
+  "//3rdparty/hexpm/exjsx",
+  "//3rdparty/hexpm/sweet_xml"
 ]

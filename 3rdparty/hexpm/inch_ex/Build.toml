@@ -1,5 +1,6 @@
 [[mix_library]]
 name = "inch_ex"
 deps = [
-  
+  "//3rdparty/hexpm/bunt",
+  "//3rdparty/hexpm/jason"
 ]

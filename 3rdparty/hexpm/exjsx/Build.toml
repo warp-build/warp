@@ -1,5 +1,6 @@
 [[mix_library]]
 name = "exjsx"
 deps = [
-  
+  "//3rdparty/hexpm/ex_doc",
+  "//3rdparty/hexpm/jsx"
 ]

@@ -22,7 +22,8 @@ const impl = ctx => {
   const binRoot = File.join(unarchivedRoot, "bin");
   const ERLC = File.join(binRoot, "erlc");
   const ERL = File.join(binRoot, "erl");
-  ctx.provides({ ERLC, ERL });
+  const REBAR = "rebar3";
+  ctx.provides({ ERLC, ERL, REBAR });
   ctx.action().declareOutputs([]);
 };
 

@@ -1,5 +1,9 @@
 [[mix_library]]
 name = "unicode_set"
 deps = [
-  
+  "//3rdparty/hexpm/benchee",
+  "//3rdparty/hexpm/dialyxir",
+  "//3rdparty/hexpm/ex_doc",
+  "//3rdparty/hexpm/nimble_parsec",
+  "//3rdparty/hexpm/unicode"
 ]

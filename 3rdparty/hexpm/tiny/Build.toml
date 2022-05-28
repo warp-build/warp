@@ -1,5 +1,10 @@
 [[mix_library]]
 name = "tiny"
 deps = [
-  
+  "//3rdparty/hexpm/benchfella",
+  "//3rdparty/hexpm/credo",
+  "//3rdparty/hexpm/ex_doc",
+  "//3rdparty/hexpm/exjsx",
+  "//3rdparty/hexpm/jiffy",
+  "//3rdparty/hexpm/json"
 ]

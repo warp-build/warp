@@ -43,7 +43,7 @@ export default Zap.Rule({
       "src/**/*.erl",
       "src/**/*.hrl",
       "include/**/*.hrl",
-      "priv/**/*.exs",
+      "priv/**/*",
     ],
     deps: [],
     deps_args: [],

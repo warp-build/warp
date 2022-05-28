@@ -1,5 +1,9 @@
 [[mix_library]]
 name = "makeup_elixir"
 deps = [
-  
+  "//3rdparty/hexpm/benchee",
+  "//3rdparty/hexpm/benchee_markdown",
+  "//3rdparty/hexpm/makeup",
+  "//3rdparty/hexpm/nimble_parsec",
+  "//3rdparty/hexpm/unicode_set"
 ]

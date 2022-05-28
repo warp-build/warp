@@ -1,5 +1,6 @@
 [[rebar3_library]]
 name = "cowboy_telemetry"
 deps = [
-  
+  "//3rdparty/hexpm/cowboy",
+  "//3rdparty/hexpm/telemetry"
 ]
