@@ -1,3 +1,0 @@
-[rebar3_library]
-deps = []
-name = "meck"

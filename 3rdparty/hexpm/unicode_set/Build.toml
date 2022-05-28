@@ -1,6 +1,0 @@
-[mix_library]
-deps = [
-  "//3rdparty/hexpm/nimble_parsec",
-  "//3rdparty/hexpm/unicode"
-]
-name = "unicode_set"

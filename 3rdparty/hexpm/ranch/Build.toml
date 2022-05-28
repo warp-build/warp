@@ -1,3 +1,0 @@
-[erlangmk_library]
-deps = []
-name = "ranch"

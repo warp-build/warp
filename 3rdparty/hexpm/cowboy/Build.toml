@@ -1,6 +1,0 @@
-[erlangmk_library]
-deps = [
-  "//3rdparty/hexpm/cowlib",
-  "//3rdparty/hexpm/ranch"
-]
-name = "cowboy"

@@ -1,4 +1,0 @@
-[mix_library]
-deps = []
-extra_srcs = ["lib/hpax/hufman_table"]
-name = "hpax"

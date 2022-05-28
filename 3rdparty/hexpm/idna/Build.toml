@@ -1,3 +1,0 @@
-[rebar3_library]
-deps = ["//3rdparty/hexpm/unicode_util_compat"]
-name = "idna"
