@@ -1,0 +1,5 @@
+[[mix_library]]
+name = "dialyxir"
+deps = [
+  
+]

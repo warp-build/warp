@@ -1,0 +1,12 @@
+[[rebar3_library]]
+name = "hackney"
+srcs = [
+  "c_src/**/*",
+  "src/**/*.app.src",
+  "src/**/*.erl",
+  "src/**/*.hrl",
+  "include/**/*.hrl",
+]
+deps = [
+  "//3rdparty/hexpm/parse_trans"
+]

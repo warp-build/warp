@@ -1,0 +1,5 @@
+[[mix_library]]
+name = "earmark_parser"
+deps = [
+  
+]

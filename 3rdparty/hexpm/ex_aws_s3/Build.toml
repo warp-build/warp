@@ -1,0 +1,5 @@
+[[mix_library]]
+name = "ex_aws_s3"
+deps = [
+  
+]
