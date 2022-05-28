@@ -1,4 +1,4 @@
-[[rebar3_library]]
+[[mix_library]]
 name = "ssl_verify_fun"
 deps = [
   
