@@ -1,7 +1,6 @@
-[[mix_library]]
-name = "benchee"
+[mix_library]
 deps = [
   "//3rdparty/hexpm/deep_merge",
   "//3rdparty/hexpm/statistex"
 ]
-
+name = "benchee"

@@ -1,7 +1,6 @@
-[[mix_library]]
-name = "benchee_json"
+[mix_library]
 deps = [
   "//3rdparty/hexpm/benchee",
   "//3rdparty/hexpm/jason"
 ]
-
+name = "benchee_json"

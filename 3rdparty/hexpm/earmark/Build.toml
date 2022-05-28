@@ -1,6 +1,3 @@
-[[mix_library]]
+[mix_library]
+deps = ["//3rdparty/hexpm/earmark_parser"]
 name = "earmark"
-deps = [
-  "//3rdparty/hexpm/earmark_parser"
-]
-

@@ -1,6 +1,3 @@
-[[mix_library]]
+[mix_library]
+deps = ["//3rdparty/hexpm/hpack"]
 name = "kadabra"
-deps = [
-  "//3rdparty/hexpm/hpack"
-]
-

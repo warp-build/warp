@@ -1,6 +1,3 @@
-[[mix_library]]
+[mix_library]
+deps = []
 name = "ssl_verify_fun"
-deps = [
-  
-]
-

@@ -1,7 +1,6 @@
-[[mix_library]]
-name = "ex_aws"
+[mix_library]
 deps = [
   "//3rdparty/hexpm/mime",
   "//3rdparty/hexpm/telemetry"
 ]
-
+name = "ex_aws"

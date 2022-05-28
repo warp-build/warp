@@ -1,6 +1,3 @@
-[[mix_library]]
+[mix_library]
+deps = ["//3rdparty/hexpm/file_system"]
 name = "mix_test_watch"
-deps = [
-  "//3rdparty/hexpm/file_system"
-]
-

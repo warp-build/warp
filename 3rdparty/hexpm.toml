@@ -36,7 +36,6 @@ fs = { version = "~> 6.9" }
 hackney = { version = ">= 0.0.0" }
 hoedown = { github = "hoedown/hoedown" }
 hpack = { version = ">= 0.0.0" }
-hpax = { version = "~> 0.1.1", overrides = { extra_srcs = ["lib/hpax/hufman_table"] } }
 html_entities = { version = "~> 0.5.0" }
 httpotion = { version = "~> 3.1" }
 ibrowse = { version = "== 4.4.0" }
@@ -84,3 +83,7 @@ unicode_set = { version = "~> 1.1.0" }
 unicode_util_compat = { version = "~>0.7.0" }
 uuid = { version = "1.1.8" }
 x509 = { version = "~> 0.6.0" }
+
+[dependencies.hpax]
+overrides = { extra_srcs = ["lib/hpax/hufman_table"] }
+version = "~> 0.1.1"

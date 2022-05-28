@@ -1,7 +1,6 @@
-[[mix_library]]
-name = "makeup_elixir"
+[mix_library]
 deps = [
   "//3rdparty/hexpm/makeup",
   "//3rdparty/hexpm/nimble_parsec"
 ]
-
+name = "makeup_elixir"

@@ -1,6 +1,3 @@
-[[mix_library]]
+[mix_library]
+deps = ["//3rdparty/hexpm/nimble_parsec"]
 name = "makeup"
-deps = [
-  "//3rdparty/hexpm/nimble_parsec"
-]
-

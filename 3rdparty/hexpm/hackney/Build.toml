@@ -1,5 +1,4 @@
-[[rebar3_library]]
-name = "hackney"
+[rebar3_library]
 deps = [
   "//3rdparty/hexpm/certifi",
   "//3rdparty/hexpm/idna",
@@ -9,4 +8,4 @@ deps = [
   "//3rdparty/hexpm/ssl_verify_fun",
   "//3rdparty/hexpm/unicode_util_compat"
 ]
-
+name = "hackney"

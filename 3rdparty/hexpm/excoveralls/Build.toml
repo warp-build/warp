@@ -1,7 +1,6 @@
-[[mix_library]]
-name = "excoveralls"
+[mix_library]
 deps = [
   "//3rdparty/hexpm/hackney",
   "//3rdparty/hexpm/jason"
 ]
-
+name = "excoveralls"

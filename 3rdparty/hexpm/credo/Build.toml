@@ -1,8 +1,7 @@
-[[mix_library]]
-name = "credo"
+[mix_library]
 deps = [
   "//3rdparty/hexpm/bunt",
   "//3rdparty/hexpm/file_system",
   "//3rdparty/hexpm/jason"
 ]
-
+name = "credo"

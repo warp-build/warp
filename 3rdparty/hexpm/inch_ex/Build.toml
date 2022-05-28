@@ -1,7 +1,6 @@
-[[mix_library]]
-name = "inch_ex"
+[mix_library]
 deps = [
   "//3rdparty/hexpm/bunt",
   "//3rdparty/hexpm/jason"
 ]
-
+name = "inch_ex"

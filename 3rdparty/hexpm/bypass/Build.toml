@@ -1,8 +1,7 @@
-[[mix_library]]
-name = "bypass"
+[mix_library]
 deps = [
   "//3rdparty/hexpm/plug",
   "//3rdparty/hexpm/plug_cowboy",
   "//3rdparty/hexpm/ranch"
 ]
-
+name = "bypass"
