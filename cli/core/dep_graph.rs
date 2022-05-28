@@ -71,8 +71,35 @@ impl DepGraph {
         edges.sort();
         debug!("Adding {} edges to graph...", edges.len());
 
-        dag.extend_with_edges(&edges)
-            .context("Found a cycle in the graph!")?;
+        match dag.extend_with_edges(&edges) {
+            Ok(()) => (),
+            Err(_) => {
+                let mut cycles = vec![];
+                for src_idx in nodes.values() {
+                    let src_node = dag.node_weight(*src_idx).unwrap();
+
+                    for dst_idx in nodes.values() {
+                        let dst_node = dag.node_weight(*dst_idx).unwrap();
+
+                        for label in dst_node.target.deps().iter().clone() {
+                            if label == src_node.label() {
+                                for src_label in src_node.target.deps().iter().clone() {
+                                    if src_label == dst_node.label() {
+                                        cycles.push(format!(
+                                            "{} <-> {}",
+                                            src_node.label().to_string(),
+                                            dst_node.label().to_string()
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return Err(anyhow!("Found {} cycles: {:#?}", cycles.len(), cycles));
+            }
+        };
+
         debug!(
             "Build graph completed with {} nodes and {} edges",
             &nodes.len(),
