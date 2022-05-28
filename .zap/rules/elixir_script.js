@@ -82,6 +82,8 @@ export default Zap.Rule({
     main: file(),
     deps: [label()],
   },
-  defaults: {},
+  defaults: {
+    deps: []
+  },
   toolchains: [ElixirToolchain, ErlangToolchain],
 });
