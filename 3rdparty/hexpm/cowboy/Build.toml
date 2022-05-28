@@ -1,4 +1,4 @@
-[[rebar3_library]]
+[[erlangmk_library]]
 name = "cowboy"
 deps = [
   "//3rdparty/hexpm/cowlib",
