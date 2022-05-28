@@ -1,5 +1,6 @@
 import {TAR_EXT} from "../rules/archive.js";
-import ElixirToolchain, {BEAM_EXT} from "../toolchains/elixir.js";
+import ElixirToolchain from "../toolchains/elixir.js";
+import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
 
 const impl = ctx => {
   const { label, name, srcs, deps, dot_iex, elixirc_opts} = ctx.cfg();
@@ -67,5 +68,5 @@ export default Zap.Rule({
     dot_iex: "",
 		deps: [],
 	},
-  toolchains: [ElixirToolchain]
+  toolchains: [ElixirToolchain, ErlangToolchain]
 });
