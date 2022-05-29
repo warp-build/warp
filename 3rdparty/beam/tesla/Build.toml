@@ -1,3 +1,0 @@
-[[mix_library]]
-name = "tesla"
-deps = ["//3rdparty/beam/mime"]

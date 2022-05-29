@@ -1,9 +1,0 @@
-[[mix_library]]
-name = "plug"
-deps = [
-  "//3rdparty/beam/mime:mime",
-  "//3rdparty/beam/telemetry:telemetry",
-]
-
-[[eex_library]]
-name = "eex"
