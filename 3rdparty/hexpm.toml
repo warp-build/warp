@@ -79,6 +79,7 @@ x509 = { version = "~> 0.6.0" }
 
 [dependencies.credo]
 overrides = { extra_srcs = [
+  ".*.exs",
   ".*.ex",
   ".*.html"
 ] }
