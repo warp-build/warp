@@ -1,3 +1,4 @@
+import { TAR_EXT } from "../rules/archive.js";
 import ElixirToolchain from "../toolchains/elixir.js";
 import ErlangToolchain, { BEAM_EXT } from "../toolchains/erlang.js";
 
@@ -20,7 +21,17 @@ const impl = (ctx) => {
 export MIX_ENV=prod
 
 cd ${cwd}
-rm -rf _build deps
+
+${
+  ctx.transitiveDeps().flatMap(dep => dep.outs.flatMap(out => {
+      if (out.endsWith(TAR_EXT)) {
+        return [`tar xf ${Label.path(dep.label)}/${File.filename(out)}`];
+      } else {
+        return []
+      }
+  })).join("\n")
+}
+
 ${depsGet}
 ${MIX} compile --no-deps-check ${compile_args.join(" ")} \
 && tar cf ${appTarball} _build/prod/lib/${name}
