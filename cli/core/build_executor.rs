@@ -207,7 +207,11 @@ impl LazyWorker {
     }
 
     #[tracing::instrument(name = "LazyWorker::queue", skip(self))]
-    pub async fn queue(&mut self, target: Label, max_concurrency: usize) -> Result<(), anyhow::Error> {
+    pub async fn queue(
+        &mut self,
+        target: Label,
+        max_concurrency: usize,
+    ) -> Result<(), anyhow::Error> {
         if target.is_all() {
             debug!("Queueing all targets...");
             let scanner = WorkspaceScanner::from_paths(&self.workspace.paths);
@@ -310,8 +314,8 @@ impl LazyWorker {
                             },
                         ),
                     )) => {
-												self.event_channel
-														.send(Event::RequeueingTarget(label.clone(), deps.clone()));
+                        self.event_channel
+                            .send(Event::RequeueingTarget(label.clone(), deps.clone()));
 
                         self.busy_targets.remove(&label);
                         debug!("Missing {} dependencies", deps.len());
@@ -398,6 +402,7 @@ impl LazyWorker {
         mode: ExecutionMode,
     ) -> Result<Label, WorkerError> {
         let label = target.label().clone();
+
         self.rule_exec_env.clear();
 
         let find_node = |label| self.computed_targets.get(&label).map(|r| r.clone());
@@ -410,6 +415,11 @@ impl LazyWorker {
             .map_err(WorkerError::RuleExecError)?;
 
         let name = node.label().clone();
+
+        self.event_channel.send(Event::BuildingTarget {
+            label: label.clone(),
+            rule_mnemonic: node.target.rule().mnemonic().to_string(),
+        });
 
         match self
             .cache
@@ -439,15 +449,13 @@ impl LazyWorker {
             }
         }
 
-        self.event_channel
-            .send(Event::BuildingTarget(label.clone()));
         let result: Result<Label, WorkerError> = if node.target.is_local() {
             let mut sandbox = LocalSandbox::for_node(&self.workspace, node.clone());
 
             let result = {
                 let find_node = |label| self.computed_targets.get(&label).map(|r| r.clone());
                 sandbox
-                    .run(&self.cache, &find_node, mode).await
+                    .run(&self.cache, &find_node, mode, self.event_channel.clone()).await
                     .map_err(WorkerError::Unknown)?
             };
 
@@ -482,12 +490,12 @@ impl LazyWorker {
                         &name.to_string(), expected_but_missing, unexpected_but_present)),
             }
         } else {
-            println!("Building global target...");
             let res = node.execute(
                 &self.workspace.paths.global_archive_root,
                 &self.workspace.paths.global_cache_root,
                 &self.workspace.paths.global_cache_root,
                 ExecutionMode::OnlyBuild,
+                self.event_channel.clone(),
             ).await;
 
             self.computed_targets.insert(label.clone(), node.clone());

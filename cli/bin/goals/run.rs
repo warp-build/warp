@@ -1,3 +1,4 @@
+use super::*;
 use anyhow::*;
 use std::process::*;
 use std::sync::Arc;
@@ -60,21 +61,10 @@ impl RunGoal {
         let local_outputs_root = workspace.paths.local_outputs_root.clone();
         let zap = BuildExecutor::from_workspace(workspace, worker_limit);
 
+        let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
             zap.build(target.clone(), event_channel.clone()),
-            async move {
-                let event_channel = event_channel.clone();
-                println!("🔨 Building {}...", name);
-                loop {
-                    tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-                    if let Some(event) = event_channel.recv() {
-                        println!("{:?}", event);
-                        if event == zap_core::Event::BuildCompleted {
-                            return;
-                        }
-                    }
-                }
-            },
+            status_reporter.run(),
         )
         .await;
         let computed_target = result?.unwrap();

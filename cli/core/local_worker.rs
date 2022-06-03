@@ -132,88 +132,89 @@ impl LocalWorker {
 
         let mut targets = 0;
 
-        while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
-            let target = self.dep_graph.get(idx);
-            let sealed_target = {
-                let find_node = |label| (&self.dep_graph).find_node(&label).clone();
-                self.rule_exec_env.compute_target(target, &find_node)?
-            };
-            let node = &self.dep_graph.put(idx, sealed_target);
+        //while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
+        //let target = self.dep_graph.get(idx);
+        //let sealed_target = {
+        //let find_node = |label| (&self.dep_graph).find_node(&label).clone();
+        //self.rule_exec_env.compute_target(target, &find_node)?
+        //};
+        //let node = &self.dep_graph.put(idx, sealed_target);
 
-            let name = node.label().clone();
+        //let name = node.label().clone();
 
-            match self.cache.is_cached(&node).await? {
-                CacheHitType::Global(_) => {
-                    debug!("Skipping {}. Nothing to do.", name.to_string());
-                    continue;
-                }
-                CacheHitType::Local(_) => {
-                    if node.target.kind() == TargetKind::Runnable
-                        && mode == ExecutionMode::BuildAndRun
-                    {
-                        debug!("Skipping {}, we're in running mode.", name.to_string());
-                    } else {
-                        debug!("Skipping {}, but promoting outputs.", name.to_string());
-                        self.cache
-                            .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
-                            .await?;
-                        continue;
-                    }
-                }
-                CacheHitType::Miss => {
-                    debug!("Cache miss! Proceeding to build...");
-                }
-            }
+        //match self.cache.is_cached(&node).await? {
+        //CacheHitType::Global(_) => {
+        //debug!("Skipping {}. Nothing to do.", name.to_string());
+        //continue;
+        //}
+        //CacheHitType::Local(_) => {
+        //if node.target.kind() == TargetKind::Runnable
+        //&& mode == ExecutionMode::BuildAndRun
+        //{
+        //debug!("Skipping {}, we're in running mode.", name.to_string());
+        //} else {
+        //debug!("Skipping {}, but promoting outputs.", name.to_string());
+        //self.cache
+        //.promote_outputs(&node, &self.workspace.paths.local_outputs_root)
+        //.await?;
+        //continue;
+        //}
+        //}
+        //CacheHitType::Miss => {
+        //debug!("Cache miss! Proceeding to build...");
+        //}
+        //}
 
-            let result = if node.target.is_local() {
-                let mut sandbox = LocalSandbox::for_node(&self.workspace, node.clone());
+        //let result = if node.target.is_local() {
+        //let mut sandbox = LocalSandbox::for_node(&self.workspace, node.clone());
 
-                let result = {
-                    let find_node = |label| (&self.dep_graph).find_node(&label).clone();
-                    sandbox.run(&self.cache, &find_node, mode).await?
-                };
+        //let result = {
+        //let find_node = |label| (&self.dep_graph).find_node(&label).clone();
+        //sandbox.run(&self.cache, &find_node, mode).await?
+        //};
 
-                match result {
-                    ValidationStatus::Valid => {
-                        self.cache.save(&sandbox).await?;
-                        // sandbox.clear_sandbox()?;
-                        targets += 1;
-                        Ok(())
-                    }
-                    ValidationStatus::NoOutputs if node.outs().is_empty() => {
-                        // sandbox.clear_sandbox()?;
-                        targets += 1;
-                        Ok(())
-                    }
-                    ValidationStatus::NoOutputs => Err(anyhow!(
-                        "Expected {} outputs, but found none.",
-                        node.outs().len()
-                    )),
-                    ValidationStatus::Pending => Err(anyhow!(
-                        "Node {} is somehow still pending...",
-                        &name.to_string()
-                    )),
-                    ValidationStatus::Invalid {
-                        expected_but_missing,
-                        unexpected_but_present,
-                        ..
-                    } => Err(
-                        anyhow!("Node {} expected the following but missing outputs: {:?}\n\ninstead it found the following unexpected outputs: {:?}",
-                            &name.to_string(), expected_but_missing, unexpected_but_present)),
-                }
-            } else {
-                debug!("Building global target...");
-                node.execute(
-                    &self.workspace.paths.global_archive_root,
-                    &self.workspace.paths.global_cache_root,
-                    &self.workspace.paths.global_sandbox_root,
-                    ExecutionMode::OnlyBuild,
-                )
-                .await
-            };
+        //match result {
+        //ValidationStatus::Valid => {
+        //self.cache.save(&sandbox).await?;
+        //// sandbox.clear_sandbox()?;
+        //targets += 1;
+        //Ok(())
+        //}
+        //ValidationStatus::NoOutputs if node.outs().is_empty() => {
+        //// sandbox.clear_sandbox()?;
+        //targets += 1;
+        //Ok(())
+        //}
+        //ValidationStatus::NoOutputs => Err(anyhow!(
+        //"Expected {} outputs, but found none.",
+        //node.outs().len()
+        //)),
+        //ValidationStatus::Pending => Err(anyhow!(
+        //"Node {} is somehow still pending...",
+        //&name.to_string()
+        //)),
+        //ValidationStatus::Invalid {
+        //expected_but_missing,
+        //unexpected_but_present,
+        //..
+        //} => Err(
+        //anyhow!("Node {} expected the following but missing outputs: {:?}\n\ninstead it found the following unexpected outputs: {:?}",
+        //&name.to_string(), expected_but_missing, unexpected_but_present)),
+        //}
+        //} else {
+        //debug!("Building global target...");
+        //node.execute(
+        //&self.workspace.paths.global_archive_root,
+        //&self.workspace.paths.global_cache_root,
+        //&self.workspace.paths.global_sandbox_root,
+        //ExecutionMode::OnlyBuild,
+        //self.event_channel.clone(),
+        //)
+        //.await
+        //};
 
-            result?
-        }
+        //result?
+        //}
 
         Ok(targets)
     }

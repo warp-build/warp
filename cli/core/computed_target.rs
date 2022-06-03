@@ -1,3 +1,4 @@
+use super::Event;
 use super::*;
 use fxhash::*;
 use seahash::SeaHasher;
@@ -5,6 +6,7 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
+use std::sync::Arc;
 use thiserror::Error;
 use tracing::*;
 
@@ -257,6 +259,7 @@ impl ComputedTarget {
         cache_root: &PathBuf,
         sandbox_root: &PathBuf,
         mode: ExecutionMode,
+        event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         trace!(
             "Executing {:?} target {}...",
@@ -270,9 +273,17 @@ impl ComputedTarget {
             let archive_root = archive_root.join(format!("{}-{}", archive.name(), archive.hash()));
 
             if !archive.is_cached(&archive_root).await? {
+                event_channel.send(Event::ArchiveDownloading {
+                    label: self.target.label().clone(),
+                    url: archive.url().clone(),
+                });
                 archive.download(&archive_root).await?;
+                event_channel.send(Event::ArchiveVerifying(self.target.label().clone()));
                 match archive.checksum(&archive_root).await {
-                    Ok(_) => archive.unpack(&archive_root, &cache_root).await,
+                    Ok(_) => {
+                        event_channel.send(Event::ArchiveUnpacking(self.target.label().clone()));
+                        archive.unpack(&archive_root, &cache_root).await
+                    }
                     Err(e) => {
                         archive.clean(&archive_root).await?;
                         Err(e)
@@ -283,6 +294,10 @@ impl ComputedTarget {
 
         trace!("Running actions for {}...", self.target.label().to_string());
         for action in self.actions() {
+            event_channel.send(Event::ActionRunning {
+                label: self.target.label().clone(),
+                action: action.clone(),
+            });
             action.run(&sandbox_root).await?
         }
 

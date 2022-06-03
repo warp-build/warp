@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
+use zap_bin::status_reporter::*;
 use zap_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -60,21 +61,12 @@ impl BuildGoal {
 
         let zap = BuildExecutor::from_workspace(workspace, worker_limit);
 
-        let (result, ()) =
-            futures::future::join(zap.build(target, event_channel.clone()), async move {
-                let event_channel = event_channel.clone();
-                println!("🔨 Building {}...", name);
-                loop {
-                    tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-                    if let Some(event) = event_channel.recv() {
-                        println!("{:?}", event);
-                        if event == zap_core::Event::BuildCompleted {
-                            return;
-                        }
-                    }
-                }
-            })
-            .await;
+        let status_reporter = StatusReporter::new(event_channel.clone());
+        let (result, ()) = futures::future::join(
+            zap.build(target, event_channel.clone()),
+            status_reporter.run(),
+        )
+        .await;
 
         result?;
 

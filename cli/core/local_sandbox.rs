@@ -3,6 +3,7 @@ use anyhow::{anyhow, Context};
 use futures::FutureExt;
 use fxhash::*;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::fs;
 use tracing::*;
 
@@ -367,6 +368,7 @@ impl LocalSandbox {
         build_cache: &LocalCache,
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
         mode: ExecutionMode,
+        event_channel: Arc<EventChannel>,
     ) -> Result<ValidationStatus, anyhow::Error> {
         debug!("Running sandbox at: {:?}", &self.root);
 
@@ -385,6 +387,7 @@ impl LocalSandbox {
                 &self.workspace.paths.local_cache_root,
                 &self.root,
                 mode,
+                event_channel.clone(),
             )
             .await?;
 
