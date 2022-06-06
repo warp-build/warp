@@ -1,4 +1,4 @@
-use super::*;
+use crate::reporter::*;
 use anyhow::*;
 use std::process::*;
 use std::sync::Arc;
@@ -42,12 +42,6 @@ impl RunGoal {
         let target: Label = self.target.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
         debug!("Target: {}", &target.to_string());
-
-        let name = if target.is_all() {
-            "workspace".to_string()
-        } else {
-            target.to_string()
-        };
 
         if target.is_all() {
             print!(

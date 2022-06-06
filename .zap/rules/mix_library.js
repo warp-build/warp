@@ -20,8 +20,6 @@ const impl = (ctx) => {
 
 export MIX_ENV=prod
 
-cd ${cwd}
-
 ${
   ctx.transitiveDeps().flatMap(dep => dep.outs.flatMap(out => {
       if (out.endsWith(TAR_EXT)) {
@@ -31,6 +29,13 @@ ${
       }
   })).join("\n")
 }
+
+# NOTE: since all mix libraries build tar artefacts that extract to a _build
+# folder, we can move that into the current library workspace
+if [ -d _build ]; then
+  mv _build ${cwd}
+fi
+cd ${cwd}
 
 ${depsGet}
 ${MIX} compile --no-deps-check ${compile_args.join(" ")} \
@@ -67,7 +72,7 @@ export default Zap.Rule({
     extra_srcs: [],
     deps: [],
     deps_args: [],
-    skip_deps: "false",
+    skip_deps: "true",
     compile_args: [],
   },
   toolchains: [ElixirToolchain, ErlangToolchain],

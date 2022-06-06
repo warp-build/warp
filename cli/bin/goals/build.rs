@@ -1,7 +1,7 @@
+use crate::reporter::*;
 use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
-use zap_bin::status_reporter::*;
 use zap_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -50,12 +50,6 @@ impl BuildGoal {
         let target: Label = self.target.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
         debug!("Target: {}", &target.to_string());
-
-        let name = if target.is_all() {
-            "workspace".to_string()
-        } else {
-            target.to_string()
-        };
 
         let worker_limit = self.max_workers.unwrap_or(num_cpus::get());
 

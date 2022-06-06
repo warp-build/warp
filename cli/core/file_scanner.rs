@@ -1,4 +1,3 @@
-use anyhow::Context;
 use futures::StreamExt;
 use regex::Regex;
 use std::path::PathBuf;

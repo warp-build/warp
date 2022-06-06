@@ -2,5 +2,4 @@
 name = "build_queue"
 deps = [
   "//zap/rbe/build_executor",
-  "//3rdparty/hexpm/uuid",
 ]

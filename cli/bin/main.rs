@@ -1,6 +1,7 @@
 mod goals;
-use goals::*;
+mod reporter;
 
+use goals::*;
 use opentelemetry::global::shutdown_tracer_provider;
 use std::path::PathBuf;
 use std::sync::Arc;
