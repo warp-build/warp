@@ -38,7 +38,10 @@ impl WorkspaceScanner {
         }
     }
 
-    pub async fn find_build_files(&self, max_concurrency: usize) -> Result<Vec<PathBuf>, anyhow::Error> {
+    pub async fn find_build_files(
+        &self,
+        max_concurrency: usize,
+    ) -> Result<Vec<PathBuf>, anyhow::Error> {
         debug!(
             "Scanning for build files in {:?}",
             self.paths.workspace_root
@@ -47,13 +50,7 @@ impl WorkspaceScanner {
             .max_concurrency(max_concurrency)
             .matching_path(ZAPFILE)?
             .starting_from(&self.paths.workspace_root)
-            .skipping_paths(&[
-                "\\.git",
-                "_build",
-                "deps",
-                "lib/bs",
-                "target",
-            ])?
+            .skipping_paths(&["\\.git", "_build", "deps", "lib/bs", "target"])?
             .find_files()
             .await?;
 
