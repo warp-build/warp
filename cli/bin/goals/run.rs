@@ -58,7 +58,7 @@ impl RunGoal {
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
             zap.build(target.clone(), event_channel.clone()),
-            status_reporter.run(),
+            status_reporter.run(target.clone()),
         )
         .await;
         let computed_target = result?.unwrap();

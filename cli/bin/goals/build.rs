@@ -57,8 +57,8 @@ impl BuildGoal {
 
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
-            zap.build(target, event_channel.clone()),
-            status_reporter.run(),
+            zap.build(target.clone(), event_channel.clone()),
+            status_reporter.run(target),
         )
         .await;
 

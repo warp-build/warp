@@ -1,7 +1,7 @@
 use super::*;
 use std::path::PathBuf;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Event {
     BuildCompleted,
     RequeueingTarget(Label, Vec<Label>),
@@ -11,5 +11,6 @@ pub enum Event {
     ArchiveUnpacking(Label),
     ActionRunning { label: Label, action: Action },
     TargetBuilt(Label),
+    BuildError(Label, WorkerError),
     CacheHit(Label, PathBuf),
 }

@@ -2,7 +2,6 @@ use anyhow::*;
 use std::collections::HashMap;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::io::Write;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::process::Command;
@@ -41,9 +40,12 @@ impl RunShellAction {
         if output.status.success() {
             Ok(())
         } else {
-            std::io::stdout().write_all(&output.stdout).unwrap();
-            std::io::stderr().write_all(&output.stderr).unwrap();
-            Err(anyhow!("Error running bash script: {:?}", cmd))
+            Err(anyhow!(
+                "Error running bash script: \n\nCommand = {:?}\n\nStdout = {}\n\nStderr = {}",
+                cmd,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            ))
         }
     }
 }

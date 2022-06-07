@@ -143,6 +143,9 @@ pub enum WorkerError {
     #[error(transparent)]
     ComputedTargetError(computed_target::ComputedTargetError),
 
+    #[error("Terminate")]
+    Terminate,
+
     #[error(transparent)]
     Unknown(anyhow::Error),
 }
@@ -277,8 +280,6 @@ impl LazyWorker {
                 match self.execute(&label, mode).await {
                     Ok(node_label) => {
                         self.busy_targets.remove(&label);
-                        self.event_channel
-                            .send(Event::TargetBuilt(node_label.clone()));
                         debug!(
                             "TARGET BUILT {} {} {} {} {}",
                             label.to_string(),
@@ -330,7 +331,11 @@ impl LazyWorker {
                         debug!("Queueing {}", label.to_string());
                         self.build_queue.push(label);
                     }
-                    Err(err) => panic!("Something has gone horribly wrong: {:?}", err),
+                    Err(err) => {
+                        self.event_channel
+                            .send(Event::BuildError(label.clone(), err));
+                        self.result_queue.push(Err(WorkerError::Terminate));
+                    }
                 }
             }
         }
@@ -503,6 +508,9 @@ impl LazyWorker {
             res.map(|_| label.clone())
 
         }.map_err(WorkerError::Unknown);
+
+        self.event_channel
+            .send(Event::TargetBuilt(node.label().clone()));
 
         result
     }
