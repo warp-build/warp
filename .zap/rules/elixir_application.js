@@ -27,7 +27,7 @@ const impl = ctx => {
   ctx.action().runShell({
     script: `#/bin/bash -xe
 
-mkdir ${ebin}
+mkdir -p ${ebin}
 
 mv ${beams.join(" ")} ${ebin}
 

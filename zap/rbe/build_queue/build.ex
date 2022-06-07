@@ -5,6 +5,6 @@ defmodule Zap.Rbe.BuildQueue.Build do
   ]
 
   def new, do: %__MODULE__{
-    uri: "zap:build:#{UUID.uuid4()}",
+    uri: "zap:build:" #"#{UUID.uuid4()}",
   }
 end

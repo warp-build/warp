@@ -1,5 +1,4 @@
 [[elixir_library]]
 name = "shared_cache"
 deps = [
-  "//3rdparty/hexpm/uuid",
 ]

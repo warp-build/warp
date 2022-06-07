@@ -51,9 +51,11 @@ const impl = ctx => {
 
   const extraPaths = transitiveDeps
     .flatMap(dep => [
-      `${Label.path(dep.label)}/_build/dev/lib/${Label.name(dep.label)}/ebin`,
+      `${Label.path(dep.label)}/_build/prod/lib/${Label.name(dep.label)}/ebin`,
       ...dep.outs.filter(out => out.endsWith(BEAM_EXT)) .map(path => File.parent(path)),
     ])
+    .sort()
+    .unique()
     .flatMap(path => ["-pa", path])
     .join(" ")
 
