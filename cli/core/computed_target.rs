@@ -333,6 +333,7 @@ impl ComputedTarget {
 
         let mut srcs: Vec<&PathBuf> = self.srcs.as_ref().unwrap().iter().collect();
         srcs.dedup_by(|a, b| a == b);
+        srcs.sort();
 
         let mut seeds: Vec<&str> = {
             deps.chain(
