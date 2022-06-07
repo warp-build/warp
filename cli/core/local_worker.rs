@@ -166,7 +166,7 @@ impl LocalWorker {
                         continue;
                     }
                 }
-                CacheHitType::Miss => {
+                CacheHitType::Miss {..}=> {
                     debug!("Cache miss! Proceeding to build...");
                 }
             }

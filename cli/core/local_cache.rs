@@ -16,7 +16,11 @@ pub struct LocalCache {
 
 #[derive(Debug, Clone)]
 pub enum CacheHitType {
-    Miss,
+    Miss { 
+        local_path: PathBuf,
+        global_path: PathBuf,
+        named_path: PathBuf,
+    },
     Global(PathBuf),
     Local(PathBuf),
 }
@@ -153,26 +157,26 @@ impl LocalCache {
     ) -> Result<CacheHitType, anyhow::Error> {
         let hash = node.hash();
 
-        let hash_path = self.local_root.join(&hash);
-        debug!("Checking if {:?} is in the cache...", hash_path);
-        if fs::metadata(&hash_path).await.is_ok() {
+        let local_path = self.local_root.join(&hash);
+        debug!("Checking if {:?} is in the cache...", local_path);
+        if fs::metadata(&local_path).await.is_ok() {
             debug!(
                 "Cache hit for {} at {:?}",
                 node.label().to_string(),
-                hash_path
+                local_path
             );
-            return Ok(CacheHitType::Local(hash_path));
+            return Ok(CacheHitType::Local(local_path));
         }
 
-        let hash_path = self.global_root.join(&hash);
-        debug!("Checking if {:?} is in the cache...", hash_path);
-        if fs::metadata(&hash_path).await.is_ok() {
+        let global_path = self.global_root.join(&hash);
+        debug!("Checking if {:?} is in the cache...", global_path);
+        if fs::metadata(&global_path).await.is_ok() {
             debug!(
                 "Cache hit for {} at {:?}",
                 node.label().to_string(),
-                hash_path
+                global_path
             );
-            return Ok(CacheHitType::Global(hash_path));
+            return Ok(CacheHitType::Global(global_path));
         }
 
         let named_path = self
@@ -185,11 +189,11 @@ impl LocalCache {
                 node.label().to_string(),
                 named_path
             );
-            return Ok(CacheHitType::Global(hash_path));
+            return Ok(CacheHitType::Global(named_path));
         }
 
         debug!("No cache hit for {}", node.label().to_string());
-        Ok(CacheHitType::Miss)
+        Ok(CacheHitType::Miss{local_path, global_path, named_path})
     }
 
     #[tracing::instrument(name = "LocalCache::evict", skip(node))]

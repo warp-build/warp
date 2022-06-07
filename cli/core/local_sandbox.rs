@@ -27,6 +27,17 @@ mod error {
             src: PathBuf,
             dst: PathBuf,
         },
+
+        #[error(r"When building {}, we failed to execute some actions.
+
+Find the sandbox in: {sandbox_root:?}
+
+{error:?}", .label.to_string())]
+        ExecutionError {
+            label: Label,
+            sandbox_root: PathBuf,
+            error: anyhow::Error,
+        }
     }
 }
 
@@ -389,7 +400,11 @@ impl LocalSandbox {
                 mode,
                 event_channel.clone(),
             )
-            .await?;
+            .await.map_err(|error| error::SandboxError::ExecutionError {
+                label: self.node.label().clone(),
+                sandbox_root: self.root.clone(),
+                error: error
+            })?;
 
         debug!("Build rule executed successfully.");
 

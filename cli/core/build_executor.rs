@@ -449,8 +449,9 @@ impl LazyWorker {
                     .send(Event::CacheHit(label.clone(), cache_path));
                 return Ok(label.clone());
             }
-            CacheHitType::Miss => {
-                debug!("Cache miss! Proceeding to build...");
+            CacheHitType::Miss { local_path, .. } => {
+                self.event_channel
+                    .send(Event::CacheMiss{ label: label.clone(), local_path });
             }
         }
 
@@ -476,6 +477,7 @@ impl LazyWorker {
                 },
                 ValidationStatus::NoOutputs => {
                     if node.outs().is_empty() {
+                        self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
                         self.computed_targets.insert(label.clone(), node.clone());
                         Ok(label.clone())
                     } else {

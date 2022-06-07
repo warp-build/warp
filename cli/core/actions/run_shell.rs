@@ -41,8 +41,8 @@ impl RunShellAction {
             Ok(())
         } else {
             Err(anyhow!(
-                "Error running bash script: \n\nCommand = {:?}\n\nStdout = {}\n\nStderr = {}",
-                cmd,
+                "Error running bash script: \n\nScript = {}\n\nStdout = {}\n\nStderr = {}",
+                self.script,
                 String::from_utf8_lossy(&output.stdout),
                 String::from_utf8_lossy(&output.stderr),
             ))

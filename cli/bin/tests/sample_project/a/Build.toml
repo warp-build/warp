@@ -3,5 +3,5 @@ name = "lib"
 
 [[erlang_application]]
 name = "a_app"
-config = "a.app.src"
+app_src = "a.app.src"
 deps = [ ":lib" ]

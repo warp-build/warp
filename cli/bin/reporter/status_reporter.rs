@@ -27,6 +27,8 @@ impl StatusReporter {
         let mut current_targets: HashSet<Label> = HashSet::new();
 
         let mut errored = false;
+        let mut target_count = 0;
+        let mut cache_hits = 0;
 
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
@@ -42,11 +44,20 @@ impl StatusReporter {
                     } => {
                         current_targets.insert(label);
                     },
-                    zap_core::Event::ArchiveVerifying(label) => (),
-                    zap_core::Event::ArchiveUnpacking(label) => (),
-                    zap_core::Event::ActionRunning { label, .. } => (),
-                    zap_core::Event::ArchiveDownloading { label, .. } => (),
+                    zap_core::Event::ArchiveVerifying(label) => pb.inc(1),
+                    zap_core::Event::ArchiveUnpacking(label) => pb.inc(1),
+                    zap_core::Event::ActionRunning { label, .. } => pb.inc(1),
+                    zap_core::Event::ArchiveDownloading { label, .. } => pb.inc(1),
                     zap_core::Event::RequeueingTarget(_, _) => (),
+                    zap_core::Event::CacheMiss{label, local_path} => {
+                        // let line = format!(
+                        //     "{:>12} {}",
+                        //     blue_dim.apply_to("Cache-miss"),
+                        //     label.to_string(),
+                        // );
+                        // pb.println(line);
+                        // pb.println(format!("{:?}", local_path));
+                    }
                     zap_core::Event::CacheHit(label, _) => {
                         let line = format!(
                             "{:>12} {}",
@@ -55,6 +66,7 @@ impl StatusReporter {
                         );
                         current_targets.remove(&label);
                         pb.println(line);
+                        cache_hits += 1;
                     }
                     zap_core::Event::TargetBuilt(label) => {
                         let line = format!(
@@ -64,6 +76,8 @@ impl StatusReporter {
                         );
                         current_targets.remove(&label);
                         pb.println(line);
+                        pb.set_position(0);
+                        target_count += 1;
                     }
                     zap_core::Event::BuildError(label, err) => {
                         errored = true;
@@ -77,13 +91,15 @@ impl StatusReporter {
                     }
                     zap_core::Event::BuildCompleted => {
                         let line = format!(
-                            "{:>12} {}",
+                            "{:>12} {} ({} targets, {} cached)",
                             if errored {
                                 red_bold.apply_to("Finished with errors")
                             } else {
                                 green_bold.apply_to("Finished")
                             },
                             target.to_string(),
+                            target_count,
+                            cache_hits,
                         );
                         pb.println(line);
                         return;
