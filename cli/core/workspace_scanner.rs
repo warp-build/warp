@@ -50,7 +50,7 @@ impl WorkspaceScanner {
             .max_concurrency(max_concurrency)
             .matching_path(ZAPFILE)?
             .starting_from(&self.paths.workspace_root)
-            .skipping_paths(&["\\.git", "_build", "deps", "lib/bs", "target"])?
+            .skipping_paths(&["\\.git", "_build", "deps", "lib/bs", "target", "node_modules"])?
             .find_files()
             .await?;
 
