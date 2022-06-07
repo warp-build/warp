@@ -31,15 +31,22 @@ ${
 }
 
 # NOTE: since all mix libraries build tar artefacts that extract to a _build
-# folder, we can move that into the current library workspace
+# and a deps folder, we can move that into the current library workspace
 if [ -d _build ]; then
   mv _build ${cwd}
+fi
+if [ -d deps ]; then
+  mv deps ${cwd}
 fi
 cd ${cwd}
 
 ${depsGet}
-${MIX} compile --no-deps-check ${compile_args.join(" ")} \
-&& tar cf ${appTarball} _build/prod/lib/${name}
+
+mkdir -p deps/${name}
+cp mix.exs deps/${name}/mix.exs
+
+${MIX} compile --no-deps-check ${compile_args.join(" ")}
+tar cf ${appTarball} _build/prod/lib/${name} deps/${name}
 
 `,
   });
