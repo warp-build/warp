@@ -1,12 +1,15 @@
+export const JS_EXT = ".js";
+export const TS_EXT = ".ts";
+
 const impl = ctx => {
-  const root = ctx.archive().unpackedRoot();
-  const binRoot = root.join("bin");
-  const DENO = binRoot.join("deno");
+  const { unarchivedRoot } = ctx.cfg();
+  const DENO = File.join(unarchivedRoot, "deno");
   ctx.provides({ DENO });
+  ctx.action().declareOutputs([]);
 };
 
 export default Zap.Toolchain({
-  name: "deno",
+  name: "//zap.build/toolchains:deno",
   mnemonic: "Deno",
   impl,
 });
