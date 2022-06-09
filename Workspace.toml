@@ -6,6 +6,10 @@ archive_url = "https://github.com/rescript-lang/rescript-compiler/archive/refs/t
 checksum = "d5279f085d19a2234d2024080ad90bf69a09ab66"
 strip_prefix = "rescript-compiler-9.1.4"
 
+[toolchains.deno]
+release_url = "https://github.com/denoland/deno/releases/download/v1.22.2/deno-{HOST_TRIPLE}.zip"
+checksum = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e"
+
 [toolchains.erlang]
 archive_url = "https://github.com/erlang/otp/archive/OTP-25.0.tar.gz"
 checksum = "682add536cdb95f75866108affa80b880914007c"

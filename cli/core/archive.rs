@@ -151,7 +151,7 @@ impl Archive {
             Ok(true)
         } else {
             Err(anyhow!(
-                r#"The archive we tried to download had a different SHA-1 than what we expected. Is the SHA-1 wrong?
+                r#"The archive we tried to download had a different SHA-1 than what we expected. Is the checksum wrong?
 
 We expected "{expected_sha}"
 
@@ -160,7 +160,7 @@ But found "{found_sha}"
 If this is the right SHA-1 you can fix this in your Workspace.toml file
 under [toolchains.{name}] by changing the `sha1` key to this:
 
-sha1 = "{found_sha}"
+checksum = "{found_sha}"
 
 "#,
                 expected_sha = self.sha1,
@@ -203,7 +203,11 @@ sha1 = "{found_sha}"
         } else {
             std::io::stdout().write_all(&wget.stdout).unwrap();
             std::io::stderr().write_all(&wget.stderr).unwrap();
-            Err(anyhow!("Error downloading toolchain!"))
+            Err(anyhow!(
+                "Error downloading toolchain: \n\nStdout = {}\n\nStderr = {}",
+                String::from_utf8_lossy(&wget.stdout),
+                String::from_utf8_lossy(&wget.stderr)
+            ))
         }
     }
 

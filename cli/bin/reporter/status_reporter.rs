@@ -47,7 +47,15 @@ impl StatusReporter {
                     zap_core::Event::ArchiveVerifying(label) => pb.inc(1),
                     zap_core::Event::ArchiveUnpacking(label) => pb.inc(1),
                     zap_core::Event::ActionRunning { label, .. } => pb.inc(1),
-                    zap_core::Event::ArchiveDownloading { label, .. } => pb.inc(1),
+                    zap_core::Event::ArchiveDownloading { label, .. } => {
+                        let line = format!(
+                            "{:>12} {}",
+                            blue_dim.apply_to("Downloading"),
+                            label.to_string(),
+                        );
+                        pb.println(line);
+                        pb.inc(1)
+                    },
                     zap_core::Event::RequeueingTarget(_, _) => (),
                     zap_core::Event::CacheMiss{label, local_path} => {
                         // let line = format!(
