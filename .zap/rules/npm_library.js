@@ -27,7 +27,7 @@ export default Zap.Rule({
   },
 	defaults: {
     srcs: [
-      "**/*",
+      "package.json",
     ],
     deps: [],
 	}
