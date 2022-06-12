@@ -239,12 +239,15 @@ impl LazyWorker {
                     self.rule_exec_env.rule_map.clone(),
                 )?;
                 for target in buildfile.targets {
+                    self.event_channel.send(Event::QueuedTarget(target.label().clone()));
                     self.build_queue.push(target.label().clone());
                     self.target_count += 1;
                 }
             }
+            self.event_channel.send(Event::QueuedTargets(self.target_count));
             debug!("Queued {} targets...", self.target_count);
         } else {
+            self.event_channel.send(Event::QueuedTarget(target.clone()));
             self.build_queue.push(target);
             debug!("Queued 1 target...");
         }
@@ -344,10 +347,12 @@ impl LazyWorker {
                                 continue;
                             }
                             self.requested_targets.insert(dep.clone(), ());
+                            self.event_channel.send(Event::QueuedTarget(dep.clone()));
                             self.build_queue.push(dep);
                         }
                         debug!("Queueing {}", label.to_string());
                         self.requested_targets.insert(label.clone(), ());
+                        self.event_channel.send(Event::QueuedTarget(label.clone()));
                         self.build_queue.push(label);
                     }
                     Err(err) => {

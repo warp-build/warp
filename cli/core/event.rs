@@ -4,6 +4,8 @@ use std::path::PathBuf;
 #[derive(Debug)]
 pub enum Event {
     BuildCompleted,
+    QueuedTarget(Label),
+    QueuedTargets(usize),
     RequeueingTarget(Label, Vec<Label>),
     BuildingTarget { label: Label, rule_mnemonic: String },
     ArchiveDownloading { label: Label, url: String },

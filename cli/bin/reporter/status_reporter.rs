@@ -17,7 +17,7 @@ impl StatusReporter {
         let blue_dim = console::Style::new().blue().dim();
         let red_bold = console::Style::new().red().bold();
 
-        let pb = ProgressBar::new(100);
+        let pb = ProgressBar::new(0);
         pb.set_style(
             ProgressStyle::default_bar()
                 .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
@@ -26,41 +26,56 @@ impl StatusReporter {
         pb.set_prefix("Building");
 
         let mut current_targets: FxHashSet<Label> = FxHashSet::default();
+        let mut queued_targets: FxHashSet<Label> = FxHashSet::default();
 
         let mut errored = false;
         let mut target_count = 0;
         let mut cache_hits = 0;
+        let mut action_count = 0;
 
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
 
             let message = current_targets.iter().map(|l| l.name()).collect::<Vec<String>>().join(", ");
 						pb.set_message(message);
+            pb.set_length(queued_targets.len() as u64 + action_count);
 
             if let Some(event) = self.event_channel.recv() {
                 debug!("{:#?}", event);
 
+                use zap_core::Event::*;
                 match event {
-                    zap_core::Event::BuildingTarget {
-                        label,
-                        ..
-                    } => {
+                    BuildingTarget { label, .. } => {
                         current_targets.insert(label);
                     },
-                    zap_core::Event::ArchiveVerifying(_label) => pb.inc(1),
-                    zap_core::Event::ArchiveUnpacking(_label) => pb.inc(1),
-                    zap_core::Event::ActionRunning { .. } => pb.inc(1),
-                    zap_core::Event::ArchiveDownloading { label, .. } => {
+                    QueuedTarget(label) => {
+                        queued_targets.insert(label);
+                    },
+                    QueuedTargets(count) => pb.set_length(count as u64),
+                    ArchiveVerifying(_label) => {
+                        action_count += 1;
+                        pb.inc(1)
+                    },
+                    ArchiveUnpacking(_label) => {
+                        action_count += 1;
+                        pb.inc(1)
+                    },
+                    ActionRunning { .. } => {
+                        action_count += 1;
+                        pb.inc(1)
+                    },
+                    ArchiveDownloading { label, .. } => {
                         let line = format!(
                             "{:>12} {}",
                             blue_dim.apply_to("Downloading"),
                             label.to_string(),
                         );
                         pb.println(line);
+                        pb.set_length(pb.length()+1);
                         pb.inc(1)
                     },
-                    zap_core::Event::RequeueingTarget(_, _) => (),
-                    zap_core::Event::CacheMiss{ .. } => {
+                    RequeueingTarget(_, _) => (),
+                    CacheMiss{ .. } => {
                         // let line = format!(
                         //     "{:>12} {}",
                         //     blue_dim.apply_to("Cache-miss"),
@@ -69,7 +84,7 @@ impl StatusReporter {
                         // pb.println(line);
                         // pb.println(format!("{:?}", local_path));
                     }
-                    zap_core::Event::CacheHit(label, _) => {
+                    CacheHit(label, _) => {
                         let line = format!(
                             "{:>12} {}",
                             blue_dim.apply_to("Cache-hit"),
@@ -77,9 +92,10 @@ impl StatusReporter {
                         );
                         current_targets.remove(&label);
                         pb.println(line);
+                        pb.inc(1);
                         cache_hits += 1;
                     }
-                    zap_core::Event::TargetBuilt(label) => {
+                    TargetBuilt(label) => {
                         let line = format!(
                             "{:>12} {}",
                             green_bold.apply_to("Built"),
@@ -87,10 +103,10 @@ impl StatusReporter {
                         );
                         current_targets.remove(&label);
                         pb.println(line);
-                        pb.set_position(0);
+                        pb.inc(1);
                         target_count += 1;
                     }
-                    zap_core::Event::BuildError(label, err) => {
+                    BuildError(label, err) => {
                         errored = true;
                         let line = format!(
                             "{:>12} {}",
@@ -100,7 +116,7 @@ impl StatusReporter {
                         pb.println(line);
                         pb.println(format!("{}", err));
                     }
-                    zap_core::Event::BuildCompleted => {
+                    BuildCompleted => {
                         let line = format!(
                             "{:>12} {} ({} targets, {} cached)",
                             if errored {
