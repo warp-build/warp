@@ -24,6 +24,9 @@ pub struct BuildExecutor {
     /// The shared state of what targets are being built at the moment.
     pub busy_targets: Arc<DashMap<Label, ()>>,
 
+    /// The shared state of what targets are queued up.
+    pub requested_targets: Arc<DashMap<Label, ()>>,
+
     /// The maount of workers to spawn.
     pub worker_limit: usize,
 }
@@ -36,6 +39,7 @@ impl BuildExecutor {
             worker_limit,
             computed_targets: Arc::new(DashMap::new()),
             busy_targets: Arc::new(DashMap::new()),
+            requested_targets: Arc::new(DashMap::new()),
         }
     }
 
@@ -78,6 +82,7 @@ impl BuildExecutor {
             result_queue.clone(),
             self.computed_targets.clone(),
             self.busy_targets.clone(),
+            self.requested_targets.clone(),
             event_channel.clone(),
             toolchain_provides_map.clone(),
             target.clone(),
@@ -103,6 +108,7 @@ impl BuildExecutor {
                 let workspace = self.workspace.clone();
                 let computed_targets = self.computed_targets.clone();
                 let busy_targets = self.busy_targets.clone();
+                let requested_targets = self.requested_targets.clone();
                 let event_channel = event_channel.clone();
                 let toolchain_provides_map = toolchain_provides_map.clone();
                 let thread = worker_pool.spawn_pinned(move || async move {
@@ -113,6 +119,7 @@ impl BuildExecutor {
                         result_queue,
                         computed_targets,
                         busy_targets,
+                        requested_targets,
                         event_channel,
                         toolchain_provides_map,
                         target,
@@ -162,9 +169,14 @@ pub struct LazyWorker {
 
     pub rule_exec_env: RuleExecEnv,
 
+    /// Targets already built.
     pub computed_targets: Arc<DashMap<Label, ComputedTarget>>,
 
+    /// Targets currently being built.
     pub busy_targets: Arc<DashMap<Label, ()>>,
+
+    /// Targets queued up.
+    pub requested_targets: Arc<DashMap<Label, ()>>,
 
     /// The queue from which workers pull work.
     pub build_queue: Arc<crossbeam::deque::Injector<Label>>,
@@ -190,6 +202,7 @@ impl LazyWorker {
         result_queue: std::sync::Arc<crossbeam::deque::Injector<Result<Label, WorkerError>>>,
         computed_targets: Arc<DashMap<Label, ComputedTarget>>,
         busy_targets: Arc<DashMap<Label, ()>>,
+        requested_targets: Arc<DashMap<Label, ()>>,
         event_channel: Arc<EventChannel>,
         toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
         target: Label,
@@ -201,6 +214,7 @@ impl LazyWorker {
             workspace: workspace.clone(),
             computed_targets,
             busy_targets,
+            requested_targets,
             build_queue,
             result_queue,
             event_channel,
@@ -276,6 +290,7 @@ impl LazyWorker {
                 }
 
                 self.busy_targets.insert(label.clone(), ());
+                self.requested_targets.remove(&label);
 
                 match self.execute(&label, mode).await {
                     Ok(node_label) => {
@@ -321,14 +336,17 @@ impl LazyWorker {
                         self.busy_targets.remove(&label);
                         debug!("Missing {} dependencies", deps.len());
                         for dep in deps {
-                            if self.computed_targets.contains_key(&label)
-                                || self.busy_targets.contains_key(&label)
+                            if self.computed_targets.contains_key(&dep)
+                                || self.busy_targets.contains_key(&dep)
+                                || self.requested_targets.contains_key(&dep)
                             {
                                 continue;
                             }
+                            self.requested_targets.insert(dep.clone(), ());
                             self.build_queue.push(dep);
                         }
                         debug!("Queueing {}", label.to_string());
+                        self.requested_targets.insert(label.clone(), ());
                         self.build_queue.push(label);
                     }
                     Err(err) => {
