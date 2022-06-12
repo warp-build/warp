@@ -1,6 +1,7 @@
 use super::*;
 use anyhow::*;
 use dashmap::DashMap;
+use std::sync::Arc;
 use std::fs;
 use std::path::PathBuf;
 use std::vec::Vec;
@@ -37,7 +38,7 @@ impl Buildfile {
     pub fn from_file(
         workspace_prefix: &PathBuf,
         zapfile_path: &PathBuf,
-        rule_manager: &DashMap<String, Rule>,
+        rule_manager: Arc<DashMap<String, Rule>>,
     ) -> Result<Buildfile, Error> {
         debug!("Parsing Build.toml at {:?}", zapfile_path);
 
@@ -57,6 +58,7 @@ impl Buildfile {
 
         let mut targets: Vec<Target> = vec![];
 
+        let available_rules: Vec<String> = rule_manager.iter().map(|r| r.name().to_string()).collect();
         for (rule_name, configs) in contents.iter() {
             for cfg in configs.as_array().context("Rule should be marked as a table, so if you wrote [rule_name], try writing [[rule_name]] instead")? {
                 let name = {
@@ -71,7 +73,6 @@ impl Buildfile {
                 };
 
                 let label = Label::from_path_and_name(&pkg_prefix, name);
-                let available_rules: Vec<String> = rule_manager.clone().into_read_only().keys().cloned().collect();
                 let rule = rule_manager.get(rule_name).context(format!("Could not find a rule named `{}`, are you sure its spelled correctly and installed in   {}/.zap/rules  ?  \n\nAvailable rules are: {:?}", rule_name, workspace_prefix.to_str().unwrap(), available_rules))?;
 
                 let rule_config = {

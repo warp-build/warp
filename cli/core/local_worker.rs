@@ -83,7 +83,7 @@ impl LocalWorker {
             let buildfile = Buildfile::from_file(
                 &self.workspace.paths.workspace_root,
                 &build_file,
-                &self.rule_exec_env.rule_map,
+                self.rule_exec_env.rule_map.clone(),
             )?;
             for target in buildfile.targets {
                 targets.push(target);

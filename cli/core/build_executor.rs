@@ -236,7 +236,7 @@ impl LazyWorker {
                 let buildfile = Buildfile::from_file(
                     &self.workspace.paths.workspace_root,
                     &build_file,
-                    &self.rule_exec_env.rule_map,
+                    self.rule_exec_env.rule_map.clone(),
                 )?;
                 for target in buildfile.targets {
                     self.build_queue.push(target.label().clone());
@@ -400,7 +400,7 @@ impl LazyWorker {
                     .workspace_root
                     .join(label.path())
                     .join(buildfile::ZAPFILE),
-                &self.rule_exec_env.rule_map,
+                self.rule_exec_env.rule_map.clone(),
             )
             .map_err(WorkerError::Unknown)?;
 
