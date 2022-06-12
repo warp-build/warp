@@ -30,9 +30,6 @@ pub struct ComputedTarget {
     /// The dependencies of this target.
     pub deps: Option<FxHashSet<Dependency>>,
 
-    /// The transitive dependencies of this target.
-    pub transitive_deps: Option<FxHashSet<Dependency>>,
-
     /// The outputs of this node
     pub outs: Option<FxHashSet<PathBuf>>,
 
@@ -71,7 +68,6 @@ impl ComputedTarget {
             status: ComputeStatus::Pending,
             actions: None,
             deps: Some(FxHashSet::default()),
-            transitive_deps: None,
             hash: None,
             outs: Some(FxHashSet::default()),
             srcs: Some(FxHashSet::default()),
@@ -85,7 +81,6 @@ impl ComputedTarget {
             status: ComputeStatus::Pending,
             actions: None,
             deps: None,
-            transitive_deps: None,
             hash: None,
             outs: None,
             srcs: None,
@@ -120,7 +115,6 @@ impl ComputedTarget {
             status: ComputeStatus::Pending,
             actions: None,
             deps: Some(deps),
-            transitive_deps: None,
             hash: None,
             outs: None,
             srcs: None,
@@ -196,50 +190,46 @@ impl ComputedTarget {
         outs
     }
 
-    pub fn deps(&self) -> Vec<Dependency>  {
-        if let Some(deps) = &self.deps {
-            let deps = deps.iter().cloned().collect::<Vec<Dependency>>();
-            return deps
-        }
-        panic!(
-            "ComputedTarget {:?} does not have computed dependencies yet!",
-            self.label().to_string()
-        )
+    pub fn deps(&self) -> Vec<Dependency> {
+        let mut deps: Vec<Dependency> = self
+            .deps
+            .as_ref()
+            .unwrap_or_else(|| {
+                panic!(
+                    "ComputedTarget {:?} does not have computed dependencies yet!",
+                    self.label().to_string()
+                )
+            })
+            .iter()
+            .cloned()
+            .collect();
+        deps.sort();
+        deps
     }
 
-    pub fn transitive_deps(&self) -> Result<Vec<Dependency>, ComputedTargetError>  {
-        if let Some(deps) = &self.transitive_deps {
-            let deps = deps.iter().cloned().collect::<Vec<Dependency>>();
-            return Ok(deps)
-        }
-        panic!(
-            "ComputedTarget {:?} does not have computed transitive dependencies yet!",
-            self.label().to_string()
-        )
-    }
-
-
-    #[tracing::instrument(name="ComputedTarget::compute_dependencies", skip(self, find_node), fields(zap.target = %self.label().to_string()))]
-    pub fn compute_dependencies(
-        mut self,
+    #[tracing::instrument(name="ComputedTarget::transitive_deps", skip(self, find_node), fields(zap.target = %self.label().to_string()))]
+    pub fn transitive_deps(
+        &self,
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
-    ) -> Result<ComputedTarget, ComputedTargetError> {
+    ) -> Result<Vec<Dependency>, ComputedTargetError> {
         let mut deps: FxHashSet<Dependency> = FxHashSet::default();
-        let mut transitive_deps: FxHashSet<Dependency> = FxHashSet::default();
         let mut missing_deps: FxHashSet<Label> = FxHashSet::default();
 
-        for dep in &self.target.deps() {
-            if let Some(node) = find_node(dep.clone()) {
-                deps.insert(node.as_dep());
-                transitive_deps.insert(node.as_dep());
-                for dep in node.transitive_deps()? {
-                    transitive_deps.insert(dep);
+        if let Some(this_deps) = &self.deps {
+            for dep in this_deps {
+                if let Some(node) = find_node(dep.label.clone()) {
+                    deps.insert(dep.clone());
+                    for dep in node.transitive_deps(find_node)? {
+                        deps.insert(dep);
+                    }
+                } else {
+                    missing_deps.insert(dep.label.clone());
                 }
-            } else {
-                missing_deps.insert(dep.clone());
             }
         }
 
+        let mut deps = deps.iter().cloned().collect::<Vec<Dependency>>();
+        deps.sort();
         let mut missing_deps = missing_deps.iter().cloned().collect::<Vec<Label>>();
         missing_deps.sort();
 
@@ -249,9 +239,7 @@ impl ComputedTarget {
                 deps: missing_deps,
             })
         } else {
-            self.transitive_deps = Some(transitive_deps);
-            self.deps = Some(deps);
-            Ok(self)
+            Ok(deps)
         }
     }
 

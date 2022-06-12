@@ -236,7 +236,7 @@ impl LazyWorker {
                 let buildfile = Buildfile::from_file(
                     &self.workspace.paths.workspace_root,
                     &build_file,
-                    self.rule_exec_env.rule_map.clone(),
+                    &self.rule_exec_env.rule_map,
                 )?;
                 for target in buildfile.targets {
                     self.build_queue.push(target.label().clone());
@@ -400,7 +400,7 @@ impl LazyWorker {
                     .workspace_root
                     .join(label.path())
                     .join(buildfile::ZAPFILE),
-                self.rule_exec_env.rule_map.clone(),
+                &self.rule_exec_env.rule_map,
             )
             .map_err(WorkerError::Unknown)?;
 
@@ -426,13 +426,12 @@ impl LazyWorker {
         self.rule_exec_env.clear();
 
         let find_node = |label| self.computed_targets.get(&label).map(|r| r.clone());
-        let computed_target = ComputedTarget::from_target(target)
-            .compute_dependencies(&find_node)
+        let computed_target = ComputedTarget::from_target_with_deps(target, &find_node)
             .map_err(WorkerError::ComputedTargetError)?;
 
         let node = self
             .rule_exec_env
-            .compute_target(computed_target)
+            .compute_target(computed_target, &find_node)
             .map_err(WorkerError::RuleExecError)?;
 
         let name = node.label().clone();
@@ -474,9 +473,12 @@ impl LazyWorker {
         let result: Result<Label, WorkerError> = if node.target.is_local() {
             let mut sandbox = LocalSandbox::for_node(&self.workspace, node.clone());
 
-            let result = sandbox
-                    .run(&self.cache, mode, self.event_channel.clone()).await
-                    .map_err(WorkerError::Unknown)?;
+            let result = {
+                let find_node = |label| self.computed_targets.get(&label).map(|r| r.clone());
+                sandbox
+                    .run(&self.cache, &find_node, mode, self.event_channel.clone()).await
+                    .map_err(WorkerError::Unknown)?
+            };
 
             match result {
                 ValidationStatus::Valid => {

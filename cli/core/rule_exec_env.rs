@@ -490,11 +490,12 @@ impl RuleExecEnv {
 
     #[tracing::instrument(
         name = "RuleExecEnv::compute_target",
-        skip(self, computed_target)
+        skip(self, find_node, computed_target)
     )]
     pub fn compute_target(
         &mut self,
         mut computed_target: ComputedTarget,
+        find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
     ) -> Result<ComputedTarget, error::RuleExecError> {
         let label = computed_target.target.label().clone();
         trace!("Sealing Computed Target {:?}", label.to_string());
@@ -539,7 +540,7 @@ impl RuleExecEnv {
         );
         let transitive_deps: serde_json::Value = serde_json::Value::Array(
             computed_target
-                .transitive_deps()
+                .transitive_deps(find_node)
                 .map_err(error::RuleExecError::MissingDependencies)?
                 .iter()
                 .map(|dep| {
