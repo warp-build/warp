@@ -241,16 +241,15 @@ impl LocalSandbox {
         Ok(current_dir)
     }
 
-    #[tracing::instrument(name = "LocalSandbox::copy_dependences", skip(self, find_node))]
+    #[tracing::instrument(name = "LocalSandbox::copy_dependences", skip(self))]
     async fn copy_dependences(
         &mut self,
         build_cache: &LocalCache,
-        find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
     ) -> Result<(), error::SandboxError> {
         // copy all the direct dependency outputs
         for dep in self
             .node
-            .transitive_deps(find_node)
+            .transitive_deps()
             .map_err(error::SandboxError::MissingDependencies)?
             .iter()
         {
@@ -373,11 +372,10 @@ impl LocalSandbox {
 
     /// Run a build rule within a sandboxed environment.
     ///
-    #[tracing::instrument(name = "LocalSandbox::run", skip(self, find_node))]
+    #[tracing::instrument(name = "LocalSandbox::run", skip(self))]
     pub async fn run(
         &mut self,
         build_cache: &LocalCache,
-        find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
         mode: ExecutionMode,
         event_channel: Arc<EventChannel>,
     ) -> Result<ValidationStatus, anyhow::Error> {
@@ -387,7 +385,7 @@ impl LocalSandbox {
 
         self.prepare_sandbox_dir().await?;
 
-        self.copy_dependences(&build_cache, find_node).await?;
+        self.copy_dependences(&build_cache).await?;
 
         self.copy_inputs().await?;
 

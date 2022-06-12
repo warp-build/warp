@@ -83,7 +83,7 @@ impl LocalWorker {
             let buildfile = Buildfile::from_file(
                 &self.workspace.paths.workspace_root,
                 &build_file,
-                &self.rule_exec_env.rule_map,
+                self.rule_exec_env.rule_map.clone(),
             )?;
             for target in buildfile.targets {
                 targets.push(target);
@@ -106,10 +106,10 @@ impl LocalWorker {
 
         let mut nodes = vec![];
         while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
-            let target = self.dep_graph.get(idx);
             let sealed_target = {
                 let find_node = |label| (&self.dep_graph).find_node(&label).clone();
-                self.rule_exec_env.compute_target(target, &find_node)?
+                let target = self.dep_graph.get(idx).compute_dependencies(&find_node)?;
+                self.rule_exec_env.compute_target(target)?
             };
             self.dep_graph.put(idx, sealed_target.clone());
             nodes.push(sealed_target);
@@ -139,10 +139,10 @@ impl LocalWorker {
         let mut targets = 0;
 
         while let Some(idx) = walker.next(&self.dep_graph._inner_graph) {
-            let target = self.dep_graph.get(idx);
             let sealed_target = {
                 let find_node = |label| (&self.dep_graph).find_node(&label).clone();
-                self.rule_exec_env.compute_target(target, &find_node)?
+                let target = self.dep_graph.get(idx).compute_dependencies(&find_node)?;
+                self.rule_exec_env.compute_target(target)?
             };
             let node = &self.dep_graph.put(idx, sealed_target);
 
@@ -174,12 +174,10 @@ impl LocalWorker {
             let result = if node.target.is_local() {
                 let mut sandbox = LocalSandbox::for_node(&self.workspace, node.clone());
 
-                let result = {
-                    let find_node = |label| (&self.dep_graph).find_node(&label).clone();
+                let result = 
                     sandbox
-                        .run(&self.cache, &find_node, mode, event_channel.clone())
-                        .await?
-                };
+                        .run(&self.cache, mode, event_channel.clone())
+                        .await?;
 
                 match result {
         ValidationStatus::Valid => {
