@@ -71,6 +71,7 @@ impl InfoGoal {
                 for out in outs {
                     println!("    - {}", out.to_str().unwrap());
                 }
+                /*
                 let find_node = |label| (&zap.dep_graph).find_node(&label).clone();
                 println!(" - Dependencies: ");
                 let mut deps: Vec<Dependency> = node
@@ -85,6 +86,7 @@ impl InfoGoal {
                 for dep in deps {
                     println!("    - {}", dep.label.to_string());
                 }
+                */
             }
         }
 
