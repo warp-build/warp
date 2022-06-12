@@ -43,13 +43,13 @@ impl StatusReporter {
                 match event {
                     zap_core::Event::BuildingTarget {
                         label,
-                        rule_mnemonic,
+                        ..
                     } => {
                         current_targets.insert(label);
                     },
-                    zap_core::Event::ArchiveVerifying(label) => pb.inc(1),
-                    zap_core::Event::ArchiveUnpacking(label) => pb.inc(1),
-                    zap_core::Event::ActionRunning { label, .. } => pb.inc(1),
+                    zap_core::Event::ArchiveVerifying(_label) => pb.inc(1),
+                    zap_core::Event::ArchiveUnpacking(_label) => pb.inc(1),
+                    zap_core::Event::ActionRunning { .. } => pb.inc(1),
                     zap_core::Event::ArchiveDownloading { label, .. } => {
                         let line = format!(
                             "{:>12} {}",
@@ -60,7 +60,7 @@ impl StatusReporter {
                         pb.inc(1)
                     },
                     zap_core::Event::RequeueingTarget(_, _) => (),
-                    zap_core::Event::CacheMiss{label, local_path} => {
+                    zap_core::Event::CacheMiss{ .. } => {
                         // let line = format!(
                         //     "{:>12} {}",
                         //     blue_dim.apply_to("Cache-miss"),
