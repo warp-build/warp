@@ -2,6 +2,7 @@
 ///
 use super::Event;
 use super::*;
+use futures::StreamExt; 
 use anyhow::anyhow;
 use dashmap::DashMap;
 use std::collections::HashMap;
@@ -92,7 +93,6 @@ impl BuildExecutor {
         {
             let _ = rules_span.enter();
             worker.load_rules().await?;
-            worker.queue(target.clone(), worker_limit).await?;
         };
 
         let main_worker_span = main_worker_span.exit();
@@ -125,16 +125,15 @@ impl BuildExecutor {
                         target,
                     );
                     worker.load_rules().await?;
-                    worker.run(false, mode).instrument(sub_worker_span).await
+                    worker.run(false, mode, worker_limit).instrument(sub_worker_span).await
                 });
                 worker_tasks.push(thread);
             }
         }
-
         let _span = main_worker_span.enter();
-        let (result, _) = futures::future::join(
-            worker.run(true, mode),
+        let (_, result) = futures::future::join(
             futures::future::join_all(worker_tasks),
+            worker.run(true, mode, worker_limit),
         )
         .await;
 
@@ -232,10 +231,11 @@ impl LazyWorker {
         if target.is_all() {
             debug!("Queueing all targets...");
             let scanner = WorkspaceScanner::from_paths(&self.workspace.paths);
-            for build_file in scanner.find_build_files(max_concurrency).await? {
+            let mut buildfiles = scanner.find_build_files(max_concurrency).await?;
+            while let Some(build_file) = buildfiles.next().await {
                 let buildfile = Buildfile::from_file(
                     &self.workspace.paths.workspace_root,
-                    &build_file,
+                    &build_file?,
                     self.rule_exec_env.rule_map.clone(),
                 )?;
                 for target in buildfile.targets {
@@ -252,7 +252,11 @@ impl LazyWorker {
     }
 
     #[tracing::instrument(name = "LazyWorker::run", skip(self))]
-    pub async fn run(&mut self, is_main: bool, mode: ExecutionMode) -> Result<(), anyhow::Error> {
+    pub async fn run(&mut self, is_main: bool, mode: ExecutionMode, max_concurrency: usize) -> Result<(), anyhow::Error> {
+        if is_main {
+            self.queue(self.target.clone(), max_concurrency).await?;
+        }
+
         loop {
             let loop_span = trace_span!("LazyWorker::run_loop").or_current();
             let _span = loop_span.enter();

@@ -1,5 +1,6 @@
 use super::*;
 use anyhow::Context;
+use futures::StreamExt;
 use futures::FutureExt;
 use std::path::PathBuf;
 use tokio::fs;
@@ -41,7 +42,7 @@ impl WorkspaceScanner {
     pub async fn find_build_files(
         &self,
         max_concurrency: usize,
-    ) -> Result<Vec<PathBuf>, anyhow::Error> {
+    ) -> Result<impl futures::Stream<Item = Result<PathBuf, anyhow::Error>>, anyhow::Error> {
         debug!(
             "Scanning for build files in {:?}",
             self.paths.workspace_root
@@ -49,14 +50,11 @@ impl WorkspaceScanner {
         let paths = FileScanner::new()
             .max_concurrency(max_concurrency)
             .matching_path(ZAPFILE)?
-            .starting_from(&self.paths.workspace_root)
+            .starting_from(&self.paths.workspace_root).await?
             .skipping_paths(&["\\.git", "_build", "deps", "lib/bs", "target", "node_modules"])?
-            .find_files()
-            .await?;
+            .stream_files().await;
 
-        debug!("Found {} build files...", paths.len());
-
-        Ok(paths)
+        Ok(Box::pin(paths))
     }
 
     pub async fn find_rules(&self) -> Result<Vec<PathBuf>, anyhow::Error> {
@@ -64,11 +62,15 @@ impl WorkspaceScanner {
             "Scanning for local rules in {:?}",
             self.paths.local_rules_root
         );
-        let paths = FileScanner::new()
-            .starting_from(&self.paths.local_rules_root)
+        let mut files = Box::pin(FileScanner::new()
+            .starting_from(&self.paths.local_rules_root).await?
             .matching_path("\\.js$")?
-            .find_files()
-            .await?;
+            .stream_files().await);
+
+        let mut paths = vec![];
+        while let Some(path) = files.next().await {
+            paths.push(path?.clone());
+        }
 
         debug!("Found {} local rules...", paths.len());
 
@@ -81,11 +83,15 @@ impl WorkspaceScanner {
             self.paths.local_toolchains_root
         );
 
-        let paths = FileScanner::new()
-            .starting_from(&self.paths.local_toolchains_root)
+        let mut files = Box::pin(FileScanner::new()
+            .starting_from(&self.paths.local_toolchains_root).await?
             .matching_path("\\.js$")?
-            .find_files()
-            .await?;
+            .stream_files().await);
+
+        let mut paths = vec![];
+        while let Some(path) = files.next().await {
+            paths.push(path?.clone());
+        }
 
         debug!("Found {} local toolchains...", paths.len());
 

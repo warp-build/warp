@@ -1,4 +1,3 @@
-use futures::StreamExt;
 use regex::Regex;
 use std::path::PathBuf;
 use tokio::fs;
@@ -33,9 +32,9 @@ impl FileScanner {
         self
     }
 
-    pub fn starting_from(&mut self, root: &PathBuf) -> &mut FileScanner {
-        self.root = root.clone();
-        self
+    pub async fn starting_from(&mut self, root: &PathBuf) -> Result<&mut FileScanner, anyhow::Error> {
+        self.root = fs::canonicalize(root).await?;
+        Ok(self)
     }
 
     pub fn matching_path(&mut self, pattern: &str) -> Result<&mut FileScanner, anyhow::Error> {
@@ -50,17 +49,12 @@ impl FileScanner {
         Ok(self)
     }
 
-    #[tracing::instrument(name = "FileScanner::find_files")]
-    pub async fn find_files(&self) -> Result<Vec<PathBuf>, anyhow::Error> {
-        let root = fs::canonicalize(&self.root).await?;
-        self.scan_files(&root).await
-    }
-
-    async fn scan_files(&self, root: &PathBuf) -> Result<Vec<PathBuf>, anyhow::Error> {
-        let mut dirs = vec![root.clone()];
+    #[tracing::instrument(name = "FileScanner::stream_files")]
+    pub async fn stream_files(&self) -> impl futures::Stream<Item = Result<PathBuf, anyhow::Error>> {
+        let mut dirs = vec![self.root.clone()];
         let match_pattern = self.match_pattern.clone();
         let skip_patterns = self.skip_patterns.clone();
-        let file_stream = async_stream::stream! {
+        async_stream::try_stream! {
             'dir_loop: while let Some(dir) = dirs.pop() {
                 for skip_pattern in &skip_patterns {
                     if skip_pattern.is_match(dir.to_str().unwrap()) {
@@ -68,7 +62,7 @@ impl FileScanner {
                     }
                 }
 
-                let mut read_dir = fs::read_dir(&dir).await.unwrap();
+                let mut read_dir = fs::read_dir(&dir).await?;
                 debug!("Scanning dir: {:?}", &dir);
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
                     if entry.path().is_dir() {
@@ -80,17 +74,6 @@ impl FileScanner {
                     }
                 }
             }
-        };
-
-        use std::sync::*;
-        let files = Arc::new(RwLock::new(vec![]));
-        file_stream
-            .for_each_concurrent(self.max_concurrency, |file| async {
-                files.write().unwrap().push(file)
-            })
-            .await;
-
-        let files = files.read().unwrap().clone();
-        Ok(files)
+        }
     }
 }

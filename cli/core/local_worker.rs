@@ -1,5 +1,6 @@
 use super::*;
 use anyhow::anyhow;
+use futures::StreamExt;
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -79,10 +80,11 @@ impl LocalWorker {
 
         let scanner = WorkspaceScanner::from_paths(&self.workspace.paths);
 
-        for build_file in scanner.find_build_files(10).await? {
+        let mut buildfiles = scanner.find_build_files(10).await?;
+        while let Some(build_file) = buildfiles.next().await {
             let buildfile = Buildfile::from_file(
                 &self.workspace.paths.workspace_root,
-                &build_file,
+                &build_file?,
                 self.rule_exec_env.rule_map.clone(),
             )?;
             for target in buildfile.targets {
