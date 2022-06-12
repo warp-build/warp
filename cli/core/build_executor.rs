@@ -330,9 +330,6 @@ impl LazyWorker {
                             },
                         ),
                     )) => {
-                        self.event_channel
-                            .send(Event::RequeueingTarget(label.clone(), deps.clone()));
-
                         self.busy_targets.remove(&label);
                         debug!("Missing {} dependencies", deps.len());
                         for dep in deps {

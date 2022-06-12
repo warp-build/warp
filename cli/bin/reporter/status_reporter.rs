@@ -1,7 +1,8 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use std::sync::Arc;
-use std::collections::HashSet;
+use fxhash::*;
 use zap_core::*;
+use tracing::*;
 
 pub struct StatusReporter {
     event_channel: Arc<EventChannel>,
@@ -24,7 +25,7 @@ impl StatusReporter {
         );
         pb.set_prefix("Building");
 
-        let mut current_targets: HashSet<Label> = HashSet::new();
+        let mut current_targets: FxHashSet<Label> = FxHashSet::default();
 
         let mut errored = false;
         let mut target_count = 0;
@@ -37,6 +38,8 @@ impl StatusReporter {
 						pb.set_message(message);
 
             if let Some(event) = self.event_channel.recv() {
+                debug!("{:#?}", event);
+
                 match event {
                     zap_core::Event::BuildingTarget {
                         label,

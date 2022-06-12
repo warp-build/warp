@@ -12,6 +12,7 @@ path = "lib.rs"
 zap-ext = { path = "../ext", version = "*" }
 
 anyhow = "1.0"
+async-stream = "0.3"
 chrono = "0.4"
 crossbeam = "0.8"
 daggy = "0.8"
@@ -39,7 +40,6 @@ structopt = "0.3"
 termcolor = "1.1"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
-async-stream = "0.3"
 tokio-stream = "0.1"
 tokio-util = { version = "0.7", features = ["rt"] }
 toml = "0.5"
