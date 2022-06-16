@@ -3,7 +3,11 @@ import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
 
 const impl = ctx => {
   const { name, deps, } = ctx.cfg();
-  ctx.action().declareOutputs([]);
+  ctx.action().writeFile({
+    dst: name,
+    data: `${name}`
+  })
+  ctx.action().declareOutputs([name]);
 };
 
 export default Zap.Rule({
