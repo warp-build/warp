@@ -1,3 +1,5 @@
+#[macro_use] extern crate assert_matches;
+
 pub mod actions;
 pub mod archive;
 pub mod build_executor;

@@ -1,7 +1,22 @@
 use super::*;
+use daggy::{Dag, NodeIndex};
 use dashmap::DashMap;
+use fxhash::*;
 use std::sync::Arc;
+use thiserror::*;
 use tracing::*;
+
+#[derive(Error, Debug)]
+pub enum BuildResultError {
+    #[error("Dependency cycle found starting at {}", .label.to_string())]
+    DepGraphError {
+        label: Label,
+        inner_error: daggy::WouldCycle<()>,
+    },
+
+    #[error(transparent)]
+    Unknown(anyhow::Error),
+}
 
 /// A collection of expectations and results from a build.
 ///
@@ -14,6 +29,8 @@ pub struct BuildResults {
     pub computed_targets: Arc<DashMap<Label, ComputedTarget>>,
 
     pub expected_targets: Arc<DashMap<Label, ()>>,
+
+    pub build_graph: Arc<DashMap<Label, Vec<Label>>>,
 }
 
 impl BuildResults {
@@ -22,6 +39,7 @@ impl BuildResults {
         BuildResults {
             computed_targets: Arc::new(DashMap::new()),
             expected_targets: Arc::new(DashMap::new()),
+            build_graph: Arc::new(DashMap::new()),
         }
     }
 
@@ -32,7 +50,7 @@ impl BuildResults {
     //
     pub fn has_all_expected_targets(&self) -> bool {
         if self.expected_targets.is_empty() {
-            return false
+            return false;
         }
 
         for expected in self.expected_targets.iter() {
@@ -48,16 +66,48 @@ impl BuildResults {
         self.expected_targets.insert(label, ());
     }
 
-    pub fn is_target_built(&self, label: &Label) -> bool {
-        self.computed_targets.contains_key(&label)
-    }
-
     pub fn add_computed_target(&self, label: Label, target: ComputedTarget) {
         self.computed_targets.insert(label, target);
     }
 
+    pub fn add_dependencies(&self, label: Label, deps: &[Label]) -> Result<(), BuildResultError> {
+        self.build_graph.insert(label.clone(), deps.to_vec());
+
+        let mut dag: Dag<Label, (), u32> = Dag::new();
+
+        let mut nodes: FxHashMap<Label, NodeIndex> = FxHashMap::default();
+        for entry in self.build_graph.iter() {
+            let label = entry.key().clone();
+            let node_idx = dag.add_node(label.clone());
+            nodes.insert(label, node_idx);
+        }
+
+        let mut edges = vec![];
+        for entry in self.build_graph.iter() {
+            if let Some(node_idx) = nodes.get(entry.key()) {
+                for dep in entry.value() {
+                    if let Some(dep_idx) = nodes.get(dep) {
+                        edges.push((*dep_idx, *node_idx));
+                    }
+                }
+            }
+        }
+
+        dag.extend_with_edges(edges)
+            .map_err(|e| BuildResultError::DepGraphError {
+                label: label,
+                inner_error: e,
+            })?;
+
+        Ok(())
+    }
+
     pub fn get_computed_target(&self, label: &Label) -> Option<ComputedTarget> {
         self.computed_targets.get(&label).map(|n| n.clone()).clone()
+    }
+
+    pub fn is_target_built(&self, label: &Label) -> bool {
+        self.computed_targets.contains_key(&label)
     }
 }
 
@@ -133,4 +183,23 @@ mod tests {
         assert!(br.get_computed_target(&label).is_some());
     }
 
+    #[test]
+    fn detects_cycle_when_adding_deps() {
+        let br = BuildResults::new();
+
+        let label_a = Label::new("//a");
+        let label_b = Label::new("//b");
+
+        let deps_a = vec![label_b.clone()];
+        let deps_b = vec![label_a.clone()];
+
+        assert!(br.add_dependencies(label_a.clone(), &deps_a).is_ok());
+        assert_matches!(
+            br.add_dependencies(label_b.clone(), &deps_b),
+            Err(BuildResultError::DepGraphError {
+                label: label_b,
+                inner_error: daggy::WouldCycle(_)
+            })
+        );
+    }
 }

@@ -37,6 +37,11 @@ pub struct DepGraph {
 }
 
 impl DepGraph {
+
+    pub fn new() -> DepGraph {
+        DepGraph::default()
+    }
+
     #[tracing::instrument(name = "DepGraph::from_targets", skip(targets))]
     pub fn from_targets(targets: &[Target]) -> Result<DepGraph, anyhow::Error> {
         let mut dag: Dag<ComputedTarget, (), u32> = Dag::new();

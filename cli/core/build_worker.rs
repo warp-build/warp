@@ -19,6 +19,9 @@ pub enum WorkerError {
     QueueError(build_queue::QueueError),
 
     #[error(transparent)]
+    DepGraphError(build_results::BuildResultError),
+
+    #[error(transparent)]
     RuleExecError(rule_exec_env::error::RuleExecError),
 
     #[error(transparent)]
@@ -96,7 +99,13 @@ impl BuildWorker {
         loop {
             // NOTE(@ostera): we don't want things to burn CPU cycles
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-            self.run(mode).await?;
+            match self.run(mode).await {
+                Ok(_) => (),
+                Err(err) => {
+                    self.event_channel.send(Event::BuildError(err));
+                    break;
+                }
+            }
             if self.should_stop() {
                 break;
             }
@@ -106,10 +115,7 @@ impl BuildWorker {
     }
 
     pub fn should_stop(&self) -> bool {
-        if Role::MainWorker == self.role
-            && self.build_queue.is_empty()
-            && self.build_results.has_all_expected_targets()
-        {
+        if Role::MainWorker == self.role && self.build_results.has_all_expected_targets() {
             self.coordinator.signal_shutdown();
         }
         return self.coordinator.should_shutdown();
@@ -151,13 +157,17 @@ impl BuildWorker {
                         computed_target::ComputedTargetError::MissingDependencies { deps, .. },
                     ),
                 )) => {
+                    self.build_results
+                        .add_dependencies(label.clone(), &deps)
+                        .map_err(WorkerError::DepGraphError)?;
+
                     for dep in deps {
                         self.build_queue
                             .queue(dep)
                             .map_err(WorkerError::QueueError)?;
                     }
                     self.build_queue
-                        .queue(label)
+                        .nack(label)
                         .map_err(WorkerError::QueueError)
                 }
                 Err(err) => {
@@ -262,14 +272,16 @@ impl BuildWorker {
             .map_err(WorkerError::Unknown)?
         {
             CacheHitType::Global(cache_path) => {
-                self.build_results.add_computed_target(label.clone(), node.clone());
+                self.build_results
+                    .add_computed_target(label.clone(), node.clone());
                 self.event_channel
                     .send(Event::CacheHit(label.clone(), cache_path));
                 return Ok(label.clone());
             }
             CacheHitType::Local(cache_path) => {
                 debug!("Skipping {}, but promoting outputs.", name.to_string());
-                self.build_results.add_computed_target(label.clone(), node.clone());
+                self.build_results
+                    .add_computed_target(label.clone(), node.clone());
                 self.cache
                     .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
                     .await

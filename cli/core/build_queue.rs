@@ -40,9 +40,6 @@ pub struct BuildQueue {
 
     /// The number of targets that have been successfully queued.
     target_count: AtomicUsize,
-
-    /// The target this build queue is meant to be building towards
-    pub final_target: Label,
 }
 
 impl BuildQueue {
@@ -56,7 +53,6 @@ impl BuildQueue {
             inner_queue: Arc::new(crossbeam::deque::Injector::new()),
             busy_targets: Arc::new(DashMap::new()),
             target_count: AtomicUsize::new(0),
-            final_target: target,
             event_channel,
             build_results,
         }
@@ -81,8 +77,9 @@ impl BuildQueue {
         return None;
     }
 
-    pub fn nack(&self, label: &Label) {
-        self.busy_targets.remove(&label)
+    pub fn nack(&self, label: Label) -> Result<(), QueueError> {
+        self.busy_targets.remove(&label);
+        self.queue(label)
     }
 
     #[tracing::instrument(name = "BuildQueue::is_queue_empty", skip(self))]
@@ -241,5 +238,32 @@ mod tests {
         assert!(q.next().is_none());
         // and we'll have an empty queue
         assert!(q.is_empty());
+    }
+
+    #[test]
+    fn nexting_a_target_requires_a_nack_to_get_it_again() {
+        let final_target = Label::new("//test/0");
+        let br = Arc::new(BuildResults::new());
+        let q = BuildQueue::new(
+            final_target.clone(),
+            br.clone(),
+            Arc::new(EventChannel::new()),
+        );
+
+        assert!(q.is_empty());
+        // we load up a target that hasn't been built yet
+        q.queue(final_target.clone()).unwrap();
+        q.queue(final_target.clone()).unwrap();
+        assert!(!q.is_empty());
+
+        // when we next-it the first time, we get the final target out
+        assert!(q.next().is_some());
+        // if we next-it again, it'll be skipped
+        assert!(q.next().is_none());
+        // but if we nack it, we are telling the queue this target needs
+        // to be consumed again
+        q.nack(final_target).unwrap();
+        // so we can consume it
+        assert!(q.next().is_some());
     }
 }
