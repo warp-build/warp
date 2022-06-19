@@ -1,8 +1,8 @@
+use fxhash::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::sync::Arc;
-use fxhash::*;
-use zap_core::*;
 use tracing::*;
+use zap_core::*;
 
 pub struct StatusReporter {
     event_channel: Arc<EventChannel>,
@@ -36,8 +36,19 @@ impl StatusReporter {
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
 
-            let message = current_targets.iter().map(|l| l.name()).collect::<Vec<String>>().join(", ");
-						pb.set_message(message);
+            let current_targets_names = current_targets
+                .iter()
+                .map(|l| l.name())
+                .collect::<Vec<String>>();
+            if current_targets_names.len() > 0 {
+                pb.set_message(current_targets_names.join(", "));
+            } else {
+                let queued_target_names = queued_targets
+                    .iter()
+                    .map(|l| l.name())
+                    .collect::<Vec<String>>();
+                pb.set_message(format!("Pending: {}", queued_target_names.join(", ")));
+            }
             pb.set_length(queued_targets.len() as u64 + action_count);
 
             if let Some(event) = self.event_channel.recv() {
@@ -47,23 +58,28 @@ impl StatusReporter {
                 match event {
                     BuildingTarget { label, .. } => {
                         current_targets.insert(label);
-                    },
+                    }
                     QueuedTarget(label) => {
+                        /*
+                        let line =
+                            format!("{:>12} {}", blue_dim.apply_to("Queued"), label.to_string(),);
+                        pb.println(line);
+                        */
                         queued_targets.insert(label);
-                    },
+                    }
                     QueuedTargets(count) => pb.set_length(count as u64),
                     ArchiveVerifying(_label) => {
                         action_count += 1;
                         pb.inc(1)
-                    },
+                    }
                     ArchiveUnpacking(_label) => {
                         action_count += 1;
                         pb.inc(1)
-                    },
+                    }
                     ActionRunning { .. } => {
                         action_count += 1;
                         pb.inc(1)
-                    },
+                    }
                     ArchiveDownloading { label, .. } => {
                         let line = format!(
                             "{:>12} {}",
@@ -71,11 +87,11 @@ impl StatusReporter {
                             label.to_string(),
                         );
                         pb.println(line);
-                        pb.set_length(pb.length()+1);
+                        pb.set_length(pb.length() + 1);
                         pb.inc(1)
-                    },
+                    }
                     RequeueingTarget(_, _) => (),
-                    CacheMiss{ .. } => {
+                    CacheMiss { .. } => {
                         // let line = format!(
                         //     "{:>12} {}",
                         //     blue_dim.apply_to("Cache-miss"),
@@ -96,11 +112,8 @@ impl StatusReporter {
                         cache_hits += 1;
                     }
                     TargetBuilt(label) => {
-                        let line = format!(
-                            "{:>12} {}",
-                            green_bold.apply_to("Built"),
-                            label.to_string(),
-                        );
+                        let line =
+                            format!("{:>12} {}", green_bold.apply_to("Built"), label.to_string(),);
                         current_targets.remove(&label);
                         pb.println(line);
                         pb.inc(1);
@@ -108,11 +121,8 @@ impl StatusReporter {
                     }
                     BuildError(label, err) => {
                         errored = true;
-                        let line = format!(
-                            "{:>12} {}",
-                            red_bold.apply_to("ERROR"),
-                            label.to_string(),
-                        );
+                        let line =
+                            format!("{:>12} {}", red_bold.apply_to("ERROR"), label.to_string(),);
                         pb.println(line);
                         pb.println(format!("{}", err));
                     }

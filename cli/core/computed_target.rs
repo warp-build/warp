@@ -33,7 +33,6 @@ pub struct ComputedTarget {
     /// The transitive dependencies of this target.
     pub transitive_deps: Option<FxHashSet<Dependency>>,
 
-
     /// The outputs of this node
     pub outs: Option<FxHashSet<PathBuf>>,
 
@@ -220,7 +219,7 @@ impl ComputedTarget {
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
     ) -> Result<Vec<Dependency>, ComputedTargetError> {
         if let Some(deps) = &self.transitive_deps {
-            return Ok(deps.iter().cloned().collect())
+            return Ok(deps.iter().cloned().collect());
         }
 
         let mut deps: FxHashSet<Dependency> = FxHashSet::default();

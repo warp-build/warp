@@ -4,7 +4,7 @@ use dashmap::DashMap;
 use fxhash::*;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CfgValueType {
     String,
     Label,
@@ -12,7 +12,7 @@ pub enum CfgValueType {
     List(Box<CfgValueType>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CfgValue {
     String(String),
     Label(Label),
@@ -57,7 +57,7 @@ impl Into<serde_json::Value> for CfgValue {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ConfigSpec(pub FxHashMap<String, CfgValueType>);
 
 impl ConfigSpec {

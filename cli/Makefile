@@ -36,7 +36,7 @@ install:
 
 .PHONY: setup
 setup:
-	cargo install cargo-strip cargo-insta mdbook flamegraph
+	cargo install cargo-strip cargo-insta mdbook flamegraph miri
 
 .PHONY: clean
 clean:

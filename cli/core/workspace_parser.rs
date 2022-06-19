@@ -94,6 +94,7 @@ mod tests {
     use super::*;
 
     fn parse(toml: toml::Value, root: &PathBuf) -> Result<Workspace, anyhow::Error> {
+        let root = std::fs::canonicalize(root).unwrap();
         let paths = WorkspacePaths::new(&root, None, None).unwrap();
         WorkspaceParser::from_toml(toml, paths, &vec![], &vec![])
     }

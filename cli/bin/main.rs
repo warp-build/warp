@@ -1,3 +1,7 @@
+// NOTE(@ostera): we need this because the core library has pretty deeply nested
+// async types, and without it we'll get an internal compiler error
+#![recursion_limit = "256"]
+
 mod goals;
 mod reporter;
 

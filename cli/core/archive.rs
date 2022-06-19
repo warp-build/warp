@@ -8,7 +8,7 @@ use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tracing::{debug, info};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ArchiveKind {
     Source,
     Release,
@@ -20,7 +20,7 @@ impl Default for ArchiveKind {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct Archive {
     /// The root of the cache used to compute paths
     cache_root: PathBuf,

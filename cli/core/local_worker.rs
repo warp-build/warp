@@ -1,7 +1,7 @@
 use super::*;
 use anyhow::anyhow;
-use futures::StreamExt;
 use dashmap::DashMap;
+use futures::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::*;
@@ -168,7 +168,7 @@ impl LocalWorker {
                         continue;
                     }
                 }
-                CacheHitType::Miss {..}=> {
+                CacheHitType::Miss { .. } => {
                     debug!("Cache miss! Proceeding to build...");
                 }
             }

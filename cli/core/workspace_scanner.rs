@@ -1,7 +1,7 @@
 use super::*;
 use anyhow::Context;
-use futures::StreamExt;
 use futures::FutureExt;
+use futures::StreamExt;
 use std::path::PathBuf;
 use tokio::fs;
 use tracing::*;
@@ -50,9 +50,18 @@ impl WorkspaceScanner {
         let paths = FileScanner::new()
             .max_concurrency(max_concurrency)
             .matching_path(ZAPFILE)?
-            .starting_from(&self.paths.workspace_root).await?
-            .skipping_paths(&["\\.git", "_build", "deps", "lib/bs", "target", "node_modules"])?
-            .stream_files().await;
+            .starting_from(&self.paths.workspace_root)
+            .await?
+            .skipping_paths(&[
+                "\\.git",
+                "_build",
+                "deps",
+                "lib/bs",
+                "target",
+                "node_modules",
+            ])?
+            .stream_files()
+            .await;
 
         Ok(Box::pin(paths))
     }
@@ -62,10 +71,14 @@ impl WorkspaceScanner {
             "Scanning for local rules in {:?}",
             self.paths.local_rules_root
         );
-        let mut files = Box::pin(FileScanner::new()
-            .starting_from(&self.paths.local_rules_root).await?
-            .matching_path("\\.js$")?
-            .stream_files().await);
+        let mut files = Box::pin(
+            FileScanner::new()
+                .starting_from(&self.paths.local_rules_root)
+                .await?
+                .matching_path("\\.js$")?
+                .stream_files()
+                .await,
+        );
 
         let mut paths = vec![];
         while let Some(path) = files.next().await {
@@ -83,10 +96,14 @@ impl WorkspaceScanner {
             self.paths.local_toolchains_root
         );
 
-        let mut files = Box::pin(FileScanner::new()
-            .starting_from(&self.paths.local_toolchains_root).await?
-            .matching_path("\\.js$")?
-            .stream_files().await);
+        let mut files = Box::pin(
+            FileScanner::new()
+                .starting_from(&self.paths.local_toolchains_root)
+                .await?
+                .matching_path("\\.js$")?
+                .stream_files()
+                .await,
+        );
 
         let mut paths = vec![];
         while let Some(path) = files.next().await {

@@ -32,7 +32,10 @@ impl FileScanner {
         self
     }
 
-    pub async fn starting_from(&mut self, root: &PathBuf) -> Result<&mut FileScanner, anyhow::Error> {
+    pub async fn starting_from(
+        &mut self,
+        root: &PathBuf,
+    ) -> Result<&mut FileScanner, anyhow::Error> {
         self.root = fs::canonicalize(root).await?;
         Ok(self)
     }
@@ -50,7 +53,9 @@ impl FileScanner {
     }
 
     #[tracing::instrument(name = "FileScanner::stream_files")]
-    pub async fn stream_files(&self) -> impl futures::Stream<Item = Result<PathBuf, anyhow::Error>> {
+    pub async fn stream_files(
+        &self,
+    ) -> impl futures::Stream<Item = Result<PathBuf, anyhow::Error>> {
         let mut dirs = vec![self.root.clone()];
         let match_pattern = self.match_pattern.clone();
         let skip_patterns = self.skip_patterns.clone();

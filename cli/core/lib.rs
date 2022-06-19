@@ -1,6 +1,10 @@
 pub mod actions;
 pub mod archive;
 pub mod build_executor;
+pub mod build_coordinator;
+pub mod build_queue;
+pub mod build_results;
+pub mod build_worker;
 pub mod buildfile;
 pub mod computed_target;
 pub mod dep_graph;
@@ -27,7 +31,11 @@ pub mod workspace_scanner;
 
 pub use actions::*;
 pub use archive::*;
+pub use build_coordinator::*;
 pub use build_executor::*;
+pub use build_queue::*;
+pub use build_results::*;
+pub use build_worker::*;
 pub use buildfile::*;
 pub use computed_target::*;
 pub use dep_graph::*;

@@ -7,7 +7,7 @@ use std::process::Stdio;
 use tokio::process::Command;
 use tracing::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct RunShellAction {
     pub env: HashMap<String, String>,
     pub script: String,

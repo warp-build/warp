@@ -37,7 +37,7 @@ Find the sandbox in: {sandbox_root:?}
             label: Label,
             sandbox_root: PathBuf,
             error: anyhow::Error,
-        }
+        },
     }
 }
 
@@ -400,10 +400,11 @@ impl LocalSandbox {
                 mode,
                 event_channel.clone(),
             )
-            .await.map_err(|error| error::SandboxError::ExecutionError {
+            .await
+            .map_err(|error| error::SandboxError::ExecutionError {
                 label: self.node.label().clone(),
                 sandbox_root: self.root.clone(),
-                error: error
+                error: error,
             })?;
 
         debug!("Build rule executed successfully.");

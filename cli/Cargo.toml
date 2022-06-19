@@ -10,6 +10,3 @@ opt-level = 'z'
 lto = true
 codegen-units = 1
 debug = 1
-
-[rust]
-debuginfo-level = 1

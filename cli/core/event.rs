@@ -15,5 +15,5 @@ pub enum Event {
     TargetBuilt(Label),
     BuildError(Label, WorkerError),
     CacheHit(Label, PathBuf),
-    CacheMiss{label: Label, local_path: PathBuf},
+    CacheMiss { label: Label, local_path: PathBuf },
 }

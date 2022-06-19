@@ -1,9 +1,9 @@
 use super::*;
 use anyhow::*;
 use dashmap::DashMap;
-use std::sync::Arc;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::vec::Vec;
 use toml::Value;
 use tracing::*;
@@ -58,7 +58,8 @@ impl Buildfile {
 
         let mut targets: Vec<Target> = vec![];
 
-        let available_rules: Vec<String> = rule_manager.iter().map(|r| r.name().to_string()).collect();
+        let available_rules: Vec<String> =
+            rule_manager.iter().map(|r| r.name().to_string()).collect();
         for (rule_name, configs) in contents.iter() {
             for cfg in configs.as_array().context("Rule should be marked as a table, so if you wrote [rule_name], try writing [[rule_name]] instead")? {
                 let name = {

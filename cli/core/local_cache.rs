@@ -16,7 +16,7 @@ pub struct LocalCache {
 
 #[derive(Debug, Clone)]
 pub enum CacheHitType {
-    Miss { 
+    Miss {
         local_path: PathBuf,
         global_path: PathBuf,
         named_path: PathBuf,
@@ -193,7 +193,11 @@ impl LocalCache {
         }
 
         debug!("No cache hit for {}", node.label().to_string());
-        Ok(CacheHitType::Miss{local_path, global_path, named_path})
+        Ok(CacheHitType::Miss {
+            local_path,
+            global_path,
+            named_path,
+        })
     }
 
     #[tracing::instrument(name = "LocalCache::evict", skip(node))]
