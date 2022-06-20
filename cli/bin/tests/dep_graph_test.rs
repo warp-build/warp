@@ -1,7 +1,7 @@
+/*
 use std::path::PathBuf;
 use zap_core::*;
 
-/*
 #[tokio::test]
 async fn it_reads_the_project_from_an_absolute_path() {
     let root = std::fs::canonicalize(PathBuf::from(&"./tests/sample_project")).unwrap();
