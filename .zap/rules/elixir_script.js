@@ -58,7 +58,7 @@ ${transitiveDeps
 
 ${ELIXIR} \
   ${extraPaths} \
-  $(dirname "\${BASH_SOURCE[0]}")/${File.filename(main)}
+  $(dirname "\${BASH_SOURCE[0]}")/${File.filename(main)} $*
 
 `,
   });
