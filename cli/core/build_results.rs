@@ -113,6 +113,7 @@ impl BuildResults {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     fn dummy_target(label: Label) -> ComputedTarget {
@@ -197,7 +198,7 @@ mod tests {
         assert_matches!(
             br.add_dependencies(label_b.clone(), &deps_b),
             Err(BuildResultError::DepGraphError {
-                label: label_b,
+                label: _,
                 inner_error: daggy::WouldCycle(_)
             })
         );

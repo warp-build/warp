@@ -46,10 +46,10 @@ impl Action {
 
     pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         match self {
-             Action::Exec(e) => e.run(&sandbox_root).await,
-             Action::Copy(e) => e.run(&sandbox_root).await,
-             Action::WriteFile(e) => e.run(&sandbox_root).await,
-             Action::RunShell(e) => e.run(&sandbox_root).await,
+            Action::Exec(e) => e.run(&sandbox_root).await,
+            Action::Copy(e) => e.run(&sandbox_root).await,
+            Action::WriteFile(e) => e.run(&sandbox_root).await,
+            Action::RunShell(e) => e.run(&sandbox_root).await,
         }
     }
 }

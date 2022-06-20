@@ -1,10 +1,9 @@
 use std::sync::RwLock;
-use tracing::*;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Status {
     Running,
-    Shutdown
+    Shutdown,
 }
 
 #[derive(Debug)]
@@ -14,7 +13,9 @@ pub struct BuildCoordinator {
 
 impl BuildCoordinator {
     pub fn new() -> BuildCoordinator {
-        BuildCoordinator{ status: RwLock::new(Status::Running) }
+        BuildCoordinator {
+            status: RwLock::new(Status::Running),
+        }
     }
 
     pub fn should_shutdown(&self) -> bool {

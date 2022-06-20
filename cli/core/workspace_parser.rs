@@ -1,22 +1,13 @@
 use super::*;
 use anyhow::anyhow;
 use anyhow::Context;
-use std::path::PathBuf;
 use tracing::*;
 
 pub struct WorkspaceParser {}
 
 impl WorkspaceParser {
-    #[tracing::instrument(
-        name = "WorkspaceParser::from_toml",
-        skip(toml, paths, local_rules, local_toolchains)
-    )]
-    pub fn from_toml(
-        toml: toml::Value,
-        paths: WorkspacePaths,
-        local_rules: &[PathBuf],
-        local_toolchains: &[PathBuf],
-    ) -> Result<Workspace, anyhow::Error> {
+    #[tracing::instrument(name = "WorkspaceParser::from_toml", skip(toml, paths))]
+    pub fn from_toml(toml: toml::Value, paths: WorkspacePaths) -> Result<Workspace, anyhow::Error> {
         let workspace = toml
             .get("workspace")
             .context("Workspace file must have a workspace section")?;
@@ -28,8 +19,8 @@ impl WorkspaceParser {
             .context("Workspace name field must be a string")?
             .to_string();
 
-        let ignores = if let Some(ignores) = workspace.get("ignores") {
-            WorkspaceParser::parse_ignores(ignores)?
+        let ignore_patterns = if let Some(ignore_patterns) = workspace.get("ignore_patterns") {
+            WorkspaceParser::parse_ignore_patterns(ignore_patterns)?
         } else {
             vec![]
         };
@@ -47,22 +38,24 @@ impl WorkspaceParser {
             name,
             paths,
             build_files: vec![],
-            local_rules: local_rules.to_vec(),
-            local_toolchains: local_toolchains.to_vec(),
+            local_rules: vec![],
+            local_toolchains: vec![],
             toolchain_archives,
-            ignores,
+            ignore_patterns,
         })
     }
 
-    pub fn parse_ignores(ignores: &toml::Value) -> Result<Vec<String>, anyhow::Error> {
-        if let Some(list) = ignores.as_array() {
+    pub fn parse_ignore_patterns(
+        ignore_patterns: &toml::Value,
+    ) -> Result<Vec<String>, anyhow::Error> {
+        if let Some(list) = ignore_patterns.as_array() {
             let mut patterns = vec![];
             for pat in list {
                 if let Some(pat_str) = pat.as_str() {
                     patterns.push(pat_str.to_string())
                 } else {
                     return Err(anyhow!(
-                        "Expected `ignores` to be an array of strings, but found a {}: {:?}",
+                        "Expected `ignore_patterns` to be an array of strings, but found a {}: {:?}",
                         pat.type_str(),
                         pat
                     ));
@@ -71,8 +64,8 @@ impl WorkspaceParser {
             Ok(patterns)
         } else {
             Err(anyhow!(
-                "Expected `ignores` to be an array. Instead we found a '{}'",
-                ignores.type_str()
+                "Expected `ignore_patterns` to be an array. Instead we found a '{}'",
+                ignore_patterns.type_str()
             ))
         }
     }
@@ -124,11 +117,12 @@ impl WorkspaceParser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn parse(toml: toml::Value, root: &PathBuf) -> Result<Workspace, anyhow::Error> {
         let root = std::fs::canonicalize(root).unwrap();
         let paths = WorkspacePaths::new(&root, None, None).unwrap();
-        WorkspaceParser::from_toml(toml, paths, &vec![], &vec![])
+        WorkspaceParser::from_toml(toml, paths)
     }
 
     #[test]
@@ -165,7 +159,7 @@ name = "tiny_lib"
         let toml: toml::Value = r#"
 [workspace]
 name = "tiny_lib"
-ignores = {}
+ignore_patterns = {}
 
 [toolchains]
 
@@ -182,7 +176,7 @@ ignores = {}
         let toml: toml::Value = r#"
 [workspace]
 name = "tiny_lib"
-ignores = ["node_modules"]
+ignore_patterns = ["node_modules"]
 
 [toolchains]
 
@@ -191,7 +185,7 @@ ignores = ["node_modules"]
         .parse::<toml::Value>()
         .unwrap();
         let workspace = parse(toml, &PathBuf::from(".")).unwrap();
-        assert_eq!(workspace.ignores, vec!["node_modules"]);
+        assert_eq!(workspace.ignore_patterns, vec!["node_modules"]);
     }
 
     /*

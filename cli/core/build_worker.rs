@@ -138,10 +138,7 @@ impl BuildWorker {
     pub async fn run(&mut self, mode: ExecutionMode) -> Result<(), WorkerError> {
         if let Some(label) = self.build_queue.next() {
             match self.execute(&label, mode).await {
-                Ok(node_label) => {
-                    // self.build_queue.mark_as_built(node_label);
-                    Ok(())
-                }
+                Ok(_node_label) => Ok(()),
 
                 Err(WorkerError::ComputedTargetError(
                     computed_target::ComputedTargetError::MissingDependencies { deps, .. },
@@ -151,17 +148,14 @@ impl BuildWorker {
                         computed_target::ComputedTargetError::MissingDependencies { deps, .. },
                     ),
                 )) => {
-                    match self
+                    if let Err(err) = self
                         .build_results
                         .add_dependencies(label.clone(), &deps)
                         .map_err(WorkerError::DepGraphError)
                     {
-                        Ok(_) => (),
-                        Err(err) => {
-                            self.event_channel
-                                .send(Event::BuildError(label.clone(), err));
-                            self.coordinator.signal_shutdown();
-                        }
+                        self.event_channel
+                            .send(Event::BuildError(label.clone(), err));
+                        self.coordinator.signal_shutdown();
                     };
 
                     for dep in deps {

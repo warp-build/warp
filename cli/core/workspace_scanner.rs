@@ -10,9 +10,19 @@ use tracing::*;
 pub struct WorkspaceScanner {
     /// The paths used to scan.
     paths: WorkspacePaths,
+
+    /// Paths to ignore during scans.
+    ignore_patterns: Vec<String>,
 }
 
 impl WorkspaceScanner {
+    pub fn from_workspace(workspace: &Workspace) -> WorkspaceScanner {
+        WorkspaceScanner {
+            paths: workspace.paths.clone(),
+            ignore_patterns: workspace.ignore_patterns.clone(),
+        }
+    }
+
     pub fn find_workspace_file(
         cwd: &PathBuf,
     ) -> futures::future::BoxFuture<'_, Result<(PathBuf, PathBuf), anyhow::Error>> {
@@ -33,12 +43,6 @@ impl WorkspaceScanner {
         .boxed()
     }
 
-    pub fn from_paths(paths: &WorkspacePaths) -> WorkspaceScanner {
-        WorkspaceScanner {
-            paths: paths.clone(),
-        }
-    }
-
     pub async fn find_build_files(
         &self,
         max_concurrency: usize,
@@ -52,14 +56,7 @@ impl WorkspaceScanner {
             .matching_path(ZAPFILE)?
             .starting_from(&self.paths.workspace_root)
             .await?
-            .skipping_paths(&[
-                "\\.git",
-                "_build",
-                "deps",
-                "lib/bs",
-                "target",
-                "node_modules",
-            ])?
+            .skipping_paths(&self.ignore_patterns)?
             .stream_files()
             .await;
 
@@ -76,6 +73,7 @@ impl WorkspaceScanner {
                 .starting_from(&self.paths.local_rules_root)
                 .await?
                 .matching_path("\\.js$")?
+                .skipping_paths(&self.ignore_patterns)?
                 .stream_files()
                 .await,
         );
@@ -101,6 +99,7 @@ impl WorkspaceScanner {
                 .starting_from(&self.paths.local_toolchains_root)
                 .await?
                 .matching_path("\\.js$")?
+                .skipping_paths(&self.ignore_patterns)?
                 .stream_files()
                 .await,
         );

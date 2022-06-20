@@ -1,9 +1,7 @@
-#[macro_use] extern crate assert_matches;
-
 pub mod actions;
 pub mod archive;
-pub mod build_executor;
 pub mod build_coordinator;
+pub mod build_executor;
 pub mod build_queue;
 pub mod build_results;
 pub mod build_worker;
@@ -61,3 +59,7 @@ pub use workspace_builder::*;
 pub use workspace_parser::*;
 pub use workspace_paths::*;
 pub use workspace_scanner::*;
+
+#[cfg(test)]
+#[macro_use]
+extern crate assert_matches;

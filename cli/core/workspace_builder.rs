@@ -14,21 +14,21 @@ impl WorkspaceBuilder {
         let abs_cwd = fs::canonicalize(&cwd).await.unwrap();
         let (root, workspace_file) = WorkspaceScanner::find_workspace_file(&abs_cwd).await?;
         let paths = WorkspacePaths::new(&root, home, user)?;
+        let workspace = WorkspaceParser::from_toml(
+            toml::from_str(&fs::read_to_string(&workspace_file).await?)?,
+            paths,
+        )?;
+
         let (local_rules, local_toolchains) = {
-            let scanner = WorkspaceScanner::from_paths(&paths);
+            let scanner = WorkspaceScanner::from_workspace(&workspace);
             (
                 scanner.find_rules().await?,
                 scanner.find_toolchains().await?,
             )
         };
 
-        let workspace = WorkspaceParser::from_toml(
-            toml::from_str(&fs::read_to_string(&workspace_file).await?)?,
-            paths,
-            &local_rules,
-            &local_toolchains,
-        )?;
-
-        Ok(workspace)
+        Ok(workspace
+            .with_rules(&local_rules)
+            .with_toolchains(&local_toolchains))
     }
 }

@@ -37,7 +37,6 @@ pub struct DepGraph {
 }
 
 impl DepGraph {
-
     pub fn new() -> DepGraph {
         DepGraph::default()
     }

@@ -45,9 +45,9 @@ impl FileScanner {
         Ok(self)
     }
 
-    pub fn skipping_paths(&mut self, patterns: &[&str]) -> Result<&mut FileScanner, anyhow::Error> {
+    pub fn skipping_paths(&mut self, patterns: &[String]) -> Result<&mut FileScanner, anyhow::Error> {
         for pattern in patterns {
-            self.skip_patterns.push(Regex::new(pattern)?);
+            self.skip_patterns.push(Regex::new(&pattern)?);
         }
         Ok(self)
     }

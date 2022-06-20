@@ -78,7 +78,7 @@ impl LocalWorker {
             .unwrap()
             .targets();
 
-        let scanner = WorkspaceScanner::from_paths(&self.workspace.paths);
+        let scanner = WorkspaceScanner::from_workspace(&self.workspace);
 
         let mut buildfiles = scanner.find_build_files(10).await?;
         while let Some(build_file) = buildfiles.next().await {

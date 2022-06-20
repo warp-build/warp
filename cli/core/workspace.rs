@@ -31,5 +31,21 @@ pub struct Workspace {
     /// A list of local toolchains defined in this project
     pub local_toolchains: Vec<PathBuf>,
 
-    pub ignores: Vec<String>,
+    pub ignore_patterns: Vec<String>,
+}
+
+impl Workspace {
+    pub fn with_rules(self, rules: &[PathBuf]) -> Workspace {
+        Workspace {
+            local_rules: rules.to_vec(),
+            ..self
+        }
+    }
+
+    pub fn with_toolchains(self, toolchains: &[PathBuf]) -> Workspace {
+        Workspace {
+            local_toolchains: toolchains.to_vec(),
+            ..self
+        }
+    }
 }

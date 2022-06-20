@@ -108,7 +108,7 @@ impl BuildQueue {
         rule_exec_env: &RuleExecEnv,
     ) -> Result<(), QueueError> {
         debug!("Queueing all targets...");
-        let scanner = WorkspaceScanner::from_paths(&workspace.paths);
+        let scanner = WorkspaceScanner::from_workspace(&workspace);
         let mut buildfiles = scanner
             .find_build_files(max_concurrency)
             .await
