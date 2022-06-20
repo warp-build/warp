@@ -1,4 +1,5 @@
 use super::*;
+use anyhow::anyhow;
 use anyhow::Context;
 use std::path::PathBuf;
 use tracing::*;
@@ -19,12 +20,19 @@ impl WorkspaceParser {
         let workspace = toml
             .get("workspace")
             .context("Workspace file must have a workspace section")?;
+
         let name = workspace
             .get("name")
             .context("Workspace must have a name field")?
             .as_str()
             .context("Workspace name field must be a string")?
             .to_string();
+
+        let ignores = if let Some(ignores) = workspace.get("ignores") {
+            WorkspaceParser::parse_ignores(ignores)?
+        } else {
+            vec![]
+        };
 
         let toolchain_archives = if let Some(toolchains) = toml.get("toolchains") {
             let table = toolchains.as_table().context(format!("Expected the [toolchains] section in your Workspace.toml to be a TOML table, but instead found a {}", toolchains.type_str()))?;
@@ -42,7 +50,31 @@ impl WorkspaceParser {
             local_rules: local_rules.to_vec(),
             local_toolchains: local_toolchains.to_vec(),
             toolchain_archives,
+            ignores,
         })
+    }
+
+    pub fn parse_ignores(ignores: &toml::Value) -> Result<Vec<String>, anyhow::Error> {
+        if let Some(list) = ignores.as_array() {
+            let mut patterns = vec![];
+            for pat in list {
+                if let Some(pat_str) = pat.as_str() {
+                    patterns.push(pat_str.to_string())
+                } else {
+                    return Err(anyhow!(
+                        "Expected `ignores` to be an array of strings, but found a {}: {:?}",
+                        pat.type_str(),
+                        pat
+                    ));
+                }
+            }
+            Ok(patterns)
+        } else {
+            Err(anyhow!(
+                "Expected `ignores` to be an array. Instead we found a '{}'",
+                ignores.type_str()
+            ))
+        }
     }
 
     pub fn parse_archives(archives: &toml::value::Table) -> Result<Vec<Archive>, anyhow::Error> {
@@ -126,6 +158,40 @@ name = "tiny_lib"
         .unwrap();
         let workspace = parse(toml, &PathBuf::from(".")).unwrap();
         assert_eq!(workspace.name, "tiny_lib");
+    }
+
+    #[test]
+    fn expects_ignore_patterns_to_be_an_array() {
+        let toml: toml::Value = r#"
+[workspace]
+name = "tiny_lib"
+ignores = {}
+
+[toolchains]
+
+[dependencies]
+        "#
+        .parse::<toml::Value>()
+        .unwrap();
+
+        assert!(parse(toml, &PathBuf::from(".")).is_err());
+    }
+
+    #[test]
+    fn parses_ignore_patterns_into_workspace() {
+        let toml: toml::Value = r#"
+[workspace]
+name = "tiny_lib"
+ignores = ["node_modules"]
+
+[toolchains]
+
+[dependencies]
+        "#
+        .parse::<toml::Value>()
+        .unwrap();
+        let workspace = parse(toml, &PathBuf::from(".")).unwrap();
+        assert_eq!(workspace.ignores, vec!["node_modules"]);
     }
 
     /*

@@ -30,4 +30,6 @@ pub struct Workspace {
 
     /// A list of local toolchains defined in this project
     pub local_toolchains: Vec<PathBuf>,
+
+    pub ignores: Vec<String>,
 }
