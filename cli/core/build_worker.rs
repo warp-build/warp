@@ -137,8 +137,11 @@ impl BuildWorker {
 
     pub async fn run(&mut self, mode: ExecutionMode) -> Result<(), WorkerError> {
         if let Some(label) = self.build_queue.next() {
-            match self.execute(&label, mode).await {
-                Ok(_node_label) => Ok(()),
+            let result = match self.execute(&label, mode).await {
+                Ok(_node_label) => {
+                    self.build_queue.ack(&label);
+                    Ok(())
+                },
 
                 Err(WorkerError::ComputedTargetError(
                     computed_target::ComputedTargetError::MissingDependencies { deps, .. },
@@ -163,18 +166,21 @@ impl BuildWorker {
                             .queue(dep)
                             .map_err(WorkerError::QueueError)?;
                     }
-                    self.build_queue
-                        .nack(label)
-                        .map_err(WorkerError::QueueError)
+                    self.build_queue.nack(label.clone());
+                    Ok(())
                 }
                 Err(err) => {
-                    self.coordinator.signal_shutdown();
                     Err(err)
                 }
+            };
+
+            if let Err(err) = result {
+                self.event_channel
+                    .send(Event::BuildError(label.clone(), err));
+                self.coordinator.signal_shutdown();
             }
-        } else {
-            Ok(())
         }
+        Ok(())
     }
 
     #[tracing::instrument(name = "BuildWorker::load_rules", skip(self))]

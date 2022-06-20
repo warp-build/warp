@@ -30,6 +30,8 @@ pub struct BuildResults {
 
     pub expected_targets: Arc<DashMap<Label, ()>>,
 
+    pub missing_targets: Arc<DashMap<Label, ()>>,
+
     pub build_graph: Arc<DashMap<Label, Vec<Label>>>,
 }
 
@@ -39,6 +41,7 @@ impl BuildResults {
         BuildResults {
             computed_targets: Arc::new(DashMap::new()),
             expected_targets: Arc::new(DashMap::new()),
+            missing_targets: Arc::new(DashMap::new()),
             build_graph: Arc::new(DashMap::new()),
         }
     }
@@ -53,20 +56,16 @@ impl BuildResults {
             return false;
         }
 
-        for expected in self.expected_targets.iter() {
-            if !self.computed_targets.contains_key(expected.key()) {
-                return false;
-            }
-        }
-
-        true
+        self.missing_targets.is_empty()
     }
 
     pub fn add_expected_target(&self, label: Label) {
-        self.expected_targets.insert(label, ());
+        self.expected_targets.insert(label.clone(), ());
+        self.missing_targets.insert(label, ());
     }
 
     pub fn add_computed_target(&self, label: Label, target: ComputedTarget) {
+        self.missing_targets.remove(&label);
         self.computed_targets.insert(label, target);
     }
 

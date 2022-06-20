@@ -32,6 +32,9 @@ pub struct BuildQueue {
     /// The queue from which workers pull work.
     inner_queue: Arc<crossbeam::deque::Injector<Label>>,
 
+    /// A backup queue used for set-aside targets.
+    wait_queue: Arc<crossbeam::deque::Injector<Label>>,
+
     /// Targets already built.
     build_results: Arc<BuildResults>,
 
@@ -51,6 +54,7 @@ impl BuildQueue {
     ) -> BuildQueue {
         BuildQueue {
             inner_queue: Arc::new(crossbeam::deque::Injector::new()),
+            wait_queue: Arc::new(crossbeam::deque::Injector::new()),
             busy_targets: Arc::new(DashMap::new()),
             target_count: AtomicUsize::new(0),
             event_channel,
@@ -61,25 +65,36 @@ impl BuildQueue {
     #[tracing::instrument(name = "BuildQueue::next", skip(self))]
     pub fn next(&self) -> Option<Label> {
         if let crossbeam::deque::Steal::Success(label) = self.inner_queue.steal() {
-            // If the target is already computed or being computed, we can skip it
-            // and try to fetch the next one immediately.
-            //
-            // When the queue empties up, this will return a None, but otherwise
-            // we'll go through a bunch of duplicates, discarding them.
-            if self.build_results.is_target_built(&label) || self.busy_targets.contains_key(&label)
-            {
-                return self.next();
-            }
-            // But if it is yet to be built, we mark it as busy
-            self.busy_targets.insert(label.clone(), ());
-            return Some(label);
+            return self.handle_next(label);
+        }
+        if let crossbeam::deque::Steal::Success(label) = self.wait_queue.steal() {
+            return self.handle_next(label);
         }
         return None;
     }
 
-    pub fn nack(&self, label: Label) -> Result<(), QueueError> {
+    fn handle_next(&self, label: Label) -> Option<Label> {
+        // If the target is already computed or being computed, we can skip it
+        // and try to fetch the next one immediately.
+        //
+        // When the queue empties up, this will return a None, but otherwise
+        // we'll go through a bunch of duplicates, discarding them.
+        if self.build_results.is_target_built(&label) || self.busy_targets.contains_key(&label)
+        {
+            return self.next();
+        }
+        // But if it is yet to be built, we mark it as busy
+        self.busy_targets.insert(label.clone(), ());
+        return Some(label);
+    }
+
+    pub fn ack(&self, label: &Label) {
         self.busy_targets.remove(&label);
-        self.queue(label)
+    }
+
+    pub fn nack(&self, label: Label) {
+        self.busy_targets.remove(&label);
+        self.wait_queue.push(label);
     }
 
     #[tracing::instrument(name = "BuildQueue::is_queue_empty", skip(self))]
@@ -262,7 +277,7 @@ mod tests {
         assert!(q.next().is_none());
         // but if we nack it, we are telling the queue this target needs
         // to be consumed again
-        q.nack(final_target).unwrap();
+        q.nack(final_target);
         // so we can consume it
         assert!(q.next().is_some());
     }
