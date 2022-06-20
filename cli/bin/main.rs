@@ -13,6 +13,7 @@ use structopt::StructOpt;
 use tracing::*;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use zap_core::*;
+use zap_core::Event;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -23,9 +24,6 @@ use zap_core::*;
 struct Zap {
     #[structopt(subcommand, help = "the command to run")]
     cmd: Option<Goal>,
-
-    #[structopt(short = "q", long = "quiet", help = "turn off all logs")]
-    quiet: bool,
 
     #[structopt(
         long = "user",
@@ -83,17 +81,12 @@ impl Zap {
         let root_span = trace_span!("Zap::run");
 
         async move {
-            let result = self.start().await;
+            let result = self.start(t0).await;
 
             match result {
                 Ok(()) => (),
                 Err(ref err) => error!("{:?}", &err),
             };
-
-            if !self.quiet {
-                let t1 = t0.elapsed().as_millis();
-                println!("\x1B[1000D\x1B[K\r⚡ done in {}ms", t1);
-            }
 
             result
         }
@@ -102,8 +95,9 @@ impl Zap {
     }
 
     #[tracing::instrument(name = "Zap::start")]
-    async fn start(&self) -> Result<(), anyhow::Error> {
+    async fn start(&self, t0: std::time::Instant) -> Result<(), anyhow::Error> {
         let event_channel = Arc::new(EventChannel::new());
+        event_channel.send(Event::BuildStarted(t0));
 
         let cwd = PathBuf::from(&".");
         let workspace: Workspace =

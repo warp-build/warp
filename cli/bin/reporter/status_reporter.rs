@@ -33,6 +33,7 @@ impl StatusReporter {
         let mut cache_hits = 0;
         let mut action_count = 0;
 
+        let mut build_started = std::time::Instant::now();
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
 
@@ -126,15 +127,19 @@ impl StatusReporter {
                         pb.println(line);
                         pb.println(format!("{}", err));
                     }
+                    BuildStarted(t0) => {
+                        build_started = t0;
+                    },
                     BuildCompleted => {
                         let line = format!(
-                            "{:>12} {} ({} targets, {} cached)",
+                            "{:>12} {} in {}ms ({} targets, {} cached)",
                             if errored {
                                 red_bold.apply_to("Finished with errors")
                             } else {
                                 green_bold.apply_to("Finished")
                             },
                             target.to_string(),
+                            build_started.elapsed().as_millis(),
                             target_count,
                             cache_hits,
                         );

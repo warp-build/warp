@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum Event {
+    BuildStarted(std::time::Instant),
     BuildCompleted,
     QueuedTarget(Label),
     QueuedTargets(usize),
