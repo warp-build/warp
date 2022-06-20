@@ -19,11 +19,14 @@ impl WorkspaceParser {
             .context("Workspace name field must be a string")?
             .to_string();
 
-        let ignore_patterns = if let Some(ignore_patterns) = workspace.get("ignore_patterns") {
+        let mut ignore_patterns = if let Some(ignore_patterns) = workspace.get("ignore_patterns") {
             WorkspaceParser::parse_ignore_patterns(ignore_patterns)?
         } else {
             vec![]
         };
+        for pat in workspace::DEFAULT_IGNORE {
+            ignore_patterns.push(pat.to_string());
+        }
 
         let toolchain_archives = if let Some(toolchains) = toml.get("toolchains") {
             let table = toolchains.as_table().context(format!("Expected the [toolchains] section in your Workspace.toml to be a TOML table, but instead found a {}", toolchains.type_str()))?;
