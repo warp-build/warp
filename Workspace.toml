@@ -1,5 +1,13 @@
 [workspace]
 name = "zap-cloud"
+ignore_patterns = [
+  "\\.git",
+  "_build",
+  "deps",
+  "lib/bs",
+  "target",
+  "node_modules",
+]
 
 [toolchains.rescript]
 archive_url = "https://github.com/rescript-lang/rescript-compiler/archive/refs/tags/9.1.4.tar.gz"
