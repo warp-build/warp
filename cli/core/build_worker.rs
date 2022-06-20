@@ -99,13 +99,7 @@ impl BuildWorker {
         loop {
             // NOTE(@ostera): we don't want things to burn CPU cycles
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-            match self.run(mode).await {
-                Ok(_) => (),
-                Err(err) => {
-                    self.event_channel.send(Event::BuildError(err));
-                    break;
-                }
-            }
+            self.run(mode).await?;
             if self.should_stop() {
                 break;
             }
@@ -157,9 +151,18 @@ impl BuildWorker {
                         computed_target::ComputedTargetError::MissingDependencies { deps, .. },
                     ),
                 )) => {
-                    self.build_results
+                    match self
+                        .build_results
                         .add_dependencies(label.clone(), &deps)
-                        .map_err(WorkerError::DepGraphError)?;
+                        .map_err(WorkerError::DepGraphError)
+                    {
+                        Ok(_) => (),
+                        Err(err) => {
+                            self.event_channel
+                                .send(Event::BuildError(label.clone(), err));
+                            self.coordinator.signal_shutdown();
+                        }
+                    };
 
                     for dep in deps {
                         self.build_queue
