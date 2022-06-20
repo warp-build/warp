@@ -40,7 +40,7 @@ ${
 
 ${IEX} \
   --dot-iex $(dirname "\${BASH_SOURCE[0]}")/${File.filename(dot_iex)} \
-  ${extraPaths}
+  ${extraPaths} -- $*
   
 `,
   })

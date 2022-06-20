@@ -31,6 +31,9 @@ build their dependencies and exit.
         long = "max-workers"
     )]
     max_workers: Option<usize>,
+
+    #[structopt(name = "ARGUMENTS")]
+    args: Vec<String>
 }
 
 impl RunGoal {
@@ -68,7 +71,8 @@ impl RunGoal {
 
             cmd.stdin(Stdio::inherit())
                 .stderr(Stdio::inherit())
-                .stdout(Stdio::inherit());
+                .stdout(Stdio::inherit())
+                .args(&self.args);
 
             trace!("Spawning {:?}", &cmd);
             let mut proc = cmd.spawn()?;
