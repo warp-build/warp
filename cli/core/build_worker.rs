@@ -7,7 +7,7 @@ use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Role {
     MainWorker,
     HelperWorker(usize),
@@ -19,6 +19,9 @@ pub enum WorkerError {
     QueueError(build_queue::QueueError),
 
     #[error(transparent)]
+    RuleLoadError(rule_exec_env::error::LoadError),
+
+    #[error(transparent)]
     DepGraphError(build_results::BuildResultError),
 
     #[error(transparent)]
@@ -26,9 +29,6 @@ pub enum WorkerError {
 
     #[error(transparent)]
     ComputedTargetError(computed_target::ComputedTargetError),
-
-    #[error("Terminate")]
-    Terminate,
 
     #[error(transparent)]
     Unknown(anyhow::Error),
@@ -94,18 +94,26 @@ impl BuildWorker {
         &mut self,
         mode: ExecutionMode,
         max_concurrency: usize,
-    ) -> Result<(), anyhow::Error> {
-        self.setup(max_concurrency).await?;
-        loop {
-            // NOTE(@ostera): we don't want things to burn CPU cycles
-            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-            self.run(mode).await?;
-            if self.should_stop() {
-                break;
+    ) -> Result<(), WorkerError> {
+        let result = {
+            self.setup(max_concurrency).await?;
+            loop {
+                // NOTE(@ostera): we don't want things to burn CPU cycles
+                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                self.run(mode).await?;
+                if self.should_stop() {
+                    break;
+                }
             }
+            Ok(())
+        };
+
+        if result.is_err() {
+            self.coordinator.signal_shutdown();
         }
         self.finish();
-        Ok(())
+
+        result
     }
 
     pub fn should_stop(&self) -> bool {
@@ -124,9 +132,10 @@ impl BuildWorker {
             } else {
                 self.build_queue.queue(self.target.clone())
             }
-            .map_err(WorkerError::QueueError)?;
+            .map_err(WorkerError::QueueError)
+        } else {
+            Ok(())
         }
-        Ok(())
     }
 
     pub fn finish(&mut self) {
@@ -184,8 +193,9 @@ impl BuildWorker {
     }
 
     #[tracing::instrument(name = "BuildWorker::load_rules", skip(self))]
-    pub async fn load_rules(&mut self) -> Result<(), anyhow::Error> {
-        self.rule_exec_env.setup()?;
+    pub async fn load_rules(&mut self) -> Result<(), WorkerError> {
+        self.rule_exec_env.setup().map_err(WorkerError::RuleExecError)?;
+
         let built_in_rules = zap_ext::TOOLCHAINS
             .iter()
             .chain(zap_ext::RULES.iter())
@@ -200,7 +210,7 @@ impl BuildWorker {
             });
 
         for (name, src) in built_in_rules.chain(custom_rules) {
-            self.rule_exec_env.load(&name, Some(src)).await?
+            self.rule_exec_env.load(&name, Some(src)).await.map_err(WorkerError::RuleLoadError)?
         }
 
         Ok(())

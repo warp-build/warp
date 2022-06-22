@@ -4,7 +4,17 @@ use super::*;
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::sync::Arc;
+use thiserror::*;
 use tracing::*;
+
+#[derive(Error, Debug)]
+pub enum BuildExecutorError {
+    #[error(transparent)]
+    WorkerError(build_worker::WorkerError),
+
+    #[error(transparent)]
+    Unknown(anyhow::Error),
+}
 
 /// A BuildExecutor orchestrates a local build starting from the target and
 /// building dependencies as needed.
@@ -49,7 +59,7 @@ impl BuildExecutor {
         target: &Label,
         mode: ExecutionMode,
         event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), BuildExecutorError> {
         let build_queue = Arc::new(BuildQueue::new(
             target.clone(),
             self.results.clone(),
@@ -73,7 +83,7 @@ impl BuildExecutor {
             event_channel.clone(),
             toolchain_provides_map.clone(),
         );
-        worker.load_rules().await?;
+        worker.load_rules().await.map_err(BuildExecutorError::WorkerError)?;
 
         let main_worker_span = main_worker_span.exit();
 
@@ -100,11 +110,17 @@ impl BuildExecutor {
                         event_channel,
                         toolchain_provides_map,
                     );
-                    worker.load_rules().await?;
+
+                    worker
+                        .load_rules()
+                        .await
+                        .map_err(BuildExecutorError::WorkerError)?;
+
                     worker
                         .setup_and_run(mode, worker_limit)
                         .instrument(sub_worker_span)
                         .await
+                        .map_err(BuildExecutorError::WorkerError)
                 });
                 worker_tasks.push(thread);
             }
@@ -112,7 +128,12 @@ impl BuildExecutor {
         let _span = main_worker_span.enter();
         let (_, result) = futures::future::join(
             futures::future::join_all(worker_tasks),
-            worker.setup_and_run(mode, worker_limit),
+            async {
+                worker
+                .setup_and_run(mode, worker_limit)
+                .await
+                .map_err(BuildExecutorError::WorkerError)
+            },
         )
         .await;
 

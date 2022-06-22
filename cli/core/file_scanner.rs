@@ -68,7 +68,6 @@ impl FileScanner {
                 }
 
                 let mut read_dir = fs::read_dir(&dir).await?;
-                debug!("Scanning dir: {:?}", &dir);
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
                     if entry.path().is_dir() {
                         dirs.push(entry.path());

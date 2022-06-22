@@ -123,20 +123,30 @@ impl BuildQueue {
         rule_exec_env: &RuleExecEnv,
     ) -> Result<(), QueueError> {
         debug!("Queueing all targets...");
+        self.event_channel.send(Event::QueueingWorkspace);
         let scanner = WorkspaceScanner::from_workspace(&workspace);
         let mut buildfiles = scanner
             .find_build_files(max_concurrency)
             .await
             .map_err(QueueError::ScannerError)?;
-        while let Some(build_file) = buildfiles.next().await {
+        while let Some(path) = buildfiles.next().await {
+            let path = path.map_err(QueueError::ScannerError)?;
             let buildfile = Buildfile::from_file(
                 &workspace.paths.workspace_root,
-                &build_file.map_err(QueueError::ScannerError)?,
+                &path,
                 rule_exec_env.rule_map.clone(),
-            )
-            .map_err(QueueError::BuildfileError)?;
-            for target in buildfile.targets {
-                self.queue(target.label().clone())?;
+            );
+
+            match buildfile {
+                Err(err) =>  {
+                    self.event_channel.send(Event::BadBuildfile(path, err));
+                    continue
+                },
+                Ok(buildfile) => {
+                    for target in buildfile.targets {
+                        self.queue(target.label().clone())?;
+                    }
+                }
             }
         }
         let target_count = self.target_count.load(Ordering::Acquire);

@@ -42,6 +42,9 @@ pub mod error {
         MissingDeclaredOutputs { label: Label },
 
         #[error(transparent)]
+        DenoExecutionError(deno_core::error::AnyError),
+
+        #[error(transparent)]
         ExecutionError(anyhow::Error),
 
         #[error("Something went wrong.")]
@@ -480,10 +483,11 @@ impl RuleExecEnv {
         Ok(())
     }
 
-    pub fn setup(&mut self) -> Result<(), anyhow::Error> {
+    pub fn setup(&mut self) -> Result<(), error::RuleExecError> {
         trace!("Running prelude.js");
         self.runtime
-            .execute_script("<prelude>", include_str!("prelude.js"))?;
+            .execute_script("<prelude>", include_str!("prelude.js"))
+            .map_err(error::RuleExecError::DenoExecutionError)?;
 
         Ok(())
     }
