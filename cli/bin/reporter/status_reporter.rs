@@ -29,6 +29,7 @@ impl StatusReporter {
         let mut queued_targets: FxHashSet<Label> = FxHashSet::default();
 
         let mut errored = false;
+        let mut error_count = 0;
         let mut target_count = 0;
         let mut cache_hits = 0;
         let mut action_count = 0;
@@ -59,6 +60,14 @@ impl StatusReporter {
                 match event {
                     BuildingTarget { label, .. } => {
                         current_targets.insert(label);
+                    }
+                    QueueingWorkspace => {
+                        let line = format!(
+                            "{:>12} {}",
+                            blue_dim.apply_to("Prepare"),
+                            "Queueing entire workspace...",
+                        );
+                        pb.println(line);
                     }
                     QueuedTarget(label) => {
                         /*
@@ -120,8 +129,25 @@ impl StatusReporter {
                         pb.inc(1);
                         target_count += 1;
                     }
+                    BadBuildfile(path, err) => {
+                        errored = true;
+                        error_count += 1;
+                        let line =
+                            format!("{:>12} {} {}", red_bold.apply_to("ERROR"), "error when reading ", path.to_str().unwrap());
+                        pb.println(line);
+                        pb.println(format!("{}", err));
+                    }
+                    WorkerError(err) => {
+                        errored = true;
+                        error_count += 1;
+                        let line =
+                            format!("{:>12} {}", red_bold.apply_to("ERROR"), "something went wrong with a worker");
+                        pb.println(line);
+                        pb.println(format!("{}", err));
+                    }
                     BuildError(label, err) => {
                         errored = true;
+                        error_count += 1;
                         let line =
                             format!("{:>12} {}", red_bold.apply_to("ERROR"), label.to_string(),);
                         pb.println(line);
@@ -132,7 +158,7 @@ impl StatusReporter {
                     },
                     BuildCompleted => {
                         let line = format!(
-                            "{:>12} {} in {}ms ({} targets, {} cached)",
+                            "{:>12} {} in {}ms ({} targets, {} cached, {} errors)",
                             if errored {
                                 red_bold.apply_to("Finished with errors")
                             } else {
@@ -142,6 +168,7 @@ impl StatusReporter {
                             build_started.elapsed().as_millis(),
                             target_count,
                             cache_hits,
+                            error_count,
                         );
                         pb.println(line);
                         return;

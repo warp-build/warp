@@ -160,7 +160,7 @@ impl Goal {
     }
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     Zap::from_args().run().await.map(|_| ())?;
     shutdown_tracer_provider();
