@@ -8,7 +8,7 @@ pub enum Event {
     ArchiveUnpacking(Label),
     ArchiveVerifying(Label),
     BadBuildfile(PathBuf, anyhow::Error),
-    BuildCompleted,
+    BuildCompleted(std::time::Instant),
     BuildError(Label, WorkerError),
     BuildStarted(std::time::Instant),
     BuildingTarget { label: Label, rule_mnemonic: String },

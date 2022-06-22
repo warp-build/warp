@@ -140,7 +140,7 @@ impl BuildWorker {
 
     pub fn finish(&mut self) {
         if self.role == Role::MainWorker {
-            self.event_channel.send(Event::BuildCompleted)
+            self.event_channel.send(Event::BuildCompleted(std::time::Instant::now()))
         }
     }
 

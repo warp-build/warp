@@ -156,7 +156,7 @@ impl StatusReporter {
                     BuildStarted(t0) => {
                         build_started = t0;
                     },
-                    BuildCompleted => {
+                    BuildCompleted(t1) => {
                         let line = format!(
                             "{:>12} {} in {}ms ({} targets, {} cached, {} errors)",
                             if errored {
@@ -165,7 +165,7 @@ impl StatusReporter {
                                 green_bold.apply_to("Finished")
                             },
                             target.to_string(),
-                            build_started.elapsed().as_millis(),
+                            t1.saturating_duration_since(build_started).as_millis(),
                             target_count,
                             cache_hits,
                             error_count,
