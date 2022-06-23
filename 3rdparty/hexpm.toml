@@ -5,6 +5,7 @@ bunt = { version = "~> 0.2" }
 certifi = { version = "~>2.9.0" }
 cowboy = { version = "~> 2.7" }
 cowboy_telemetry = { version = "~> 0.3" }
+cowlib = { options = [{ github = "ninenines/cowlib" }] }
 decimal = { version = "~> 1.6 or ~> 2.0" }
 deep_merge = { version = "~> 1.0" }
 earmark_parser = { version = "~> 1.4.25" }
@@ -12,6 +13,10 @@ erlex = { version = ">= 0.2.6" }
 ex_aws = { version = "~> 2.0" }
 fs = { version = "~> 6.9" }
 hackney = { version = "~> 1.16" }
+hoedown = { options = [
+  { github = "hoedown/hoedown" },
+  { app = false }
+] }
 hpack = { version = "3.0.1" }
 ibrowse = { version = "== 4.4.0" }
 idna = { version = "~>6.1.0" }
@@ -28,17 +33,14 @@ parse_trans = { version = "3.3.1" }
 plug = { version = "1.13.6" }
 plug_cowboy = { version = "2.5.2" }
 plug_crypto = { version = "~> 1.1.1 or ~> 1.2" }
-poison = { version = ">= 2.0.0" }
+poison = { version = ">= 2.0.0" , overrides = {extra_srcs = ["VERSION"]}}
+ranch = { options = [{ github = "ninenines/ranch" }] }
 ssl_verify_fun = { version = "~>1.1.0" }
 statistex = { version = "~> 1.0" }
 telemetry = { version = "~> 0.4 or ~> 1.0" }
 tesla = { version = "1.4.4" }
 unicode_util_compat = { version = "~>0.7.0" }
 uuid = { version = "1.1.8" }
-
-[dependencies.cowlib]
-github = "ninenines/cowlib"
-options = [{ github = "ninenines/cowlib" }]
 
 [dependencies.ex_aws_s3]
 overrides = { extra_srcs = ["README.md"] }
@@ -47,13 +49,6 @@ version = "2.3.2"
 [dependencies.file_system]
 overrides = { extra_srcs = ["README.md"] }
 version = "0.2.10"
-
-[dependencies.hoedown]
-github = "hoedown/hoedown"
-options = [
-  { github = "hoedown/hoedown" },
-  { app = false }
-]
 
 [dependencies.hpax]
 overrides = { extra_srcs = ["lib/hpax/huffman_table"] }
@@ -81,10 +76,6 @@ version = "1.1.0"
 [dependencies.nimble_parsec]
 overrides = { extra_srcs = ["README.md"] }
 version = "1.2.3"
-
-[dependencies.ranch]
-github = "ninenines/ranch"
-options = [{ github = "ninenines/ranch" }]
 
 [dependencies.unicode]
 overrides = { extra_srcs = ["data/*.txt"] }
