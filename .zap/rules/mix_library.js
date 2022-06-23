@@ -3,7 +3,8 @@ import ElixirToolchain from "../toolchains/elixir.js";
 import ErlangToolchain, { BEAM_EXT } from "../toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { label, name, deps, srcs, skip_deps, deps_args, compile_args } = ctx.cfg();
+  const { label, name, deps, srcs, skip_deps, deps_args, compile_args } =
+    ctx.cfg();
   const cwd = Label.path(label);
 
   const appTarball = `${name}.app.tar`;
@@ -13,22 +14,27 @@ const impl = (ctx) => {
   const { MIX } = ElixirToolchain.provides();
 
   const depsGet =
-    skip_deps === "true" ? "" : `${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")}`
+    skip_deps === "true"
+      ? ""
+      : `${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")}`;
 
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
 export MIX_ENV=prod
 
-${
-  ctx.transitiveDeps().flatMap(dep => dep.outs.flatMap(out => {
+${ctx
+  .transitiveDeps()
+  .flatMap((dep) =>
+    dep.outs.flatMap((out) => {
       if (out.endsWith(TAR_EXT)) {
         return [`tar xf ${Label.path(dep.label)}/${File.filename(out)}`];
       } else {
-        return []
+        return [];
       }
-  })).join("\n")
-}
+    })
+  )
+  .join("\n")}
 
 # NOTE: since all mix libraries build tar artefacts that extract to a _build
 # and a deps folder, we can move that into the current library workspace

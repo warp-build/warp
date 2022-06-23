@@ -1,24 +1,25 @@
-import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
+import ErlangToolchain, { BEAM_EXT } from "../toolchains/erlang.js";
+import Rebar3Toolchain from "../toolchains/rebar3.js";
 
-const impl = ctx => {
-  const { label, name, deps, srcs, } = ctx.cfg();
-  const cwd = Label.path(label)
+const impl = (ctx) => {
+  const { label, name, deps, srcs } = ctx.cfg();
+  const cwd = Label.path(label);
 
-  const appTarball = `${name}.app.tar`
-  const outputs = [ `${cwd}/${appTarball}` ]
+  const appTarball = `${name}.app.tar`;
+  const outputs = [`${cwd}/${appTarball}`];
   ctx.action().declareOutputs(outputs);
 
-  const { REBAR } = ErlangToolchain.provides()
+  const { REBAR3 } = Rebar3Toolchain.provides();
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
 cd ${cwd}
 rm -rf _build
-${REBAR} compile \
+${REBAR3} compile \
 && tar cf ${appTarball} _build/default/lib/${name}
 
 `,
-  })
+  });
 };
 
 export default Zap.Rule({
@@ -29,7 +30,7 @@ export default Zap.Rule({
     name: label(),
     srcs: [file()],
   },
-	defaults: {
+  defaults: {
     srcs: [
       "c_src/**/*",
       "src/**/*.app.src",
@@ -39,7 +40,6 @@ export default Zap.Rule({
       "rebar.config",
       "priv/**/*",
     ],
-	},
-  toolchains: [ErlangToolchain]
+  },
+  toolchains: [ErlangToolchain, Rebar3Toolchain],
 });
-
