@@ -5,10 +5,12 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
-    Exec(ExecAction),
     Copy(CopyAction),
-    WriteFile(WriteFileAction),
+    Download(DownloadAction),
+    SetPermissions(SetPermissionsAction),
+    Exec(ExecAction),
     RunShell(RunShellAction),
+    WriteFile(WriteFileAction),
 }
 
 impl Action {
@@ -26,6 +28,14 @@ impl Action {
 
     pub fn copy(src: PathBuf, dst: PathBuf) -> Action {
         Action::Copy(CopyAction { src, dst })
+    }
+
+    pub fn download(url: String, sha1: String, output: PathBuf) -> Action {
+        Action::Download(DownloadAction { url, sha1, output })
+    }
+
+    pub fn set_permissions(file: PathBuf, executable: bool) -> Action {
+        Action::SetPermissions(SetPermissionsAction { file, executable })
     }
 
     pub fn exec(
@@ -46,10 +56,12 @@ impl Action {
 
     pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         match self {
-            Action::Exec(e) => e.run(&sandbox_root).await,
-            Action::Copy(e) => e.run(&sandbox_root).await,
-            Action::WriteFile(e) => e.run(&sandbox_root).await,
-            Action::RunShell(e) => e.run(&sandbox_root).await,
+            Action::Exec(a) => a.run(sandbox_root).await,
+            Action::Copy(a) => a.run(sandbox_root).await,
+            Action::Download(a) => a.run(sandbox_root).await,
+            Action::WriteFile(a) => a.run(sandbox_root).await,
+            Action::RunShell(a) => a.run(sandbox_root).await,
+            Action::SetPermissions(a) => a.run(sandbox_root).await,
         }
     }
 }

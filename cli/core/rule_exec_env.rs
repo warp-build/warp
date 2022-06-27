@@ -215,6 +215,67 @@ pub fn op_ctx_fetch_provides(
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+pub struct SetPermissions {
+    label: String,
+    file: PathBuf,
+    executable: bool,
+}
+
+#[op]
+pub fn op_ctx_set_permissions(state: &mut OpState, args: SetPermissions) -> Result<(), AnyError> {
+    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let action_map = &inner_state.action_map;
+
+    let label = Label::new(&args.label);
+    let action = Action::set_permissions(args.file, args.executable);
+    let new_actions = if let Some(entry) = action_map.get(&label) {
+        let last_actions = entry.value();
+        let mut new_actions = vec![];
+        new_actions.extend(last_actions.to_vec());
+        new_actions.push(action);
+        new_actions
+    } else {
+        vec![action]
+    };
+
+    action_map.insert(label, new_actions);
+
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Download {
+    label: String,
+    url: String,
+    sha1: String,
+    output: PathBuf,
+}
+
+#[op]
+pub fn op_ctx_download(state: &mut OpState, args: Download) -> Result<(), AnyError> {
+    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let action_map = &inner_state.action_map;
+
+    let label = Label::new(&args.label);
+    let action = Action::download(args.url, args.sha1, args.output);
+    let new_actions = if let Some(entry) = action_map.get(&label) {
+        let last_actions = entry.value();
+        let mut new_actions = vec![];
+        new_actions.extend(last_actions.to_vec());
+        new_actions.push(action);
+        new_actions
+    } else {
+        vec![action]
+    };
+
+    action_map.insert(label, new_actions);
+
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct RunShell {
     label: String,
     script: String,
@@ -420,7 +481,9 @@ impl RuleExecEnv {
                     op_ctx_actions_run_shell::decl(),
                     op_ctx_actions_write_file::decl(),
                     op_ctx_declare_provides::decl(),
+                    op_ctx_download::decl(),
                     op_ctx_fetch_provides::decl(),
+                    op_ctx_set_permissions::decl(),
                     op_file_filename::decl(),
                     op_file_parent::decl(),
                     op_file_with_extension::decl(),

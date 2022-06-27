@@ -27,6 +27,7 @@ futures = "0.3"
 fxhash = "0.2"
 glob = "0.3"
 guess_host_triple = "0.1"
+hyper = "0.14"
 log = "0.4"
 num_cpus = "1"
 opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
