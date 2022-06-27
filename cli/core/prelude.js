@@ -69,7 +69,8 @@ Zap.Targets.compute = target => {
     deps: () => target.deps,
     transitiveDeps: () => target.transitiveDeps,
 
-    platform: {
+    env: {
+      host_triple: target.platform,
       os: target.platform.endsWith("darwin") ? "darwin" :
           target.platform.endsWith("linux-gnu") ? "linux" :
           target.platform.endsWith("win32") ? "win32" : "unknown",
@@ -78,11 +79,14 @@ Zap.Targets.compute = target => {
     provides: provides => ffi("op_ctx_declare_provides", {label, provides}),
 
     action: () => ({
-      runShell: ({script, env = {}, needsTty = false}) => ffi("op_ctx_actions_run_shell", {label, script, env, needsTty}),
+      copy: ({src, dst}) => ffi("op_ctx_actions_copy", {label, src, dst}),
       declareOutputs: outs => ffi("op_ctx_actions_declare_outputs", {label, outs}),
       declareRunScript: runScript => ffi("op_ctx_actions_declare_run_script", {label, runScript}),
+      download: ({url, sha1, out}) => ffi("op_ctx_download", {label, url, sha1, out}),
       exec: ({env = {}, cmd, args, cwd, needsTty = false}) => ffi("op_ctx_actions_exec", {label, cmd, args, cwd, env, needsTty}),
-      copy: ({src, dst}) => ffi("op_ctx_actions_copy", {label, src, dst}),
+      extract: ({src, dst}) => ffi("op_ctx_extract", {label, src, dst}),
+      runShell: ({script, env = {}, needsTty = false}) => ffi("op_ctx_actions_run_shell", {label, script, env, needsTty}),
+      setPermissions: ({file, executable}) => ffi("op_ctx_set_permissions", {label, file, executable}),
       writeFile: ({data, dst}) => ffi("op_ctx_actions_write_file", {label, data, dst}),
     }),
   };
