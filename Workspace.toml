@@ -9,21 +9,9 @@ ignore_patterns = [
   "node_modules",
 ]
 
-[toolchains.rescript]
-version = "9.1.4"
-sha1 = "d5279f085d19a2234d2024080ad90bf69a09ab66"
-
-[toolchains.deno]
-version = "v1.22.2"
-sha1 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e"
-
-[toolchains.rebar3]
-sha1 = "4195c8db32f33ab43da6b72b023452b2b7b83a26"
-
-[toolchains.erlang]
-version = "25.0"
-sha1 = "682add536cdb95f75866108affa80b880914007c"
-
-[toolchains.elixir]
-version = "v1.13.4"
-sha1 = "d0269a1bd2e5256a1842b5b201649e9a39227bb2"
+[toolchains]
+deno = { version = "1.22.2", sha1 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e" }
+elixir = { version = "1.13.4", sha1 = "325fbdde4f0a5701bb8b9d455175b85ff41470d7" }
+erlang = { version = "25.0", sha1 = "682add536cdb95f75866108affa80b880914007c" }
+rebar3 = { sha1 = "143d3473dae6ea8250452f7a29db73974be51b24" }
+rescript = { version = "9.1.4", sha1 = "d5279f085d19a2234d2024080ad90bf69a09ab66" }
