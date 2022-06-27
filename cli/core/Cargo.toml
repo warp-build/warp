@@ -27,7 +27,8 @@ futures = "0.3"
 fxhash = "0.2"
 glob = "0.3"
 guess_host_triple = "0.1"
-hyper = "0.14"
+hyper = { version = "0.14", features = ["full"] }
+hyper-tls = "0.5"
 log = "0.4"
 num_cpus = "1"
 opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
@@ -51,6 +52,7 @@ tracing = { version = "0.1", features = ["log"] }
 tracing-opentelemetry = "0.17"
 tracing-subscriber = "0.3"
 url = "2"
+uu_chmod = "0"
 v8 = "0.42"
 whoami = "1.2"
 
