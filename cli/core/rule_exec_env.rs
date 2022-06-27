@@ -489,12 +489,12 @@ impl RuleExecEnv {
             }
         })?;
         let _ = eval_future.await.unwrap();
-        self.runtime.get_module_namespace(mod_id).map_err(|reason| {
-            error::LoadError::ModuleEvaluationError {
+        self.runtime
+            .get_module_namespace(mod_id)
+            .map_err(|reason| error::LoadError::ModuleEvaluationError {
                 module_name: module_name.to_string(),
                 reason: reason,
-            }
-        })?;
+            })?;
         trace!("done with {:?}", &module_name);
         Ok(())
     }

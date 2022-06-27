@@ -83,7 +83,10 @@ impl BuildExecutor {
             event_channel.clone(),
             toolchain_provides_map.clone(),
         );
-        worker.load_rules().await.map_err(BuildExecutorError::WorkerError)?;
+        worker
+            .load_rules()
+            .await
+            .map_err(BuildExecutorError::WorkerError)?;
 
         let main_worker_span = main_worker_span.exit();
 
@@ -126,15 +129,12 @@ impl BuildExecutor {
             }
         }
         let _span = main_worker_span.enter();
-        let (_, result) = futures::future::join(
-            futures::future::join_all(worker_tasks),
-            async {
-                worker
+        let (_, result) = futures::future::join(futures::future::join_all(worker_tasks), async {
+            worker
                 .setup_and_run(mode, worker_limit)
                 .await
                 .map_err(BuildExecutorError::WorkerError)
-            },
-        )
+        })
         .await;
 
         result

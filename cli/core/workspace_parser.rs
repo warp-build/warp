@@ -28,14 +28,16 @@ impl WorkspaceParser {
             ignore_patterns.push(pat.to_string());
         }
 
-        let toolchain_configs =
-            if let Some(toolchains) = toml.get("toolchains") {
+        let toolchain_configs = if let Some(toolchains) = toml.get("toolchains") {
             rule_config::toml_codecs::parse_rules(toolchains)?
         } else {
             vec![]
         };
 
-        debug!("Found {} toolchains configurations.", toolchain_configs.len());
+        debug!(
+            "Found {} toolchains configurations.",
+            toolchain_configs.len()
+        );
 
         Ok(Workspace {
             name,

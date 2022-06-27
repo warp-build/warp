@@ -133,24 +133,35 @@ impl StatusReporter {
                     ErrorLoadingRule(name, err) => {
                         errored = true;
                         error_count += 1;
-                        let line =
-                            format!("{:>12} {} {}", red_bold.apply_to("ERROR"), "error when loading ", name);
+                        let line = format!(
+                            "{:>12} {} {}",
+                            red_bold.apply_to("ERROR"),
+                            "error when loading ",
+                            name
+                        );
                         pb.println(line);
                         pb.println(format!("{}", err));
                     }
                     BadBuildfile(path, err) => {
                         errored = true;
                         error_count += 1;
-                        let line =
-                            format!("{:>12} {} {}", red_bold.apply_to("ERROR"), "error when reading ", path.to_str().unwrap());
+                        let line = format!(
+                            "{:>12} {} {}",
+                            red_bold.apply_to("ERROR"),
+                            "error when reading ",
+                            path.to_str().unwrap()
+                        );
                         pb.println(line);
                         pb.println(format!("{}", err));
                     }
                     WorkerError(err) => {
                         errored = true;
                         error_count += 1;
-                        let line =
-                            format!("{:>12} {}", red_bold.apply_to("ERROR"), "something went wrong with a worker");
+                        let line = format!(
+                            "{:>12} {}",
+                            red_bold.apply_to("ERROR"),
+                            "something went wrong with a worker"
+                        );
                         pb.println(line);
                         pb.println(format!("{}", err));
                     }
@@ -164,7 +175,7 @@ impl StatusReporter {
                     }
                     BuildStarted(t0) => {
                         build_started = t0;
-                    },
+                    }
                     BuildCompleted(t1) => {
                         let line = format!(
                             "{:>12} {} in {}ms ({} targets, {} cached, {} errors)",

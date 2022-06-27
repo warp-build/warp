@@ -38,10 +38,10 @@ impl Target {
         deps.extend_from_slice(rule.toolchains());
 
         let kind = if rule.runnable {
-                TargetKind::Runnable
-            } else {
-                TargetKind::Buildable
-            };
+            TargetKind::Runnable
+        } else {
+            TargetKind::Buildable
+        };
 
         Target {
             deps,

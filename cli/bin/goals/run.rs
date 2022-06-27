@@ -33,7 +33,7 @@ build their dependencies and exit.
     max_workers: Option<usize>,
 
     #[structopt(name = "ARGUMENTS")]
-    args: Vec<String>
+    args: Vec<String>,
 }
 
 impl RunGoal {

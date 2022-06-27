@@ -79,8 +79,7 @@ impl BuildQueue {
         //
         // When the queue empties up, this will return a None, but otherwise
         // we'll go through a bunch of duplicates, discarding them.
-        if self.build_results.is_target_built(&label) || self.busy_targets.contains_key(&label)
-        {
+        if self.build_results.is_target_built(&label) || self.busy_targets.contains_key(&label) {
             return self.next();
         }
         // But if it is yet to be built, we mark it as busy
@@ -138,10 +137,10 @@ impl BuildQueue {
             );
 
             match buildfile {
-                Err(err) =>  {
+                Err(err) => {
                     self.event_channel.send(Event::BadBuildfile(path, err));
-                    continue
-                },
+                    continue;
+                }
                 Ok(buildfile) => {
                     for target in buildfile.targets {
                         self.queue(target.label().clone())?;

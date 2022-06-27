@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use serde::*;
+use std::path::PathBuf;
 
 static COLON: char = ':';
 static DOT: &str = ".";

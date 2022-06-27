@@ -3,9 +3,7 @@ use std::path::PathBuf;
 
 pub const WORKSPACE: &str = "Workspace.toml";
 
-pub const DEFAULT_IGNORE: [&str; 1] = [
-    "zap-outputs"
-];
+pub const DEFAULT_IGNORE: [&str; 1] = ["zap-outputs"];
 
 /// A Workspace in Zap is a struct with all the information needed to interact
 /// with your workspace.

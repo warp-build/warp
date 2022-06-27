@@ -85,19 +85,21 @@ impl<'de> Deserialize<'de> for Rule {
     {
         let json: serde_json::Value = serde::Deserialize::deserialize(de)?;
 
-        let rule_spec = json.as_object().ok_or(de::Error::custom(format!(
-            "Expeced RuleSpec to be an Object, instead found: {:?}",
-            json
-        )))?;
+        let rule_spec = json.as_object().ok_or_else(|| {
+            de::Error::custom(format!(
+                "Expeced RuleSpec to be an Object, instead found: {:?}",
+                json
+            ))
+        })?;
 
         let name = rule_spec["name"].as_str().unwrap().to_string();
 
-        let json_cfg = &rule_spec["cfg"]
-            .as_object()
-            .ok_or(de::Error::custom(format!(
+        let json_cfg = &rule_spec["cfg"].as_object().ok_or_else(|| {
+            de::Error::custom(format!(
                 "Expected RuleSpec 'cfg' key to be an Object, instead found: {:?}",
                 &rule_spec["cfg"]
-            )))?;
+            ))
+        })?;
 
         let mut cfg = FxHashMap::default();
         for (k, t) in json_cfg.iter() {
@@ -118,15 +120,12 @@ impl<'de> Deserialize<'de> for Rule {
         let default_cfg = DashMap::new();
         for (k, v) in rule_spec["defaults"]
             .as_object()
-            .ok_or(de::Error::custom(
-                "Expected 'defaults' to be an Object".to_string(),
-            ))?
+            .ok_or_else(|| de::Error::custom("Expected 'defaults' to be an Object".to_string()))?
             .iter()
         {
-            let t = config.get(k).ok_or(de::Error::custom(format!(
-                "Could not find type for key {:?}",
-                k
-            )))?;
+            let t = config
+                .get(k)
+                .ok_or_else(|| de::Error::custom(format!("Could not find type for key {:?}", k)))?;
             let typed_value = (v.clone(), t.clone()).into();
             default_cfg.insert(k.to_string(), typed_value);
         }
@@ -134,10 +133,12 @@ impl<'de> Deserialize<'de> for Rule {
 
         let toolchains: Vec<Label> = (&rule_spec["toolchains"])
             .as_array()
-            .ok_or(de::Error::custom(format!(
-                "Expected RuleSpec 'toolchains' key to be an Array, instead found: {:?}",
-                &rule_spec["toolchains"]
-            )))?
+            .ok_or_else(|| {
+                de::Error::custom(format!(
+                    "Expected RuleSpec 'toolchains' key to be an Array, instead found: {:?}",
+                    &rule_spec["toolchains"]
+                ))
+            })?
             .iter()
             .map(|t| {
                 let string = t.as_str().unwrap();
@@ -148,7 +149,7 @@ impl<'de> Deserialize<'de> for Rule {
         let runnable = rule_spec["runnable"].as_bool().unwrap_or(false);
 
         let rule = Rule::new(
-            name, 
+            name,
             rule_spec["mnemonic"].as_str().unwrap().to_string(),
             toolchains,
             config,

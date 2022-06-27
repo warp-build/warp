@@ -12,8 +12,8 @@ use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
-use zap_core::*;
 use zap_core::Event;
+use zap_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(

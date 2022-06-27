@@ -52,7 +52,7 @@ impl RuleConfig {
     }
 
     pub fn with_defaults(self, config: DashMap<String, CfgValue>) -> RuleConfig {
-        RuleConfig { config, .. self }
+        RuleConfig { config, ..self }
     }
 
     pub fn as_map(&self) -> &DashMap<String, CfgValue> {
@@ -210,8 +210,8 @@ pub mod json_codecs {
 
 pub mod toml_codecs {
     use super::*;
-    use toml;
     use thiserror::*;
+    use toml;
 
     #[derive(Error, Debug)]
     pub enum ParseError {
@@ -224,9 +224,7 @@ pub mod toml_codecs {
 
         fn try_from(value: toml::Value) -> Result<CfgValue, anyhow::Error> {
             match value {
-                toml::Value::String(s) => {
-                    Ok(CfgValue::String(s.to_string()))
-                }
+                toml::Value::String(s) => Ok(CfgValue::String(s.to_string())),
                 toml::Value::Array(arr) => {
                     let mut elements = vec![];
                     for e in arr {
