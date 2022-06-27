@@ -1,28 +1,11 @@
-use super::{Archive, Label, Rule, RuleConfig};
+use super::*;
 
 /// A Target in the Zap dependency graph is a labeled instantiation of a rule plus a configuration
 /// object.
 ///
-/// Global targets normally have an Archive as well, such as for Toolchains that need to be
-/// downloaded and compiled.
-///
 #[derive(Debug, Clone)]
-pub enum Target {
-    /// Local targets are created via build files in a workspace.
-    ///
-    /// These are not shared with any workspace.
-    ///
-    Local(LocalTarget),
-
-    /// Global targets are created via toolchains and archives and are built once
-    /// and cached across workspaces.
-    ///
-    Global(GlobalTarget),
-}
-
-#[derive(Debug, Clone)]
-pub struct LocalTarget {
-    /// The name of this local target.
+pub struct Target {
+    /// The name of this target.
     label: Label,
 
     /// The dependencies of this target.
@@ -34,23 +17,8 @@ pub struct LocalTarget {
     /// The target's configuration. To be type-checked against the rule.
     cfg: RuleConfig,
 
-    /// Whether this is a runnable or a buildable target
+    /// Whether this is a runnable or not
     kind: TargetKind,
-}
-
-#[derive(Debug, Clone)]
-pub struct GlobalTarget {
-    /// The name of this global target.
-    label: Label,
-
-    /// The rule used to build this target.
-    rule: Rule,
-
-    /// The target's configuration. To be type-checked against the rule.
-    cfg: RuleConfig,
-
-    /// Toolchain targets will have an archive that we need to download
-    archive: Archive,
 }
 
 #[derive(Debug, Copy, PartialEq, Eq, Clone)]
@@ -60,16 +28,7 @@ pub enum TargetKind {
 }
 
 impl Target {
-    pub fn global(label: Label, rule: &Rule, cfg: RuleConfig, archive: Archive) -> Target {
-        Target::Global(GlobalTarget {
-            cfg,
-            label,
-            archive,
-            rule: rule.clone(),
-        })
-    }
-
-    pub fn local(label: Label, rule: &Rule, cfg: RuleConfig) -> Target {
+    pub fn new(label: Label, rule: &Rule, cfg: RuleConfig) -> Target {
         let mut deps: Vec<Label> = cfg
             .get_label_list("deps")
             .unwrap_or_default()
@@ -78,73 +37,39 @@ impl Target {
             .collect();
         deps.extend_from_slice(rule.toolchains());
 
-        Target::Local(LocalTarget {
+        let kind = if rule.runnable {
+                TargetKind::Runnable
+            } else {
+                TargetKind::Buildable
+            };
+
+        Target {
             deps,
             cfg,
             label,
             rule: rule.clone(),
-            kind: if rule.runnable {
-                TargetKind::Runnable
-            } else {
-                TargetKind::Buildable
-            },
-        })
-    }
-
-    pub fn kind(&self) -> TargetKind {
-        match self {
-            Target::Local(LocalTarget { kind, .. }) => kind.clone(),
-            _ => TargetKind::Buildable,
+            kind,
         }
     }
 
-    pub fn is_local(&self) -> bool {
-        match self {
-            Target::Local(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_global(&self) -> bool {
-        match self {
-            Target::Global(_) => true,
-            _ => false,
-        }
+    pub fn kind(&self) -> &TargetKind {
+        &self.kind
     }
 
     pub fn config(&self) -> &RuleConfig {
-        match self {
-            Target::Global(t) => &t.cfg,
-            Target::Local(t) => &t.cfg,
-        }
+        &self.cfg
     }
 
     pub fn rule(&self) -> &Rule {
-        match self {
-            Target::Global(t) => &t.rule,
-            Target::Local(t) => &t.rule,
-        }
+        &self.rule
     }
 
     pub fn label(&self) -> &Label {
-        match self {
-            Target::Global(t) => &t.label,
-            Target::Local(t) => &t.label,
-        }
+        &self.label
     }
 
-    pub fn deps(&self) -> Vec<Label> {
-        match self {
-            Target::Global(_) => vec![],
-            Target::Local(t) => t.deps.clone(),
-        }
-    }
-
-    pub fn archive(&self) -> Option<&Archive> {
-        match self {
-            Target::Global(t) => Some(&t.archive),
-            Target::Local(_) => None,
-        }
+    pub fn deps(&self) -> &[Label] {
+        &self.deps
     }
 }
 
@@ -176,7 +101,7 @@ mod tests {
             false,
         );
         let cfg = RuleConfig::default();
-        let target = Target::local(label, &rule, cfg);
+        let target = Target::new(label, &rule, cfg);
         assert_eq!("TestRule(name = \":test_target\")", format!("{}", target));
     }
 
@@ -192,7 +117,7 @@ mod tests {
             false,
         );
         let cfg = RuleConfig::default();
-        let target = Target::local(label, &rule, cfg);
+        let target = Target::new(label, &rule, cfg);
         assert_eq!(1, target.deps().len());
         assert_eq!(Label::new("dep"), target.deps()[0]);
     }

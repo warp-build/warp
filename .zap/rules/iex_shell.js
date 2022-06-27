@@ -1,9 +1,8 @@
-import {TAR_EXT} from "../rules/archive.js";
 import ElixirToolchain from "../toolchains/elixir.js";
 import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
 
 const impl = ctx => {
-  const { label, name, srcs, deps, dot_iex, elixirc_opts} = ctx.cfg();
+  const { label, name, srcs, deps, args, dot_iex, elixirc_opts} = ctx.cfg();
 
   const { IEX } = ElixirToolchain.provides()
 
@@ -20,7 +19,7 @@ const impl = ctx => {
     .flatMap(path => ["-pa", `zap-outputs/${path}`])
     .join(" ")
 
-  const run = `${Label.path(label)}/run_shell`
+  const run = `${Label.path(label)}/${name}.run_shell`
 
   ctx.action().declareOutputs([run, dot_iex])
   ctx.action().declareRunScript(run)
@@ -39,6 +38,7 @@ ${
 }
 
 ${IEX} \
+  ${args.join(" ")} \
   --dot-iex $(dirname "\${BASH_SOURCE[0]}")/${File.filename(dot_iex)} \
   ${extraPaths} -- $*
   
@@ -61,10 +61,12 @@ export default Zap.Rule({
   impl,
   cfg: {
     name: label(),
+    args: [string()],
     dot_iex: file(),
     deps: [label()],
   },
 	defaults: {
+    args: [],
     dot_iex: "",
 		deps: [],
 	},

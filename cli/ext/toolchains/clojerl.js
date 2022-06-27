@@ -9,4 +9,8 @@ export default Zap.Toolchain({
   name: "clojerl",
   mnemonic: "ClojErl",
   impl,
+  cfg: {
+    version: string(),
+    sha1: string(),
+  },
 });

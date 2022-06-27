@@ -29,6 +29,7 @@ impl InfoGoal {
         workspace: Workspace,
         _event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
+        /*
         let target: Label = self.target.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
         debug!("Target: {}", &target.to_string());
@@ -89,6 +90,7 @@ impl InfoGoal {
                 */
             }
         }
+    */
 
         Ok(())
     }

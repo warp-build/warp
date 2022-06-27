@@ -1,7 +1,6 @@
 use regex::Regex;
 use std::path::PathBuf;
 use tokio::fs;
-use tracing::*;
 
 #[derive(Debug, Clone)]
 pub struct FileScanner {

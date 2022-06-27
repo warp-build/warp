@@ -28,14 +28,14 @@ impl WorkspaceParser {
             ignore_patterns.push(pat.to_string());
         }
 
-        let toolchain_archives = if let Some(toolchains) = toml.get("toolchains") {
-            let table = toolchains.as_table().context(format!("Expected the [toolchains] section in your Workspace.toml to be a TOML table, but instead found a {}", toolchains.type_str()))?;
-            WorkspaceParser::parse_archives(table)?
+        let toolchain_configs =
+            if let Some(toolchains) = toml.get("toolchains") {
+            rule_config::toml_codecs::parse_rules(toolchains)?
         } else {
             vec![]
         };
 
-        debug!("Found {} Toolchains:", toolchain_archives.len());
+        debug!("Found {} toolchains configurations.", toolchain_configs.len());
 
         Ok(Workspace {
             name,
@@ -43,7 +43,7 @@ impl WorkspaceParser {
             build_files: vec![],
             local_rules: vec![],
             local_toolchains: vec![],
-            toolchain_archives,
+            toolchain_configs,
             ignore_patterns,
         })
     }
@@ -71,49 +71,6 @@ impl WorkspaceParser {
                 ignore_patterns.type_str()
             ))
         }
-    }
-
-    pub fn parse_archives(archives: &toml::value::Table) -> Result<Vec<Archive>, anyhow::Error> {
-        let mut t = vec![];
-        for (name, config) in archives {
-            t.push(WorkspaceParser::parse_archive(name.to_string(), config)?);
-        }
-        Ok(t)
-    }
-
-    pub fn parse_archive(name: String, cfg: &toml::Value) -> Result<Archive, anyhow::Error> {
-        let archive = Archive::new().with_name(name);
-        let archive = cfg
-            .get("archive_url")
-            .and_then(|x| x.as_str())
-            .map(|url| archive.clone().with_url(url.to_string()).mark_as_source())
-            .unwrap_or(archive);
-        let archive = cfg
-            .get("release_url")
-            .and_then(|x| x.as_str())
-            .map(|url| archive.clone().with_url(url.to_string()).mark_as_release())
-            .unwrap_or(archive);
-        let archive = cfg
-            .get("release_name")
-            .and_then(|x| x.as_str())
-            .map(|name| {
-                archive
-                    .clone()
-                    .with_name(name.to_string())
-                    .mark_as_release()
-            })
-            .unwrap_or(archive);
-        let archive = cfg
-            .get("strip_prefix")
-            .and_then(|x| x.as_str())
-            .map(|prefix| archive.clone().with_prefix(prefix.to_string()))
-            .unwrap_or(archive);
-        let archive = cfg
-            .get("checksum")
-            .and_then(|x| x.as_str())
-            .map(|sha1| archive.clone().with_sha1(sha1.to_string()))
-            .unwrap_or(archive);
-        Ok(archive)
     }
 }
 

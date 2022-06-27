@@ -15,4 +15,8 @@ export default Zap.Toolchain({
   name: "//zap.build/toolchains:elixir",
   mnemonic: "Elixir/OTP",
   impl,
+  cfg: {
+    version: string(),
+    sha1: string(),
+  },
 });

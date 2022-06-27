@@ -10,4 +10,8 @@ export default Zap.Toolchain({
   name: "caramel",
   mnemonic: "Caramel",
   impl,
+  cfg: {
+    version: string(),
+    sha1: string(),
+  },
 });

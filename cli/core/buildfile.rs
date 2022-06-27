@@ -106,7 +106,7 @@ impl Buildfile {
                     values
                 };
 
-                let target = Target::local(label, &rule, rule_config);
+                let target = Target::new(label, &rule, rule_config);
                 targets.push(target);
             }
         }

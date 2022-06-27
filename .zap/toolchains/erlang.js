@@ -31,4 +31,8 @@ export default Zap.Toolchain({
   name: "//zap.build/toolchains:erlang",
   mnemonic: "Erlang/OTP",
   impl,
+  cfg: {
+    version: string(),
+    sha1: string(),
+  }
 });

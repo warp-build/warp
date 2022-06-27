@@ -21,6 +21,10 @@ export default Zap.Toolchain({
   name: "//zap.build/toolchains:rescript",
   mnemonic: "ReScript",
   impl,
+  cfg: {
+    version: string(),
+    sha1: string(),
+  },
 });
 
 

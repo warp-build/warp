@@ -146,16 +146,12 @@ impl ComputedTarget {
     }
 
     pub fn hash(&self) -> String {
-        if self.target.is_local() {
-            self.hash.clone().unwrap_or_else(|| {
-                panic!(
-                    "ComputedTarget {:?} has not been hashed yet!",
-                    self.label().to_string()
-                )
-            })
-        } else {
-            self.target.archive().unwrap().hash()
-        }
+        self.hash.clone().unwrap_or_else(|| {
+            panic!(
+                "ComputedTarget {:?} has not been hashed yet!",
+                self.label().to_string()
+            )
+        })
     }
 
     pub fn label(&self) -> &Label {
@@ -277,31 +273,6 @@ impl ComputedTarget {
             self.target.kind(),
             self.target.label().to_string(),
         );
-        if let Some(archive) = &self.target.archive() {
-            trace!("Target has an archive, preparing...");
-
-            // TODO(@ostera): move this _into_ the Archive
-            let archive_root = archive_root.join(format!("{}-{}", archive.name(), archive.hash()));
-
-            if !archive.is_cached(&archive_root).await? {
-                event_channel.send(Event::ArchiveDownloading {
-                    label: self.target.label().clone(),
-                    url: archive.url().clone(),
-                });
-                archive.download(&archive_root).await?;
-                event_channel.send(Event::ArchiveVerifying(self.target.label().clone()));
-                match archive.checksum(&archive_root).await {
-                    Ok(_) => {
-                        event_channel.send(Event::ArchiveUnpacking(self.target.label().clone()));
-                        archive.unpack(&archive_root, &cache_root).await
-                    }
-                    Err(e) => {
-                        archive.clean(&archive_root).await?;
-                        Err(e)
-                    }
-                }?
-            }
-        }
 
         trace!("Running actions for {}...", self.target.label().to_string());
         for action in self.actions() {

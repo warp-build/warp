@@ -1,3 +1,5 @@
+import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
+
 const impl = (ctx) => {
   const { unarchivedRoot, archiveKind } = ctx.cfg();
 
@@ -20,4 +22,8 @@ export default Zap.Toolchain({
   name: "//zap.build/toolchains:rebar3",
   mnemonic: "Rebar3",
   impl,
+  cfg: {
+    sha1: string(),
+  },
+  toolchains: [ErlangToolchain]
 });

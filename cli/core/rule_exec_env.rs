@@ -21,13 +21,22 @@ pub mod error {
     #[derive(Error, Debug)]
     pub enum LoadError {
         #[error("The module name `{module_name}` is invalid: {reason:?}")]
-        BadModuleName { module_name: String, reason: String },
+        BadModuleName {
+            module_name: String,
+            reason: deno_core::url::ParseError,
+        },
 
-        #[error("The module name `{module_name}` could not be resolved: {reason:?}")]
-        ModuleResolutionError { module_name: String, reason: String },
+        #[error("The module `{module_name}` had issues importing some other files: {reason:?}")]
+        ModuleResolutionError {
+            module_name: String,
+            reason: anyhow::Error,
+        },
 
         #[error("The module name `{module_name}` could not be evaluated: {reason:?}")]
-        ModuleEvaluationError { module_name: String, reason: String },
+        ModuleEvaluationError {
+            module_name: String,
+            reason: anyhow::Error,
+        },
 
         #[error("Something went wrong.")]
         Unknown,
@@ -341,7 +350,7 @@ pub fn op_toolchain_new(state: &mut OpState, toolchain: Rule) -> Result<(), AnyE
     (*inner_state.toolchain_manager)
         .read()
         .unwrap()
-        .register_toolchain(toolchain, inner_state.paths.global_cache_root.clone());
+        .register_toolchain(toolchain);
 
     Ok(())
 }
@@ -378,7 +387,7 @@ impl RuleExecEnv {
         toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
     ) -> RuleExecEnv {
         let toolchain_manager = Arc::new(RwLock::new(ToolchainManager::new(
-            workspace.toolchain_archives.clone(),
+            workspace.toolchain_configs.clone(),
         )));
         let rule_map = Arc::new(DashMap::new());
         let action_map = Arc::new(DashMap::new());
@@ -460,7 +469,7 @@ impl RuleExecEnv {
         let mod_specifier =
             url::Url::parse(module_name).map_err(|reason| error::LoadError::BadModuleName {
                 module_name: module_name.to_string(),
-                reason: reason.to_string(),
+                reason: reason,
             })?;
         trace!("loading {:?}", &module_name);
         let mod_id = self
@@ -469,14 +478,21 @@ impl RuleExecEnv {
             .await
             .map_err(|reason| error::LoadError::ModuleResolutionError {
                 module_name: module_name.to_string(),
-                reason: reason.to_string(),
+                reason: reason,
             })?;
         trace!("evaluating {:?}", &module_name);
-        let _eval_future = self.runtime.mod_evaluate(mod_id);
+        let eval_future = self.runtime.mod_evaluate(mod_id);
         self.runtime.run_event_loop(false).await.map_err(|reason| {
             error::LoadError::ModuleEvaluationError {
                 module_name: module_name.to_string(),
-                reason: reason.to_string(),
+                reason: reason,
+            }
+        })?;
+        let _ = eval_future.await.unwrap();
+        self.runtime.get_module_namespace(mod_id).map_err(|reason| {
+            error::LoadError::ModuleEvaluationError {
+                module_name: module_name.to_string(),
+                reason: reason,
             }
         })?;
         trace!("done with {:?}", &module_name);
@@ -618,18 +634,14 @@ impl RuleExecEnv {
 
         let run_script: Option<PathBuf> = self.run_script_map.get(&label).map(|path| path.clone());
 
-        let srcs: FxHashSet<PathBuf> = if computed_target.target.is_local() {
-            computed_target
-                .target
-                .config()
-                .get_file_lists()
-                .unwrap_or_default()
-                .iter()
-                .cloned()
-                .collect()
-        } else {
-            FxHashSet::default()
-        };
+        let srcs: FxHashSet<PathBuf> = computed_target
+            .target
+            .config()
+            .get_file_lists()
+            .unwrap_or_default()
+            .iter()
+            .cloned()
+            .collect();
 
         computed_target.deps = Some(computed_target.deps.unwrap_or(FxHashSet::default()));
         computed_target.srcs = Some(srcs);

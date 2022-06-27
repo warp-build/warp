@@ -11,6 +11,10 @@ export default Zap.Toolchain({
   name: "//zap.build/toolchains:ngrok",
   mnemonic: "ngrok",
   impl,
+  cfg: {
+    version: string(),
+    sha1: string(),
+  },
 });
 
 

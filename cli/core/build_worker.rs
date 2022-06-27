@@ -140,7 +140,8 @@ impl BuildWorker {
 
     pub fn finish(&mut self) {
         if self.role == Role::MainWorker {
-            self.event_channel.send(Event::BuildCompleted(std::time::Instant::now()))
+            self.event_channel
+                .send(Event::BuildCompleted(std::time::Instant::now()))
         }
     }
 
@@ -150,7 +151,7 @@ impl BuildWorker {
                 Ok(_node_label) => {
                     self.build_queue.ack(&label);
                     Ok(())
-                },
+                }
 
                 Err(WorkerError::ComputedTargetError(
                     computed_target::ComputedTargetError::MissingDependencies { deps, .. },
@@ -178,9 +179,7 @@ impl BuildWorker {
                     self.build_queue.nack(label.clone());
                     Ok(())
                 }
-                Err(err) => {
-                    Err(err)
-                }
+                Err(err) => Err(err),
             };
 
             if let Err(err) = result {
@@ -194,7 +193,9 @@ impl BuildWorker {
 
     #[tracing::instrument(name = "BuildWorker::load_rules", skip(self))]
     pub async fn load_rules(&mut self) -> Result<(), WorkerError> {
-        self.rule_exec_env.setup().map_err(WorkerError::RuleExecError)?;
+        self.rule_exec_env
+            .setup()
+            .map_err(WorkerError::RuleExecError)?;
 
         let built_in_rules = zap_ext::TOOLCHAINS
             .iter()
@@ -209,8 +210,26 @@ impl BuildWorker {
                 (name, src)
             });
 
+        let mut errored = false;
         for (name, src) in built_in_rules.chain(custom_rules) {
-            self.rule_exec_env.load(&name, Some(src)).await.map_err(WorkerError::RuleLoadError)?
+            let load_result = self
+                .rule_exec_env
+                .load(&name, Some(src))
+                .await
+                .map_err(WorkerError::RuleLoadError);
+
+            match load_result {
+                Err(err) => {
+                    self.event_channel.send(Event::ErrorLoadingRule(name, err));
+                    errored = true;
+                    continue;
+                }
+                Ok(()) => (),
+            }
+        }
+
+        if errored {
+            self.coordinator.signal_shutdown();
         }
 
         Ok(())
@@ -224,10 +243,10 @@ impl BuildWorker {
     ) -> Result<Label, WorkerError> {
         let toolchain = {
             let toolchains = (*self.rule_exec_env.toolchain_manager).read().unwrap();
-            toolchains.get(&label.to_string())
+            toolchains.get(&label)
         };
         let target = if let Some(toolchain) = toolchain {
-            toolchain.as_target().clone()
+            toolchain.clone()
         } else {
             let buildfile = Buildfile::from_file(
                 &self.workspace.paths.workspace_root,
@@ -311,7 +330,7 @@ impl BuildWorker {
             }
         }
 
-        let result = if node.target.is_local() {
+        let result = {
             let mut sandbox = LocalSandbox::for_node(&self.workspace, node.clone());
 
             let result = {
@@ -352,18 +371,6 @@ impl BuildWorker {
                     anyhow!("Node {} expected the following but missing outputs: {:?}\n\ninstead it found the following unexpected outputs: {:?}",
                         &name.to_string(), expected_but_missing, unexpected_but_present)),
             }
-        } else {
-            let res = node.execute(
-                &self.workspace.paths.global_archive_root,
-                &self.workspace.paths.global_cache_root,
-                &self.workspace.paths.global_cache_root,
-                ExecutionMode::OnlyBuild,
-                self.event_channel.clone(),
-            ).await;
-
-            self.build_results.add_computed_target(label.clone(), node.clone());
-
-            res.map(|_| label.clone())
 
         }.map_err(WorkerError::Unknown);
 

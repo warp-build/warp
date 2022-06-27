@@ -8,6 +8,7 @@ pub enum Event {
     ArchiveUnpacking(Label),
     ArchiveVerifying(Label),
     BadBuildfile(PathBuf, anyhow::Error),
+    ErrorLoadingRule(String, WorkerError),
     BuildCompleted(std::time::Instant),
     BuildError(Label, WorkerError),
     BuildStarted(std::time::Instant),

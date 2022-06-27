@@ -9,7 +9,9 @@ Array.prototype.unique = function() {
 }
 
 const ffi = (name, args) => Deno.core.opSync(name, args);
-const err = x => { throw new Error(x); };
+const err = x => {
+  throw new Error(x);
+};
 
 const label = () => "label";
 const string = () => "string";
@@ -119,13 +121,13 @@ Zap.Rule = spec => {
   if (Object.entries(cfg).length == 0) err(`Config map for rule ${name} is empty! Try adding a   name: label()   key?`);
   spec.cfg = check_config(spec.cfg);
 
-  spec.toolchains = (spec.toolchains || []);
-  spec.toolchains = spec.toolchains.map( toolchain => toolchain.name );
+  spec.toolchains = (spec.toolchains || []).map( toolchain => toolchain.name );
   spec.defaults = spec.defaults || {};
   spec.runnable = spec.runnable || false;
 
   // if (Zap.Rules.exists(name)) err(`There already exists rule toolchain called ${name}, consider renaming yours`);
   Zap.Rules.register(name, spec);
+
 
   ffi("op_rule_new", spec);
 
@@ -142,27 +144,18 @@ Zap.Toolchain = spec => {
   if (typeof name !== "string") err(`Toolchain name must be a string, instead found: ${name}.`);
   if (name === "") err(`Toolchain name was empty! Here's some inspiration:   super_lang  `);
 
-  spec.cfg = {
-    archiveKind: string(),
-    archiveName: string(),
-    archivePrefix: string(),
-    archiveSha1: string(),
-    archiveTag: string(),
-    unarchivedRoot: string(),
-    archiveUrl: string(),
-  }
+  const impl = spec.impl;
+  if (!impl) err(`Rule ${name} must have an implementation.`);
+  if (typeof impl !== "function") err(`Rule ${name} implementation should be a function, instead found: ${typeof impl}`);
 
-  spec.defaults = {
-    archiveKind: "release",
-    archiveName: spec.name,
-    archivePrefix: "",
-    archiveSha1: "",
-    archiveTag: "",
-    unarchivedRoot: "./",
-    archiveUrl: "",
-  }
+  const cfg = spec.cfg;
+  if (!cfg) err(`Rule ${name} must define a config map with   cfg   `);
+  if (Object.entries(cfg).length == 0) err(`Config map for rule ${name} is empty! Try adding a   name: label()   key?`);
+  spec.cfg = check_config(spec.cfg);
 
-  spec.toolchains = []
+  spec.defaults = spec.defaults || {};
+  spec.toolchains = spec.toolchains || []
+  spec.toolchains = spec.toolchains.map( toolchain => toolchain.name );
 
   spec.provides = () => ffi("op_ctx_fetch_provides", {label: name}),
   spec.runnable = false;

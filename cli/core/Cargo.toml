@@ -12,6 +12,7 @@ path = "lib.rs"
 zap-ext = { path = "../ext", version = "*" }
 
 anyhow = "1.0"
+assert_matches = "1"
 async-stream = "0.3"
 chrono = "0.4"
 crossbeam = "0.8"
@@ -20,7 +21,6 @@ dashmap = "5.2"
 deno_core = "0.130"
 directories = "4.0"
 env_logger="0.9"
-assert_matches = "1"
 fixedbitset = "0.4"
 fs_extra = "1.2"
 futures = "0.3"
@@ -28,6 +28,7 @@ fxhash = "0.2"
 glob = "0.3"
 guess_host_triple = "0.1"
 log = "0.4"
+url = "2"
 num_cpus = "1"
 opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
 opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"]  }
@@ -36,12 +37,14 @@ regex = "1"
 rust-crypto = "0.2"
 seahash = "4"
 serde = "1.0"
+serde_derive = "1.0"
 serde_json = "1.0"
 structopt = "0.3"
 termcolor = "1.1"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
+tokio-tar = "0.3"
 tokio-util = { version = "0.7", features = ["rt"] }
 toml = "0.5"
 tracing = { version = "0.1", features = ["log"] }

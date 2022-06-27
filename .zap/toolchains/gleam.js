@@ -22,5 +22,9 @@ export default Zap.Toolchain({
   name: "//zap.build/toolchains:gleam",
   mnemonic: "Gleam",
   impl,
+  cfg: {
+    version: string(),
+    sha1: string(),
+  },
 });
 

@@ -50,6 +50,8 @@ pub use local_sandbox::*;
 pub use local_worker::*;
 pub use rule::*;
 pub use rule_config::*;
+pub use rule_config::json_codecs::*;
+pub use rule_config::toml_codecs::*;
 pub use rule_exec_env::*;
 pub use target::*;
 pub use toolchain::*;

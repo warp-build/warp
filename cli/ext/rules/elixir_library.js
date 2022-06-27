@@ -1,4 +1,4 @@
-import ElixirToolchain, {BEAM_EXT} from "https://zap.build/toolchains/elixir";
+import ElixirToolchain, {BEAM_EXT} from "https://zap.build/toolchains/elixir.js";
 
 const impl = ctx => {
   const { name, deps, srcs, } = ctx.cfg();

@@ -1,6 +1,6 @@
 import ElixirToolchain, { EX_EXT } from "../toolchains/elixir.js";
 import ErlangToolchain, { BEAM_EXT } from "../toolchains/erlang.js";
-import { TAR_EXT } from "../rules/archive.js";
+import { TAR_EXT } from "./archive.js";
 
 const impl = (ctx) => {
   const { label, name, srcs, deps, main } = ctx.cfg();

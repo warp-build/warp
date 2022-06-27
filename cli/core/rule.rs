@@ -90,6 +90,8 @@ impl<'de> Deserialize<'de> for Rule {
             json
         )))?;
 
+        let name = rule_spec["name"].as_str().unwrap().to_string();
+
         let json_cfg = &rule_spec["cfg"]
             .as_object()
             .ok_or(de::Error::custom(format!(
@@ -128,7 +130,7 @@ impl<'de> Deserialize<'de> for Rule {
             let typed_value = (v.clone(), t.clone()).into();
             default_cfg.insert(k.to_string(), typed_value);
         }
-        let defaults = RuleConfig(default_cfg);
+        let defaults = RuleConfig::new(name.clone()).with_defaults(default_cfg);
 
         let toolchains: Vec<Label> = (&rule_spec["toolchains"])
             .as_array()
@@ -146,7 +148,7 @@ impl<'de> Deserialize<'de> for Rule {
         let runnable = rule_spec["runnable"].as_bool().unwrap_or(false);
 
         let rule = Rule::new(
-            rule_spec["name"].as_str().unwrap().to_string(),
+            name, 
             rule_spec["mnemonic"].as_str().unwrap().to_string(),
             toolchains,
             config,

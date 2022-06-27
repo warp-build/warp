@@ -38,11 +38,14 @@ impl LocalCache {
     pub async fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
         let node = sandbox.node();
         let hash = node.hash();
-        let cache_path = if node.target.is_local() {
+        let cache_path = self.local_root.join(&hash);
+        /*
+            if node.target.is_local() {
             self.local_root.join(&hash)
         } else {
             self.global_root.join(&hash)
         };
+        */
 
         debug!(
             "Caching node {:?} hashed {:?}: {:?} outputs",
@@ -91,11 +94,14 @@ impl LocalCache {
     ) -> Result<(), anyhow::Error> {
         trace!("Promoting outputs for {}", node.target.label().to_string());
         let hash = node.hash();
-        let hash_path = if node.target.is_local() {
+        let hash_path = self.local_root.join(&hash);
+        /*
+            if node.target.is_local() {
             self.local_root.join(&hash)
         } else {
             self.global_root.join(&hash)
         };
+        */
 
         let mut paths: FxHashMap<PathBuf, ()> = FxHashMap::default();
         let mut outs: FxHashMap<PathBuf, PathBuf> = FxHashMap::default();

@@ -10,25 +10,20 @@ ignore_patterns = [
 ]
 
 [toolchains.rescript]
-archive_url = "https://github.com/rescript-lang/rescript-compiler/archive/refs/tags/9.1.4.tar.gz"
-checksum = "d5279f085d19a2234d2024080ad90bf69a09ab66"
-strip_prefix = "rescript-compiler-9.1.4"
+version = "9.1.4"
+sha1 = "d5279f085d19a2234d2024080ad90bf69a09ab66"
 
 [toolchains.deno]
-release_url = "https://github.com/denoland/deno/releases/download/v1.22.2/deno-{HOST_TRIPLE}.zip"
-checksum = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e"
+version = "v1.22.2"
+sha1 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e"
 
 [toolchains.rebar3]
-release_url = "https://github.com/erlang/rebar3/archive/refs/tags/3.19.0.tar.gz"
-checksum = "4195c8db32f33ab43da6b72b023452b2b7b83a26"
-strip_prefix = "rebar3-3.19.0"
+sha1 = "4195c8db32f33ab43da6b72b023452b2b7b83a26"
 
 [toolchains.erlang]
-archive_url = "https://github.com/erlang/otp/archive/OTP-25.0.tar.gz"
-checksum = "682add536cdb95f75866108affa80b880914007c"
-strip_prefix = "otp-OTP-25.0"
+version = "25.0"
+sha1 = "682add536cdb95f75866108affa80b880914007c"
 
 [toolchains.elixir]
-archive_url = "https://github.com/elixir-lang/elixir/archive/refs/tags/v1.13.4.tar.gz"
-checksum = "d0269a1bd2e5256a1842b5b201649e9a39227bb2"
-strip_prefix = "elixir-1.13.4"
+version = "v1.13.4"
+sha1 = "d0269a1bd2e5256a1842b5b201649e9a39227bb2"

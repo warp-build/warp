@@ -27,7 +27,7 @@ pub struct Workspace {
     pub build_files: Vec<PathBuf>,
 
     /// The archives defined in the workspace declaration file
-    pub toolchain_archives: Vec<Archive>,
+    pub toolchain_configs: Vec<RuleConfig>,
 
     /// A list of local rules defined in this project
     pub local_rules: Vec<PathBuf>,

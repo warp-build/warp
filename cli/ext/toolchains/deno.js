@@ -12,4 +12,8 @@ export default Zap.Toolchain({
   name: "//zap.build/toolchains:deno",
   mnemonic: "Deno",
   impl,
+  cfg: {
+    version: string(),
+    sha1: string(),
+  },
 });

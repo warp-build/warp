@@ -15,6 +15,7 @@ impl StatusReporter {
     pub async fn run(self, target: Label) {
         let green_bold = console::Style::new().green().bold();
         let blue_dim = console::Style::new().blue().dim();
+        let yellow_dim = console::Style::new().yellow().dim();
         let red_bold = console::Style::new().red().bold();
 
         let pb = ProgressBar::new(0);
@@ -93,7 +94,7 @@ impl StatusReporter {
                     ArchiveDownloading { label, .. } => {
                         let line = format!(
                             "{:>12} {}",
-                            blue_dim.apply_to("Downloading"),
+                            yellow_dim.apply_to("Downloading"),
                             label.to_string(),
                         );
                         pb.println(line);
@@ -128,6 +129,14 @@ impl StatusReporter {
                         pb.println(line);
                         pb.inc(1);
                         target_count += 1;
+                    }
+                    ErrorLoadingRule(name, err) => {
+                        errored = true;
+                        error_count += 1;
+                        let line =
+                            format!("{:>12} {} {}", red_bold.apply_to("ERROR"), "error when loading ", name);
+                        pb.println(line);
+                        pb.println(format!("{}", err));
                     }
                     BadBuildfile(path, err) => {
                         errored = true;
