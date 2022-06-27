@@ -4,6 +4,7 @@ export const TS_EXT = ".ts";
 const impl = ctx => {
   const { host } = ctx.env();
   const { version, sha1 } = ctx.cfg();
+
   const DENO = File.join(unarchivedRoot, "deno");
   ctx.provides({ DENO });
   ctx.action().declareOutputs([]);

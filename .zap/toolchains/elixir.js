@@ -5,25 +5,25 @@ export const EX_EXT = ".ex";
 export const EXS_EXT = ".exs";
 
 const impl = ctx => {
-  const { unarchivedRoot, archiveKind } = ctx.cfg();
+  const { version, sha1 } = ctx.cfg();
 
-  console.log(ctx.cfg());
+  const output = "Precompiled.zip"
 
-  if (archiveKind === "source") {
-    ctx.action().exec({
-      cmd: "make",
-      args: [],
-      cwd: unarchivedRoot
-    });
-  }
+  const url = `https://github.com/elixir-lang/elixir/releases/download/v${version}/Precompiled.zip`
 
-  const binRoot = File.join(unarchivedRoot, "bin");
+  ctx.action().download({ url, sha1, output })
+
+  ctx.action().extract({ src: output, dst: "." })
+
+  const binRoot = "Precompiled/bin";
   const ELIXIR = File.join(binRoot, "elixir");
   const ELIXIRC = File.join(binRoot, "elixirc");
   const IEX = File.join(binRoot, "iex");
   const MIX = File.join(binRoot, "mix");
-  ctx.provides({ ELIXIR, ELIXIRC, IEX, MIX });
+
   ctx.action().declareOutputs([]);
+
+  ctx.provides({ ELIXIR, ELIXIRC, IEX, MIX });
 };
 
 export default Zap.Toolchain({

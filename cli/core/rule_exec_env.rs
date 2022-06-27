@@ -245,6 +245,36 @@ pub fn op_ctx_set_permissions(state: &mut OpState, args: SetPermissions) -> Resu
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+pub struct Extract {
+    label: String,
+    src: PathBuf,
+    dst: PathBuf,
+}
+
+#[op]
+pub fn op_ctx_extract(state: &mut OpState, args: Extract) -> Result<(), AnyError> {
+    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let action_map = &inner_state.action_map;
+
+    let label = Label::new(&args.label);
+    let action = Action::extract(args.src, args.dst);
+    let new_actions = if let Some(entry) = action_map.get(&label) {
+        let last_actions = entry.value();
+        let mut new_actions = vec![];
+        new_actions.extend(last_actions.to_vec());
+        new_actions.push(action);
+        new_actions
+    } else {
+        vec![action]
+    };
+
+    action_map.insert(label, new_actions);
+
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct Download {
     label: String,
     url: String,
@@ -482,6 +512,7 @@ impl RuleExecEnv {
                     op_ctx_actions_write_file::decl(),
                     op_ctx_declare_provides::decl(),
                     op_ctx_download::decl(),
+                    op_ctx_extract::decl(),
                     op_ctx_fetch_provides::decl(),
                     op_ctx_set_permissions::decl(),
                     op_file_filename::decl(),

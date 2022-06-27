@@ -1,21 +1,14 @@
-import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
-
 const impl = (ctx) => {
-  const { unarchivedRoot, archiveKind } = ctx.cfg();
+  const { url, sha1 } = ctx.cfg();
 
-  if (archiveKind === "source") {
-    ctx.action().runShell({
-      script: `#!/bin/bash -xe
+  const REBAR3 = "rebar3.exe"
 
-      cd ${unarchivedRoot}
-      ./boostrap
-    `,
-    });
-  }
+  ctx.action().download({ url, sha1, output: REBAR3 })
+  ctx.action().setPermissions({ file: REBAR3, executable: true })
+  ctx.action().declareOutputs([REBAR3]);
+  ctx.action().declareRunScript(REBAR3);
 
-  const REBAR3 = File.join(unarchivedRoot, "rebar3");
   ctx.provides({ REBAR3 });
-  ctx.action().declareOutputs([]);
 };
 
 export default Zap.Toolchain({
@@ -23,7 +16,11 @@ export default Zap.Toolchain({
   mnemonic: "Rebar3",
   impl,
   cfg: {
+    url: string(),
     sha1: string(),
   },
-  toolchains: [ErlangToolchain]
+  defaults: {
+    url: "https://s3.amazonaws.com/rebar3/rebar3",
+  },
+  toolchains: []
 });

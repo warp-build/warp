@@ -9,6 +9,7 @@ pub enum Action {
     Download(DownloadAction),
     SetPermissions(SetPermissionsAction),
     Exec(ExecAction),
+    Extract(ExtractAction),
     RunShell(RunShellAction),
     WriteFile(WriteFileAction),
 }
@@ -32,6 +33,10 @@ impl Action {
 
     pub fn download(url: String, sha1: String, output: PathBuf) -> Action {
         Action::Download(DownloadAction { url, sha1, output })
+    }
+
+    pub fn extract(src: PathBuf, dst: PathBuf) -> Action {
+        Action::Extract(ExtractAction { src, dst })
     }
 
     pub fn set_permissions(file: PathBuf, executable: bool) -> Action {
@@ -59,6 +64,7 @@ impl Action {
             Action::Exec(a) => a.run(sandbox_root).await,
             Action::Copy(a) => a.run(sandbox_root).await,
             Action::Download(a) => a.run(sandbox_root).await,
+            Action::Extract(a) => a.run(sandbox_root).await,
             Action::WriteFile(a) => a.run(sandbox_root).await,
             Action::RunShell(a) => a.run(sandbox_root).await,
             Action::SetPermissions(a) => a.run(sandbox_root).await,
