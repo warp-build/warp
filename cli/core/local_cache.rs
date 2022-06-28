@@ -54,7 +54,14 @@ impl LocalCache {
             sandbox.outputs().len()
         );
 
-        for artifact in sandbox.outputs().iter() {
+        // NOTE(@ostera): see RFC0005
+        let artifacts = if node.target.is_pinned() {
+            sandbox.all_outputs().await
+        } else {
+            sandbox.outputs()
+        };
+
+        for artifact in artifacts {
             debug!("Caching build artifact: {:?}", &artifact);
             let cached_file = cache_path.join(&artifact);
 
@@ -135,7 +142,10 @@ impl LocalCache {
     }
 
     #[tracing::instrument(name = "LocalCache::absolute_path_by_hash")]
-    pub async fn absolute_path_by_hash(&self, hash: &str) -> PathBuf {
+    pub fn absolute_path_by_hash(&self, hash: &str) -> PathBuf {
+        self.local_root.join(hash)
+
+        /*
         match fs::canonicalize(&self.local_root.join(hash)).await {
             Err(_) => {
                 let path = self.global_root.join(hash);
@@ -148,6 +158,7 @@ impl LocalCache {
             }
             Ok(path) => path,
         }
+        */
     }
 
     /// Determine if a given node has been cached already or not.

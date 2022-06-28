@@ -140,6 +140,15 @@ impl LocalSandbox {
         .boxed()
     }
 
+    pub async fn all_outputs(&self) -> Vec<PathBuf> {
+        LocalSandbox::scan_files(&self.root)
+            .await
+            .iter()
+            .flat_map(|path| path.strip_prefix(&self.root))
+            .map(|path| path.to_path_buf())
+            .collect()
+    }
+
     /// Update the validation status of this sandbox by comparing the expected
     /// and actual outputs of this build rule.
     ///
@@ -186,10 +195,13 @@ impl LocalSandbox {
             .cloned()
             .collect();
 
-        let diff: Vec<&PathBuf> = expected_outputs.difference(&actual_outputs).collect();
+        let no_difference = expected_outputs
+            .difference(&actual_outputs)
+            .next()
+            .is_none();
 
         // No diff means we have the outputs we expected!
-        if diff.is_empty() {
+        if no_difference {
             self.status = ValidationStatus::Valid;
             self.outputs = expected_outputs.iter().cloned().collect();
         } else {
@@ -255,10 +267,7 @@ impl LocalSandbox {
             .iter()
         {
             for out in dep.outs.iter() {
-                let src = build_cache
-                    .absolute_path_by_hash(&dep.hash)
-                    .await
-                    .join(&out);
+                let src = build_cache.absolute_path_by_hash(&dep.hash).join(&out);
                 let dst = self.root.join(&out);
                 self.copy_file(&src, &dst).await?;
             }
@@ -315,7 +324,7 @@ impl LocalSandbox {
 
     #[tracing::instrument(name = "LocalSandbox::clear_sandbox", skip(self))]
     pub async fn clear_sandbox(&self) -> Result<(), anyhow::Error> {
-        if let Ok(_) = fs::metadata(&self.root).await {
+        if fs::metadata(&self.root).await.is_ok() {
             fs::remove_dir_all(&self.root).await.context(format!(
                 "Could not clean sandbox for node {:?} at {:?}",
                 self.node.label().to_string(),
@@ -387,7 +396,7 @@ impl LocalSandbox {
 
         self.prepare_sandbox_dir().await?;
 
-        self.copy_dependences(&build_cache, find_node).await?;
+        self.copy_dependences(build_cache, find_node).await?;
 
         self.copy_inputs().await?;
 
@@ -404,7 +413,7 @@ impl LocalSandbox {
             .map_err(|error| error::SandboxError::ExecutionError {
                 label: self.node.label().clone(),
                 sandbox_root: self.root.clone(),
-                error: error,
+                error,
             })?;
 
         debug!("Build rule executed successfully.");

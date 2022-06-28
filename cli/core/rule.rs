@@ -6,6 +6,18 @@ use serde::Deserialize;
 
 pub type RuleName = String;
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Runnable {
+    Runnable,
+    NotRunnable,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Pinned {
+    Pinned,
+    Unpinned,
+}
+
 /// A Rule defines what actions to take to perform some work.
 ///
 /// Some examples of rules are `ErlangLibrary` or `ElixirTest`.
@@ -35,7 +47,10 @@ pub struct Rule {
     defaults: RuleConfig,
 
     /// Whether this rule is runnable or not
-    pub runnable: bool,
+    pub runnable: Runnable,
+
+    /// Whether targets of this rule as pinned or not.
+    pub pinned: Pinned,
 }
 
 impl Rule {
@@ -45,7 +60,8 @@ impl Rule {
         toolchains: Vec<Label>,
         cfg: ConfigSpec,
         defaults: RuleConfig,
-        runnable: bool,
+        runnable: Runnable,
+        pinned: Pinned,
     ) -> Rule {
         Rule {
             name,
@@ -54,6 +70,7 @@ impl Rule {
             cfg,
             defaults,
             runnable,
+            pinned,
         }
     }
 
@@ -146,7 +163,17 @@ impl<'de> Deserialize<'de> for Rule {
             })
             .collect();
 
-        let runnable = rule_spec["runnable"].as_bool().unwrap_or(false);
+        let runnable = if rule_spec["runnable"].as_bool().unwrap_or(false) {
+            Runnable::Runnable
+        } else {
+            Runnable::NotRunnable
+        };
+
+        let pinned = if rule_spec["pinned"].as_bool().unwrap_or(false) {
+            Pinned::Pinned
+        } else {
+            Pinned::Unpinned
+        };
 
         let rule = Rule::new(
             name,
@@ -155,6 +182,7 @@ impl<'de> Deserialize<'de> for Rule {
             config,
             defaults,
             runnable,
+            pinned,
         );
 
         Ok(rule)

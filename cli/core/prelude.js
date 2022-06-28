@@ -128,6 +128,7 @@ Zap.Rule = spec => {
   spec.toolchains = (spec.toolchains || []).map( toolchain => toolchain.name );
   spec.defaults = spec.defaults || {};
   spec.runnable = spec.runnable || false;
+  spec.pinned = spec.pinned || false;
 
   // if (Zap.Rules.exists(name)) err(`There already exists rule toolchain called ${name}, consider renaming yours`);
   Zap.Rules.register(name, spec);
@@ -163,6 +164,8 @@ Zap.Toolchain = spec => {
 
   spec.provides = () => ffi("op_ctx_fetch_provides", {label: name}),
   spec.runnable = false;
+
+  spec.pinned = true;
 
   // if (Zap.Rules.exists(name)) err(`There already exists a toolchain called ${name}, consider renaming yours`);
   Zap.Rules.register(name, spec);

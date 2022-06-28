@@ -1,4 +1,5 @@
 use super::*;
+use anyhow::anyhow;
 use dashmap::DashMap;
 use deno_core::error::AnyError;
 use deno_core::*;
@@ -186,7 +187,7 @@ pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Re
     let label = Label::new(&args.label);
     let new_provides = match toolchain_provides_map.get(&label) {
         None => args.provides,
-        Some(_) => panic!("You can't specify provides twice!"),
+        Some(_) => return Err(anyhow!("You can't specify provides twice!")),
     };
     toolchain_provides_map.insert(label, new_provides);
     Ok(())
@@ -207,10 +208,12 @@ pub fn op_ctx_fetch_provides(
     let toolchain_provides_map = &inner_state.toolchain_provides_map;
 
     let label = Label::new(&args.label);
-    match toolchain_provides_map.get(&label) {
+    let provides = match toolchain_provides_map.get(&label) {
         None => panic!("Undefined provides for label: {:?}", &label),
-        Some(provides) => Ok(provides.clone()),
-    }
+        Some(provides) => provides.clone(),
+    };
+
+    Ok(provides)
 }
 
 #[derive(Deserialize, Debug)]
@@ -486,22 +489,24 @@ impl RuleExecEnv {
         let run_script_map = Arc::new(DashMap::new());
 
         let extension = {
-            let a = toolchain_manager.clone();
-            let paths = workspace.paths.clone();
-            let inner_rule_map = Arc::clone(&rule_map);
             let action_map = action_map.clone();
             let output_map = output_map.clone();
+            let paths = workspace.paths.clone();
+            let rule_map = Arc::clone(&rule_map);
             let run_script_map = run_script_map.clone();
+            let toolchain_manager = toolchain_manager.clone();
             let toolchain_provides_map = toolchain_provides_map.clone();
+
             let inner_state = InnerState {
-                paths: paths,
-                toolchain_manager: a,
-                rule_map: inner_rule_map,
-                action_map: action_map,
-                output_map: output_map,
-                run_script_map: run_script_map,
-                toolchain_provides_map: toolchain_provides_map,
+                action_map,
+                output_map,
+                paths,
+                rule_map,
+                run_script_map,
+                toolchain_manager,
+                toolchain_provides_map,
             };
+
             Extension::builder()
                 .ops(vec![
                     op_ctx_actions_copy::decl(),
@@ -540,14 +545,35 @@ impl RuleExecEnv {
         let runtime = deno_core::JsRuntime::new(rt_options);
 
         RuleExecEnv {
-            runtime,
-            toolchain_manager,
-            rule_map,
             action_map,
             output_map,
+            rule_map,
             run_script_map,
+            runtime,
+            toolchain_manager,
             toolchain_provides_map,
         }
+    }
+
+    #[tracing::instrument(name = "RuleExecEnv::update_provide_map", skip(self, node, cache))]
+    pub fn update_provide_map(&self, node: &ComputedTarget, cache: &LocalCache) {
+        let label = node.label();
+        let abs_node_path = cache.absolute_path_by_hash(&node.hash());
+
+        let provides = if let Some(provides) = self.toolchain_provides_map.get(label) {
+            let mut new_provides = HashMap::new();
+            for (k, v) in provides.value() {
+                new_provides.insert(
+                    k.clone(),
+                    abs_node_path.join(v).to_str().unwrap().to_string(),
+                );
+            }
+            new_provides
+        } else {
+            HashMap::new()
+        };
+
+        self.toolchain_provides_map.insert(label.clone(), provides);
     }
 
     pub fn clear(&mut self) {

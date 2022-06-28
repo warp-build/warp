@@ -29,30 +29,6 @@ impl ToolchainManager {
     }
 
     pub fn get(&self, label: &Label) -> Option<Target> {
-        self.toolchains.get(&label).map(|r| r.value().clone())
+        self.toolchains.get(label).map(|r| r.value().clone())
     }
-
-    /*
-    pub fn targets(&self) -> Vec<Target> {
-        let mut targets = vec![];
-        for entry in self.toolchains.iter() {
-            targets.push(entry.value().as_target().clone());
-        }
-        targets
-    }
-
-    pub fn active_toolchains(&self) -> Vec<Toolchain> {
-        self.toolchains
-            .iter()
-            .map(|entry| entry.value().clone())
-            .collect()
-    }
-
-    pub fn available_toolchains(&self) -> Vec<Label> {
-        self.available_toolchains
-            .iter()
-            .map(|entry| entry.key().clone())
-            .collect()
-    }
-    */
 }

@@ -1,5 +1,7 @@
+use async_compression::futures::bufread::GzipDecoder;
 use std::path::PathBuf;
 use tokio::fs;
+use tokio_util::compat::TokioAsyncReadCompatExt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExtractAction {
@@ -12,6 +14,8 @@ impl ExtractAction {
     pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         let mut file = fs::File::open(&sandbox_root.join(&self.src)).await?;
 
+        let dst = fs::canonicalize(sandbox_root.join(&self.dst)).await?;
+
         match async_zip::read::seek::ZipFileReader::new(&mut file).await {
             Ok(mut zip) => {
                 for i in 0..zip.entries().len() {
@@ -22,7 +26,7 @@ impl ExtractAction {
                     }
 
                     let file_path = PathBuf::from(reader.entry().name());
-                    let path = sandbox_root.join(&self.dst).join(&file_path);
+                    let path = dst.join(&file_path);
                     fs::create_dir_all(path.parent().unwrap()).await?;
 
                     let mut output = fs::File::create(path).await?;
@@ -30,9 +34,11 @@ impl ExtractAction {
                 }
             }
             Err(_) => {
-                let mut tar = tokio_tar::Archive::new(file);
-                dbg!(&tar);
-                tar.unpack(self.dst).await?;
+                let file = fs::File::open(&sandbox_root.join(&self.src)).await?;
+                let decompress_stream =
+                    GzipDecoder::new(futures::io::BufReader::new(file.compat()));
+                let tar = async_tar::Archive::new(decompress_stream);
+                tar.unpack(dst).await?;
             }
         }
         Ok(())

@@ -120,7 +120,7 @@ impl BuildWorker {
         if Role::MainWorker == self.role && self.build_results.has_all_expected_targets() {
             self.coordinator.signal_shutdown();
         }
-        return self.coordinator.should_shutdown();
+        self.coordinator.should_shutdown()
     }
 
     pub async fn setup(&mut self, max_concurrency: usize) -> Result<(), WorkerError> {
@@ -218,13 +218,10 @@ impl BuildWorker {
                 .await
                 .map_err(WorkerError::RuleLoadError);
 
-            match load_result {
-                Err(err) => {
-                    self.event_channel.send(Event::ErrorLoadingRule(name, err));
-                    errored = true;
-                    continue;
-                }
-                Ok(()) => (),
+            if let Err(err) = load_result {
+                self.event_channel.send(Event::ErrorLoadingRule(name, err));
+                errored = true;
+                continue;
             }
         }
 
@@ -243,10 +240,10 @@ impl BuildWorker {
     ) -> Result<Label, WorkerError> {
         let toolchain = {
             let toolchains = (*self.rule_exec_env.toolchain_manager).read().unwrap();
-            toolchains.get(&label)
+            toolchains.get(label)
         };
         let target = if let Some(toolchain) = toolchain {
-            toolchain.clone()
+            toolchain
         } else {
             let buildfile = Buildfile::from_file(
                 &self.workspace.paths.workspace_root,
@@ -264,7 +261,7 @@ impl BuildWorker {
                 .targets
                 .iter()
                 .find(|t| *t.label() == *label)
-                .ok_or(anyhow!("Could not find target in: {:?}", &label.path()))
+                .ok_or_else(|| anyhow!("Could not find target in: {:?}", &label.path()))
                 .map_err(WorkerError::Unknown)?
                 .clone()
         };
@@ -312,6 +309,7 @@ impl BuildWorker {
             }
             CacheHitType::Local(cache_path) => {
                 debug!("Skipping {}, but promoting outputs.", name.to_string());
+                self.rule_exec_env.update_provide_map(&node, &self.cache);
                 self.build_results
                     .add_computed_target(label.clone(), node.clone());
                 self.cache
@@ -344,6 +342,7 @@ impl BuildWorker {
                 ValidationStatus::Valid => {
                     self.build_results.add_computed_target(label.clone(), node.clone());
                     self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
+                    self.rule_exec_env.update_provide_map(&node, &self.cache);
                     self.cache
                         .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
                         .await
@@ -353,6 +352,7 @@ impl BuildWorker {
                 ValidationStatus::NoOutputs => {
                     if node.outs().is_empty() {
                         self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
+                        self.rule_exec_env.update_provide_map(&node, &self.cache);
                         self.build_results.add_computed_target(label.clone(), node.clone());
                         Ok(label.clone())
                     } else {

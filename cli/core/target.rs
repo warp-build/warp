@@ -37,7 +37,7 @@ impl Target {
             .collect();
         deps.extend_from_slice(rule.toolchains());
 
-        let kind = if rule.runnable {
+        let kind = if rule.runnable == Runnable::Runnable {
             TargetKind::Runnable
         } else {
             TargetKind::Buildable
@@ -50,6 +50,10 @@ impl Target {
             rule: rule.clone(),
             kind,
         }
+    }
+
+    pub fn is_pinned(&self) -> bool {
+        self.rule.pinned == Pinned::Pinned
     }
 
     pub fn kind(&self) -> &TargetKind {
@@ -87,7 +91,6 @@ impl std::fmt::Display for Target {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::*;
 
     #[test]
     fn uses_rule_mnemonic_to_print_itself() {
@@ -98,7 +101,8 @@ mod tests {
             vec![],
             ConfigSpec::default(),
             RuleConfig::default(),
-            false,
+            Runnable::NotRunnable,
+            Pinned::Pinned,
         );
         let cfg = RuleConfig::default();
         let target = Target::new(label, &rule, cfg);
@@ -114,7 +118,8 @@ mod tests {
             vec![Label::new("dep")],
             ConfigSpec::default(),
             RuleConfig::default(),
-            false,
+            Runnable::NotRunnable,
+            Pinned::Pinned,
         );
         let cfg = RuleConfig::default();
         let target = Target::new(label, &rule, cfg);
