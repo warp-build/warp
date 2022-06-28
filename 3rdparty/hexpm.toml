@@ -33,7 +33,6 @@ parse_trans = { version = "3.3.1" }
 plug = { version = "1.13.6" }
 plug_cowboy = { version = "2.5.2" }
 plug_crypto = { version = "~> 1.1.1 or ~> 1.2" }
-poison = { version = ">= 2.0.0" , overrides = {extra_srcs = ["VERSION"]}}
 ranch = { options = [{ github = "ninenines/ranch" }] }
 ssl_verify_fun = { version = "~>1.1.0" }
 statistex = { version = "~> 1.0" }
@@ -76,6 +75,10 @@ version = "1.1.0"
 [dependencies.nimble_parsec]
 overrides = { extra_srcs = ["README.md"] }
 version = "1.2.3"
+
+[dependencies.poison]
+overrides = { extra_srcs = ["VERSION"] }
+version = ">= 2.0.0"
 
 [dependencies.unicode]
 overrides = { extra_srcs = ["data/*.txt"] }
