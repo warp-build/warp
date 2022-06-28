@@ -1,3 +1,4 @@
+import {TAR_EXT} from "./archive.js";
 import ElixirToolchain from "../toolchains/elixir.js";
 import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
 

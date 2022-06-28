@@ -15,8 +15,8 @@ const impl = ctx => {
 
   const DENO = "deno";
   ctx.action().setPermissions({ file: DENO, executable: true })
-  ctx.action().declareOutputs([DENO]);
-  ctx.action().declareRunScript(DENO);
+
+  ctx.action().declareOutputs([]);
 
   ctx.provides({ DENO });
 

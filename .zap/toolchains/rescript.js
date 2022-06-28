@@ -26,8 +26,7 @@ const impl = ctx => {
   ctx.action().setPermissions({ file: RESCRIPT, executable: true })
   ctx.action().setPermissions({ file: BSREFMT, executable: true })
 
-  ctx.action().declareOutputs([RESCRIPT]);
-  ctx.action().declareRunScript(RESCRIPT);
+  ctx.action().declareOutputs([]);
 
   ctx.provides({ BSC, BSREFMT, RESCRIPT });
 };
