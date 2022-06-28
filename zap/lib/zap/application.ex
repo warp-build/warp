@@ -10,6 +10,7 @@ defmodule Zap.Application do
     children = [
       # Starts a worker by calling: Zap.Worker.start_link(arg)
       # {Zap.Worker, arg}
+      ZapWeb.Endpoint
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

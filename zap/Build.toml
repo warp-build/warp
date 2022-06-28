@@ -1,8 +1,0 @@
-[[mix_library]]
-name = "zap"
-skip_deps = "false"
-
-[[iex_shell]]
-name = "iex"
-deps = [":zap"]
-dot_iex = ".boot.exs"

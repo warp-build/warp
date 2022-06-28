@@ -1,13 +1,13 @@
 defmodule Zap.SharedCache.Upload do
 
-  def upload_url(uri) do
+  def upload_url(hash) do
     aws = ExAws.Config.new(:s3)
 
     {:ok, signed_url} = ExAws.S3.presigned_url(
       aws,
       :put,
       "local.zap.artefacts",
-      uri,
+      hash,
       [
         query_params: [{"ACL", "public-read"}],
         s3_accelerate: false,
