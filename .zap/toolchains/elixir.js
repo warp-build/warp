@@ -15,11 +15,16 @@ const impl = ctx => {
 
   ctx.action().extract({ src: output, dst: "." })
 
-  const binRoot = "Precompiled/bin";
+  const binRoot = "bin";
   const ELIXIR = File.join(binRoot, "elixir");
   const ELIXIRC = File.join(binRoot, "elixirc");
   const IEX = File.join(binRoot, "iex");
   const MIX = File.join(binRoot, "mix");
+
+  ctx.action().setPermissions({ file: ELIXIR, executable: true })
+  ctx.action().setPermissions({ file: ELIXIRC, executable: true })
+  ctx.action().setPermissions({ file: IEX, executable: true })
+  ctx.action().setPermissions({ file: MIX, executable: true })
 
   ctx.action().declareOutputs([]);
 
