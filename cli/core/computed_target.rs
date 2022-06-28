@@ -275,12 +275,22 @@ impl ComputedTarget {
         );
 
         trace!("Running actions for {}...", self.target.label().to_string());
+        event_channel.send(Event::PreparingActions {
+            label: self.target.label().clone(),
+            action_count: self.actions().len(),
+        });
         for action in self.actions() {
             event_channel.send(Event::ActionRunning {
                 label: self.target.label().clone(),
                 action: action.clone(),
             });
-            action.run(&sandbox_root).await?
+            action
+                .run(
+                    self.target.label().clone(),
+                    sandbox_root,
+                    event_channel.clone(),
+                )
+                .await?
         }
 
         Ok(())

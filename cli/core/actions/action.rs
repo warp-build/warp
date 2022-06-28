@@ -1,7 +1,10 @@
 use super::*;
+use crate::EventChannel;
+use crate::Label;
 use anyhow::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Action {
@@ -59,12 +62,17 @@ impl Action {
         })
     }
 
-    pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn run(
+        self,
+        label: Label,
+        sandbox_root: &PathBuf,
+        event_channel: Arc<EventChannel>,
+    ) -> Result<(), anyhow::Error> {
         match self {
             Action::Exec(a) => a.run(sandbox_root).await,
             Action::Copy(a) => a.run(sandbox_root).await,
-            Action::Download(a) => a.run(sandbox_root).await,
-            Action::Extract(a) => a.run(sandbox_root).await,
+            Action::Download(a) => a.run(label, sandbox_root, event_channel).await,
+            Action::Extract(a) => a.run(label, sandbox_root, event_channel).await,
             Action::WriteFile(a) => a.run(sandbox_root).await,
             Action::RunShell(a) => a.run(sandbox_root).await,
             Action::SetPermissions(a) => a.run(sandbox_root).await,

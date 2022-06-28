@@ -1,5 +1,9 @@
+use crate::event::*;
+use crate::event_channel::*;
+use crate::Label;
 use async_compression::futures::bufread::GzipDecoder;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::fs;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
@@ -11,10 +15,17 @@ pub struct ExtractAction {
 
 impl ExtractAction {
     #[tracing::instrument(name = "action::ExtractAction::run")]
-    pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn run(
+        self,
+        label: Label,
+        sandbox_root: &PathBuf,
+        event_channel: Arc<EventChannel>,
+    ) -> Result<(), anyhow::Error> {
         let mut file = fs::File::open(&sandbox_root.join(&self.src)).await?;
 
         let dst = fs::canonicalize(sandbox_root.join(&self.dst)).await?;
+
+        event_channel.send(Event::ArchiveUnpacking(label));
 
         match async_zip::read::seek::ZipFileReader::new(&mut file).await {
             Ok(mut zip) => {

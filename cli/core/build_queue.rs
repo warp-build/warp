@@ -106,7 +106,7 @@ impl BuildQueue {
         if target.is_all() {
             return Err(QueueError::CannotQueueTargetAll);
         }
-        if self.build_results.is_target_built(&target) {
+        if self.build_results.is_target_built(&target) || self.busy_targets.contains_key(&target) {
             return Ok(());
         }
         self.build_results.add_expected_target(target.clone());

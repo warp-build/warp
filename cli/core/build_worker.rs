@@ -301,6 +301,9 @@ impl BuildWorker {
             .map_err(WorkerError::Unknown)?
         {
             CacheHitType::Global(cache_path) => {
+                self.rule_exec_env
+                    .update_provide_map(&node, &self.cache)
+                    .await;
                 self.build_results
                     .add_computed_target(label.clone(), node.clone());
                 self.event_channel

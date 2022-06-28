@@ -15,7 +15,7 @@ impl StatusReporter {
     pub async fn run(self, target: Label) {
         let green_bold = console::Style::new().green().bold();
         let blue_dim = console::Style::new().blue().dim();
-        let yellow_dim = console::Style::new().yellow().dim();
+        let yellow = console::Style::new().yellow();
         let red_bold = console::Style::new().red().bold();
 
         let pb = ProgressBar::new(0);
@@ -35,27 +35,22 @@ impl StatusReporter {
         let mut cache_hits = 0;
         let mut action_count = 0;
 
+        let mut messages = 0;
+
         let mut build_started = std::time::Instant::now();
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
 
-            let current_targets_names = current_targets
+            let queued_target_names = queued_targets
                 .iter()
                 .map(|l| l.name())
                 .collect::<Vec<String>>();
-            if current_targets_names.len() > 0 {
-                pb.set_message(current_targets_names.join(", "));
-            } else {
-                let queued_target_names = queued_targets
-                    .iter()
-                    .map(|l| l.name())
-                    .collect::<Vec<String>>();
-                pb.set_message(format!("Pending: {}", queued_target_names.join(", ")));
-            }
+            pb.set_message(format!("Pending: {}", queued_target_names.join(", ")));
             pb.set_length(queued_targets.len() as u64 + action_count);
 
             if let Some(event) = self.event_channel.recv() {
                 debug!("{:#?}", event);
+                messages += 1;
 
                 use zap_core::Event::*;
                 match event {
@@ -79,27 +74,35 @@ impl StatusReporter {
                         queued_targets.insert(label);
                     }
                     QueuedTargets(count) => pb.set_length(count as u64),
-                    ArchiveVerifying(_label) => {
-                        action_count += 1;
+                    ArchiveVerifying(label) => {
+                        let line =
+                            format!("{:>12} {}", yellow.apply_to("Verifying"), label.to_string(),);
+                        pb.println(line);
+                        pb.set_length(pb.length() + 1);
                         pb.inc(1)
                     }
-                    ArchiveUnpacking(_label) => {
-                        action_count += 1;
+                    ArchiveUnpacking(label) => {
+                        let line =
+                            format!("{:>12} {}", yellow.apply_to("Unpacking"), label.to_string(),);
+                        pb.println(line);
+                        pb.set_length(pb.length() + 1);
                         pb.inc(1)
                     }
-                    ActionRunning { .. } => {
-                        action_count += 1;
-                        pb.inc(1)
-                    }
+                    ActionRunning { .. } => pb.inc(1),
                     ArchiveDownloading { label, .. } => {
                         let line = format!(
                             "{:>12} {}",
-                            yellow_dim.apply_to("Downloading"),
+                            yellow.apply_to("Downloading"),
                             label.to_string(),
                         );
                         pb.println(line);
                         pb.set_length(pb.length() + 1);
                         pb.inc(1)
+                    }
+                    PreparingActions {
+                        action_count: ac, ..
+                    } => {
+                        action_count += ac as u64;
                     }
                     RequeueingTarget(_, _) => (),
                     CacheMiss { .. } => {
@@ -191,6 +194,7 @@ impl StatusReporter {
                             error_count,
                         );
                         pb.println(line);
+                        pb.println(format!("Processed {} messages", messages));
                         return;
                     }
                 }
