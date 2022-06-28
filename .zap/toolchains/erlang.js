@@ -3,28 +3,30 @@ export const BEAM_EXT = ".beam";
 export const ERL_EXT = ".erl";
 
 const impl = ctx => {
-  const {
-    archiveKind,
-    archiveSha1,
-    unarchivedRoot,
-  } = ctx.cfg();
+  const { version, sha1 } = ctx.cfg();
 
-  if (archiveKind === "source") {
-    ctx.action().runShell({
-      script: `#!/bin/bash -xe
+  const output = "erlang.tar.gz"
 
-      cd ${unarchivedRoot}
-      ./otp_build all
+  const url = `https://github.com/erlang/otp/releases/download/OTP-${version}/otp_src_${version}.tar.gz`
 
-    `});
-  }
+  ctx.action().download({ url, sha1, output })
 
-  const binRoot = File.join(unarchivedRoot, "bin");
+  ctx.action().extract({ src: output, dst: "." })
+
+  ctx.action().runShell({
+    script: `#!/bin/bash -xe
+
+cd otp_src_*
+./otp_build all
+
+`});
+
+  const binRoot = "bin";
   const ERLC = File.join(binRoot, "erlc");
   const ERL = File.join(binRoot, "erl");
-  const REBAR = "rebar3";
-  ctx.provides({ ERLC, ERL, REBAR });
   ctx.action().declareOutputs([]);
+
+  ctx.provides({ ERLC, ERL });
 };
 
 export default Zap.Toolchain({

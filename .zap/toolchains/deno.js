@@ -5,14 +5,15 @@ const impl = ctx => {
   const { host } = ctx.env();
   const { version, sha1 } = ctx.cfg();
 
-  const url = `https://github.com/denoland/deno/releases/download/v1.22.2/deno-${host.triplet}.zip`
+  const url = `https://github.com/denoland/deno/releases/download/v${version}/deno-${host.triplet}.zip`
 
   ctx.action().download({ url, sha1, output })
 
   ctx.action().extract({ src: output, dst: "." })
 
-  const DENO = File.join(unarchivedRoot, "deno");
+  const DENO = "deno";
   ctx.provides({ DENO });
+
   ctx.action().declareOutputs([]);
 };
 
