@@ -38,14 +38,11 @@ impl LocalCache {
     pub async fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
         let node = sandbox.node();
         let hash = node.hash();
-        let cache_path = self.local_root.join(&hash);
-        /*
-            if node.target.is_local() {
-            self.local_root.join(&hash)
-        } else {
+        let cache_path = if node.target.is_pinned() {
             self.global_root.join(&hash)
+        } else {
+            self.local_root.join(&hash)
         };
-        */
 
         debug!(
             "Caching node {:?} hashed {:?}: {:?} outputs",
@@ -101,14 +98,11 @@ impl LocalCache {
     ) -> Result<(), anyhow::Error> {
         trace!("Promoting outputs for {}", node.target.label().to_string());
         let hash = node.hash();
-        let hash_path = self.local_root.join(&hash);
-        /*
-            if node.target.is_local() {
-            self.local_root.join(&hash)
-        } else {
+        let hash_path = if node.target.is_pinned() {
             self.global_root.join(&hash)
+        } else {
+            self.local_root.join(&hash)
         };
-        */
 
         let mut paths: FxHashMap<PathBuf, ()> = FxHashMap::default();
         let mut outs: FxHashMap<PathBuf, PathBuf> = FxHashMap::default();
@@ -142,10 +136,7 @@ impl LocalCache {
     }
 
     #[tracing::instrument(name = "LocalCache::absolute_path_by_hash")]
-    pub fn absolute_path_by_hash(&self, hash: &str) -> PathBuf {
-        self.local_root.join(hash)
-
-        /*
+    pub async fn absolute_path_by_hash(&self, hash: &str) -> PathBuf {
         match fs::canonicalize(&self.local_root.join(hash)).await {
             Err(_) => {
                 let path = self.global_root.join(hash);
@@ -158,7 +149,6 @@ impl LocalCache {
             }
             Ok(path) => path,
         }
-        */
     }
 
     /// Determine if a given node has been cached already or not.

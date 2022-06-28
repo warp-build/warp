@@ -267,7 +267,10 @@ impl LocalSandbox {
             .iter()
         {
             for out in dep.outs.iter() {
-                let src = build_cache.absolute_path_by_hash(&dep.hash).join(&out);
+                let src = build_cache
+                    .absolute_path_by_hash(&dep.hash)
+                    .await
+                    .join(&out);
                 let dst = self.root.join(&out);
                 self.copy_file(&src, &dst).await?;
             }

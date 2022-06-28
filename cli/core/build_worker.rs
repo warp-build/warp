@@ -309,7 +309,9 @@ impl BuildWorker {
             }
             CacheHitType::Local(cache_path) => {
                 debug!("Skipping {}, but promoting outputs.", name.to_string());
-                self.rule_exec_env.update_provide_map(&node, &self.cache);
+                self.rule_exec_env
+                    .update_provide_map(&node, &self.cache)
+                    .await;
                 self.build_results
                     .add_computed_target(label.clone(), node.clone());
                 self.cache
@@ -342,7 +344,7 @@ impl BuildWorker {
                 ValidationStatus::Valid => {
                     self.build_results.add_computed_target(label.clone(), node.clone());
                     self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
-                    self.rule_exec_env.update_provide_map(&node, &self.cache);
+                    self.rule_exec_env.update_provide_map(&node, &self.cache).await;
                     self.cache
                         .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
                         .await
@@ -352,7 +354,7 @@ impl BuildWorker {
                 ValidationStatus::NoOutputs => {
                     if node.outs().is_empty() {
                         self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
-                        self.rule_exec_env.update_provide_map(&node, &self.cache);
+                        self.rule_exec_env.update_provide_map(&node, &self.cache).await;
                         self.build_results.add_computed_target(label.clone(), node.clone());
                         Ok(label.clone())
                     } else {
