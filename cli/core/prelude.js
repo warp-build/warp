@@ -69,12 +69,15 @@ Zap.Targets.compute = target => {
     deps: () => target.deps,
     transitiveDeps: () => target.transitiveDeps,
 
-    env: {
-      host_triple: target.platform,
-      os: target.platform.endsWith("darwin") ? "darwin" :
-          target.platform.endsWith("linux-gnu") ? "linux" :
-          target.platform.endsWith("win32") ? "win32" : "unknown",
-    },
+    env: () => ({
+      host: {
+        triple: target.platform,
+        arch: target.platform.split("-")[0],
+        os: target.platform.endsWith("darwin") ? "darwin" :
+            target.platform.endsWith("linux-gnu") ? "linux" :
+            target.platform.endsWith("win32") ? "win32" : "unknown",
+      }
+    }),
 
     provides: provides => ffi("op_ctx_declare_provides", {label, provides}),
 
