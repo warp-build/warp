@@ -6,15 +6,30 @@ export const RESI_EXT = ".resi";
 export const RES_EXT = ".res";
 
 const impl = ctx => {
-  const { unarchivedRoot } = ctx.cfg();
+  const { version, sha1 } = ctx.cfg();
+  const { host } = ctx.env();
 
-  const binRoot = `${unarchivedRoot}/${ctx.platform.os}`
+  const url = `https://github.com/rescript-lang/rescript-compiler/archive/refs/tags/${version}.tar.gz`
 
+  const output = "rescript.tar.gz"
+
+  ctx.action().download({ url, sha1, output })
+
+  ctx.action().extract({ src: output, dst: "." })
+
+  const binRoot = `rescript-compiler-${version}/${host.os}`;
   const BSC = File.join(binRoot, "bsc.exe");
-  const BSREFMT = File.join(binRoot, "bsrefmt.exe");
+  const BSREFMT = File.join(binRoot, "refmt.exe");
   const RESCRIPT = File.join(binRoot, "rescript.exe");
+
+  ctx.action().setPermissions({ file: BSC, executable: true })
+  ctx.action().setPermissions({ file: RESCRIPT, executable: true })
+  ctx.action().setPermissions({ file: BSREFMT, executable: true })
+
+  ctx.action().declareOutputs([RESCRIPT]);
+  ctx.action().declareRunScript(RESCRIPT);
+
   ctx.provides({ BSC, BSREFMT, RESCRIPT });
-  ctx.action().declareOutputs([]);
 };
 
 export default Zap.Toolchain({

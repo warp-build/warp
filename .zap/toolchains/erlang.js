@@ -24,6 +24,10 @@ cd otp_src_*
   const binRoot = "bin";
   const ERLC = File.join(binRoot, "erlc");
   const ERL = File.join(binRoot, "erl");
+
+  ctx.action().setPermissions({ file: ERLC, executable: true })
+  ctx.action().setPermissions({ file: ERL, executable: true })
+
   ctx.action().declareOutputs([]);
 
   ctx.provides({ ERLC, ERL });
