@@ -1,3 +1,14 @@
+# Wed Jun 29 16:41:39 CEST 2022
+
+It's been a while but today we finally got the remote cache building nicely.
+We are also renaming the project from Zap, to Warp.
+
+This is a homage to Star Trek's primary method for faster-than-light travel,
+where ships bend the space-time continuum _around_ them to move faster. This is
+exactly what Warp does to get your builds to be instant.
+
+Warp doesn't speed up your compiler, it bends space-time _around it_ so
+compilation goes faster.
 
 # Mon May  2 00:36:33 CEST 2022
 
