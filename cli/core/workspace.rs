@@ -67,7 +67,12 @@ impl Workspace {
         );
         let mut contents = fs::read_to_string(&workspace_file)?.parse::<Value>()?;
         let new_contents = contents.as_table_mut().unwrap();
-        let mut alias_map = Map::new();
+        let mut alias_map = if let Some(previous_aliases) = new_contents.get("aliases") {
+            previous_aliases.as_table().unwrap().clone()
+        } else {
+            Map::new()
+        };
+
         alias_map.insert(alias, Value::String(target.to_string()));
         new_contents.insert("aliases".into(), Value::Table(alias_map));
 

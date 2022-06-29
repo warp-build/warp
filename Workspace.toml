@@ -1,24 +1,17 @@
-[aliases]
-lib = "//tools/npmlift:lib"
-[toolchains.deno]
-sha1 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e"
-version = "1.22.2"
-
-[toolchains.elixir]
-sha1 = "325fbdde4f0a5701bb8b9d455175b85ff41470d7"
-version = "1.13.4"
-
-[toolchains.erlang]
-sha1 = "2bb7456ccb19cf83b07506744fb540ce4d66b257"
-version = "25.0"
-
-[toolchains.rebar3]
-sha1 = "143d3473dae6ea8250452f7a29db73974be51b24"
-
-[toolchains.rescript]
-sha1 = "d5279f085d19a2234d2024080ad90bf69a09ab66"
-version = "9.1.4"
-
 [workspace]
-ignore_patterns = ["\\.git", "_build", "deps", "lib/bs", "target", "node_modules"]
 name = "warp-build"
+ignore_patterns = [
+  "\\.git",
+  "_build",
+  "deps",
+  "lib/bs",
+  "target",
+  "node_modules",
+]
+
+[toolchains]
+deno = { version = "1.22.2", sha1 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e" }
+elixir = { version = "1.13.4", sha1 = "325fbdde4f0a5701bb8b9d455175b85ff41470d7" }
+erlang = { version = "25.0", sha1 = "2bb7456ccb19cf83b07506744fb540ce4d66b257" }
+rebar3 = { sha1 = "143d3473dae6ea8250452f7a29db73974be51b24" }
+rescript = { version = "9.1.4", sha1 = "d5279f085d19a2234d2024080ad90bf69a09ab66" }
