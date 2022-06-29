@@ -39,7 +39,7 @@ impl CacheGoal {
                     .context("Could not remove entire Warp cache")
             }
             CacheGoal::Clear { target } => {
-                let target: Label = target.into();
+                let target = workspace.aliases.fetch_target(self.target);
                 let mut warp = WarpWorker::new(config)?;
                 warp.load(&PathBuf::from(&".")).await?;
                 warp.build_dep_graph()?;

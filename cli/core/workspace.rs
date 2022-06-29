@@ -1,5 +1,7 @@
 use super::*;
+use std::fs;
 use std::path::PathBuf;
+use toml::{map::Map, Value};
 use url::Url;
 
 pub const WORKSPACE: &str = "Workspace.toml";
@@ -24,6 +26,8 @@ pub struct Workspace {
 
     /// The collection of paths required for a Warp Workspace to work.
     pub paths: WorkspacePaths,
+
+    pub aliases: WorkspaceAliases,
 
     /// The build files found in the workspace
     pub build_files: Vec<PathBuf>,
@@ -53,5 +57,24 @@ impl Workspace {
             local_toolchains: toolchains.to_vec(),
             ..self
         }
+    }
+
+    pub fn write_alias(self, alias: String, target: Label) -> Result<(), anyhow::Error> {
+        let workspace_file = format!(
+            "{}/{}",
+            self.paths.workspace_root.to_str().unwrap(),
+            "Workspace.toml"
+        );
+        let mut contents = fs::read_to_string(&workspace_file)?.parse::<Value>()?;
+        let new_contents = contents.as_table_mut().unwrap();
+        let mut alias_map = Map::new();
+        alias_map.insert(alias, Value::String(target.to_string()));
+        new_contents.insert("aliases".into(), Value::Table(alias_map));
+
+        let new_toml = toml::to_string(new_contents)?;
+
+        fs::write(workspace_file, new_toml).expect("Could not write TOML");
+
+        return Ok(());
     }
 }

@@ -1,4 +1,5 @@
 pub mod actions;
+pub mod alias;
 pub mod build_coordinator;
 pub mod build_executor;
 pub mod build_queue;
@@ -28,6 +29,7 @@ pub mod workspace_paths;
 pub mod workspace_scanner;
 
 pub use actions::*;
+pub use alias::*;
 pub use build_coordinator::*;
 pub use build_executor::*;
 pub use build_queue::*;

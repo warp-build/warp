@@ -28,6 +28,12 @@ impl WorkspaceParser {
             ignore_patterns.push(pat.to_string());
         }
 
+        let aliases = if let Some(aliases) = toml.get("aliases") {
+            WorkspaceAliases::new(aliases.as_table().unwrap().clone())
+        } else {
+            WorkspaceAliases::empty()
+        };
+
         let toolchain_configs = if let Some(toolchains) = toml.get("toolchains") {
             rule_config::toml_codecs::parse_rules(toolchains)?
         } else {
@@ -45,6 +51,7 @@ impl WorkspaceParser {
             build_files: vec![],
             local_rules: vec![],
             local_toolchains: vec![],
+            aliases,
             toolchain_configs,
             ignore_patterns,
             remote_cache_url: "http://localhost:4000/api".parse()?,

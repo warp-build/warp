@@ -22,10 +22,12 @@
 // pub use test::*;
 // pub use toolchain::*;
 // pub use workspace::*;
+pub mod alias;
 pub mod build;
 pub mod clean;
 pub mod info;
 pub mod run;
+pub use alias::*;
 pub use build::*;
 pub use clean::*;
 pub use info::*;
