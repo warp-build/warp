@@ -19,7 +19,7 @@ config :zap, Zap.Repo,
 config :zap, ZapWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}, port: 4000],
+  http: [ip: {0, 0, 0, 0}, port: 4000],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,
@@ -53,7 +53,7 @@ config :ex_aws, :s3,
   debug_request: true,
   local: true,
   region: "local",
-  host: "localhost",
+  host: "192.168.1.252",
   scheme: "http://",
   port: 9000
 
