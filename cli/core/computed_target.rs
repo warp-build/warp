@@ -308,12 +308,14 @@ impl ComputedTarget {
 
         self.target.label().hash(&mut s);
 
-        let deps = self
-            .deps
-            .as_ref()
+        /*
+        guess_host_triple::guess_host_triple()
             .unwrap()
-            .into_iter()
-            .map(|d| d.hash.as_str());
+            .to_string()
+            .hash(&mut s);
+        */
+
+        let deps = self.deps.as_ref().unwrap().iter().map(|d| d.hash.as_str());
 
         let actions: Vec<String> = self
             .actions
@@ -341,7 +343,7 @@ impl ComputedTarget {
         };
 
         seeds.dedup_by(|a, b| a == b);
-        seeds.sort();
+        seeds.sort_unstable();
 
         for seed in seeds {
             seed.hash(&mut s);
@@ -351,16 +353,11 @@ impl ComputedTarget {
             let f = File::open(&src).expect(&format!("Unable to open: {:?}", &src));
             let mut buffer = [0; 2048];
             let mut reader = BufReader::new(f);
-            loop {
-                match reader.read(&mut buffer) {
-                    Ok(len) => {
-                        if len == 0 {
-                            break;
-                        }
-                        buffer[..len].hash(&mut s);
-                    }
-                    Err(_) => break,
+            while let Ok(len) = reader.read(&mut buffer) {
+                if len == 0 {
+                    break;
                 }
+                buffer[..len].hash(&mut s);
             }
         }
 

@@ -1,5 +1,6 @@
 use super::*;
 use std::path::PathBuf;
+use url::Url;
 
 pub const WORKSPACE: &str = "Workspace.toml";
 
@@ -13,10 +14,13 @@ pub const DEFAULT_IGNORE: [&str; 1] = ["zap-outputs"];
 /// * descriptions of all the Targets in it
 /// * descriptions of all the Archives used to build the Targets
 ///
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct Workspace {
     /// The name of this workspace.
     pub name: String,
+
+    /// The URL to the remote cache service
+    pub remote_cache_url: Url,
 
     /// The collection of paths required for a Zap Workspace to work.
     pub paths: WorkspacePaths,

@@ -47,6 +47,7 @@ impl WorkspaceParser {
             local_toolchains: vec![],
             toolchain_configs,
             ignore_patterns,
+            remote_cache_url: "http://localhost:4000/api".parse()?,
         })
     }
 

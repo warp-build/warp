@@ -19,6 +19,9 @@ pub enum WorkerError {
     QueueError(build_queue::QueueError),
 
     #[error(transparent)]
+    RemoteCacheError(anyhow::Error),
+
+    #[error(transparent)]
     RuleLoadError(rule_exec_env::error::LoadError),
 
     #[error(transparent)]
@@ -43,6 +46,8 @@ pub struct BuildWorker {
     pub workspace: Workspace,
 
     pub cache: LocalCache,
+
+    pub remote_cache: RemoteCache,
 
     pub rule_exec_env: RuleExecEnv,
 
@@ -79,6 +84,7 @@ impl BuildWorker {
             role,
             rule_exec_env: RuleExecEnv::new(&workspace, toolchain_provides_map),
             cache: LocalCache::new(&workspace),
+            remote_cache: RemoteCache::new(&workspace),
             workspace: workspace.clone(),
             coordinator,
             build_results,
@@ -294,6 +300,20 @@ impl BuildWorker {
             rule_mnemonic: node.target.rule().mnemonic().to_string(),
         });
 
+        /*
+        if let CacheHitType::Miss { .. } = self
+            .cache
+            .is_cached(&node)
+            .await
+            .map_err(WorkerError::Unknown)?
+        {
+            self.remote_cache
+                .try_fetch(&node)
+                .await
+                .map_err(WorkerError::RemoteCacheError)?;
+        }
+        */
+
         match self
             .cache
             .is_cached(&node)
@@ -346,12 +366,16 @@ impl BuildWorker {
             match result {
                 ValidationStatus::Valid => {
                     self.build_results.add_computed_target(label.clone(), node.clone());
+
+                    self.remote_cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
                     self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
+
                     self.rule_exec_env.update_provide_map(&node, &self.cache).await;
                     self.cache
                         .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
                         .await
                         .map_err(WorkerError::Unknown)?;
+
                     Ok(label.clone())
                 },
                 ValidationStatus::NoOutputs => {

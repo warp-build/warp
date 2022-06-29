@@ -36,7 +36,7 @@ opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
 opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"]  }
 petgraph = "0.6"
 regex = "1"
-reqwest = { version = "0.11", features = ["stream"] }
+reqwest = { version = "0.11", features = ["stream", "json"] }
 rust-crypto = "0.2"
 seahash = "4"
 serde = "1.0"
