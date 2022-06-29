@@ -300,7 +300,6 @@ impl BuildWorker {
             rule_mnemonic: node.target.rule().mnemonic().to_string(),
         });
 
-        /*
         if let CacheHitType::Miss { .. } = self
             .cache
             .is_cached(&node)
@@ -312,7 +311,6 @@ impl BuildWorker {
                 .await
                 .map_err(WorkerError::RemoteCacheError)?;
         }
-        */
 
         match self
             .cache
@@ -380,6 +378,7 @@ impl BuildWorker {
                 },
                 ValidationStatus::NoOutputs => {
                     if node.outs().is_empty() {
+                        self.remote_cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
                         self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
                         self.rule_exec_env.update_provide_map(&node, &self.cache).await;
                         self.build_results.add_computed_target(label.clone(), node.clone());

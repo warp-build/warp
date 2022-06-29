@@ -1,10 +1,13 @@
 use super::*;
 use async_compression::futures::bufread::GzipDecoder;
+use async_compression::tokio::write::GzipEncoder;
 use futures::stream::TryStreamExt;
+use futures::AsyncReadExt;
+use futures::StreamExt;
 use reqwest::header::*;
 use std::path::PathBuf;
 use tokio::fs;
-use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use tracing::*;
 use url::Url;
@@ -39,46 +42,46 @@ impl RemoteCache {
             sandbox.outputs()
         };
 
-        // build a tarball with the sandbox
-        let archive_path = &sandbox.root().join(&hash).with_extension(".tar.gz");
-        let archive = fs::File::create(&archive_path).await?;
-        let archive = archive.compat();
-        let mut b = async_tar::Builder::new(futures::io::BufWriter::new(archive));
-        for artifact in &artifacts {
-            b.append_path_with_name(&sandbox.root().join(&artifact), &artifact)
-                .await?;
-        }
+        // build the archive first
+        let archive = {
+            let mut b = async_tar::Builder::new(vec![]);
+            for artifact in &artifacts {
+                b.append_path_with_name(&sandbox.root().join(&artifact), &artifact)
+                    .await?;
+            }
+            b.finish().await?;
+            b.into_inner().await?
+        };
 
-        let client = reqwest::Client::new();
+        // then compress it
+        let body = {
+            let mut encoder = GzipEncoder::new(vec![]);
+            encoder.write_all(&archive).await?;
+            encoder.shutdown().await?;
+            encoder.into_inner()
+        };
+
+        let client = reqwest::Client::builder().gzip(false).build()?;
         let url = format!("{}/artifact/{}.tar.gz", self.url, &hash);
         let response = client.post(url).send().await?;
         let upload_url: std::collections::HashMap<String, String> = response.json().await?;
-
-        let mut body = String::new();
-        fs::File::open(archive_path)
-            .await?
-            .read_to_string(&mut body)
-            .await?;
+        let upload_url: url::Url = upload_url.get("signed_url").unwrap().parse()?;
 
         let mut headers = reqwest::header::HeaderMap::new();
-        // headers.insert("x-amz-acl", "public-read".parse()?);
-        // headers.insert(CONTENT_LENGTH, format!("{}", body.len()).parse()?);
-        // headers.insert(CONTENT_TYPE, "application/octet-stream".parse()?);
+        headers.insert("ACL", "public-read".parse()?);
+        headers.insert(CONTENT_TYPE, "application/octet-stream".parse()?);
 
         let request = client
-            .put(upload_url.get("signed_url").unwrap())
-            .query(&[("x-amz-acl", "public-read")])
+            .put(upload_url)
+            // .query(&[("x-amz-acl", "public-read")])
             .headers(headers)
             .body(body)
             .build()?;
 
-        dbg!(&request);
-
         let response = client.execute(request).await?;
 
         if response.status().as_u16() >= 400 {
-            dbg!(&response);
-            println!("{}", response.text().await.unwrap());
+            println!("{}", response.text().await?);
         }
 
         Ok(())
@@ -94,19 +97,29 @@ impl RemoteCache {
             self.local_root.join(&hash)
         };
 
+        let dst_tarball = &dst.with_extension("tar.gz");
+
         let url = format!("{}/artifact/{}.tar.gz", self.url, hash);
-        let response = reqwest::get(url).await?;
+        let client = reqwest::Client::builder().gzip(false).build()?;
+        let response = client.get(url).send().await?;
 
         if response.status() == 200 {
-            let byte_stream = response
+            let mut byte_stream = response
                 .bytes_stream()
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
-            let reader = tokio_util::io::StreamReader::new(byte_stream);
 
-            let decompress_stream = GzipDecoder::new(reader.compat());
+            fs::create_dir_all(&dst_tarball.parent().unwrap()).await?;
 
+            let mut outfile = fs::File::create(&dst_tarball).await?;
+            while let Some(chunk) = byte_stream.next().await {
+                outfile.write_all_buf(&mut chunk?).await?;
+            }
+
+            let file = fs::File::open(&dst_tarball).await?;
+            let decompress_stream = GzipDecoder::new(futures::io::BufReader::new(file.compat()));
             let tar = async_tar::Archive::new(decompress_stream);
             tar.unpack(dst).await?;
+            fs::remove_file(&dst_tarball).await?;
         }
 
         Ok(())

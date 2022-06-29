@@ -110,7 +110,7 @@ impl BuildQueue {
             return Ok(());
         }
         self.build_results.add_expected_target(target.clone());
-        self.event_channel.send(Event::QueuedTarget(target.clone()));
+        // self.event_channel.send(Event::QueuedTarget(target.clone()));
         self.inner_queue.push(target);
         Ok(())
     }

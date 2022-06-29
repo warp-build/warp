@@ -14,7 +14,7 @@ defmodule Zap.SharedCache.Artifactory do
 
   def presigned_write_url(hash) do
     s = store().new()
-    store().presigned_read_url(s, hash)
+    store().presigned_write_url(s, hash)
   end
 
 end

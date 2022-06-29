@@ -52,6 +52,9 @@ impl ExtractAction {
                 tar.unpack(dst).await?;
             }
         }
+
+        fs::remove_file(&sandbox_root.join(&self.src)).await?;
+
         Ok(())
     }
 }

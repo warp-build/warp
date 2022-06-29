@@ -41,13 +41,19 @@ config :zap, SharedCache.Artifactory,
 
 config :zap, SharedCache.Artifactory.S3,
   bucket_name: "local.abstractmachines.zap.artifacts"
+  # bucket_name: "local.warp.artifacts"
+
+config :ex_aws,
+  debug_request: true,
+  region: "",
+  access_key_id: "JPT3JEIGTMRDY1HAHYB2",
+  secret_access_key: "ffLx8m8m+NX9DGAvzb3LY2X4DwZ2DPgF0DlglgAD"
 
 config :ex_aws, :s3,
+  debug_request: true,
   local: true,
-  region: "",
+  region: "local",
   host: "localhost",
   scheme: "http://",
-  port: 9000,
-  access_key_id: "admin",
-  secret_access_key: "password"
+  port: 9000
 
