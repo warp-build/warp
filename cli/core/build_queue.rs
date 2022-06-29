@@ -29,6 +29,9 @@ pub struct BuildQueue {
     /// Targets currently being built.
     busy_targets: Arc<DashMap<Label, ()>>,
 
+    /// Targets currently being built.
+    in_queue_targets: Arc<DashMap<Label, ()>>,
+
     /// The queue from which workers pull work.
     inner_queue: Arc<crossbeam::deque::Injector<Label>>,
 
@@ -55,6 +58,7 @@ impl BuildQueue {
         BuildQueue {
             inner_queue: Arc::new(crossbeam::deque::Injector::new()),
             wait_queue: Arc::new(crossbeam::deque::Injector::new()),
+            in_queue_targets: Arc::new(DashMap::new()),
             busy_targets: Arc::new(DashMap::new()),
             target_count: AtomicUsize::new(0),
             event_channel,
@@ -70,7 +74,7 @@ impl BuildQueue {
         if let crossbeam::deque::Steal::Success(label) = self.wait_queue.steal() {
             return self.handle_next(label);
         }
-        return None;
+        None
     }
 
     fn handle_next(&self, label: Label) -> Option<Label> {
@@ -84,6 +88,7 @@ impl BuildQueue {
         }
         // But if it is yet to be built, we mark it as busy
         self.busy_targets.insert(label.clone(), ());
+        self.in_queue_targets.remove(&label);
         Some(label)
     }
 
@@ -106,11 +111,15 @@ impl BuildQueue {
         if target.is_all() {
             return Err(QueueError::CannotQueueTargetAll);
         }
-        if self.build_results.is_target_built(&target) || self.busy_targets.contains_key(&target) {
+        if self.build_results.is_target_built(&target)
+            || self.busy_targets.contains_key(&target)
+            || self.in_queue_targets.contains_key(&target)
+        {
             return Ok(());
         }
         self.build_results.add_expected_target(target.clone());
         self.event_channel.send(Event::QueuedTarget(target.clone()));
+        self.in_queue_targets.insert(target.clone(), ());
         self.inner_queue.push(target);
         Ok(())
     }
