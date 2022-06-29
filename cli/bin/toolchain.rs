@@ -1,7 +1,7 @@
 use anyhow::*;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use zap_core::*;
+use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -33,19 +33,19 @@ pub enum ToolchainGoal {
 }
 
 impl ToolchainGoal {
-    pub async fn run(self, config: ZapConfig) -> Result<(), anyhow::Error> {
-        let mut zap = ZapWorker::new(config)?;
-        zap.load(&PathBuf::from(&".")).await?;
+    pub async fn run(self, config: WarpConfig) -> Result<(), anyhow::Error> {
+        let mut warp = WarpWorker::new(config)?;
+        warp.load(&PathBuf::from(&".")).await?;
 
         match self {
-            ToolchainGoal::ListArchives => self.list_archives(&mut zap),
-            ToolchainGoal::ListAvailable => self.list_available_toolchains(&mut zap),
-            ToolchainGoal::ListActive => self.list_active_toolchains(&mut zap),
+            ToolchainGoal::ListArchives => self.list_archives(&mut warp),
+            ToolchainGoal::ListAvailable => self.list_available_toolchains(&mut warp),
+            ToolchainGoal::ListActive => self.list_active_toolchains(&mut warp),
         }
     }
 
-    pub fn list_archives(&self, zap: &mut ZapWorker) -> Result<(), anyhow::Error> {
-        let toolchain_manager = zap.toolchain_manager();
+    pub fn list_archives(&self, warp: &mut WarpWorker) -> Result<(), anyhow::Error> {
+        let toolchain_manager = warp.toolchain_manager();
         let mut archives = toolchain_manager.read().unwrap().archives();
 
         archives.sort_by_key(|a| a.name().to_string());
@@ -69,8 +69,8 @@ impl ToolchainGoal {
         Ok(())
     }
 
-    pub fn list_available_toolchains(&self, zap: &mut ZapWorker) -> Result<(), anyhow::Error> {
-        let toolchain_manager = zap.toolchain_manager();
+    pub fn list_available_toolchains(&self, warp: &mut WarpWorker) -> Result<(), anyhow::Error> {
+        let toolchain_manager = warp.toolchain_manager();
         let mut toolchains: Vec<String> = toolchain_manager
             .read()
             .unwrap()
@@ -92,8 +92,8 @@ impl ToolchainGoal {
         Ok(())
     }
 
-    pub fn list_active_toolchains(&self, zap: &mut ZapWorker) -> Result<(), anyhow::Error> {
-        let toolchain_manager = zap.toolchain_manager();
+    pub fn list_active_toolchains(&self, warp: &mut WarpWorker) -> Result<(), anyhow::Error> {
+        let toolchain_manager = warp.toolchain_manager();
         let mut toolchains: Vec<String> = toolchain_manager
             .read()
             .unwrap()

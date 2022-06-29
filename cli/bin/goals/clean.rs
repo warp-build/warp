@@ -2,7 +2,7 @@ use std::io::Write;
 use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
-use zap_core::*;
+use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -16,7 +16,7 @@ pub struct CleanGoal {
 
 NOTE that after cleaning it, we may need to recompile all the dependants of this target.
 
-A path to a directory with a zap file, followed by a colon
+A path to a directory with a warp file, followed by a colon
 and the name of the label to be cleaned.
 
 Example: //my/library:shell
@@ -38,7 +38,7 @@ impl CleanGoal {
         debug!("Target: {}", &target.to_string());
 
         let mut cache = LocalCache::new(&workspace);
-        let mut zap = LocalWorker::from_workspace(workspace.clone());
+        let mut warp = LocalWorker::from_workspace(workspace.clone());
 
         let name = if target.is_all() {
             "workspace".to_string()
@@ -49,9 +49,9 @@ impl CleanGoal {
         print!("🔨 Preparing {}...", &name);
         std::io::stdout().flush().unwrap();
 
-        zap.prepare(&target).await?;
+        warp.prepare(&target).await?;
 
-        let nodes = zap.compute_nodes().await?;
+        let nodes = warp.compute_nodes().await?;
 
         if target.is_all() {
             for node in &nodes {

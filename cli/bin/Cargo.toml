@@ -1,16 +1,16 @@
 [package]
-name = "zap-build"
+name = "warp-build"
 version = "0.5.0"
 authors = ["Leandro Ostera <leandro@abstractmachines.dev>"]
 description = "A simple, fast, and correct build system for modern polyglot teams"
 edition = "2021"
 
 [[bin]]
-name = "zap"
+name = "warp"
 path = "main.rs"
 
 [dependencies]
-zap-core = { path = "../core", version = "*" }
+warp-core = { path = "../core", version = "*" }
 
 anyhow = "1.0"
 chrono = "0.4"

@@ -1,10 +1,10 @@
-# How Zap Works
+# How Warp Works
 
-> NOTE: you do not need to be familiar with Rules and Toolchains to _use_ Zap,
+> NOTE: you do not need to be familiar with Rules and Toolchains to _use_ Warp,
 > but understanding them can help you use it more efficiently.
 
 There's only a handful of things to get familiar with that will help us
-understand how to use Zap more effectively.
+understand how to use Warp more effectively.
 
 These are mirroring concepts that the Bazel build tool has already proven to
 work at scale, but they are coloured with the flavors of Dune, that provides an
@@ -127,12 +127,12 @@ Elixir rules need a working Elixir installation.
 It would be too much work to specify that every target depends _also_ on the
 specific language toolchain, so instead we deal with this at the Rule level.
 
-All rules define what toolchains they rely on, and Zap will build and cache
+All rules define what toolchains they rely on, and Warp will build and cache
 them like any other target.
 
 ### Action
 
-Every rule creates a series of Actions that Zap needs to carry out. These
+Every rule creates a series of Actions that Warp needs to carry out. These
 actions can be to execute a program, copy a file, or write a new file.
 
 It is these actions that actually make rules _do work_.

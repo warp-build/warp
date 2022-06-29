@@ -1,4 +1,4 @@
-ZAP_EXE=zap
+ZAP_EXE=warp
 
 .PHONY: build
 build:
@@ -21,7 +21,7 @@ test.integration:
 		--ignored
 
 .PHONY: release.win
-release.win: ZAP_EXE=zap.exe
+release.win: ZAP_EXE=warp.exe
 release.win: release
 
 .PHONY: release

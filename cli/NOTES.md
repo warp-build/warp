@@ -3,7 +3,7 @@
 Catching up with what's written and moving stuff around so I can keep going
 without losing it.
 
-The main thing that happens is `structopt` kicking in in `bin/main.rs`'s Zap
+The main thing that happens is `structopt` kicking in in `bin/main.rs`'s Warp
 struct, where we select a _goal_. A goal here can be to build something, test
 something, etc.
 
@@ -12,7 +12,7 @@ We're gonna dig through the Build goal.
 This runs `bin/goals/build.rs@BuildGoal::run`, which:
 
 0. Parsers the goal target into a Label
-1. Creates a new `ZapWorker`
+1. Creates a new `WarpWorker`
 2. Loads the current path
   1. the worker will `scan` the root directory
   2. we'll configure the BuildScript context

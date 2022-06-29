@@ -89,7 +89,7 @@ pub enum ValidationStatus {
 }
 
 impl LocalSandbox {
-    #[tracing::instrument(name="LocalSandbox::for_node", skip(workspace, node), fields(zap.target = %node.target.label().to_string()))]
+    #[tracing::instrument(name="LocalSandbox::for_node", skip(workspace, node), fields(warp.target = %node.target.label().to_string()))]
     pub fn for_node(workspace: &Workspace, node: ComputedTarget) -> LocalSandbox {
         let workspace = workspace.clone();
         let root = workspace.paths.local_sandbox_root.join(node.hash());
@@ -279,7 +279,7 @@ impl LocalSandbox {
         Ok(())
     }
 
-    #[tracing::instrument(name="LocalSandbox::copy_file", skip(self), fields(zap.target = %self.node().label().to_string()))]
+    #[tracing::instrument(name="LocalSandbox::copy_file", skip(self), fields(warp.target = %self.node().label().to_string()))]
     async fn copy_file(&self, src: &PathBuf, dst: &PathBuf) -> Result<(), error::SandboxError> {
         if let Some(dst_parent) = &dst.parent() {
             fs::create_dir_all(dst_parent)

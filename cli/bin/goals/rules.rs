@@ -1,7 +1,7 @@
 use anyhow::*;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use zap_core::*;
+use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -10,7 +10,7 @@ use zap_core::*;
     about = "managing rules"
 )]
 pub enum RulesGoal {
-    #[structopt(help = r"List all the local and global Zap rules.")]
+    #[structopt(help = r"List all the local and global Warp rules.")]
     List,
 
     DumpActions {
@@ -37,20 +37,20 @@ pub enum RulesGoal {
 }
 
 impl RulesGoal {
-    pub async fn run(self, config: ZapConfig) -> Result<(), anyhow::Error> {
-        let mut zap = ZapWorker::new(config)?;
-        zap.load(&PathBuf::from(&".")).await?;
-        zap.build_dep_graph()?;
+    pub async fn run(self, config: WarpConfig) -> Result<(), anyhow::Error> {
+        let mut warp = WarpWorker::new(config)?;
+        warp.load(&PathBuf::from(&".")).await?;
+        warp.build_dep_graph()?;
 
         match self {
-            RulesGoal::List => self.list_rules(&mut zap),
-            RulesGoal::DumpActions { ref target } => self.dump_actions(&target, &mut zap),
-            RulesGoal::DumpOutputs { ref target } => self.dump_outputs(&target, &mut zap),
+            RulesGoal::List => self.list_rules(&mut warp),
+            RulesGoal::DumpActions { ref target } => self.dump_actions(&target, &mut warp),
+            RulesGoal::DumpOutputs { ref target } => self.dump_outputs(&target, &mut warp),
         }
     }
 
-    fn list_rules(&self, zap: &mut ZapWorker) -> Result<(), anyhow::Error> {
-        let rule_manager = zap.rule_manager();
+    fn list_rules(&self, warp: &mut WarpWorker) -> Result<(), anyhow::Error> {
+        let rule_manager = warp.rule_manager();
         println!("Loaded Rules: ");
         let mut rules = rule_manager.read().unwrap().rules();
         rules.sort_by_key(|r| r.name().to_string());
@@ -60,12 +60,12 @@ impl RulesGoal {
         Ok(())
     }
 
-    fn dump_outputs(&self, target: &str, zap: &mut ZapWorker) -> Result<(), anyhow::Error> {
+    fn dump_outputs(&self, target: &str, warp: &mut WarpWorker) -> Result<(), anyhow::Error> {
         let label: Label = target.into();
-        let dep_graph = &mut zap.dep_graph.scoped(&label)?.seal(
-            &zap.action_map,
-            &zap.output_map,
-            &mut zap.bs_ctx,
+        let dep_graph = &mut warp.dep_graph.scoped(&label)?.seal(
+            &warp.action_map,
+            &warp.output_map,
+            &mut warp.bs_ctx,
         )?;
 
         for computed_target in dep_graph.targets() {
@@ -77,12 +77,12 @@ impl RulesGoal {
         Ok(())
     }
 
-    fn dump_actions(&self, target: &str, zap: &mut ZapWorker) -> Result<(), anyhow::Error> {
+    fn dump_actions(&self, target: &str, warp: &mut WarpWorker) -> Result<(), anyhow::Error> {
         let label: Label = target.into();
-        let dep_graph = &mut zap.dep_graph.scoped(&label)?.seal(
-            &zap.action_map,
-            &zap.output_map,
-            &mut zap.bs_ctx,
+        let dep_graph = &mut warp.dep_graph.scoped(&label)?.seal(
+            &warp.action_map,
+            &warp.output_map,
+            &mut warp.bs_ctx,
         )?;
 
         for computed_target in dep_graph.targets() {

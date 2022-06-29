@@ -1,8 +1,8 @@
 ---
-source: lib/zap-bin/tests/zap_bin_test.rs
-expression: "run(&[\"zap\", \"toolchains\", \"list-active\"])"
+source: lib/warp-bin/tests/warp_bin_test.rs
+expression: "run(&[\"warp\", \"toolchains\", \"list-active\"])"
 ---
 Active Toolchains: 
-* //zap.build/test/toolchains:caramel
-* //zap.build/toolchains:erlang
+* //warp.build/test/toolchains:caramel
+* //warp.build/toolchains:erlang
 

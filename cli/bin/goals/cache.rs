@@ -1,7 +1,7 @@
 use anyhow::Context;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use zap_core::*;
+use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -30,23 +30,23 @@ Must be a single target.
 }
 
 impl CacheGoal {
-    pub async fn run(self, config: ZapConfig) -> Result<(), anyhow::Error> {
+    pub async fn run(self, config: WarpConfig) -> Result<(), anyhow::Error> {
         match self {
             CacheGoal::Purge => {
                 std::fs::remove_dir_all(config.archive_root)
-                    .context("Could not remove entire Zap cache")?;
+                    .context("Could not remove entire Warp cache")?;
                 std::fs::remove_dir_all(config.cache_root)
-                    .context("Could not remove entire Zap cache")
+                    .context("Could not remove entire Warp cache")
             }
             CacheGoal::Clear { target } => {
                 let target: Label = target.into();
-                let mut zap = ZapWorker::new(config)?;
-                zap.load(&PathBuf::from(&".")).await?;
-                zap.build_dep_graph()?;
-                let dep_graph = &mut zap.dep_graph.scoped(&target)?.seal(
-                    &zap.action_map,
-                    &zap.output_map,
-                    &mut zap.bs_ctx,
+                let mut warp = WarpWorker::new(config)?;
+                warp.load(&PathBuf::from(&".")).await?;
+                warp.build_dep_graph()?;
+                let dep_graph = &mut warp.dep_graph.scoped(&target)?.seal(
+                    &warp.action_map,
+                    &warp.output_map,
+                    &mut warp.bs_ctx,
                 )?;
 
                 let node = dep_graph.find_node(&target).context(format!(
@@ -54,7 +54,7 @@ impl CacheGoal {
                     target.to_string()
                 ))?;
 
-                let cache_entry = zap.config.cache_root.join(node.hash());
+                let cache_entry = warp.config.cache_root.join(node.hash());
 
                 std::fs::remove_dir_all(&cache_entry).context(format!(
                     "Could not remove cached target: {}",

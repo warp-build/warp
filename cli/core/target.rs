@@ -1,6 +1,6 @@
 use super::*;
 
-/// A Target in the Zap dependency graph is a labeled instantiation of a rule plus a configuration
+/// A Target in the Warp dependency graph is a labeled instantiation of a rule plus a configuration
 /// object.
 ///
 #[derive(Debug, Clone)]

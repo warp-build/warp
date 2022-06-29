@@ -11,8 +11,8 @@ const impl = ctx => {
   ctx.action().declareOutputs([]);
 };
 
-export default Zap.Toolchain({
-  name: "//zap.build/toolchains:elixir",
+export default Warp.Toolchain({
+  name: "//warp.build/toolchains:elixir",
   mnemonic: "Elixir/OTP",
   impl,
   cfg: {

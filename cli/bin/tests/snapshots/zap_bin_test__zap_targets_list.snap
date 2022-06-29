@@ -1,6 +1,6 @@
 ---
-source: lib/zap-bin/tests/zap_bin_test.rs
-expression: "run(&[\"zap\", \"targets\", \"list\"])"
+source: lib/warp-bin/tests/warp_bin_test.rs
+expression: "run(&[\"warp\", \"targets\", \"list\"])"
 ---
 //a:a_app
 //a:lib
@@ -10,6 +10,6 @@ expression: "run(&[\"zap\", \"targets\", \"list\"])"
 //b:lib
 //b:my_release
 //b:rel
-//zap.build/test/toolchains:caramel
-//zap.build/toolchains:erlang
+//warp.build/test/toolchains:caramel
+//warp.build/toolchains:erlang
 

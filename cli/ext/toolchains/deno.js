@@ -8,8 +8,8 @@ const impl = ctx => {
   ctx.action().declareOutputs([]);
 };
 
-export default Zap.Toolchain({
-  name: "//zap.build/toolchains:deno",
+export default Warp.Toolchain({
+  name: "//warp.build/toolchains:deno",
   mnemonic: "Deno",
   impl,
   cfg: {

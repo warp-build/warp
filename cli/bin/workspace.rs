@@ -1,7 +1,7 @@
 use anyhow::*;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use zap_core::*;
+use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -19,21 +19,21 @@ pub enum WorkspaceGoal {
 }
 
 impl WorkspaceGoal {
-    pub async fn run(self, config: ZapConfig) -> Result<(), anyhow::Error> {
+    pub async fn run(self, config: WarpConfig) -> Result<(), anyhow::Error> {
         match self {
             WorkspaceGoal::Info => {
-                let mut zap = ZapWorker::new(config)?;
-                zap.load(&PathBuf::from(&".")).await?;
-                let workspace = zap.workspace();
+                let mut warp = WarpWorker::new(config)?;
+                warp.load(&PathBuf::from(&".")).await?;
+                let workspace = warp.workspace();
                 println!("Name: {:?}", workspace.name());
                 println!("Workspace Root: {:?}", workspace.root());
                 println!();
-                println!("Global Zap Directories:");
-                println!("* Cache: {:?}", zap.config().cache_root);
-                println!("* Rules: {:?}", zap.config().rules_root);
-                println!("* Toolchains: {:?}", zap.config().toolchains_root);
+                println!("Global Warp Directories:");
+                println!("* Cache: {:?}", warp.config().cache_root);
+                println!("* Rules: {:?}", warp.config().rules_root);
+                println!("* Toolchains: {:?}", warp.config().toolchains_root);
                 println!();
-                println!("Local Zap Directories:");
+                println!("Local Warp Directories:");
                 println!("* Outputs: {:?}", workspace.outputs_root());
                 println!("* Rules: {:?}", workspace.rules_root());
                 println!("* Sandbox: {:?}", workspace.sandbox_root());

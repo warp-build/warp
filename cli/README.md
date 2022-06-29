@@ -1,11 +1,11 @@
-# :zap: Zap
+# :warp: Warp
 
-![Main workflow](https://github.com/AbstractMachinesLab/zap/workflows/Main%20workflow/badge.svg)
+![Main workflow](https://github.com/AbstractMachinesLab/warp/workflows/Main%20workflow/badge.svg)
 
-Zap is a _simple_, _fast_, and _correct_ build system for any programming
+Warp is a _simple_, _fast_, and _correct_ build system for any programming
 language, that uses Deno and is built in Rust.
 
-Learn more at [zap.build](https://zap.build).
+Learn more at [warp.build](https://warp.build).
 
 ## Features
 
@@ -18,5 +18,5 @@ Learn more at [zap.build](https://zap.build).
 
 ## Install
 
-You can download the zap binary release from the [releases
-page](https://github.com/AbstractMachinesLab/zap/releases).
+You can download the warp binary release from the [releases
+page](https://github.com/AbstractMachinesLab/warp/releases).

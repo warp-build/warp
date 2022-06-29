@@ -2,7 +2,7 @@ use fxhash::*;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::sync::Arc;
 use tracing::*;
-use zap_core::*;
+use warp_core::*;
 
 pub struct StatusReporter {
     event_channel: Arc<EventChannel>,
@@ -52,7 +52,7 @@ impl StatusReporter {
                 debug!("{:#?}", event);
                 messages += 1;
 
-                use zap_core::Event::*;
+                use warp_core::Event::*;
                 match event {
                     BuildingTarget { label, .. } => {
                         current_targets.insert(label);

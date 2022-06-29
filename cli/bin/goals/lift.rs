@@ -4,7 +4,7 @@ use structopt::StructOpt;
 #[structopt(
     name = "lift",
     setting = structopt::clap::AppSettings::ColoredHelp,
-    about = "wraps a rebar3, mix, or erlang.mk project in a Zap build target"
+    about = "wraps a rebar3, mix, or erlang.mk project in a Warp build target"
 )]
 pub struct LiftGoal {}
 

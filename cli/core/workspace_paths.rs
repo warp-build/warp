@@ -12,8 +12,8 @@ pub struct WorkspacePaths {
     /// The name of the current workspace
     pub workspace_name: String,
 
-    /// The directories for Zap according to XDG conventions
-    // zap_dirs: ProjectDirs,
+    /// The directories for Warp according to XDG conventions
+    // warp_dirs: ProjectDirs,
 
     /// The location of the global archive
     pub global_archive_root: PathBuf,
@@ -69,8 +69,8 @@ impl WorkspacePaths {
             )
         };
 
-        let project_dirs = ProjectDirs::from("dev", "abstractmachines", "zap")
-            .context("Could not figure out Zap project directories")?;
+        let project_dirs = ProjectDirs::from("dev", "abstractmachines", "warp")
+            .context("Could not figure out Warp project directories")?;
 
         let config_dir = if let Some(ref root) = home {
             PathBuf::from(root)
@@ -97,16 +97,16 @@ impl WorkspacePaths {
         let local_sandbox_root = user_root.join("sandbox").join(&workspace_name);
         let local_outputs_root = user_root.join("outputs").join(&workspace_name);
 
-        let workspace_output_link = workspace_root.join("zap-outputs");
-        let local_zap_root = workspace_root.join(".zap");
-        let local_rules_root = local_zap_root.join("rules");
-        let local_toolchains_root = local_zap_root.join("toolchains");
+        let workspace_output_link = workspace_root.join("warp-outputs");
+        let local_warp_root = workspace_root.join(".warp");
+        let local_rules_root = local_warp_root.join("rules");
+        let local_toolchains_root = local_warp_root.join("toolchains");
 
         std::fs::create_dir_all(&global_rules_root)?;
         std::fs::create_dir_all(&global_toolchains_root)?;
         std::fs::create_dir_all(&global_cache_root)?;
         std::fs::create_dir_all(&global_archive_root)?;
-        std::fs::create_dir_all(&local_zap_root)?;
+        std::fs::create_dir_all(&local_warp_root)?;
         std::fs::create_dir_all(&local_rules_root)?;
         std::fs::create_dir_all(&local_toolchains_root)?;
         std::fs::create_dir_all(&local_sandbox_root)?;

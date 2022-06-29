@@ -203,9 +203,9 @@ impl BuildWorker {
             .setup()
             .map_err(WorkerError::RuleExecError)?;
 
-        let built_in_rules = zap_ext::TOOLCHAINS
+        let built_in_rules = warp_ext::TOOLCHAINS
             .iter()
-            .chain(zap_ext::RULES.iter())
+            .chain(warp_ext::RULES.iter())
             .map(|(name, src)| (name.to_string(), src.to_string()));
 
         let custom_rules = (self.workspace.local_toolchains.iter())
@@ -274,7 +274,7 @@ impl BuildWorker {
         self.execute_target(target, mode).await
     }
 
-    #[tracing::instrument(name="BuildWorker::execute_target", skip(self), fields(zap.target = %target.label().to_string()))]
+    #[tracing::instrument(name="BuildWorker::execute_target", skip(self), fields(warp.target = %target.label().to_string()))]
     pub async fn execute_target(
         &mut self,
         target: Target,
@@ -306,10 +306,7 @@ impl BuildWorker {
             .await
             .map_err(WorkerError::Unknown)?
         {
-            self.remote_cache
-                .try_fetch(&node)
-                .await
-                .map_err(WorkerError::RemoteCacheError)?;
+            self.remote_cache.try_fetch(&node).await;
         }
 
         match self
@@ -365,7 +362,7 @@ impl BuildWorker {
                 ValidationStatus::Valid => {
                     self.build_results.add_computed_target(label.clone(), node.clone());
 
-                    self.remote_cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
+                    self.remote_cache.save(&sandbox).await;
                     self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
 
                     self.rule_exec_env.update_provide_map(&node, &self.cache).await;
@@ -378,7 +375,7 @@ impl BuildWorker {
                 },
                 ValidationStatus::NoOutputs => {
                     if node.outs().is_empty() {
-                        self.remote_cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
+                        self.remote_cache.save(&sandbox).await;
                         self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
                         self.rule_exec_env.update_provide_map(&node, &self.cache).await;
                         self.build_results.add_computed_target(label.clone(), node.clone());

@@ -2830,6 +2830,95 @@ dependencies = [
 ]
 
 [[package]]
+name = "warp-build"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "assert_cmd",
+ "chrono",
+ "console",
+ "crossbeam",
+ "crossbeam-channel 0.4.4",
+ "crossterm",
+ "dir-diff",
+ "env_logger",
+ "futures",
+ "fxhash",
+ "guess_host_triple",
+ "human-panic",
+ "humantime",
+ "indicatif",
+ "insta",
+ "notify",
+ "num_cpus",
+ "opentelemetry",
+ "opentelemetry-jaeger",
+ "structopt",
+ "termcolor",
+ "tokio 1.19.2",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+ "warp-core",
+]
+
+[[package]]
+name = "warp-core"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "assert_matches",
+ "async-compression",
+ "async-stream",
+ "async-tar",
+ "async_zip",
+ "chrono",
+ "crossbeam",
+ "daggy",
+ "dashmap",
+ "deno_core",
+ "directories",
+ "env_logger",
+ "fixedbitset",
+ "fs_extra",
+ "futures",
+ "fxhash",
+ "glob",
+ "guess_host_triple",
+ "log",
+ "num_cpus",
+ "opentelemetry",
+ "opentelemetry-jaeger",
+ "petgraph",
+ "regex",
+ "reqwest",
+ "rust-crypto",
+ "seahash",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "structopt",
+ "termcolor",
+ "thiserror",
+ "tokio 1.19.2",
+ "tokio-stream",
+ "tokio-tar",
+ "tokio-util",
+ "toml",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+ "url",
+ "v8",
+ "warp-ext",
+ "whoami",
+]
+
+[[package]]
+name = "warp-ext"
+version = "0.5.0"
+
+[[package]]
 name = "wasi"
 version = "0.10.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3056,95 +3145,6 @@ checksum = "56c1936c4cc7a1c9ab21a1ebb602eb942ba868cbd44a99cb7cdc5892335e1c85"
 dependencies = [
  "linked-hash-map",
 ]
-
-[[package]]
-name = "zap-build"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "assert_cmd",
- "chrono",
- "console",
- "crossbeam",
- "crossbeam-channel 0.4.4",
- "crossterm",
- "dir-diff",
- "env_logger",
- "futures",
- "fxhash",
- "guess_host_triple",
- "human-panic",
- "humantime",
- "indicatif",
- "insta",
- "notify",
- "num_cpus",
- "opentelemetry",
- "opentelemetry-jaeger",
- "structopt",
- "termcolor",
- "tokio 1.19.2",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "zap-core",
-]
-
-[[package]]
-name = "zap-core"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "assert_matches",
- "async-compression",
- "async-stream",
- "async-tar",
- "async_zip",
- "chrono",
- "crossbeam",
- "daggy",
- "dashmap",
- "deno_core",
- "directories",
- "env_logger",
- "fixedbitset",
- "fs_extra",
- "futures",
- "fxhash",
- "glob",
- "guess_host_triple",
- "log",
- "num_cpus",
- "opentelemetry",
- "opentelemetry-jaeger",
- "petgraph",
- "regex",
- "reqwest",
- "rust-crypto",
- "seahash",
- "serde",
- "serde_derive",
- "serde_json",
- "structopt",
- "termcolor",
- "thiserror",
- "tokio 1.19.2",
- "tokio-stream",
- "tokio-tar",
- "tokio-util",
- "toml",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "url",
- "v8",
- "whoami",
- "zap-ext",
-]
-
-[[package]]
-name = "zap-ext"
-version = "0.5.0"
 
 [[package]]
 name = "zstd"

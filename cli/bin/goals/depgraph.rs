@@ -1,7 +1,7 @@
 use anyhow::*;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use zap_core::*;
+use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -28,23 +28,23 @@ enum Action {
 
 impl DepGraphGoal {
     #[tracing::instrument(name="DepGraphGoal::run")]
-    pub async fn run(self, config: ZapConfig) -> Result<(), anyhow::Error> {
-        let mut zap = ZapWorker::new(config)?;
-        zap.load(&PathBuf::from(&".")).await?;
-        zap.build_dep_graph()?;
+    pub async fn run(self, config: WarpConfig) -> Result<(), anyhow::Error> {
+        let mut warp = WarpWorker::new(config)?;
+        warp.load(&PathBuf::from(&".")).await?;
+        warp.build_dep_graph()?;
 
         match self.cmd {
-            Action::Print { ref target } => self.print(&target, &mut zap),
+            Action::Print { ref target } => self.print(&target, &mut warp),
         }
     }
 
     #[tracing::instrument(name="DepGraphGoal::print")]
-    fn print(&self, target: &str, zap: &mut ZapWorker) -> Result<(), anyhow::Error> {
+    fn print(&self, target: &str, warp: &mut WarpWorker) -> Result<(), anyhow::Error> {
         let label: Label = target.into();
-        let dep_graph = &mut zap.dep_graph.scoped(&label)?.seal(
-            &zap.action_map,
-            &zap.output_map,
-            &mut zap.bs_ctx,
+        let dep_graph = &mut warp.dep_graph.scoped(&label)?.seal(
+            &warp.action_map,
+            &warp.output_map,
+            &mut warp.bs_ctx,
         )?;
 
         println!("{}", dep_graph.to_graphviz());

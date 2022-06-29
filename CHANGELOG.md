@@ -3,7 +3,7 @@
 
 A lot has happened since last Monday, so I figured I'd recap the week here. For
 the most part, I'm dodging burnout by resting a lot, reading, and doing shit
-that gives me energy. Like Zap. Zap is cool.
+that gives me energy. Like Warp. Warp is cool.
 
 In the past few days we've added support for:
 
@@ -32,7 +32,7 @@ Next up, I'll be building the actual API used to receive Github Webhooks. Not
 sure what that's gonna look like, but for the time being it'll just be a little
 Elixir+Plug.
 
-Sometime this week Zap Cloud will be building itself with Zap Cloud.
+Sometime this week Warp Cloud will be building itself with Warp Cloud.
 
 # Mon Apr 25 01:18:42 CEST 2022
 
@@ -49,7 +49,7 @@ https://linear.app/abstractmachines/issue/ZAP-3/set-up-tiny-elixir-api
 
 The flow should go a little like this:
 
-1. `zap lift` for an existing project will try to identify the parts of the
+1. `warp lift` for an existing project will try to identify the parts of the
    project that need to be lifted, and the tools that they are using.
 
    It creates a `Workspace.toml` with the detected toolchains, and the
@@ -60,7 +60,7 @@ The flow should go a little like this:
 
 # Old Notes
 ───────┬────────────────────────────────────────────────────────────────────────────────────
-       │ File: /Users/ostera/zap.stuff
+       │ File: /Users/ostera/warp.stuff
 ───────┼────────────────────────────────────────────────────────────────────────────────────
    1   │ why?
    2   │ * nobody wants to work on ci pipelines
@@ -75,21 +75,21 @@ The flow should go a little like this:
   11   │   - commits
   12   │     - artifacts
   13   │ 
-  14   │ 0. zap.build
+  14   │ 0. warp.build
   15   │ 1. login with github
   16   │ 2. when you open a PR, you see a status update:
   17   │     * code checks
   18   │     * build
   19   │     * tests (small, medium, large)
   20   │ 
-  21   │ $ zap lift -- mix.exs
+  21   │ $ warp lift -- mix.exs
   22   │ **Build.toml
   23   │ Workspace.toml
   24   │ 
-  25   │ $ zap login
+  25   │ $ warp login
   26   │ <open github>
   27   │ 
-  28   │ $ zap build
+  28   │ $ warp build
   29   │ <reuse the build cache>
   30   │ 
   31   │ get the build system to be prod ready

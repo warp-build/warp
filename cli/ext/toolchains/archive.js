@@ -12,7 +12,7 @@ const impl = ctx => {
   });
 };
 
-export default Zap.Rule({
+export default Warp.Rule({
   name: "archive",
   mnemonic: "Tar",
   impl,

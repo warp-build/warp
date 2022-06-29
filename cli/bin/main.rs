@@ -12,16 +12,16 @@ use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
-use zap_core::Event;
-use zap_core::*;
+use warp_core::Event;
+use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
-    name = "zap",
+    name = "warp",
     setting = structopt::clap::AppSettings::ColoredHelp,
     about = "A simple, fast, and correct build system for modern polyglot teams"
 )]
-struct Zap {
+struct Warp {
     #[structopt(subcommand, help = "the command to run")]
     cmd: Option<Goal>,
 
@@ -38,21 +38,21 @@ struct Zap {
     enable_tracing: bool,
 
     #[structopt(
-        long = "zap-home",
-        help = "the root directory for the Zap global configuration"
+        long = "warp-home",
+        help = "the root directory for the Warp global configuration"
     )]
-    zap_home: Option<String>,
+    warp_home: Option<String>,
 }
 
-impl Zap {
+impl Warp {
     async fn run(self) -> Result<(), anyhow::Error> {
         let t0 = std::time::Instant::now();
 
         human_panic::setup_panic!(Metadata {
-            name: "zap".into(),
+            name: "warp".into(),
             version: env!("CARGO_PKG_VERSION").into(),
             authors: "Leandro Ostera <leandro@abstractmachines.dev>".into(),
-            homepage: "https://zap.build".into(),
+            homepage: "https://warp.build".into(),
         });
 
         if self.enable_tracing {
@@ -78,7 +78,7 @@ impl Zap {
             .try_init()
             .unwrap();
 
-        let root_span = trace_span!("Zap::run");
+        let root_span = trace_span!("Warp::run");
 
         async move {
             let result = self.start(t0).await;
@@ -94,14 +94,14 @@ impl Zap {
         .await
     }
 
-    #[tracing::instrument(name = "Zap::start")]
+    #[tracing::instrument(name = "Warp::start")]
     async fn start(&self, t0: std::time::Instant) -> Result<(), anyhow::Error> {
         let event_channel = Arc::new(EventChannel::new());
         event_channel.send(Event::BuildStarted(t0));
 
         let cwd = PathBuf::from(&".");
         let workspace: Workspace =
-            WorkspaceBuilder::build(cwd, self.zap_home.clone(), self.user.clone()).await?;
+            WorkspaceBuilder::build(cwd, self.warp_home.clone(), self.user.clone()).await?;
 
         if let Some(cmd) = self.cmd.clone() {
             cmd
@@ -162,7 +162,7 @@ impl Goal {
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    Zap::from_args().run().await.map(|_| ())?;
+    Warp::from_args().run().await.map(|_| ())?;
     shutdown_tracer_provider();
     Ok(())
 }

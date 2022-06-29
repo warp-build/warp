@@ -9,8 +9,8 @@ fn run(parts: &[&str]) -> String {
     cmd.env("ZAP_LOG", "info");
     cmd.current_dir(std::fs::canonicalize(PathBuf::from("./tests/sample_project")).unwrap());
     cmd.arg("--quiet");
-    cmd.args(&["--user", "zap-runner"]);
-    cmd.args(&["--zap-home", "../_zap_home"]);
+    cmd.args(&["--user", "warp-runner"]);
+    cmd.args(&["--warp-home", "../_warp_home"]);
     for arg in &parts[1..] {
         cmd.arg(arg);
     }
@@ -23,69 +23,69 @@ fn run(parts: &[&str]) -> String {
 
 #[test]
 #[ignore]
-pub fn zap_workspace_info() {
-    insta::assert_snapshot!(run(&["zap", "workspace", "info"]))
+pub fn warp_workspace_info() {
+    insta::assert_snapshot!(run(&["warp", "workspace", "info"]))
 }
 
 #[test]
 #[ignore]
-pub fn zap_toolchains_list_active() {
-    insta::assert_snapshot!(run(&["zap", "toolchains", "list-active"]))
+pub fn warp_toolchains_list_active() {
+    insta::assert_snapshot!(run(&["warp", "toolchains", "list-active"]))
 }
 
 #[test]
 #[ignore]
-pub fn zap_toolchains_list_archives() {
-    insta::assert_snapshot!(run(&["zap", "toolchains", "list-archives"]))
+pub fn warp_toolchains_list_archives() {
+    insta::assert_snapshot!(run(&["warp", "toolchains", "list-archives"]))
 }
 
 #[test]
 #[ignore]
-pub fn zap_toolchains_list_available() {
-    insta::assert_snapshot!(run(&["zap", "toolchains", "list-available"]))
+pub fn warp_toolchains_list_available() {
+    insta::assert_snapshot!(run(&["warp", "toolchains", "list-available"]))
 }
 
 #[test]
 #[ignore]
-pub fn zap_targets_list() {
-    insta::assert_snapshot!(run(&["zap", "targets", "list"]))
+pub fn warp_targets_list() {
+    insta::assert_snapshot!(run(&["warp", "targets", "list"]))
 }
 
 #[test]
 #[ignore]
-pub fn zap_rules_list() {
-    insta::assert_snapshot!(run(&["zap", "rules", "list"]))
+pub fn warp_rules_list() {
+    insta::assert_snapshot!(run(&["warp", "rules", "list"]))
 }
 
 #[test]
 #[ignore]
-pub fn zap_rules_dump_actions() {
-    insta::assert_snapshot!(run(&["zap", "rules", "dump-actions", "//..."]))
+pub fn warp_rules_dump_actions() {
+    insta::assert_snapshot!(run(&["warp", "rules", "dump-actions", "//..."]))
 }
 
 #[test]
 #[ignore]
-pub fn zap_rules_dump_outputs() {
-    insta::assert_snapshot!(run(&["zap", "rules", "dump-outputs", "//..."]))
+pub fn warp_rules_dump_outputs() {
+    insta::assert_snapshot!(run(&["warp", "rules", "dump-outputs", "//..."]))
 }
 
 #[test]
 #[ignore]
-pub fn zap_dep_graph_print() {
-    // insta::assert_snapshot!(run(&["zap", "dep-graph", "print", "//..."]))
+pub fn warp_dep_graph_print() {
+    // insta::assert_snapshot!(run(&["warp", "dep-graph", "print", "//..."]))
 }
 
 #[test]
 #[ignore]
-pub fn zap_cache_clear() {
-    // insta::assert_snapshot!(run(&["zap", "cache", "clear", "//a:lib"]))
+pub fn warp_cache_clear() {
+    // insta::assert_snapshot!(run(&["warp", "cache", "clear", "//a:lib"]))
 }
 
 #[test]
 #[ignore]
-pub fn zap_build() {
-    insta::assert_snapshot!(run(&["zap"]));
-    insta::assert_snapshot!(run(&["zap", "build"]));
-    insta::assert_snapshot!(run(&["zap", "build", "//..."]));
-    insta::assert_snapshot!(run(&["zap", "build", "//a:lib"]));
+pub fn warp_build() {
+    insta::assert_snapshot!(run(&["warp"]));
+    insta::assert_snapshot!(run(&["warp", "build"]));
+    insta::assert_snapshot!(run(&["warp", "build", "//..."]));
+    insta::assert_snapshot!(run(&["warp", "build", "//a:lib"]));
 }

@@ -4,7 +4,7 @@ use std::process::*;
 use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
-use zap_core::*;
+use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -15,7 +15,7 @@ use zap_core::*;
 pub struct RunGoal {
     #[structopt(help = r"The target to run.
 
-A path to a directory with a zap file, followed by a colon
+A path to a directory with a warp file, followed by a colon
 and the name of the label to be built.
 
 Example: //my/library:shell
@@ -48,7 +48,7 @@ impl RunGoal {
 
         if target.is_all() {
             print!(
-                "You can't run everything. Please specify a target like this: zap build //my/app"
+                "You can't run everything. Please specify a target like this: warp build //my/app"
             );
             return Ok(());
         }
@@ -56,11 +56,11 @@ impl RunGoal {
         let worker_limit = self.max_workers.unwrap_or(num_cpus::get());
 
         let local_outputs_root = workspace.paths.local_outputs_root.clone();
-        let zap = BuildExecutor::from_workspace(workspace, worker_limit);
+        let warp = BuildExecutor::from_workspace(workspace, worker_limit);
 
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
-            zap.build(target.clone(), event_channel.clone()),
+            warp.build(target.clone(), event_channel.clone()),
             status_reporter.run(target.clone()),
         )
         .await;

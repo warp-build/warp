@@ -1,5 +1,5 @@
 [package]
-name = "zap-core"
+name = "warp-core"
 version = "0.5.0"
 authors = ["Leandro Ostera <leandro@abstractmachines.dev>"]
 description = "A simple, fast, and correct build system for modern polyglot teams"
@@ -9,7 +9,7 @@ edition = "2021"
 path = "lib.rs"
 
 [dependencies]
-zap-ext = { path = "../ext", version = "*" }
+warp-ext = { path = "../ext", version = "*" }
 
 anyhow = "1.0"
 assert_matches = "1"

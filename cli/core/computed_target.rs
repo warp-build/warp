@@ -209,7 +209,7 @@ impl ComputedTarget {
         deps
     }
 
-    #[tracing::instrument(name="ComputedTarget::transitive_deps", skip(self, find_node), fields(zap.target = %self.label().to_string()))]
+    #[tracing::instrument(name="ComputedTarget::transitive_deps", skip(self, find_node), fields(warp.target = %self.label().to_string()))]
     pub fn transitive_deps(
         &mut self,
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,

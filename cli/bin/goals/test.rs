@@ -10,7 +10,7 @@ pub struct TestGoal {
     #[structopt(
         help = r"The test target to run.
 
-A path to a directory with a zap file, followed by a colon
+A path to a directory with a warp file, followed by a colon
 and the name of the label to be built.
 
 Example: //my/library:test_name

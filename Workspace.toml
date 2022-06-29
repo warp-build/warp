@@ -1,5 +1,5 @@
 [workspace]
-name = "zap-cloud"
+name = "warp-build"
 ignore_patterns = [
   "\\.git",
   "_build",

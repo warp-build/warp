@@ -4,9 +4,9 @@ use url::Url;
 
 pub const WORKSPACE: &str = "Workspace.toml";
 
-pub const DEFAULT_IGNORE: [&str; 1] = ["zap-outputs"];
+pub const DEFAULT_IGNORE: [&str; 1] = ["warp-outputs"];
 
-/// A Workspace in Zap is a struct with all the information needed to interact
+/// A Workspace in Warp is a struct with all the information needed to interact
 /// with your workspace.
 ///
 /// This includes:
@@ -22,7 +22,7 @@ pub struct Workspace {
     /// The URL to the remote cache service
     pub remote_cache_url: Url,
 
-    /// The collection of paths required for a Zap Workspace to work.
+    /// The collection of paths required for a Warp Workspace to work.
     pub paths: WorkspacePaths,
 
     /// The build files found in the workspace

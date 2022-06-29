@@ -24,8 +24,8 @@ const impl = ctx => {
   ctx.action().declareOutputs([]);
 };
 
-export default Zap.Toolchain({
-  name: "//zap.build/toolchains:erlang",
+export default Warp.Toolchain({
+  name: "//warp.build/toolchains:erlang",
   mnemonic: "Erlang/OTP",
   impl,
   cfg: {

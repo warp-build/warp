@@ -1,5 +1,5 @@
 ---
-source: lib/zap-bin/tests/zap_bin_test.rs
-expression: "run(&[\"zap\", \"build\", \"//...\"])"
+source: lib/warp-bin/tests/warp_bin_test.rs
+expression: "run(&[\"warp\", \"build\", \"//...\"])"
 ---
 🔨 Building workspace...

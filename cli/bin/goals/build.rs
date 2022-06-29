@@ -2,7 +2,7 @@ use crate::reporter::*;
 use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
-use zap_core::*;
+use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -14,7 +14,7 @@ pub struct BuildGoal {
     #[structopt(
         help = r"The target to build.
 
-A path to a directory with a zap file, followed by a colon
+A path to a directory with a warp file, followed by a colon
 and the name of the label to be built.
 
 Example: //my/library:lib
@@ -53,11 +53,11 @@ impl BuildGoal {
 
         let worker_limit = self.max_workers.unwrap_or(num_cpus::get());
 
-        let zap = BuildExecutor::from_workspace(workspace, worker_limit);
+        let warp = BuildExecutor::from_workspace(workspace, worker_limit);
 
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
-            zap.build(target.clone(), event_channel.clone()),
+            warp.build(target.clone(), event_channel.clone()),
             status_reporter.run(target),
         )
         .await;

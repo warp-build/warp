@@ -37,21 +37,21 @@ impl Buildfile {
     #[tracing::instrument(name = "Buildfile::from_file", skip(rule_manager))]
     pub fn from_file(
         workspace_prefix: &PathBuf,
-        zapfile_path: &PathBuf,
+        warpfile_path: &PathBuf,
         rule_manager: Arc<DashMap<String, Rule>>,
     ) -> Result<Buildfile, Error> {
-        debug!("Parsing Build.toml at {:?}", zapfile_path);
+        debug!("Parsing Build.toml at {:?}", warpfile_path);
 
-        let contents = fs::read_to_string(&zapfile_path)?.parse::<Value>()?;
+        let contents = fs::read_to_string(&warpfile_path)?.parse::<Value>()?;
         let contents = contents.as_table().context(format!(
             "Expected Buildfile contents to be a TOML table but instead found: {:?}",
             &contents
         ))?;
 
-        let package_dir = zapfile_path.clone();
+        let package_dir = warpfile_path.clone();
         let package_dir = &package_dir
             .parent()
-            .context(format!("Could not get the parent of: {:?}", &zapfile_path))?
+            .context(format!("Could not get the parent of: {:?}", &warpfile_path))?
             .to_path_buf();
 
         let pkg_prefix = package_dir.strip_prefix(workspace_prefix)?.to_path_buf();
@@ -65,16 +65,16 @@ impl Buildfile {
                 let name = {
                     let name = cfg.get("name").context(format!(
                             "Rule {} in file {:?} is missing a name.",
-                            &rule_name, &zapfile_path
+                            &rule_name, &warpfile_path
                     ))?;
                     name.as_str().context(format!(
                             "Expected name in rule {} in file {:?} to be a String but instead found {}",
-                            &rule_name, &zapfile_path, &name
+                            &rule_name, &warpfile_path, &name
                     ))?
                 };
 
                 let label = Label::from_path_and_name(&pkg_prefix, name);
-                let rule = rule_manager.get(rule_name).context(format!("Could not find a rule named `{}`, are you sure its spelled correctly and installed in   {}/.zap/rules  ?  \n\nAvailable rules are: {:?}", rule_name, workspace_prefix.to_str().unwrap(), available_rules))?;
+                let rule = rule_manager.get(rule_name).context(format!("Could not find a rule named `{}`, are you sure its spelled correctly and installed in   {}/.warp/rules  ?  \n\nAvailable rules are: {:?}", rule_name, workspace_prefix.to_str().unwrap(), available_rules))?;
 
                 let rule_config = {
                     let table = cfg.as_table().context(format!(
@@ -112,7 +112,7 @@ impl Buildfile {
         }
 
         Ok(Buildfile {
-            path: zapfile_path.to_path_buf(),
+            path: warpfile_path.to_path_buf(),
             targets,
         })
     }
@@ -162,12 +162,12 @@ impl Buildfile {
 
     pub fn expand_value(
         value: CfgValue,
-        zapfile_path: &PathBuf,
+        warpfile_path: &PathBuf,
     ) -> Result<CfgValue, anyhow::Error> {
         match value {
             CfgValue::File(path) => {
                 if path.to_str().unwrap().contains("*") {
-                    let entries = glob::glob(zapfile_path.join(&path).to_str().unwrap())
+                    let entries = glob::glob(warpfile_path.join(&path).to_str().unwrap())
                         .context("Could not read glob pattern")?;
 
                     let mut files = vec![];
@@ -176,14 +176,14 @@ impl Buildfile {
                     }
                     Ok(CfgValue::List(files))
                 } else {
-                    Ok(CfgValue::File(zapfile_path.join(&path)))
+                    Ok(CfgValue::File(warpfile_path.join(&path)))
                 }
             }
             CfgValue::List(parts) => {
                 let mut elements = vec![];
 
                 for p in parts {
-                    let expanded_value = Buildfile::expand_value(p, &zapfile_path)?;
+                    let expanded_value = Buildfile::expand_value(p, &warpfile_path)?;
                     elements.extend(match expanded_value {
                         CfgValue::List(subparts) => subparts,
                         el => vec![el],

@@ -1,4 +1,4 @@
-import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://zap.build/toolchains/erlang.js";
+import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { name, deps, srcs, headers, behaviors } = ctx.cfg();
@@ -48,7 +48,7 @@ const impl = ctx => {
   });
 };
 
-export default Zap.Rule({
+export default Warp.Rule({
   name: "erlang_library",
   mnemonic: "ErlLibrary",
   impl,

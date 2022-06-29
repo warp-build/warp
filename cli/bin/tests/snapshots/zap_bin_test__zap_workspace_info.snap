@@ -1,20 +1,20 @@
 ---
-source: lib/zap-bin/tests/zap_bin_test.rs
-expression: "run(&[\"zap\", \"workspace\", \"info\"])"
+source: lib/warp-bin/tests/warp_bin_test.rs
+expression: "run(&[\"warp\", \"workspace\", \"info\"])"
 ---
 Name: "sample_project"
 Workspace Root: "."
 
-Global Zap Directories:
-* Cache: "../_zap_home/cache/_user_zap-runner/cache"
-* Rules: "../_zap_home/rules"
-* Toolchains: "../_zap_home/toolchains"
+Global Warp Directories:
+* Cache: "../_warp_home/cache/_user_warp-runner/cache"
+* Rules: "../_warp_home/rules"
+* Toolchains: "../_warp_home/toolchains"
 
-Local Zap Directories:
-* Outputs: "./.zap/outputs"
-* Rules: "./.zap/rules"
-* Sandbox: "./.zap/sandbox"
-* Toolchains: "./.zap/toolchains"
+Local Warp Directories:
+* Outputs: "./.warp/outputs"
+* Rules: "./.warp/rules"
+* Sandbox: "./.warp/sandbox"
+* Toolchains: "./.warp/toolchains"
 
 # of Targets: 0
 

@@ -1,7 +1,7 @@
 use anyhow::*;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use zap_core::*;
+use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -24,18 +24,18 @@ enum Action {
 }
 
 impl TargetGoal {
-    pub async fn run(self, config: ZapConfig) -> Result<(), anyhow::Error> {
-        let mut zap = ZapWorker::new(config)?;
-        zap.load(&PathBuf::from(&".")).await?;
-        zap.build_dep_graph()?;
+    pub async fn run(self, config: WarpConfig) -> Result<(), anyhow::Error> {
+        let mut warp = WarpWorker::new(config)?;
+        warp.load(&PathBuf::from(&".")).await?;
+        warp.build_dep_graph()?;
 
         match self.cmd {
-            Action::List => self.list_targets(&mut zap),
+            Action::List => self.list_targets(&mut warp),
         }
     }
 
-    fn list_targets(&self, zap: &mut ZapWorker) -> Result<(), anyhow::Error> {
-        let dep_graph = &mut zap.dep_graph;
+    fn list_targets(&self, warp: &mut WarpWorker) -> Result<(), anyhow::Error> {
+        let dep_graph = &mut warp.dep_graph;
         let mut targets = dep_graph.target_names();
         targets.sort();
         for target in targets {

@@ -28,32 +28,32 @@ const __RULES = {};
 
 /*******************************************************************************
  *
- * Zap's Rule and Toolchain API
+ * Warp's Rule and Toolchain API
  *
  ******************************************************************************/
 
-const Zap = {};
+const Warp = {};
 
 
-Zap.Rules = {};
+Warp.Rules = {};
 
-Zap.Rules.exists = name => __RULES[name] !== null && __RULES[name] !== undefined;
+Warp.Rules.exists = name => __RULES[name] !== null && __RULES[name] !== undefined;
 
-Zap.Rules.register = (name, spec) => {
+Warp.Rules.register = (name, spec) => {
   __RULES[name] = spec;
 };
 
-Zap.Rules.getByName = name => {
-    if (Zap.Rules.exists(name)) return __RULES[name];
+Warp.Rules.getByName = name => {
+    if (Warp.Rules.exists(name)) return __RULES[name];
     err(`Expected rule ${name} but could not find it in store!`);
 };
 
 
-Zap.Targets = {};
+Warp.Targets = {};
 
-Zap.Targets.compute = target => {
+Warp.Targets.compute = target => {
   const label = target.label;
-  const rule = Zap.Rules.getByName(target.rule);
+  const rule = Warp.Rules.getByName(target.rule);
 
   const config = Object.fromEntries(Object.entries(rule.cfg)
     .map( ([k, type]) => {
@@ -109,7 +109,7 @@ const check_config = cfg => {
   }));
 };
 
-Zap.Rule = spec => {
+Warp.Rule = spec => {
   const name = spec.name;
   if (!name) err(`Rule must have a string name`);
   if (typeof name !== "string") err(`Rule name must be a string, instead found: ${name}`);
@@ -133,8 +133,8 @@ Zap.Rule = spec => {
   spec.runnable = spec.runnable || false;
   spec.pinned = spec.pinned || false;
 
-  // if (Zap.Rules.exists(name)) err(`There already exists rule toolchain called ${name}, consider renaming yours`);
-  Zap.Rules.register(name, spec);
+  // if (Warp.Rules.exists(name)) err(`There already exists rule toolchain called ${name}, consider renaming yours`);
+  Warp.Rules.register(name, spec);
 
 
   ffi("op_rule_new", spec);
@@ -144,9 +144,9 @@ Zap.Rule = spec => {
 
 
 // NOTE(@ostera): Toolchains are actually just Rules on this side, since we'll need
-// to invoke them like any other Rule later on in `Zap.Target.compute`
+// to invoke them like any other Rule later on in `Warp.Target.compute`
 //
-Zap.Toolchain = spec => {
+Warp.Toolchain = spec => {
   const name = spec.name;
   if (!name) err(`Toolchain must have a string name.`);
   if (typeof name !== "string") err(`Toolchain name must be a string, instead found: ${name}.`);
@@ -170,8 +170,8 @@ Zap.Toolchain = spec => {
 
   spec.pinned = true;
 
-  // if (Zap.Rules.exists(name)) err(`There already exists a toolchain called ${name}, consider renaming yours`);
-  Zap.Rules.register(name, spec);
+  // if (Warp.Rules.exists(name)) err(`There already exists a toolchain called ${name}, consider renaming yours`);
+  Warp.Rules.register(name, spec);
 
   ffi("op_toolchain_new", spec);
 

@@ -1,4 +1,4 @@
-import ElixirToolchain, {BEAM_EXT} from "https://zap.build/toolchains/elixir.js";
+import ElixirToolchain, {BEAM_EXT} from "https://warp.build/toolchains/elixir.js";
 
 const impl = ctx => {
   const { name, deps, srcs, } = ctx.cfg();
@@ -28,7 +28,7 @@ const impl = ctx => {
   });
 };
 
-export default Zap.Rule({
+export default Warp.Rule({
   name: "elixir_library",
   mnemonic: "ExLibrary",
   impl,
