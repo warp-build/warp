@@ -14,7 +14,7 @@ pub struct AliasGoal {
 
         example:
 
-        $ zap targets add-alias <alias> <target>
+        $ zap alias <target> <alias>
 
         ")]
     target: String,
