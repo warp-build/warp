@@ -16,6 +16,8 @@ erlang = { version = "25.0", sha1 = "2bb7456ccb19cf83b07506744fb540ce4d66b257" }
 flyctl = { version = "0.0.344", sha1 = "bbb83670002ed5dddbca7252e90ed9465853f7d5" }
 rebar3 = { sha1 = "143d3473dae6ea8250452f7a29db73974be51b24" }
 rescript = { version = "9.1.4", sha1 = "d5279f085d19a2234d2024080ad90bf69a09ab66" }
+terraform = { version = "1.2.4", sha1 = "14e5c4ec076c44e25593a3af95df656f649e2f33" }
 
 [aliases]
 flyctl = "//warp.build/toolchains:flyctl"
+terraform = "//warp.build/toolchains:terraform"
