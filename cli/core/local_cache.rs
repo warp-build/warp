@@ -136,18 +136,18 @@ impl LocalCache {
     }
 
     #[tracing::instrument(name = "LocalCache::absolute_path_by_hash")]
-    pub async fn absolute_path_by_hash(&self, hash: &str) -> PathBuf {
+    pub async fn absolute_path_by_hash(&self, hash: &str) -> Result<PathBuf, anyhow::Error> {
         match fs::canonicalize(&self.local_root.join(hash)).await {
             Err(_) => {
                 let path = self.global_root.join(hash);
-                fs::canonicalize(&path).await.unwrap_or_else(|_| {
-                    panic!(
+                fs::canonicalize(&path).await.map_err(|_| {
+                    anyhow!(
                         "Could not find {:?} in disk, has the cache been modified manually?",
                         &path
                     )
                 })
             }
-            Ok(path) => path,
+            Ok(path) => Ok(path),
         }
     }
 

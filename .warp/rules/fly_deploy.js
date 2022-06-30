@@ -28,6 +28,7 @@ export default Warp.Rule({
   impl,
   cfg: {
     name: label(),
+    toolchains: [label()],
   },
   toolchains: [FlyCtlToolchain]
 });

@@ -16,6 +16,9 @@ mod error {
     #[derive(Error, Debug)]
     pub enum SandboxError {
         #[error(transparent)]
+        Unknown(anyhow::Error),
+
+        #[error(transparent)]
         MissingDependencies(ComputedTargetError),
 
         #[error("Could not create directory {dst:?} at: {dst_parent:?}")]
@@ -270,6 +273,7 @@ impl LocalSandbox {
                 let src = build_cache
                     .absolute_path_by_hash(&dep.hash)
                     .await
+                    .map_err(error::SandboxError::Unknown)?
                     .join(&out);
                 let dst = self.root.join(&out);
                 self.copy_file(&src, &dst).await?;

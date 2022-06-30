@@ -28,7 +28,7 @@ const impl = ctx => {
 
 export default Warp.Toolchain({
   name: "//warp.build/toolchains:terraform",
-  mnemonic: "terraform",
+  mnemonic: "Terraform",
   impl,
   cfg: {
     version: string(),

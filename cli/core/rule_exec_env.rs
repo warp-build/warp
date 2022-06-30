@@ -556,9 +556,13 @@ impl RuleExecEnv {
     }
 
     #[tracing::instrument(name = "RuleExecEnv::update_provide_map", skip(self, node, cache))]
-    pub async fn update_provide_map(&self, node: &ComputedTarget, cache: &LocalCache) {
+    pub async fn update_provide_map(
+        &self,
+        node: &ComputedTarget,
+        cache: &LocalCache,
+    ) -> Result<(), anyhow::Error> {
         let label = node.label();
-        let abs_node_path = cache.absolute_path_by_hash(&node.hash()).await;
+        let abs_node_path = cache.absolute_path_by_hash(&node.hash()).await?;
 
         let provides = if let Some(provides) = self.toolchain_provides_map.get(label) {
             let mut new_provides = HashMap::new();
@@ -574,6 +578,8 @@ impl RuleExecEnv {
         };
 
         self.toolchain_provides_map.insert(label.clone(), provides);
+
+        Ok(())
     }
 
     pub fn clear(&mut self) {

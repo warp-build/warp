@@ -1,3 +1,5 @@
+import ErlangToolchain from "./erlang.js";
+
 const impl = (ctx) => {
   const { url, sha1 } = ctx.cfg();
 
@@ -22,5 +24,5 @@ export default Warp.Toolchain({
   defaults: {
     url: "https://s3.amazonaws.com/rebar3/rebar3",
   },
-  toolchains: []
+  toolchains: [ErlangToolchain]
 });
