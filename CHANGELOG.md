@@ -1,3 +1,8 @@
+# Thu Jun 30 10:16:36 CEST 2022
+
+We've added support for aliases, so now you can run `warp build @api`, which is
+more convenient than long target names for deeply nested workspaces.
+
 # Wed Jun 29 16:41:39 CEST 2022
 
 It's been a while but today we finally got the remote cache building nicely.
