@@ -9,14 +9,6 @@ use warp_core::*;
     about = "managing targets"
 )]
 pub struct AliasGoal {
-    #[structopt(help = r"
-        Creates an alias for a target
-
-        example:
-
-        $ zap alias <target> <alias>
-
-        ")]
     target: String,
     alias: String,
 }
