@@ -1,23 +1,18 @@
 use super::*;
-use toml::{map::Map, Value};
+use dashmap::DashMap;
+use toml::Value;
 
 #[derive(Clone, Default, Debug)]
 pub struct WorkspaceAliases {
-    aliases: Map<String, Value>,
+    aliases: DashMap<String, Value>,
 }
 
 impl WorkspaceAliases {
-    pub fn new(aliases: Map<String, Value>) -> WorkspaceAliases {
+    pub fn new(aliases: DashMap<String, Value>) -> WorkspaceAliases {
         WorkspaceAliases { aliases }
     }
 
-    pub fn empty() -> WorkspaceAliases {
-        WorkspaceAliases {
-            aliases: toml::map::Map::new(),
-        }
-    }
-
-    pub fn fetch_target(&self, alias: String) -> Label {
+    pub fn handle_target(&self, alias: String) -> Label {
         if let Some(found_alias) = self.aliases.get(&alias) {
             let label: Label = found_alias.to_string().into();
             label

@@ -1,6 +1,7 @@
 use super::*;
 use anyhow::anyhow;
 use anyhow::Context;
+use dashmap::DashMap;
 use tracing::*;
 
 pub struct WorkspaceParser {}
@@ -29,9 +30,16 @@ impl WorkspaceParser {
         }
 
         let aliases = if let Some(aliases) = toml.get("aliases") {
-            WorkspaceAliases::new(aliases.as_table().unwrap().clone())
+            let old_aliases = aliases.as_table().unwrap().clone();
+            let new_aliases = DashMap::new();
+
+            old_aliases.iter().for_each(|(k, v)| {
+                new_aliases.insert(k.clone(), v.clone());
+            });
+
+            WorkspaceAliases::new(new_aliases)
         } else {
-            WorkspaceAliases::empty()
+            WorkspaceAliases::default()
         };
 
         let toolchain_configs = if let Some(toolchains) = toml.get("toolchains") {

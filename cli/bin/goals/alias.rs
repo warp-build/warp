@@ -28,7 +28,7 @@ impl AliasGoal {
         _event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         let target: Label = self.target.into();
-        workspace.write_alias(self.alias, target)?;
+        workspace.write_alias(self.alias, target).await?;
         Ok(())
     }
 }

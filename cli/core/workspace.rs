@@ -1,6 +1,6 @@
 use super::*;
-use std::fs;
 use std::path::PathBuf;
+use tokio::fs;
 use toml::{map::Map, Value};
 use url::Url;
 
@@ -59,14 +59,21 @@ impl Workspace {
         }
     }
 
-    pub fn write_alias(self, alias: String, target: Label) -> Result<(), anyhow::Error> {
+    pub async fn write_alias(self, alias: String, target: Label) -> Result<(), anyhow::Error> {
         let workspace_file = format!(
             "{}/{}",
             self.paths.workspace_root.to_str().unwrap(),
-            "Workspace.toml"
+            WORKSPACE
         );
-        let mut contents = fs::read_to_string(&workspace_file)?.parse::<Value>()?;
-        let new_contents = contents.as_table_mut().unwrap();
+
+        let mut contents = fs::read_to_string(&workspace_file)
+            .await?
+            .parse::<Value>()?;
+
+        let new_contents = contents
+            .as_table_mut()
+            .expect("We expect workspace to be a table");
+
         let mut alias_map = if let Some(previous_aliases) = new_contents.get("aliases") {
             previous_aliases.as_table().unwrap().clone()
         } else {
@@ -78,7 +85,9 @@ impl Workspace {
 
         let new_toml = toml::to_string(new_contents)?;
 
-        fs::write(workspace_file, new_toml).expect("Could not write TOML");
+        fs::write(workspace_file, new_toml)
+            .await
+            .expect("Could not write TOML");
 
         return Ok(());
     }
