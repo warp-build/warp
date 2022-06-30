@@ -406,7 +406,6 @@ impl LocalSandbox {
         debug!("Executing build rule...");
         self.node
             .execute(
-                &self.workspace.paths.global_archive_root,
                 &self.workspace.paths.local_cache_root,
                 &self.root,
                 mode,

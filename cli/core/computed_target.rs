@@ -262,7 +262,6 @@ impl ComputedTarget {
     #[tracing::instrument(name = "ComputedTarget::execute", skip(self))]
     pub async fn execute(
         &self,
-        archive_root: &PathBuf,
         cache_root: &PathBuf,
         sandbox_root: &PathBuf,
         mode: ExecutionMode,

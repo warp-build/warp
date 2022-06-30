@@ -15,9 +15,6 @@ pub struct WorkspacePaths {
     /// The directories for Warp according to XDG conventions
     // warp_dirs: ProjectDirs,
 
-    /// The location of the global archive
-    pub global_archive_root: PathBuf,
-
     /// The location of the global cache
     pub global_cache_root: PathBuf,
 
@@ -90,7 +87,6 @@ impl WorkspacePaths {
         let user_root = global_cache_dir.join(format!("_user_{}", current_user));
 
         let global_cache_root = user_root.join("cache").join("global");
-        let global_archive_root = user_root.join("archive");
         let global_sandbox_root = user_root.join("sandbox").join("global");
 
         let local_cache_root = user_root.join("cache").join(&workspace_name);
@@ -105,7 +101,6 @@ impl WorkspacePaths {
         std::fs::create_dir_all(&global_rules_root)?;
         std::fs::create_dir_all(&global_toolchains_root)?;
         std::fs::create_dir_all(&global_cache_root)?;
-        std::fs::create_dir_all(&global_archive_root)?;
         std::fs::create_dir_all(&local_warp_root)?;
         std::fs::create_dir_all(&local_rules_root)?;
         std::fs::create_dir_all(&local_toolchains_root)?;
@@ -116,7 +111,6 @@ impl WorkspacePaths {
         let paths = WorkspacePaths {
             current_user,
             workspace_name,
-            global_archive_root,
             global_cache_root,
             global_sandbox_root,
             global_rules_root,
