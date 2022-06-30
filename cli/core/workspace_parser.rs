@@ -54,7 +54,7 @@ impl WorkspaceParser {
             aliases,
             toolchain_configs,
             ignore_patterns,
-            remote_cache_url: "http://localhost:4000/api".parse()?,
+            remote_cache_url: "https://api.warp.build/v0".parse()?,
         })
     }
 
