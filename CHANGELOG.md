@@ -1,6 +1,7 @@
 # Fri Jul  1 01:04:00 CEST 2022
 
 We've set up https://api.warp.build and we've configured the cli to talk to it.
+
 First global cached builds happened!
 
 # Thu Jun 30 10:16:36 CEST 2022
