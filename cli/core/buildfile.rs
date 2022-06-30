@@ -166,7 +166,7 @@ impl Buildfile {
     ) -> Result<CfgValue, anyhow::Error> {
         match value {
             CfgValue::File(path) => {
-                if path.to_str().unwrap().contains("*") {
+                if path.to_str().unwrap().contains('*') {
                     let entries = glob::glob(warpfile_path.join(&path).to_str().unwrap())
                         .context("Could not read glob pattern")?;
 

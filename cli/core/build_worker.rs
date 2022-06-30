@@ -315,17 +315,16 @@ impl BuildWorker {
             .await
             .map_err(WorkerError::Unknown)?
         {
-            CacheHitType::Global(cache_path) => {
+            CacheHitType::Global(_cache_path) => {
                 self.rule_exec_env
                     .update_provide_map(&node, &self.cache)
                     .await;
                 self.build_results
                     .add_computed_target(label.clone(), node.clone());
-                self.event_channel
-                    .send(Event::CacheHit(label.clone(), cache_path));
+                self.event_channel.send(Event::CacheHit(label.clone()));
                 return Ok(label.clone());
             }
-            CacheHitType::Local(cache_path) => {
+            CacheHitType::Local(_cache_path) => {
                 debug!("Skipping {}, but promoting outputs.", name.to_string());
                 self.rule_exec_env
                     .update_provide_map(&node, &self.cache)
@@ -336,16 +335,10 @@ impl BuildWorker {
                     .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
                     .await
                     .map_err(WorkerError::Unknown)?;
-                self.event_channel
-                    .send(Event::CacheHit(label.clone(), cache_path));
+                self.event_channel.send(Event::CacheHit(label.clone()));
                 return Ok(label.clone());
             }
-            CacheHitType::Miss { local_path, .. } => {
-                self.event_channel.send(Event::CacheMiss {
-                    label: label.clone(),
-                    local_path,
-                });
-            }
+            CacheHitType::Miss { .. } => (),
         }
 
         let result = {

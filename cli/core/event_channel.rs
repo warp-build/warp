@@ -1,15 +1,14 @@
 use super::*;
 use std::sync::Arc;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct EventChannel {
     bus: Arc<crossbeam::deque::Injector<Event>>,
 }
 
 impl EventChannel {
     pub fn new() -> EventChannel {
-        let bus = Arc::new(crossbeam::deque::Injector::new());
-        EventChannel { bus }
+        EventChannel::default()
     }
 
     pub fn send(&self, event: Event) {

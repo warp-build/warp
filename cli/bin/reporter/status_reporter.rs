@@ -41,11 +41,6 @@ impl StatusReporter {
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
 
-            let queued_target_names = queued_targets
-                .iter()
-                .map(|l| l.name())
-                .collect::<Vec<String>>();
-            pb.set_message(format!("Pending: {}", queued_target_names.join(", ")));
             pb.set_length(queued_targets.len() as u64 + action_count);
 
             if let Some(event) = self.event_channel.recv() {
@@ -56,6 +51,11 @@ impl StatusReporter {
                 match event {
                     BuildingTarget { label, .. } => {
                         current_targets.insert(label);
+                        let current_targets_names = current_targets
+                            .iter()
+                            .map(|l| l.name())
+                            .collect::<Vec<String>>();
+                        pb.set_message(format!("Pending: {}", current_targets_names.join(", ")));
                     }
                     QueueingWorkspace => {
                         let line = format!(
@@ -64,14 +64,6 @@ impl StatusReporter {
                             "Queueing entire workspace...",
                         );
                         pb.println(line);
-                    }
-                    QueuedTarget(label) => {
-                        /*
-                        let line =
-                            format!("{:>12} {}", blue_dim.apply_to("Queued"), label.to_string(),);
-                        pb.println(line);
-                        */
-                        queued_targets.insert(label);
                     }
                     QueuedTargets(count) => pb.set_length(count as u64),
                     ArchiveVerifying(label) => {
@@ -104,23 +96,18 @@ impl StatusReporter {
                     } => {
                         action_count += ac as u64;
                     }
-                    RequeueingTarget(_, _) => (),
-                    CacheMiss { .. } => {
-                        // let line = format!(
-                        //     "{:>12} {}",
-                        //     blue_dim.apply_to("Cache-miss"),
-                        //     label.to_string(),
-                        // );
-                        // pb.println(line);
-                        // pb.println(format!("{:?}", local_path));
-                    }
-                    CacheHit(label, _) => {
+                    CacheHit(label) => {
                         let line = format!(
                             "{:>12} {}",
                             blue_dim.apply_to("Cache-hit"),
                             label.to_string(),
                         );
                         current_targets.remove(&label);
+                        let current_targets_names = current_targets
+                            .iter()
+                            .map(|l| l.name())
+                            .collect::<Vec<String>>();
+                        pb.set_message(format!("Pending: {}", current_targets_names.join(", ")));
                         pb.println(line);
                         pb.inc(1);
                         cache_hits += 1;
@@ -129,6 +116,11 @@ impl StatusReporter {
                         let line =
                             format!("{:>12} {}", green_bold.apply_to("Built"), label.to_string(),);
                         current_targets.remove(&label);
+                        let current_targets_names = current_targets
+                            .iter()
+                            .map(|l| l.name())
+                            .collect::<Vec<String>>();
+                        pb.set_message(format!("Pending: {}", current_targets_names.join(", ")));
                         pb.println(line);
                         pb.inc(1);
                         target_count += 1;
@@ -194,7 +186,6 @@ impl StatusReporter {
                             error_count,
                         );
                         pb.println(line);
-                        pb.println(format!("Processed {} messages", messages));
                         return;
                     }
                 }
