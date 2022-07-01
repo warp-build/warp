@@ -2,6 +2,8 @@ use super::*;
 use anyhow::anyhow;
 use anyhow::Context;
 use dashmap::DashMap;
+use std::path::PathBuf;
+use tokio::fs;
 use tracing::*;
 
 pub struct WorkspaceParser {}
@@ -88,6 +90,33 @@ impl WorkspaceParser {
                 "Expected `ignore_patterns` to be an array. Instead we found a '{}'",
                 ignore_patterns.type_str()
             ))
+        }
+    }
+
+    pub async fn parse_gitignore_patterns(workspace_root: &PathBuf) -> Vec<String> {
+        let gitignore_file = format!(
+            "{}/{}",
+            workspace_root
+                .clone()
+                .into_os_string()
+                .into_string()
+                .unwrap(),
+            ".gitignore"
+        );
+        match fs::read_to_string(gitignore_file).await {
+            Ok(contents) => {
+                let mut vec: Vec<String> = vec![];
+                for s in contents.split("\n") {
+                    if s.chars().count() > 0 {
+                        vec.push(s.clone().to_string())
+                    } else {
+                        ()
+                    }
+                }
+
+                vec
+            }
+            Err(_) => vec![],
         }
     }
 }

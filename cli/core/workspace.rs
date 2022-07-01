@@ -59,6 +59,16 @@ impl Workspace {
         }
     }
 
+    pub fn with_gitignore_patterns(self, gitignore_patterns: Vec<String>) -> Workspace {
+        let mut new_ignore_patterns = self.ignore_patterns.clone();
+        new_ignore_patterns.extend(gitignore_patterns);
+
+        Workspace {
+            ignore_patterns: new_ignore_patterns,
+            ..self
+        }
+    }
+
     pub async fn write_alias(self, alias: String, target: Label) -> Result<(), anyhow::Error> {
         let workspace_file = format!(
             "{}/{}",
