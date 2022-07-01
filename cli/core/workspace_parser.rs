@@ -94,15 +94,8 @@ impl WorkspaceParser {
     }
 
     pub async fn parse_gitignore_patterns(workspace_root: &PathBuf) -> Vec<String> {
-        let gitignore_file = format!(
-            "{}/{}",
-            workspace_root
-                .clone()
-                .into_os_string()
-                .into_string()
-                .unwrap(),
-            ".gitignore"
-        );
+        let gitignore_file = workspace_root.join(".gitignore");
+
         match fs::read_to_string(gitignore_file).await {
             Ok(contents) => {
                 let mut vec: Vec<String> = vec![];

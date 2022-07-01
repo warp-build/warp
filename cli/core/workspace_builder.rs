@@ -21,6 +21,7 @@ impl WorkspaceBuilder {
 
         let gitignore_patterns =
             WorkspaceParser::parse_gitignore_patterns(&workspace.paths.workspace_root).await;
+        let workspace = workspace.with_gitignore_patterns(gitignore_patterns);
 
         let (local_rules, local_toolchains) = {
             let scanner = WorkspaceScanner::from_workspace(&workspace);
@@ -32,7 +33,6 @@ impl WorkspaceBuilder {
 
         Ok(workspace
             .with_rules(&local_rules)
-            .with_toolchains(&local_toolchains)
-            .with_gitignore_patterns(gitignore_patterns))
+            .with_toolchains(&local_toolchains))
     }
 }
