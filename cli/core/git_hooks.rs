@@ -1,6 +1,10 @@
 use super::*;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use tokio::fs;
+use tokio::io::AsyncWriteExt;
+
+const PRE_COMMIT: &str = include_str!("./git_hooks/pre-commit");
 
 enum Hooks {
     PreCommit,
@@ -13,10 +17,11 @@ impl Hooks {
         }
     }
 
-    fn contents(&self) -> String {
+    fn contents(&self) -> &[u8] {
         match self {
-            Hooks::PreCommit => include_str!("./git_hooks/pre-commit").to_string(),
+            Hooks::PreCommit => PRE_COMMIT,
         }
+        .as_bytes()
     }
 }
 
@@ -38,9 +43,10 @@ impl GitHooks {
 
     async fn ensure_hook_exists(&self, hook: Hooks) -> Result<(), anyhow::Error> {
         let path = self.root.join(hook.filename());
-        if fs::File::open(&path).await.is_err() {
-            fs::write(&path, hook.contents()).await?;
-        }
+        let mut file = fs::File::create(&path).await?;
+        file.write_all(hook.contents()).await?;
+        let permissions = std::fs::Permissions::from_mode(0o777);
+        file.set_permissions(permissions).await?;
         Ok(())
     }
 }
