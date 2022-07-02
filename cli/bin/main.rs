@@ -132,11 +132,11 @@ enum Goal {
     // Test(TestGoal),
     // Toolchains(ToolchainGoal),
     // Workspace(WorkspaceGoal),
-    Init(InitGoal),
     Alias(AliasGoal),
     Build(BuildGoal),
     Clean(CleanGoal),
     Info(InfoGoal),
+    Init(InitGoal),
     Run(RunGoal),
 }
 
@@ -159,11 +159,11 @@ impl Goal {
             // Goal::Test(x) => x.run(),
             // Goal::Toolchains(x) => x.run(config).await,
             // Goal::Workspace(x) => x.run(config).await,
-            Goal::Init(x) => x.run(workspace.current_user, event_channel).await,
             Goal::Alias(x) => x.run(workspace, event_channel).await,
             Goal::Build(x) => x.run(workspace, event_channel).await,
             Goal::Clean(x) => x.run(workspace, event_channel).await,
             Goal::Info(x) => x.run(workspace, event_channel).await,
+            Goal::Init(x) => x.run(workspace.current_user, event_channel).await,
             Goal::Run(x) => x.run(workspace, event_channel).await,
         }
     }
