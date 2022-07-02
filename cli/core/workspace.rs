@@ -18,10 +18,18 @@ pub enum WorkspaceFileError {
     #[error("Could not parse Workspace file: {0:?}")]
     ParseError(toml::de::Error),
 
+    #[error("Could not print Workspace file: {0:?}")]
+    PrintError(toml::ser::Error),
+
     #[error(transparent)]
     IOError(std::io::Error),
 }
 
+/// A struct representing a `Workspace.toml` file in a Warp Workspace.
+///
+/// This is primarily used for serialization/deserialization, and manipualting the file itself
+/// through a semantic API that hides the TOML disk representation.
+///
 #[derive(Clone, Debug, Builder, Serialize, Deserialize)]
 #[builder(build_fn(error = "anyhow::Error"))]
 pub struct WorkspaceFile {
@@ -48,11 +56,11 @@ impl WorkspaceFile {
         toml::from_slice(&bytes).map_err(WorkspaceFileError::ParseError)
     }
 
-    pub async fn write(&self, path: &Path) -> Result<(), anyhow::Error> {
-        let toml = toml::to_string(&self)?;
+    pub async fn write(&self, path: &Path) -> Result<(), WorkspaceFileError> {
+        let toml = toml::to_string(&self).map_err(WorkspaceFileError::PrintError)?;
         fs::write(&path, toml)
             .await
-            .map_err(|io| anyhow!("Something went wrong: {:?}", io))
+            .map_err(WorkspaceFileError::IOError)
     }
 }
 
