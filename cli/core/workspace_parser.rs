@@ -22,6 +22,7 @@ impl WorkspaceParser {
             .context("Workspace name field must be a string")?
             .to_string();
 
+        let use_git_hooks = workspace["use_git_hooks"].as_bool().unwrap_or(false);
         let remote_cache_url: url::Url = workspace
             .get("remote_cache_url")
             .and_then(|url| url.as_str().map(ToString::to_string))
@@ -71,6 +72,7 @@ impl WorkspaceParser {
             toolchain_configs,
             ignore_patterns,
             remote_cache_url,
+            use_git_hooks,
         })
     }
 

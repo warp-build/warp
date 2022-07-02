@@ -41,7 +41,11 @@ pub struct Workspace {
     /// A list of local toolchains defined in this project
     pub local_toolchains: Vec<PathBuf>,
 
+    /// A list of patterns to be ignored from the repository
     pub ignore_patterns: Vec<String>,
+
+    /// Whether to make sure we have git hooks installed or not
+    pub use_git_hooks: bool,
 }
 
 impl Default for Workspace {
@@ -56,6 +60,7 @@ impl Default for Workspace {
             local_rules: vec![],
             local_toolchains: vec![],
             ignore_patterns: vec![],
+            use_git_hooks: true,
         }
     }
 }
