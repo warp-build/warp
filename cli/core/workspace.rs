@@ -1,12 +1,60 @@
 use super::*;
-use std::path::PathBuf;
+use anyhow::*;
+use serde_derive::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use thiserror::Error;
 use tokio::fs;
+use tokio::io::AsyncReadExt;
 use toml::{map::Map, Value};
+use tracing::*;
 use url::Url;
 
 pub const WORKSPACE: &str = "Workspace.toml";
 
 pub const DEFAULT_IGNORE: [&str; 1] = ["warp-outputs"];
+
+#[derive(Error, Debug)]
+pub enum WorkspaceFileError {
+    #[error("Could not parse Workspace file: {0:?}")]
+    ParseError(toml::de::Error),
+
+    #[error(transparent)]
+    IOError(std::io::Error),
+}
+
+#[derive(Clone, Debug, Builder, Serialize, Deserialize)]
+#[builder(build_fn(error = "anyhow::Error"))]
+pub struct WorkspaceFile {
+    pub name: String,
+    pub remote_cache_url: Option<Url>,
+    pub aliases: std::collections::HashMap<String, Label>,
+    pub ignore_patterns: Vec<String>,
+    pub use_git_hooks: bool,
+}
+
+impl WorkspaceFile {
+    pub fn builder() -> WorkspaceFileBuilder {
+        WorkspaceFileBuilder::default()
+    }
+
+    pub async fn read_from_file(&self, path: &Path) -> Result<(), WorkspaceFileError> {
+        let mut bytes = vec![];
+        let mut file = fs::File::open(path)
+            .await
+            .map_err(WorkspaceFileError::IOError)?;
+        file.read_to_end(&mut bytes)
+            .await
+            .map_err(WorkspaceFileError::IOError)?;
+        toml::from_slice(&bytes).map_err(WorkspaceFileError::ParseError)
+    }
+
+    pub async fn write(&self, path: &Path) -> Result<(), anyhow::Error> {
+        let toml = toml::to_string(&self)?;
+        fs::write(&path, toml)
+            .await
+            .map_err(|io| anyhow!("Something went wrong: {:?}", io))
+    }
+}
 
 /// A Workspace in Warp is a struct with all the information needed to interact
 /// with your workspace.
@@ -91,11 +139,7 @@ impl Workspace {
     }
 
     pub async fn write_alias(self, alias: String, target: Label) -> Result<(), anyhow::Error> {
-        let workspace_file = format!(
-            "{}/{}",
-            self.paths.workspace_root.to_str().unwrap(),
-            WORKSPACE
-        );
+        let workspace_file = self.paths.workspace_root.join(WORKSPACE);
 
         let mut contents = fs::read_to_string(&workspace_file)
             .await?

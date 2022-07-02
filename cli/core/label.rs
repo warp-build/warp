@@ -6,7 +6,7 @@ static DOT: &str = ".";
 
 static WILDCARD: &str = "//...";
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum Label {
     Wildcard,
     Relative { name: String, path: PathBuf },

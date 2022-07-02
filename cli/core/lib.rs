@@ -67,3 +67,6 @@ pub use workspace_scanner::*;
 #[cfg(test)]
 #[macro_use]
 extern crate assert_matches;
+
+#[macro_use]
+extern crate derive_builder;
