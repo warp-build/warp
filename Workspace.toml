@@ -1,5 +1,6 @@
 [workspace]
 name = "warp-build"
+# remote_cache_url = "http://localhost:4000/v0"
 ignore_patterns = [
   "\\.git",
   "_build",

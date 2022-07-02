@@ -22,6 +22,12 @@ impl WorkspaceParser {
             .context("Workspace name field must be a string")?
             .to_string();
 
+        let remote_cache_url: url::Url = workspace
+            .get("remote_cache_url")
+            .and_then(|url| url.as_str().map(ToString::to_string))
+            .unwrap_or_else(|| DEFAULT_API_URL.to_string())
+            .parse()?;
+
         let mut ignore_patterns = if let Some(ignore_patterns) = workspace.get("ignore_patterns") {
             WorkspaceParser::parse_ignore_patterns(ignore_patterns)?
         } else {
@@ -64,7 +70,7 @@ impl WorkspaceParser {
             aliases,
             toolchain_configs,
             ignore_patterns,
-            remote_cache_url: "https://api.warp.build/v0".parse()?,
+            remote_cache_url,
         })
     }
 

@@ -3,7 +3,6 @@ use async_compression::futures::bufread::GzipDecoder;
 use async_compression::tokio::write::GzipEncoder;
 use futures::stream::TryStreamExt;
 use futures::StreamExt;
-use reqwest::header::*;
 use std::path::PathBuf;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
@@ -15,6 +14,7 @@ use url::Url;
 ///
 #[derive(Debug, Clone)]
 pub struct RemoteCache {
+    api: API,
     global_root: PathBuf,
     local_root: PathBuf,
     url: Url,
@@ -24,6 +24,7 @@ impl RemoteCache {
     #[tracing::instrument(name = "RemoteCache::new", skip(workspace))]
     pub fn new(workspace: &Workspace) -> RemoteCache {
         RemoteCache {
+            api: API::from_workspace(&workspace),
             global_root: workspace.paths.global_cache_root.clone(),
             local_root: workspace.paths.local_cache_root.clone(),
             url: workspace.remote_cache_url.clone(),
@@ -60,28 +61,7 @@ impl RemoteCache {
             encoder.into_inner()
         };
 
-        let client = reqwest::Client::builder().gzip(false).build()?;
-        let url = format!("{}/artifact/{}.tar.gz", self.url, &hash);
-        let response = client.post(url).send().await?;
-        let upload_url: std::collections::HashMap<String, String> = response.json().await?;
-        let upload_url: url::Url = upload_url.get("signed_url").unwrap().parse()?;
-
-        let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert("ACL", "public-read".parse()?);
-        headers.insert(CONTENT_TYPE, "application/octet-stream".parse()?);
-
-        let request = client
-            .put(upload_url)
-            // .query(&[("x-amz-acl", "public-read")])
-            .headers(headers)
-            .body(body)
-            .build()?;
-
-        let response = client.execute(request).await?;
-
-        if response.status().as_u16() >= 400 {
-            println!("{}", response.text().await?);
-        }
+        self.api.upload_artifact(&hash, &body).await?;
 
         Ok(())
     }
