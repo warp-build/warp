@@ -3,7 +3,7 @@ export const BEAM_EXT = ".beam";
 export const ERL_EXT = ".erl";
 
 const impl = ctx => {
-  const { version, sha1 } = ctx.cfg();
+  const { version, sha1, build_flags } = ctx.cfg();
   const { host } = ctx.env();
 
   const output = "erlang.tar.gz"
@@ -20,13 +20,18 @@ const impl = ctx => {
     script: `#!/bin/bash -xe
 
 cd ${prefix}
-./otp_build all
+./otp_build all ${build_flags}
+
+CANONICAL_SYSTEM_NAME=$(sh ./erts/autoconf/config.guess)
+
+cd bin
+ln -s $CANONICAL_SYSTEM_NAME ${host.triple}
 
 `});
 
   ctx.action().declareOutputs([]);
 
-  const binRoot = `${prefix}/bin/${host.triple}*`;
+  const binRoot = `${prefix}/bin/${host.triple}`;
   ctx.provides({
     ERLC: File.join(binRoot, "erlc"),
     ERL: File.join(binRoot, "erl"),
@@ -43,5 +48,9 @@ export default Warp.Toolchain({
   cfg: {
     version: string(),
     sha1: string(),
-  }
+    build_flags: [string()],
+  },
+  defaults: {
+    build_flags: ["-t"]
+  },
 });
