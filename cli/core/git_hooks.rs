@@ -3,19 +3,19 @@ use std::path::PathBuf;
 use tokio::fs;
 
 enum Hooks {
-    PreReceive,
+    PreCommit,
 }
 
 impl Hooks {
     fn filename(&self) -> PathBuf {
         match self {
-            Hooks::PreReceive => PathBuf::from("pre-receive"),
+            Hooks::PreCommit => PathBuf::from("pre-commit"),
         }
     }
 
     fn contents(&self) -> String {
         match self {
-            Hooks::PreReceive => include_str!("./git_hooks/pre-receive").to_string(),
+            Hooks::PreCommit => include_str!("./git_hooks/pre-commit").to_string(),
         }
     }
 }
@@ -33,7 +33,7 @@ impl GitHooks {
     }
 
     pub async fn ensure_installed(&self) -> Result<(), anyhow::Error> {
-        self.ensure_hook_exists(Hooks::PreReceive).await
+        self.ensure_hook_exists(Hooks::PreCommit).await
     }
 
     async fn ensure_hook_exists(&self, hook: Hooks) -> Result<(), anyhow::Error> {
