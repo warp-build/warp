@@ -306,7 +306,7 @@ impl BuildWorker {
             .await
             .map_err(WorkerError::Unknown)?
         {
-            self.remote_cache.try_fetch(&node).await;
+            let _ = self.remote_cache.try_fetch(&node).await;
         }
 
         match self
@@ -358,7 +358,7 @@ impl BuildWorker {
                     self.build_results.add_computed_target(label.clone(), node.clone());
 
                     self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
-                    self.remote_cache.save(&sandbox).await;
+                   let _ =  self.remote_cache.save(&sandbox).await;
 
                     self.rule_exec_env.update_provide_map(&node, &self.cache)
                     .await
@@ -374,7 +374,7 @@ impl BuildWorker {
                 ValidationStatus::NoOutputs => {
                     if node.outs().is_empty() {
                         self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
-                        self.remote_cache.save(&sandbox).await;
+                        let _ = self.remote_cache.save(&sandbox).await;
                         self.rule_exec_env.update_provide_map(&node, &self.cache).await.map_err(WorkerError::Unknown)?;
                         self.build_results.add_computed_target(label.clone(), node.clone());
                         Ok(label.clone())
@@ -407,8 +407,34 @@ impl BuildWorker {
 mod tests {
     use super::*;
 
+    fn computed_target(label: &Label) -> ComputedTarget {
+        ComputedTarget {
+            target: Target::new(
+                label.clone(),
+                &Rule::new(
+                    "default_rule".to_string(),
+                    "Defaultrule".to_string(),
+                    vec![],
+                    ConfigSpec::default(),
+                    RuleConfig::default(),
+                    Runnable::NotRunnable,
+                    Pinned::Unpinned,
+                ),
+                RuleConfig::default(),
+            ),
+            status: ComputeStatus::Pending,
+            actions: None,
+            deps: None,
+            transitive_deps: None,
+            hash: None,
+            outs: None,
+            srcs: None,
+            run_script: None,
+        }
+    }
+
     #[test]
-    fn main_worker_finishes_when_build_queue_is_finalized() {
+    fn main_worker_finishes_when_build_results_have_all_expected_results() {
         let final_target = Label::new("//...");
         let ec = Arc::new(EventChannel::new());
         let br = Arc::new(BuildResults::new());
@@ -421,8 +447,8 @@ mod tests {
         let w = BuildWorker::new(
             Role::MainWorker,
             &Workspace::default(),
-            final_target.clone(),
-            bc.clone(),
+            final_target,
+            bc,
             br.clone(),
             q.clone(),
             ec,
@@ -431,6 +457,10 @@ mod tests {
 
         let label1 = Label::new("//test/1");
         let label2 = Label::new("//test/2");
+
+        let target1 = computed_target(&label1);
+        let target2 = computed_target(&label2);
+
         q.queue(label1.clone()).unwrap();
         q.queue(label2.clone()).unwrap();
 
@@ -439,6 +469,13 @@ mod tests {
         q.next().unwrap();
         q.next().unwrap();
 
+        // queue is consumed, but we still won't stop
+        assert!(!w.should_stop());
+
+        // results are submitted, now we stop!
+        br.add_computed_target(label1, target1);
+        assert!(!w.should_stop());
+        br.add_computed_target(label2, target2);
         assert!(w.should_stop());
     }
 

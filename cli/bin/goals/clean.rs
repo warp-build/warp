@@ -1,7 +1,5 @@
-use std::io::Write;
 use std::sync::Arc;
 use structopt::StructOpt;
-use tracing::*;
 use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -25,12 +23,13 @@ Example: //my/library:shell
 }
 
 impl CleanGoal {
-    #[tracing::instrument(name = "CleanGoal::run", skip(workspace))]
+    #[tracing::instrument(name = "CleanGoal::run", skip(_workspace, _event_channel))]
     pub async fn run(
         self,
-        workspace: Workspace,
-        event_channel: Arc<EventChannel>,
+        _workspace: Workspace,
+        _event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
+        let _ = self.target;
         /*
 
         let target: Label = self.target.into();

@@ -12,7 +12,7 @@ ignore_patterns = [
 [toolchains]
 deno = { version = "1.22.2", sha1 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e" }
 elixir = { version = "1.13.4", sha1 = "325fbdde4f0a5701bb8b9d455175b85ff41470d7" }
-erlang = { version = "25.0", sha1 = "2bb7456ccb19cf83b07506744fb540ce4d66b257" }
+erlang = { version = "25.0", sha1 = "2bb7456ccb19cf83b07506744fb540ce4d66b257", build_flags = ["-t"] }
 flyctl = { version = "0.0.344", sha1 = "bbb83670002ed5dddbca7252e90ed9465853f7d5" }
 rebar3 = { sha1 = "143d3473dae6ea8250452f7a29db73974be51b24" }
 rescript = { version = "9.1.4", sha1 = "d5279f085d19a2234d2024080ad90bf69a09ab66" }

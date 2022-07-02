@@ -122,10 +122,11 @@ mod tests {
             vec![],
             ConfigSpec::default(),
             RuleConfig::default(),
-            false,
+            Runnable::NotRunnable,
+            Pinned::Pinned,
         );
         let cfg = RuleConfig::default();
-        let target = Target::local(label, &rule, cfg);
+        let target = Target::new(label, &rule, cfg);
         ComputedTarget::from_target(target)
     }
 

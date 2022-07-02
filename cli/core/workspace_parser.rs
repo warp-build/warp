@@ -185,7 +185,10 @@ ignore_patterns = ["node_modules"]
         .parse::<toml::Value>()
         .unwrap();
         let workspace = parse(toml, &PathBuf::from(".")).unwrap();
-        assert_eq!(workspace.ignore_patterns, vec!["node_modules"]);
+        assert_eq!(
+            workspace.ignore_patterns,
+            vec!["node_modules", "warp-outputs"]
+        );
     }
 
     /*

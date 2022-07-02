@@ -157,7 +157,8 @@ impl BuildQueue {
             }
         }
         let target_count = self.target_count.load(Ordering::Acquire);
-        self.event_channel.send(Event::QueuedTargets(target_count));
+        self.event_channel
+            .send(Event::QueuedTargets(target_count.try_into().unwrap()));
         debug!("Queued {} targets...", target_count);
         Ok(())
     }
@@ -174,10 +175,11 @@ mod tests {
             vec![],
             ConfigSpec::default(),
             RuleConfig::default(),
-            false,
+            Runnable::NotRunnable,
+            Pinned::Pinned,
         );
         let cfg = RuleConfig::default();
-        let target = Target::local(label, &rule, cfg);
+        let target = Target::new(label, &rule, cfg);
         ComputedTarget::from_target(target)
     }
 
@@ -209,22 +211,17 @@ mod tests {
         assert!(q.is_empty());
         // first good target
         q.queue(final_target.clone()).unwrap();
-        // duplicates!
+        // queue duplicates!
         q.queue(final_target.clone()).unwrap();
         q.queue(final_target.clone()).unwrap();
-        q.queue(final_target.clone()).unwrap();
+        q.queue(final_target).unwrap();
 
         // our queue should have stuff in it
         assert!(!q.is_empty());
 
         // so we can get the first instance of our label
         q.next().unwrap();
-        // and we should see its still not empty
-        assert!(!q.is_empty());
-
-        // but calling in next again will drop all the duplicates
-        assert!(q.next().is_none());
-        // and we'll have an empty queue
+        // and we should see it is empty because we didn't immediately queue duplicates
         assert!(q.is_empty());
     }
 
@@ -241,7 +238,7 @@ mod tests {
         assert!(q.is_empty());
         // we load up a target that is already built
         br.add_computed_target(final_target.clone(), dummy_target(final_target.clone()));
-        q.queue(final_target.clone()).unwrap();
+        q.queue(final_target).unwrap();
 
         // our queue should still be empty
         assert!(q.is_empty());

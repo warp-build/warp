@@ -44,6 +44,22 @@ pub struct Workspace {
     pub ignore_patterns: Vec<String>,
 }
 
+impl Default for Workspace {
+    fn default() -> Self {
+        Self {
+            name: "default".to_string(),
+            remote_cache_url: "https://api.warp.build/v0".parse().unwrap(),
+            paths: WorkspacePaths::default(),
+            aliases: WorkspaceAliases::default(),
+            build_files: vec![],
+            toolchain_configs: vec![],
+            local_rules: vec![],
+            local_toolchains: vec![],
+            ignore_patterns: vec![],
+        }
+    }
+}
+
 impl Workspace {
     pub fn with_rules(self, rules: &[PathBuf]) -> Workspace {
         Workspace {

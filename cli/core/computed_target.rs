@@ -276,7 +276,7 @@ impl ComputedTarget {
         trace!("Running actions for {}...", self.target.label().to_string());
         event_channel.send(Event::PreparingActions {
             label: self.target.label().clone(),
-            action_count: self.actions().len(),
+            action_count: self.actions().len().try_into().unwrap(),
         });
         for action in self.actions() {
             event_channel.send(Event::ActionRunning {

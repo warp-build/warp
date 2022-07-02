@@ -19,9 +19,11 @@ impl WorkspaceBuilder {
             paths,
         )?;
 
+        /* NOTE(@ostera): disabled because it doesn't work
         let gitignore_patterns =
             WorkspaceParser::parse_gitignore_patterns(&workspace.paths.workspace_root).await;
         let workspace = workspace.with_gitignore_patterns(gitignore_patterns);
+        */
 
         let (local_rules, local_toolchains) = {
             let scanner = WorkspaceScanner::from_workspace(&workspace);

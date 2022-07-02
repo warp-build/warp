@@ -1,9 +1,5 @@
-use std::collections::HashSet;
-use std::io::Write;
-use std::path::PathBuf;
 use std::sync::Arc;
 use structopt::StructOpt;
-use tracing::*;
 use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -26,9 +22,10 @@ Example: //my/library:shell
 impl InfoGoal {
     pub async fn run(
         self,
-        workspace: Workspace,
+        _workspace: Workspace,
         _event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
+        let _ = self.target;
         /*
             let target: Label = self.target.into();
             debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());

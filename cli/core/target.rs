@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn uses_rule_mnemonic_to_print_itself() {
-        let label = Label::new("test_target");
+        let label = Label::new(":test_target");
         let rule = Rule::new(
             "test_rule".to_string(),
             "TestRule".to_string(),

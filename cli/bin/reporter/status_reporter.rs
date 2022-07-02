@@ -27,25 +27,22 @@ impl StatusReporter {
         pb.set_prefix("Building");
 
         let mut current_targets: FxHashSet<Label> = FxHashSet::default();
-        let mut queued_targets: FxHashSet<Label> = FxHashSet::default();
 
-        let mut errored = false;
-        let mut error_count = 0;
-        let mut target_count = 0;
-        let mut cache_hits = 0;
         let mut action_count = 0;
-
-        let mut messages = 0;
+        let mut cache_hits = 0;
+        let mut error_count = 0;
+        let mut errored = false;
+        let mut queued_targets = 0;
+        let mut target_count = 0;
 
         let mut build_started = std::time::Instant::now();
         loop {
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
 
-            pb.set_length(queued_targets.len() as u64 + action_count);
+            pb.set_length(queued_targets + action_count);
 
             if let Some(event) = self.event_channel.recv() {
                 debug!("{:#?}", event);
-                messages += 1;
 
                 use warp_core::Event::*;
                 match event {
@@ -65,7 +62,7 @@ impl StatusReporter {
                         );
                         pb.println(line);
                     }
-                    QueuedTargets(count) => pb.set_length(count as u64),
+                    QueuedTargets(count) => queued_targets += count,
                     ArchiveVerifying(label) => {
                         let line =
                             format!("{:>12} {}", yellow.apply_to("Verifying"), label.to_string(),);

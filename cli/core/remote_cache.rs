@@ -2,7 +2,6 @@ use super::*;
 use async_compression::futures::bufread::GzipDecoder;
 use async_compression::tokio::write::GzipEncoder;
 use futures::stream::TryStreamExt;
-use futures::AsyncReadExt;
 use futures::StreamExt;
 use reqwest::header::*;
 use std::path::PathBuf;
