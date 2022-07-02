@@ -6,7 +6,7 @@ use tokio::fs;
 pub struct FileScanner {
     root: PathBuf,
     match_pattern: Regex,
-    skip_patterns: Vec<Regex>,
+    skip_patterns: Vec<glob::Pattern>,
     max_concurrency: usize,
 }
 
@@ -49,7 +49,7 @@ impl FileScanner {
         patterns: &[String],
     ) -> Result<&mut FileScanner, anyhow::Error> {
         for pattern in patterns {
-            self.skip_patterns.push(Regex::new(&pattern)?);
+            self.skip_patterns.push(glob::Pattern::new(pattern)?);
         }
         Ok(self)
     }
@@ -59,17 +59,19 @@ impl FileScanner {
         &self,
     ) -> impl futures::Stream<Item = Result<PathBuf, anyhow::Error>> {
         let mut dirs = vec![self.root.clone()];
+        let root = self.root.clone();
         let match_pattern = self.match_pattern.clone();
         let skip_patterns = self.skip_patterns.clone();
         async_stream::try_stream! {
             'dir_loop: while let Some(dir) = dirs.pop() {
+                let relative_dir = dir.strip_prefix(&root).unwrap().to_str().unwrap();
                 for skip_pattern in &skip_patterns {
-                    if skip_pattern.is_match(dir.to_str().unwrap()) {
-                        continue 'dir_loop;
+                    if skip_pattern.matches(relative_dir) {
+                        continue 'dir_loop
                     }
                 }
 
-                let mut read_dir = fs::read_dir(&dir).await?;
+                let mut read_dir = fs::read_dir(&dir).await.unwrap();
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
                     if entry.path().is_dir() {
                         dirs.push(entry.path());

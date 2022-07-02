@@ -258,7 +258,7 @@ impl BuildWorker {
                     .paths
                     .workspace_root
                     .join(label.path())
-                    .join(buildfile::ZAPFILE),
+                    .join(buildfile::WARPFILE),
                 self.rule_exec_env.rule_map.clone(),
             )
             .map_err(WorkerError::Unknown)?;
@@ -320,9 +320,12 @@ impl BuildWorker {
                     .update_provide_map(&node, &self.cache)
                     .await
                     .map_err(WorkerError::Unknown)?;
+
+                self.event_channel.send(Event::CacheHit(label.clone()));
+
                 self.build_results
                     .add_computed_target(label.clone(), node.clone());
-                self.event_channel.send(Event::CacheHit(label.clone()));
+
                 return Ok(label.clone());
             }
             CacheHitType::Local(_cache_path) => {
@@ -331,13 +334,17 @@ impl BuildWorker {
                     .update_provide_map(&node, &self.cache)
                     .await
                     .map_err(WorkerError::Unknown)?;
-                self.build_results
-                    .add_computed_target(label.clone(), node.clone());
+
+                self.event_channel.send(Event::CacheHit(label.clone()));
+
                 self.cache
                     .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
                     .await
                     .map_err(WorkerError::Unknown)?;
-                self.event_channel.send(Event::CacheHit(label.clone()));
+
+                self.build_results
+                    .add_computed_target(label.clone(), node.clone());
+
                 return Ok(label.clone());
             }
             CacheHitType::Miss { .. } => (),

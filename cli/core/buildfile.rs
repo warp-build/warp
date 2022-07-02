@@ -8,7 +8,7 @@ use std::vec::Vec;
 use toml::Value;
 use tracing::*;
 
-pub const ZAPFILE: &str = "Build.toml";
+pub const WARPFILE: &str = "Build.toml";
 
 #[derive(Debug)]
 pub struct Buildfile {
@@ -22,7 +22,7 @@ pub struct Buildfile {
 impl Default for Buildfile {
     fn default() -> Self {
         Buildfile {
-            path: PathBuf::from(ZAPFILE),
+            path: PathBuf::from(WARPFILE),
             targets: vec![],
         }
     }

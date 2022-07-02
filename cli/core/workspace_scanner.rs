@@ -53,7 +53,7 @@ impl WorkspaceScanner {
         );
         let paths = FileScanner::new()
             .max_concurrency(max_concurrency)
-            .matching_path(ZAPFILE)?
+            .matching_path(WARPFILE)?
             .starting_from(&self.paths.workspace_root)
             .await?
             .skipping_paths(&self.ignore_patterns)?
@@ -73,7 +73,6 @@ impl WorkspaceScanner {
                 .starting_from(&self.paths.local_rules_root)
                 .await?
                 .matching_path("\\.js$")?
-                .skipping_paths(&self.ignore_patterns)?
                 .stream_files()
                 .await,
         );
@@ -99,7 +98,6 @@ impl WorkspaceScanner {
                 .starting_from(&self.paths.local_toolchains_root)
                 .await?
                 .matching_path("\\.js$")?
-                .skipping_paths(&self.ignore_patterns)?
                 .stream_files()
                 .await,
         );
