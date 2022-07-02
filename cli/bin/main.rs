@@ -99,6 +99,10 @@ impl Warp {
         let event_channel = Arc::new(EventChannel::new());
         event_channel.send(Event::BuildStarted(t0));
 
+        if let Some(Goal::Init(x)) = &self.cmd {
+            return x.run(event_channel).await;
+        }
+
         let cwd = PathBuf::from(&".");
         let workspace: Workspace =
             WorkspaceBuilder::build(cwd, self.warp_home.clone(), self.user.clone()).await?;
@@ -126,6 +130,7 @@ enum Goal {
     // Test(TestGoal),
     // Toolchains(ToolchainGoal),
     // Workspace(WorkspaceGoal),
+    Init(InitGoal),
     Alias(AliasGoal),
     Build(BuildGoal),
     Clean(CleanGoal),
@@ -152,6 +157,7 @@ impl Goal {
             // Goal::Test(x) => x.run(),
             // Goal::Toolchains(x) => x.run(config).await,
             // Goal::Workspace(x) => x.run(config).await,
+            Goal::Init(x) => x.run(event_channel).await,
             Goal::Alias(x) => x.run(workspace, event_channel).await,
             Goal::Build(x) => x.run(workspace, event_channel).await,
             Goal::Clean(x) => x.run(workspace, event_channel).await,
