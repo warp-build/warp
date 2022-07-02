@@ -20,6 +20,8 @@ pub struct Workspace {
     /// The name of this workspace.
     pub name: String,
 
+    pub current_user: String,
+
     /// The URL to the remote cache service
     pub remote_cache_url: Url,
 
@@ -51,6 +53,7 @@ impl Default for Workspace {
     fn default() -> Self {
         Self {
             name: "default".to_string(),
+            current_user: "cadet".to_string(),
             remote_cache_url: "https://api.warp.build/v0".parse().unwrap(),
             paths: WorkspacePaths::default(),
             aliases: WorkspaceAliases::default(),
@@ -65,6 +68,11 @@ impl Default for Workspace {
 }
 
 impl Workspace {
+    pub fn with_current_user(&mut self, current_user: String) -> &mut Workspace {
+        self.current_user = current_user;
+        self
+    }
+
     pub fn with_rules(self, rules: &[PathBuf]) -> Workspace {
         Workspace {
             local_rules: rules.to_vec(),

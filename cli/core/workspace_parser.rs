@@ -10,7 +10,11 @@ pub struct WorkspaceParser {}
 
 impl WorkspaceParser {
     #[tracing::instrument(name = "WorkspaceParser::from_toml", skip(toml, paths))]
-    pub fn from_toml(toml: toml::Value, paths: WorkspacePaths) -> Result<Workspace, anyhow::Error> {
+    pub fn from_toml(
+        toml: toml::Value,
+        current_user: String,
+        paths: WorkspacePaths,
+    ) -> Result<Workspace, anyhow::Error> {
         let workspace = toml
             .get("workspace")
             .context("Workspace file must have a workspace section")?;
@@ -62,18 +66,19 @@ impl WorkspaceParser {
             toolchain_configs.len()
         );
 
-        Ok(Workspace {
+        let workspace = Workspace {
             name,
             paths,
-            build_files: vec![],
-            local_rules: vec![],
-            local_toolchains: vec![],
             aliases,
             toolchain_configs,
             ignore_patterns,
             remote_cache_url,
             use_git_hooks,
-        })
+            current_user,
+            ..Workspace::default()
+        };
+
+        Ok(workspace)
     }
 
     pub fn parse_ignore_patterns(

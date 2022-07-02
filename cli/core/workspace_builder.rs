@@ -9,13 +9,14 @@ impl WorkspaceBuilder {
     pub async fn build(
         cwd: PathBuf,
         home: Option<String>,
-        user: Option<String>,
+        user: String,
     ) -> Result<Workspace, anyhow::Error> {
         let abs_cwd = fs::canonicalize(&cwd).await.unwrap();
         let (root, workspace_file) = WorkspaceScanner::find_workspace_file(&abs_cwd).await?;
-        let paths = WorkspacePaths::new(&root, home, user)?;
+        let paths = WorkspacePaths::new(&root, home, user.clone())?;
         let workspace = WorkspaceParser::from_toml(
             toml::from_str(&fs::read_to_string(&workspace_file).await?)?,
+            user,
             paths,
         )?;
 

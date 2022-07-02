@@ -54,9 +54,8 @@ impl WorkspacePaths {
     pub fn new(
         workspace_root: &Path,
         home: Option<String>,
-        user: Option<String>,
+        current_user: String,
     ) -> Result<WorkspacePaths, anyhow::Error> {
-        let current_user = user.unwrap_or_else(|| whoami::username());
         let workspace_name = {
             let mut hasher = Sha1::new();
             hasher.input_str(workspace_root.to_str().unwrap());

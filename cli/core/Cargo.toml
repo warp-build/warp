@@ -56,7 +56,6 @@ tracing-opentelemetry = "0.17"
 tracing-subscriber = "0.3"
 url = "2"
 v8 = "0.42"
-whoami = "1.2"
 
 
 [build-dependencies]

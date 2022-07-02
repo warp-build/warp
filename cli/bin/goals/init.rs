@@ -14,10 +14,17 @@ use warp_core::*;
 pub struct InitGoal {}
 
 impl InitGoal {
-    pub async fn run(&self, _event_channel: Arc<EventChannel>) -> Result<(), anyhow::Error> {
+    pub async fn run(
+        &self,
+        user: String,
+        _event_channel: Arc<EventChannel>,
+    ) -> Result<(), anyhow::Error> {
         let theme = dialoguer::theme::ColorfulTheme::default();
 
-        println!("\nWelcome skipper, let's create a Workspace for your crew.\n");
+        println!(
+            "\nWelcome {}, let's create a Workspace for your crew.\n",
+            user,
+        );
 
         let current_dir = fs::canonicalize(PathBuf::from("."))
             .await?
@@ -54,7 +61,19 @@ impl InitGoal {
         let workspace_root = PathBuf::from(".");
         workspace_file.write(&workspace_root).await?;
 
-        println!("We are ready, sir! Build fast and prosper 🖖");
+        println!(
+            r#"We are ready, sir!
+
+Here's a few commands for you to try:
+
+* Use `warp login` to set up the shared caching and remote builds
+* Use `warp build` to build your workspace incrementally
+* Use `warp test` to test your workspace incrementally
+* Use `warp --help` to learn more about other useful commands
+
+Build fast and prosper 🖖
+"#
+        );
 
         Ok(())
     }
