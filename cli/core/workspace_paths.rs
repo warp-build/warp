@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context};
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use directories::ProjectDirs;
+use std::path::Path;
 use std::path::PathBuf;
 
 #[derive(Clone, Default, Debug)]
@@ -51,7 +52,7 @@ pub struct WorkspacePaths {
 
 impl WorkspacePaths {
     pub fn new(
-        workspace_root: &PathBuf,
+        workspace_root: &Path,
         home: Option<String>,
         user: Option<String>,
     ) -> Result<WorkspacePaths, anyhow::Error> {

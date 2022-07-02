@@ -33,6 +33,11 @@ impl WorkspaceBuilder {
             )
         };
 
+        if workspace.use_git_hooks {
+            let githooks = GitHooks::from_workspace(&workspace);
+            githooks.ensure_installed().await?;
+        }
+
         Ok(workspace
             .with_rules(&local_rules)
             .with_toolchains(&local_toolchains))
