@@ -4,6 +4,7 @@ export const ERL_EXT = ".erl";
 
 const impl = ctx => {
   const { version, sha1 } = ctx.cfg();
+  const { host } = ctx.env();
 
   const output = "erlang.tar.gz"
 
@@ -23,13 +24,16 @@ cd ${prefix}
 
 `});
 
-  const binRoot = `${prefix}/bin`;
-  const ERLC = File.join(binRoot, "erlc");
-  const ERL = File.join(binRoot, "erl");
-
   ctx.action().declareOutputs([]);
 
-  ctx.provides({ ERLC, ERL });
+  const binRoot = `${prefix}/bin/${host.triple}*`;
+  ctx.provides({
+    ERLC: File.join(binRoot, "erlc"),
+    ERL: File.join(binRoot, "erl"),
+    ESCRIPT: File.join(binRoot, "escript"),
+    CT_RUN: File.join(binRoot, "ct_run"),
+    DIALYZER: File.join(binRoot, "dialyzer"),
+  });
 };
 
 export default Warp.Toolchain({
