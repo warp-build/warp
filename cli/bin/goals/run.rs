@@ -42,7 +42,11 @@ impl RunGoal {
         workspace: Workspace,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        let target: Label = self.target.into(); // workspace.aliases.handle_target(self.target);
+        let target: Label = (&workspace.aliases)
+            .get(&self.target)
+            .cloned()
+            .unwrap_or_else(|| self.target.into());
+
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
         debug!("Target: {}", &target.to_string());
 
@@ -64,28 +68,37 @@ impl RunGoal {
             status_reporter.run(target.clone()),
         )
         .await;
-        let computed_target = result?.unwrap();
-        if let Some(run_script) = computed_target.run_script {
-            let path = local_outputs_root.join(&run_script);
-            let mut cmd = Command::new(path);
 
-            cmd.stdin(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .args(&self.args);
+        match result? {
+            None => Err(anyhow!("There was no target to run.")),
 
-            trace!("Spawning {:?}", &cmd);
-            let mut proc = cmd.spawn()?;
+            Some(ComputedTarget {
+                run_script: None, ..
+            }) => Err(anyhow!("Target {} has no outputs!", &target.to_string())),
 
-            trace!("Waiting on {:?}", &cmd);
-            proc.wait()
-                .map(|_| ())
-                .context(format!("Error executing {}", &target.to_string()))?;
+            Some(ComputedTarget {
+                run_script: Some(run_script),
+                ..
+            }) => {
+                let path = local_outputs_root.join(&run_script);
+                let mut cmd = Command::new(path);
 
-            trace!("Exited with status: {}", cmd.status()?);
-            Ok(())
-        } else {
-            Err(anyhow!("Target {} has no outputs!", &target.to_string()))
+                cmd.stdin(Stdio::inherit())
+                    .stderr(Stdio::inherit())
+                    .stdout(Stdio::inherit())
+                    .args(&self.args);
+
+                trace!("Spawning {:?}", &cmd);
+                let mut proc = cmd.spawn()?;
+
+                trace!("Waiting on {:?}", &cmd);
+                proc.wait()
+                    .map(|_| ())
+                    .context(format!("Error executing {}", &target.to_string()))?;
+
+                trace!("Exited with status: {}", cmd.status()?);
+                Ok(())
+            }
         }
     }
 }

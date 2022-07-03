@@ -115,7 +115,6 @@ impl Warp {
         let workspace = Workspace::builder()
             .from_file(workspace_file)?
             .paths(paths)
-            // .warp_home(self.warp_home.clone())
             .current_user(current_user)
             .find_rules_and_toolchains()
             .await?

@@ -3,8 +3,6 @@ warp-*
 3rdparty/hexpm
 3rdparty/beam
 3rdparty/npm
-mix.exs
-mix.lock
 node_modules
 target
 lib/bs

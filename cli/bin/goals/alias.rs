@@ -9,18 +9,34 @@ use warp_core::*;
     about = "managing targets"
 )]
 pub struct AliasGoal {
+    #[structopt(
+        name = "target",
+        short = "t",
+        long = "target",
+        help = r#"The label of the target you are aliasing."#
+    )]
     target: String,
-    alias: String,
+
+    #[structopt(
+        name = "name",
+        short = "n",
+        long = "name",
+        help = r#"The name to use as an alias."#
+    )]
+    name: String,
 }
 
 impl AliasGoal {
     pub async fn run(
         self,
-        _workspace: Workspace,
+        mut workspace: Workspace,
         _event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        let _target: Label = self.target.into();
-        // workspace.write_alias(self.alias, target).await?;
+        workspace
+            .aliases
+            .insert(self.name.clone(), self.target.into());
+        let file: WorkspaceFile = (&workspace).try_into()?;
+        file.write(&workspace.paths.workspace_root).await?;
         Ok(())
     }
 }

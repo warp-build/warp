@@ -209,6 +209,8 @@ pub mod json_codecs {
 }
 
 pub mod toml_codecs {
+    use std::collections::BTreeMap;
+
     use super::*;
     use thiserror::*;
     use toml;
@@ -217,6 +219,44 @@ pub mod toml_codecs {
     pub enum ParseError {
         #[error("Something went wrong.")]
         Unknown,
+    }
+
+    impl TryFrom<CfgValue> for toml::Value {
+        type Error = anyhow::Error;
+
+        fn try_from(value: CfgValue) -> Result<toml::Value, anyhow::Error> {
+            match value {
+                CfgValue::String(s) => Ok(toml::Value::String(s)),
+                CfgValue::List(arr) => {
+                    let mut elements = vec![];
+                    for e in arr {
+                        let value = TryFrom::try_from(e.clone())?;
+                        elements.extend(match value {
+                            toml::Value::Array(subparts) => subparts,
+                            el => vec![el],
+                        })
+                    }
+                    Ok(toml::Value::Array(elements))
+                }
+                CfgValue::Label(l) => Ok(toml::Value::String(l.to_string())),
+                CfgValue::File(f) => Ok(toml::Value::String(f.to_str().unwrap().to_string())),
+            }
+        }
+    }
+
+    impl TryFrom<&RuleConfig> for FlexibleRuleConfig {
+        type Error = anyhow::Error;
+
+        fn try_from(rule: &RuleConfig) -> Result<FlexibleRuleConfig, anyhow::Error> {
+            let mut map: BTreeMap<String, toml::Value> = BTreeMap::default();
+
+            for (key, value) in &rule.config {
+                let value: toml::Value = TryFrom::try_from(value.clone())?;
+                map.insert(key.to_string(), value);
+            }
+
+            Ok(FlexibleRuleConfig(map))
+        }
     }
 
     impl TryFrom<toml::Value> for CfgValue {

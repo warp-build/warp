@@ -49,6 +49,7 @@ pub struct Workspace {
     /// The current user.
     pub current_user: String,
 
+    #[builder(default)]
     /// The URL to the remote cache service
     pub remote_cache_url: Option<Url>,
 
@@ -91,8 +92,6 @@ impl WorkspaceBuilder {
         self.ignore_patterns(file.workspace.ignore_patterns.clone());
 
         self.use_git_hooks(file.workspace.use_git_hooks);
-
-        self.remote_cache_url(file.workspace.remote_cache_url.clone());
 
         let mut aliases: HashMap<String, Label> = HashMap::default();
         for (name, label) in file.aliases.clone() {

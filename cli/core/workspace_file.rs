@@ -2,13 +2,12 @@ use super::*;
 use anyhow::*;
 use futures::StreamExt;
 use serde_derive::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tracing::*;
-use url::Url;
 
 pub const WORKSPACE: &str = "Workspace.toml";
 
@@ -54,9 +53,6 @@ pub struct WorkspaceConfig {
     pub name: String,
 
     #[builder(default)]
-    pub remote_cache_url: Option<Url>,
-
-    #[builder(default)]
     pub ignore_patterns: Vec<String>,
 
     #[builder(default)]
@@ -70,7 +66,7 @@ impl WorkspaceConfig {
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct FlexibleRuleConfig(pub HashMap<String, toml::Value>);
+pub struct FlexibleRuleConfig(pub BTreeMap<String, toml::Value>);
 
 /// A struct representing a `Workspace.toml` file in a Warp Workspace.
 ///
@@ -84,10 +80,10 @@ pub struct WorkspaceFile {
     pub workspace: WorkspaceConfig,
 
     #[builder(default)]
-    pub aliases: HashMap<String, String>,
+    pub aliases: BTreeMap<String, String>,
 
     #[builder(default)]
-    pub toolchains: HashMap<String, FlexibleRuleConfig>,
+    pub toolchains: BTreeMap<String, FlexibleRuleConfig>,
 }
 
 impl WorkspaceFile {
@@ -134,6 +130,34 @@ impl WorkspaceFile {
         fs::write(&root.join(WORKSPACE), toml)
             .await
             .map_err(WorkspaceFileError::IOError)
+    }
+}
+
+impl TryFrom<&Workspace> for WorkspaceFile {
+    type Error = anyhow::Error;
+
+    fn try_from(w: &Workspace) -> Result<Self, anyhow::Error> {
+        Self::builder()
+            .workspace(
+                WorkspaceConfig::builder()
+                    .name(w.name.clone())
+                    .ignore_patterns(w.ignore_patterns.clone())
+                    .use_git_hooks(w.use_git_hooks)
+                    .build()?,
+            )
+            .aliases(
+                w.aliases
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.to_string()))
+                    .collect(),
+            )
+            .toolchains(
+                w.toolchain_configs
+                    .iter()
+                    .map(|t| (t.name.clone(), t.try_into().unwrap()))
+                    .collect(),
+            )
+            .build()
     }
 }
 
