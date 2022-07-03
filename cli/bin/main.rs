@@ -10,6 +10,7 @@ use opentelemetry::global::shutdown_tracer_provider;
 use std::path::PathBuf;
 use std::sync::Arc;
 use structopt::StructOpt;
+use tokio::fs;
 use tracing::*;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use warp_core::Event;
@@ -97,25 +98,39 @@ impl Warp {
     #[tracing::instrument(name = "Warp::start")]
     async fn start(&self, t0: std::time::Instant) -> Result<(), anyhow::Error> {
         let current_user = self.user.clone().unwrap_or_else(whoami::username);
+        let warp_home = self.warp_home.clone();
 
         let event_channel = Arc::new(EventChannel::new());
         event_channel.send(Event::BuildStarted(t0));
 
         if let Some(Goal::Init(x)) = &self.cmd {
-            return x.run(current_user, event_channel).await;
+            return x.run(current_user.clone(), event_channel).await;
         }
 
-        let cwd = PathBuf::from(&".");
-        let workspace: Workspace =
-            WorkspaceBuilder::build(cwd, self.warp_home.clone(), current_user)?;
+        let cwd = fs::canonicalize(PathBuf::from(&".")).await.unwrap();
+        let workspace_file = WorkspaceFile::find_upwards(&cwd).await?;
 
-        if let Some(cmd) = self.cmd.clone() {
-            cmd
-        } else {
-            Goal::Build(BuildGoal::all())
+        let paths = WorkspacePaths::new(&cwd, warp_home, current_user.clone())?;
+
+        let workspace = Workspace::builder()
+            .from_file(workspace_file)?
+            .paths(paths)
+            // .warp_home(self.warp_home.clone())
+            .current_user(current_user)
+            .find_rules_and_toolchains()
+            .await?
+            .build()?;
+
+        if workspace.use_git_hooks {
+            let githooks = GitHooks::from_workspace(&workspace);
+            githooks.ensure_installed().await?;
         }
-        .run(workspace, event_channel)
-        .await
+
+        self.cmd
+            .clone()
+            .unwrap_or_else(|| Goal::Build(BuildGoal::all()))
+            .run(workspace, event_channel)
+            .await
     }
 }
 

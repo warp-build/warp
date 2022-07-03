@@ -47,11 +47,11 @@ impl BuildGoal {
         workspace: Workspace,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        let target = workspace.aliases.handle_target(self.target);
+        let target: Label = self.target.into(); // workspace.aliases.handle_target(self.target);
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
         debug!("Target: {}", &target.to_string());
 
-        let worker_limit = self.max_workers.unwrap_or(num_cpus::get());
+        let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
 
         let warp = BuildExecutor::from_workspace(workspace, worker_limit);
 

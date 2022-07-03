@@ -16,11 +16,11 @@ pub struct AliasGoal {
 impl AliasGoal {
     pub async fn run(
         self,
-        workspace: Workspace,
+        _workspace: Workspace,
         _event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        let target: Label = self.target.into();
-        workspace.write_alias(self.alias, target).await?;
+        let _target: Label = self.target.into();
+        // workspace.write_alias(self.alias, target).await?;
         Ok(())
     }
 }
