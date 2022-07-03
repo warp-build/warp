@@ -1,7 +1,9 @@
 use super::*;
 use anyhow::*;
+use futures::StreamExt;
 use serde_derive::{Deserialize, Serialize};
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
@@ -9,8 +11,6 @@ use tracing::*;
 use url::Url;
 
 pub const WORKSPACE: &str = "Workspace.toml";
-
-pub const DEFAULT_IGNORE: [&str; 1] = ["warp-outputs"];
 
 #[derive(Error, Debug)]
 pub enum WorkspaceFileError {
@@ -22,6 +22,27 @@ pub enum WorkspaceFileError {
 
     #[error(transparent)]
     IOError(std::io::Error),
+
+    #[error("Could not find workspace a file walking upwards your file system. Are you sure we're in the right place?")]
+    WorkspaceFileNotFound,
+
+    #[error("Attempted to build a Workspace while missing fields: {0:?}")]
+    BuilderError(derive_builder::UninitializedFieldError),
+
+    #[error("{0}")]
+    ValidationError(String),
+}
+
+impl From<derive_builder::UninitializedFieldError> for WorkspaceFileError {
+    fn from(err: derive_builder::UninitializedFieldError) -> Self {
+        Self::BuilderError(err)
+    }
+}
+
+impl From<String> for WorkspaceFileError {
+    fn from(s: String) -> Self {
+        Self::ValidationError(s)
+    }
 }
 
 /// A struct representing the top-level workspace configuration of a `Workspace.toml` file in a
@@ -48,6 +69,9 @@ impl WorkspaceConfig {
     }
 }
 
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+pub struct FlexibleRuleConfig(pub HashMap<String, toml::Value>);
+
 /// A struct representing a `Workspace.toml` file in a Warp Workspace.
 ///
 /// This is primarily used for serialization/deserialization, and manipualting the file itself
@@ -60,21 +84,41 @@ pub struct WorkspaceFile {
     pub workspace: WorkspaceConfig,
 
     #[builder(default)]
-    pub aliases: std::collections::HashMap<String, Label>,
+    pub aliases: HashMap<String, String>,
 
-    // NOTE(@ostera): in _this case_ we don't know enough about the shape of the toolchain
-    // configuration to do any validation, and we haven't yet spinned up the RuleExecEnv to find
-    // out, so we are stuck with saving whatever TOML the user typed in :( and validating later
     #[builder(default)]
-    pub toolchains: std::collections::HashMap<String, toml::Value>,
+    pub toolchains: HashMap<String, FlexibleRuleConfig>,
 }
 
 impl WorkspaceFile {
+    #[tracing::instrument(name = "WorkspaceFile::walk_uptree")]
+    async fn walk_uptree(start: PathBuf) -> impl futures::Stream<Item = PathBuf> {
+        let mut cwd = start;
+        async_stream::stream! {
+            yield cwd.clone();
+            while let Some(parent) = cwd.parent() {
+                cwd = parent.to_path_buf();
+                yield cwd.clone();
+            }
+        }
+    }
+
+    pub async fn find_upwards(cwd: &Path) -> Result<Self, WorkspaceFileError> {
+        let mut dirs = Box::pin(WorkspaceFile::walk_uptree(cwd.to_path_buf()).await);
+        while let Some(path) = dirs.next().await {
+            let here = &path.join(WORKSPACE);
+            if fs::canonicalize(&here).await.is_ok() {
+                return WorkspaceFile::read_from_file(here).await;
+            }
+        }
+        Err(WorkspaceFileError::WorkspaceFileNotFound)
+    }
+
     pub fn builder() -> WorkspaceFileBuilder {
         WorkspaceFileBuilder::default()
     }
 
-    pub async fn read_from_file(&self, path: &Path) -> Result<(), WorkspaceFileError> {
+    pub async fn read_from_file(path: &Path) -> Result<Self, WorkspaceFileError> {
         let mut bytes = vec![];
         let mut file = fs::File::open(path)
             .await
@@ -92,3 +136,119 @@ impl WorkspaceFile {
             .map_err(WorkspaceFileError::IOError)
     }
 }
+
+/*
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn parse(toml: toml::Value, root: &PathBuf) -> Result<Workspace, anyhow::Error> {
+        let root = std::fs::canonicalize(root).unwrap();
+        let paths = WorkspacePaths::new(&root, None, None).unwrap();
+        WorkspaceParser::from_toml(toml, paths)
+    }
+
+    #[test]
+    fn demands_workspace_name() {
+        let toml: toml::Value = r#"
+[workspace]
+[toolchains]
+[dependencies]
+        "#
+        .parse::<toml::Value>()
+        .unwrap();
+        let workspace = parse(toml, &PathBuf::from("."));
+        assert_eq!(true, workspace.is_err());
+    }
+
+    #[test]
+    fn parses_toml_into_workspace_struct() {
+        let toml: toml::Value = r#"
+[workspace]
+name = "tiny_lib"
+
+[toolchains]
+
+[dependencies]
+        "#
+        .parse::<toml::Value>()
+        .unwrap();
+        let workspace = parse(toml, &PathBuf::from(".")).unwrap();
+        assert_eq!(workspace.name, "tiny_lib");
+    }
+
+    #[test]
+    fn expects_ignore_patterns_to_be_an_array() {
+        let toml: toml::Value = r#"
+[workspace]
+name = "tiny_lib"
+ignore_patterns = {}
+
+[toolchains]
+
+[dependencies]
+        "#
+        .parse::<toml::Value>()
+        .unwrap();
+
+        assert!(parse(toml, &PathBuf::from(".")).is_err());
+    }
+
+    #[test]
+    fn parses_ignore_patterns_into_workspace() {
+        let toml: toml::Value = r#"
+[workspace]
+name = "tiny_lib"
+ignore_patterns = ["node_modules"]
+
+[toolchains]
+
+[dependencies]
+        "#
+        .parse::<toml::Value>()
+        .unwrap();
+        let workspace = parse(toml, &PathBuf::from(".")).unwrap();
+        assert_eq!(
+            workspace.ignore_patterns,
+            vec!["node_modules", "warp-outputs"]
+        );
+    }
+
+    /*
+    #[test]
+    fn allows_for_custom_toolchains() {
+        let toml: toml::Value = r#"
+    [workspace]
+    name = "tiny_lib"
+
+    [toolchains]
+    erlang = { archive_url = "official", prefix = "otp-prefix" }
+    gleam = { archive_url = "https://github.com/forked/gleam", sha1 = "sha1-test" }
+
+    [dependencies]
+            "#
+        .parse::<toml::Value>()
+        .unwrap();
+        let _workspace = parse(toml, &PathBuf::from(".")).unwrap();
+        assert_eq!(
+            "official",
+            toolchain_manager.get_archive("erlang").unwrap().url()
+        );
+        assert_eq!(
+            "otp-prefix",
+            toolchain_manager.get_archive("erlang").unwrap().prefix()
+        );
+        assert_eq!(
+            "https://github.com/forked/gleam",
+            toolchain_manager.get_archive("gleam").unwrap().url()
+        );
+        assert_eq!(
+            "sha1-test",
+            toolchain_manager.get_archive("gleam").unwrap().sha1()
+        );
+    }
+    */
+}
+
+*/

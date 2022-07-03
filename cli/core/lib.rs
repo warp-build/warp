@@ -1,5 +1,4 @@
 pub mod actions;
-pub mod alias;
 pub mod api;
 pub mod build_coordinator;
 pub mod build_executor;
@@ -25,14 +24,11 @@ pub mod rule_exec_env;
 pub mod target;
 pub mod toolchain_manager;
 pub mod workspace;
-pub mod workspace_builder;
 pub mod workspace_file;
-pub mod workspace_parser;
 pub mod workspace_paths;
 pub mod workspace_scanner;
 
 pub use actions::*;
-pub use alias::*;
 pub use api::*;
 pub use build_coordinator::*;
 pub use build_executor::*;
@@ -60,9 +56,7 @@ pub use rule_exec_env::*;
 pub use target::*;
 pub use toolchain_manager::*;
 pub use workspace::*;
-pub use workspace_builder::*;
 pub use workspace_file::*;
-pub use workspace_parser::*;
 pub use workspace_paths::*;
 pub use workspace_scanner::*;
 

@@ -13,7 +13,10 @@ pub enum QueueError {
     CannotQueueTargetAll,
 
     #[error(transparent)]
-    ScannerError(anyhow::Error),
+    WorkspaceScannerError(WorkspaceScannerError),
+
+    #[error(transparent)]
+    FileScannerError(FileScannerError),
 
     #[error(transparent)]
     BuildfileError(anyhow::Error),
@@ -131,13 +134,13 @@ impl BuildQueue {
     ) -> Result<(), QueueError> {
         debug!("Queueing all targets...");
         self.event_channel.send(Event::QueueingWorkspace);
-        let scanner = WorkspaceScanner::from_workspace(&workspace);
-        let mut buildfiles = scanner
+        let mut buildfiles = workspace
+            .scanner()
             .find_build_files(max_concurrency)
             .await
-            .map_err(QueueError::ScannerError)?;
+            .map_err(QueueError::WorkspaceScannerError)?;
         while let Some(path) = buildfiles.next().await {
-            let path = path.map_err(QueueError::ScannerError)?;
+            let path = path.map_err(QueueError::FileScannerError)?;
             let buildfile = Buildfile::from_file(
                 &workspace.paths.workspace_root,
                 &path,

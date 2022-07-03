@@ -1,7 +1,7 @@
-use super::Label;
+use super::*;
 use anyhow::*;
-use dashmap::DashMap;
 use fxhash::*;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -39,40 +39,40 @@ impl ConfigSpec {
 
 #[derive(Debug, Clone, Default)]
 pub struct RuleConfig {
+    config: HashMap<String, CfgValue>,
     pub name: String,
-    config: DashMap<String, CfgValue>,
 }
 
 impl RuleConfig {
     pub fn new(name: String) -> RuleConfig {
         RuleConfig {
             name,
-            config: DashMap::new(),
+            config: HashMap::new(),
         }
     }
 
-    pub fn with_defaults(self, config: DashMap<String, CfgValue>) -> RuleConfig {
+    pub fn with_defaults(self, config: HashMap<String, CfgValue>) -> RuleConfig {
         RuleConfig { config, ..self }
     }
 
-    pub fn as_map(&self) -> &DashMap<String, CfgValue> {
+    pub fn as_map(&self) -> &HashMap<String, CfgValue> {
         &self.config
     }
 
     pub fn get(&self, key: &str) -> Option<CfgValue> {
-        self.config.get(key).map(|entry| entry.value().clone())
+        self.config.get(key).map(|entry| entry.clone())
     }
 
-    pub fn insert(&self, key: String, val: CfgValue) -> &RuleConfig {
+    pub fn insert(&mut self, key: String, val: CfgValue) -> &mut RuleConfig {
         self.config.insert(key, val);
         self
     }
 
-    pub fn insert_str(&self, key: String, val: &str) -> &RuleConfig {
+    pub fn insert_str(&mut self, key: String, val: &str) -> &mut RuleConfig {
         self.insert(key, CfgValue::String(val.to_string()))
     }
 
-    pub fn insert_path(&self, key: String, val: &PathBuf) -> &RuleConfig {
+    pub fn insert_path(&mut self, key: String, val: &PathBuf) -> &mut RuleConfig {
         self.insert(key, CfgValue::File(val.clone()))
     }
 
@@ -82,7 +82,7 @@ impl RuleConfig {
             .get(key)
             .context(format!("Could not find key {:?}", key))?;
 
-        if let CfgValue::List(elements) = entry.value() {
+        if let CfgValue::List(elements) = entry {
             let mut labels = vec![];
             for el in elements {
                 if let CfgValue::Label(l) = el {
@@ -100,22 +100,22 @@ impl RuleConfig {
             Err(anyhow!(
                 "Expected key {:?} to be a label list but found {:?} instead.",
                 key,
-                entry.value()
+                entry
             ))
         }
     }
 
     pub fn get_file_lists(&self) -> Result<Vec<PathBuf>, anyhow::Error> {
         let mut files = vec![];
-        for entry in self.config.iter() {
-            if let CfgValue::List(elements) = entry.value() {
+        for (_name, entry) in self.config.iter() {
+            if let CfgValue::List(elements) = entry {
                 for el in elements {
                     if let CfgValue::File(path) = el {
                         files.push(path.clone());
                     }
                 }
             }
-            if let CfgValue::File(path) = entry.value() {
+            if let CfgValue::File(path) = entry {
                 files.push(path.clone());
             }
         }
@@ -128,7 +128,7 @@ impl RuleConfig {
             .get(key)
             .context(format!("Could not find key {:?}", key))?;
 
-        if let CfgValue::List(elements) = entry.value() {
+        if let CfgValue::List(elements) = entry {
             let mut paths = vec![];
             for el in elements {
                 if let CfgValue::File(path) = el {
@@ -146,7 +146,7 @@ impl RuleConfig {
             Err(anyhow!(
                 "Expected key {:?} to be a file list but found {:?} instead.",
                 key,
-                entry.value()
+                entry
             ))
         }
     }
@@ -199,8 +199,8 @@ pub mod json_codecs {
             let mut map: serde_json::map::Map<String, serde_json::Value> =
                 serde_json::map::Map::new();
 
-            for entry in self.config.iter() {
-                map.insert(entry.key().to_string(), entry.value().clone().into());
+            for (key, value) in self.config.iter() {
+                map.insert(key.to_string(), value.clone().into());
             }
 
             serde_json::Value::Object(map)
@@ -224,7 +224,7 @@ pub mod toml_codecs {
 
         fn try_from(value: toml::Value) -> Result<CfgValue, anyhow::Error> {
             match value {
-                toml::Value::String(s) => Ok(CfgValue::String(s.to_string())),
+                toml::Value::String(s) => Ok(CfgValue::String(s)),
                 toml::Value::Array(arr) => {
                     let mut elements = vec![];
                     for e in arr {
@@ -245,38 +245,20 @@ pub mod toml_codecs {
         }
     }
 
-    impl TryFrom<(String, toml::Value)> for RuleConfig {
+    impl TryFrom<(String, FlexibleRuleConfig)> for RuleConfig {
         type Error = anyhow::Error;
 
-        fn try_from((name, cfg): (String, toml::Value)) -> Result<RuleConfig, anyhow::Error> {
-            let table = cfg.as_table().context(format!(
-                "Expected a rule configuration to be a TOML Table, but instead found {:?}",
-                cfg
-            ))?;
+        fn try_from(
+            (name, cfg): (String, FlexibleRuleConfig),
+        ) -> Result<RuleConfig, anyhow::Error> {
+            let mut values = RuleConfig::new(name);
 
-            let values = RuleConfig::new(name);
-
-            for (key, value) in table {
+            for (key, value) in cfg.0 {
                 let value: CfgValue = TryFrom::try_from(value.clone())?;
                 values.insert(key.to_string(), value);
             }
 
             Ok(values)
         }
-    }
-
-    pub fn parse_rules(toml: &toml::Value) -> Result<Vec<RuleConfig>, anyhow::Error> {
-        let mut rules = vec![];
-
-        let toml = toml.as_table().context(format!(
-            "Expected rule to be a TOML table but instead found: {:?}",
-            &toml
-        ))?;
-        for (rule_name, rule) in toml.iter() {
-            let rule: RuleConfig = (rule_name.clone(), rule.clone()).try_into()?;
-            rules.push(rule);
-        }
-
-        Ok(rules)
     }
 }

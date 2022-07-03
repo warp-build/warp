@@ -107,7 +107,7 @@ impl Warp {
 
         let cwd = PathBuf::from(&".");
         let workspace: Workspace =
-            WorkspaceBuilder::build(cwd, self.warp_home.clone(), current_user).await?;
+            WorkspaceBuilder::build(cwd, self.warp_home.clone(), current_user)?;
 
         if let Some(cmd) = self.cmd.clone() {
             cmd

@@ -42,7 +42,10 @@ impl Default for API {
 impl API {
     pub fn from_workspace(workspace: &Workspace) -> API {
         API {
-            url: workspace.remote_cache_url.clone(),
+            url: workspace
+                .remote_cache_url
+                .clone()
+                .unwrap_or_else(|| DEFAULT_API_URL.parse().unwrap()),
             ..API::default()
         }
     }

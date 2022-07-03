@@ -84,7 +84,7 @@ impl Buildfile {
 
                     // NOTE(@ostera): DashMap deadlocks if you take a read and a write borrow on
                     // the same key!
-                    let values: RuleConfig = rule.defaults().clone();
+                    let mut values: RuleConfig = rule.defaults().clone();
 
                     for (key, value_type) in rule.config().as_map().iter() {
                         let value = match table.get(key) {

@@ -8,7 +8,6 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use tracing::*;
-use url::Url;
 
 /// The RemoteCache implements an external cache.
 ///
@@ -17,7 +16,6 @@ pub struct RemoteCache {
     api: API,
     global_root: PathBuf,
     local_root: PathBuf,
-    url: Url,
 }
 
 impl RemoteCache {
@@ -27,7 +25,6 @@ impl RemoteCache {
             api: API::from_workspace(&workspace),
             global_root: workspace.paths.global_cache_root.clone(),
             local_root: workspace.paths.local_cache_root.clone(),
-            url: workspace.remote_cache_url.clone(),
         }
     }
 
@@ -78,7 +75,7 @@ impl RemoteCache {
 
         let dst_tarball = &dst.with_extension("tar.gz");
 
-        let url = format!("{}/artifact/{}.tar.gz", self.url, hash);
+        let url = format!("{}/artifact/{}.tar.gz", self.api.url, hash);
         let client = reqwest::Client::builder().gzip(false).build()?;
         let response = client.get(url).send().await?;
 

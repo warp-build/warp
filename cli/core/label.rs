@@ -1,4 +1,3 @@
-use serde::*;
 use std::path::{Path, PathBuf};
 
 static COLON: char = ':';
@@ -6,7 +5,7 @@ static DOT: &str = ".";
 
 static WILDCARD: &str = "//...";
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Label {
     Wildcard,
     Relative { name: String, path: PathBuf },

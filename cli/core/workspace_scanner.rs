@@ -1,10 +1,14 @@
 use super::*;
-use anyhow::Context;
-use futures::FutureExt;
 use futures::StreamExt;
 use std::path::PathBuf;
-use tokio::fs;
+use thiserror::*;
 use tracing::*;
+
+#[derive(Error, Debug)]
+pub enum WorkspaceScannerError {
+    #[error(transparent)]
+    FileScannerError(FileScannerError),
+}
 
 /// A struct to scan Workspace paths to find different files.
 pub struct WorkspaceScanner {
@@ -16,54 +20,38 @@ pub struct WorkspaceScanner {
 }
 
 impl WorkspaceScanner {
-    pub fn from_workspace(workspace: &Workspace) -> WorkspaceScanner {
+    pub fn new(paths: &WorkspacePaths, patterns: &[String]) -> WorkspaceScanner {
         WorkspaceScanner {
-            paths: workspace.paths.clone(),
-            ignore_patterns: workspace.ignore_patterns.clone(),
+            paths: paths.clone(),
+            ignore_patterns: patterns.to_vec(),
         }
-    }
-
-    pub fn find_workspace_file(
-        cwd: &PathBuf,
-    ) -> futures::future::BoxFuture<'_, Result<(PathBuf, PathBuf), anyhow::Error>> {
-        async move {
-            let here = &cwd.join(WORKSPACE);
-            debug!("Searching for workspace file in {:?}", here);
-            if fs::metadata(here).await.is_ok() {
-                debug!("Found it! Continuing...");
-                let root = fs::canonicalize(here.parent().unwrap()).await?;
-                Ok((root.to_path_buf(), here.to_path_buf()))
-            } else {
-                let parent = cwd.parent().context(
-                    "Reached the top of the file system and could not find a workspace file",
-                )?;
-                WorkspaceScanner::find_workspace_file(&parent.to_path_buf()).await
-            }
-        }
-        .boxed()
     }
 
     pub async fn find_build_files(
         &self,
         max_concurrency: usize,
-    ) -> Result<impl futures::Stream<Item = Result<PathBuf, anyhow::Error>>, anyhow::Error> {
+    ) -> Result<impl futures::Stream<Item = Result<PathBuf, FileScannerError>>, WorkspaceScannerError>
+    {
         debug!(
             "Scanning for build files in {:?}",
             self.paths.workspace_root
         );
         let paths = FileScanner::new()
             .max_concurrency(max_concurrency)
-            .matching_path(WARPFILE)?
+            .matching_path(WARPFILE)
+            .map_err(WorkspaceScannerError::FileScannerError)?
             .starting_from(&self.paths.workspace_root)
-            .await?
-            .skipping_paths(&self.ignore_patterns)?
+            .await
+            .map_err(WorkspaceScannerError::FileScannerError)?
+            .skipping_paths(&self.ignore_patterns)
+            .map_err(WorkspaceScannerError::FileScannerError)?
             .stream_files()
             .await;
 
         Ok(Box::pin(paths))
     }
 
-    pub async fn find_rules(&self) -> Result<Vec<PathBuf>, anyhow::Error> {
+    pub async fn find_rules(&self) -> Result<Vec<PathBuf>, WorkspaceScannerError> {
         debug!(
             "Scanning for local rules in {:?}",
             self.paths.local_rules_root
@@ -71,15 +59,20 @@ impl WorkspaceScanner {
         let mut files = Box::pin(
             FileScanner::new()
                 .starting_from(&self.paths.local_rules_root)
-                .await?
-                .matching_path("\\.js$")?
+                .await
+                .map_err(WorkspaceScannerError::FileScannerError)?
+                .matching_path("\\.js$")
+                .map_err(WorkspaceScannerError::FileScannerError)?
+                .skipping_paths(&self.ignore_patterns)
+                .map_err(WorkspaceScannerError::FileScannerError)?
                 .stream_files()
                 .await,
         );
 
         let mut paths = vec![];
         while let Some(path) = files.next().await {
-            paths.push(path?.clone());
+            let path = path.map_err(WorkspaceScannerError::FileScannerError)?;
+            paths.push(path.clone());
         }
 
         debug!("Found {} local rules...", paths.len());
@@ -87,7 +80,7 @@ impl WorkspaceScanner {
         Ok(paths)
     }
 
-    pub async fn find_toolchains(&self) -> Result<Vec<PathBuf>, anyhow::Error> {
+    pub async fn find_toolchains(&self) -> Result<Vec<PathBuf>, WorkspaceScannerError> {
         debug!(
             "Scanning for local toolchains in {:?}",
             self.paths.local_toolchains_root
@@ -96,15 +89,20 @@ impl WorkspaceScanner {
         let mut files = Box::pin(
             FileScanner::new()
                 .starting_from(&self.paths.local_toolchains_root)
-                .await?
-                .matching_path("\\.js$")?
+                .await
+                .map_err(WorkspaceScannerError::FileScannerError)?
+                .matching_path("\\.js$")
+                .map_err(WorkspaceScannerError::FileScannerError)?
+                .skipping_paths(&self.ignore_patterns)
+                .map_err(WorkspaceScannerError::FileScannerError)?
                 .stream_files()
                 .await,
         );
 
         let mut paths = vec![];
         while let Some(path) = files.next().await {
-            paths.push(path?.clone());
+            let path = path.map_err(WorkspaceScannerError::FileScannerError)?;
+            paths.push(path.clone());
         }
 
         debug!("Found {} local toolchains...", paths.len());

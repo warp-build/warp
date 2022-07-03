@@ -1,6 +1,19 @@
 use regex::Regex;
 use std::path::PathBuf;
+use thiserror::*;
 use tokio::fs;
+
+#[derive(Error, Debug)]
+pub enum FileScannerError {
+    #[error("Invalid regex error: {0:?}")]
+    InvalidRegex(regex::Error),
+
+    #[error("Invalid pattern error: {0:?}")]
+    InvalidPattern(glob::PatternError),
+
+    #[error("File I/O Error: {0:?}")]
+    IOError(std::io::Error),
+}
 
 #[derive(Debug, Clone)]
 pub struct FileScanner {
@@ -34,22 +47,26 @@ impl FileScanner {
     pub async fn starting_from(
         &mut self,
         root: &PathBuf,
-    ) -> Result<&mut FileScanner, anyhow::Error> {
-        self.root = fs::canonicalize(root).await?;
+    ) -> Result<&mut FileScanner, FileScannerError> {
+        self.root = fs::canonicalize(root)
+            .await
+            .map_err(FileScannerError::IOError)?;
+
         Ok(self)
     }
 
-    pub fn matching_path(&mut self, pattern: &str) -> Result<&mut FileScanner, anyhow::Error> {
-        self.match_pattern = Regex::new(pattern)?;
+    pub fn matching_path(&mut self, pattern: &str) -> Result<&mut FileScanner, FileScannerError> {
+        self.match_pattern = Regex::new(pattern).map_err(FileScannerError::InvalidRegex)?;
         Ok(self)
     }
 
     pub fn skipping_paths(
         &mut self,
         patterns: &[String],
-    ) -> Result<&mut FileScanner, anyhow::Error> {
+    ) -> Result<&mut FileScanner, FileScannerError> {
         for pattern in patterns {
-            self.skip_patterns.push(glob::Pattern::new(pattern)?);
+            self.skip_patterns
+                .push(glob::Pattern::new(pattern).map_err(FileScannerError::InvalidPattern)?);
         }
         Ok(self)
     }
@@ -57,7 +74,7 @@ impl FileScanner {
     #[tracing::instrument(name = "FileScanner::stream_files")]
     pub async fn stream_files(
         &self,
-    ) -> impl futures::Stream<Item = Result<PathBuf, anyhow::Error>> {
+    ) -> impl futures::Stream<Item = Result<PathBuf, FileScannerError>> {
         let mut dirs = vec![self.root.clone()];
         let root = self.root.clone();
         let match_pattern = self.match_pattern.clone();
@@ -71,7 +88,8 @@ impl FileScanner {
                     }
                 }
 
-                let mut read_dir = fs::read_dir(&dir).await.unwrap();
+                let mut read_dir = fs::read_dir(&dir).await.map_err(FileScannerError::IOError)?;
+
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
                     if entry.path().is_dir() {
                         dirs.push(entry.path());
