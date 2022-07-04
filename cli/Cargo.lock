@@ -1349,6 +1349,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb56e1aa765b4b4f3aadfab769793b7087bb03a4ea4920644a6d238e2df5b9ed"
 
 [[package]]
+name = "ignore"
+version = "0.4.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "713f1b139373f96a2e0ce3ac931cd01ee973c3c5dd7c40c0c2efe96ad2b6751d"
+dependencies = [
+ "crossbeam-utils 0.8.10",
+ "globset",
+ "lazy_static",
+ "log",
+ "memchr",
+ "regex",
+ "same-file",
+ "thread_local",
+ "walkdir",
+ "winapi-util",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2951,6 +2969,7 @@ dependencies = [
  "guess_host_triple",
  "human-panic",
  "humantime",
+ "ignore",
  "indicatif",
  "insta",
  "notify",
@@ -2992,6 +3011,7 @@ dependencies = [
  "glob",
  "globset",
  "guess_host_triple",
+ "ignore",
  "log",
  "num_cpus",
  "opentelemetry",

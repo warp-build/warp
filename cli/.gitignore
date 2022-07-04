@@ -1,10 +1,4 @@
-/target
+target/*
 spec/*.toolbox
-.cmo
-.cmi
-.cma
 manual/book
 release.tar.gz
-.zap
-zap-outputs
-_zap_home

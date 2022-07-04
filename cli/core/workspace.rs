@@ -4,7 +4,7 @@ use std::{collections::HashMap, path::PathBuf};
 use thiserror::*;
 use url::Url;
 
-pub const DEFAULT_IGNORE: [&str; 1] = ["warp-outputs"];
+pub const DEFAULT_IGNORE: [&str; 2] = ["warp-outputs", ".git"];
 
 #[derive(Error, Debug)]
 pub enum WorkspaceError {
@@ -80,6 +80,11 @@ impl Workspace {
         WorkspaceBuilder::default()
     }
 
+    pub fn default() -> Self {
+        let builder = Self::builder();
+        builder.build().unwrap()
+    }
+
     pub fn scanner(&self) -> WorkspaceScanner {
         WorkspaceScanner::new(&self.paths, &self.ignore_patterns)
     }
@@ -89,10 +94,14 @@ impl WorkspaceBuilder {
     pub async fn from_file(&mut self, file: WorkspaceFile) -> Result<&mut Self, anyhow::Error> {
         self.name(file.workspace.name.clone());
 
-        let mut ignore_patterns = file.workspace.ignore_patterns.clone();
-        let gitignore_patterns =
-            git_ignore::read_patterns(&self.paths.as_ref().unwrap().workspace_root).await?;
-        ignore_patterns.extend(gitignore_patterns);
+        let mut ignore_patterns = vec![];
+
+        for pat in DEFAULT_IGNORE {
+            ignore_patterns.push(pat.to_string());
+        }
+
+        ignore_patterns.extend(file.workspace.ignore_patterns.clone());
+
         self.ignore_patterns(ignore_patterns);
 
         self.use_git_hooks(file.workspace.use_git_hooks);
@@ -120,7 +129,7 @@ impl WorkspaceBuilder {
         }
 
         let (local_rules, local_toolchains) = {
-            let scanner = WorkspaceScanner::new(&self.paths.as_ref().unwrap(), &vec![]);
+            let scanner = WorkspaceScanner::new(self.paths.as_ref().unwrap(), &[]);
             futures::join!(scanner.find_rules(), scanner.find_toolchains())
         };
         self.local_rules(local_rules.map_err(WorkspaceError::WorkspaceScannerError)?);

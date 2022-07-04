@@ -68,7 +68,8 @@ impl FileScanner {
         let mut builder = GlobSetBuilder::new();
 
         for pattern in patterns {
-            let glob = Glob::new(pattern).map_err(FileScannerError::InvalidPattern)?;
+            let pattern = format!("*{}*", pattern);
+            let glob = Glob::new(&pattern).map_err(FileScannerError::InvalidPattern)?;
             builder.add(glob);
         }
 
@@ -86,23 +87,26 @@ impl FileScanner {
         let match_pattern = self.match_pattern.clone();
         let skip_patterns = self.skip_patterns.clone();
         async_stream::try_stream! {
-            'dir_loop: while let Some(dir) = dirs.pop() {
-                if dir != root {
-                    let relative_dir = dir.strip_prefix(&root).unwrap().to_str().unwrap();
-                    if skip_patterns.is_match(&relative_dir) {
-                        continue 'dir_loop
-                    }
-                }
-
+            while let Some(dir) = dirs.pop() {
                 let mut read_dir = fs::read_dir(&dir).await.map_err(FileScannerError::IOError)?;
 
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
-                    if entry.path().is_dir() {
-                        dirs.push(entry.path());
+                    let path = entry.path().clone();
+                    let relative_dir = &path.strip_prefix(&root).unwrap().to_str().unwrap();
+
+                    let should_skip = skip_patterns.is_match(&relative_dir);
+
+                    if should_skip {
                         continue;
                     }
-                    if match_pattern.is_match(entry.path().to_str().unwrap()) {
-                        yield entry.path().clone();
+
+                    if path.is_dir() {
+                        dirs.push(path);
+                        continue;
+                    }
+
+                    if match_pattern.is_match(path.to_str().unwrap()) {
+                        yield path;
                     }
                 }
             }

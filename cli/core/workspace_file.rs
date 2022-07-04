@@ -30,6 +30,9 @@ pub enum WorkspaceFileError {
 
     #[error("{0}")]
     ValidationError(String),
+
+    #[error(transparent)]
+    Unknown(anyhow::Error),
 }
 
 impl From<derive_builder::UninitializedFieldError> for WorkspaceFileError {
@@ -98,15 +101,16 @@ impl WorkspaceFile {
         }
     }
 
-    pub async fn find_upwards(cwd: &Path) -> Result<Self, WorkspaceFileError> {
+    pub async fn find_upwards(cwd: &Path) -> Result<(PathBuf, Self), anyhow::Error> {
         let mut dirs = Box::pin(WorkspaceFile::walk_uptree(cwd.to_path_buf()).await);
         while let Some(path) = dirs.next().await {
             let here = &path.join(WORKSPACE);
             if fs::canonicalize(&here).await.is_ok() {
-                return WorkspaceFile::read_from_file(here).await;
+                let file = WorkspaceFile::read_from_file(here).await?;
+                return Ok((path.clone(), file));
             }
         }
-        Err(WorkspaceFileError::WorkspaceFileNotFound)
+        Err(anyhow!("Could not find Workspace file"))
     }
 
     pub fn builder() -> WorkspaceFileBuilder {

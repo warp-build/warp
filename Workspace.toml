@@ -1,6 +1,17 @@
 [workspace]
 name = "warp-build"
-ignore_patterns = []
+ignore_patterns = [
+"warp-*",
+".terraform*",
+"3rdparty/hexpm",
+"3rdparty/npm",
+"node_modules",
+"target",
+"lib/bs",
+"deps",
+"_build",
+"cli",
+]
 use_git_hooks = true
 
 [aliases]

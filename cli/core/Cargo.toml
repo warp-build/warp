@@ -32,6 +32,7 @@ fxhash = "0.2"
 glob = "0.3"
 globset = "0.4.9"
 guess_host_triple = "0.1"
+ignore = "0.4"
 log = "0.4"
 num_cpus = "1"
 opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
