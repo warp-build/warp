@@ -113,9 +113,11 @@ impl Warp {
         let paths = WorkspacePaths::new(&cwd, warp_home, current_user.clone())?;
 
         let workspace = Workspace::builder()
-            .from_file(workspace_file)?
-            .paths(paths)
             .current_user(current_user)
+            .paths(paths)
+            .from_file(workspace_file)
+            .await
+            .unwrap()
             .find_rules_and_toolchains()
             .await?
             .build()?;

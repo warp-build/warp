@@ -1,3 +1,4 @@
+.git
 warp-*
 .terraform*
 3rdparty/hexpm
@@ -8,3 +9,4 @@ target
 lib/bs
 deps
 _build
+cli

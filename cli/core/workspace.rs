@@ -86,10 +86,14 @@ impl Workspace {
 }
 
 impl WorkspaceBuilder {
-    pub fn from_file(&mut self, file: WorkspaceFile) -> Result<&mut Self, anyhow::Error> {
+    pub async fn from_file(&mut self, file: WorkspaceFile) -> Result<&mut Self, anyhow::Error> {
         self.name(file.workspace.name.clone());
 
-        self.ignore_patterns(file.workspace.ignore_patterns.clone());
+        let mut ignore_patterns = file.workspace.ignore_patterns.clone();
+        let gitignore_patterns =
+            git_ignore::read_patterns(&self.paths.as_ref().unwrap().workspace_root).await?;
+        ignore_patterns.extend(gitignore_patterns);
+        self.ignore_patterns(ignore_patterns);
 
         self.use_git_hooks(file.workspace.use_git_hooks);
 
@@ -125,63 +129,3 @@ impl WorkspaceBuilder {
         Ok(self)
     }
 }
-
-/*
-pub fn with_current_user(&mut self, current_user: String) -> &mut Workspace {
-    self.current_user = current_user;
-    self
-}
-
-pub fn with_rules(self, rules: &[PathBuf]) -> Workspace {
-    Workspace {
-        local_rules: rules.to_vec(),
-        ..self
-    }
-}
-
-pub fn with_toolchains(self, toolchains: &[PathBuf]) -> Workspace {
-    Workspace {
-        local_toolchains: toolchains.to_vec(),
-        ..self
-    }
-}
-
-pub fn with_gitignore_patterns(self, gitignore_patterns: Vec<String>) -> Workspace {
-    let mut new_ignore_patterns = self.ignore_patterns.clone();
-    new_ignore_patterns.extend(gitignore_patterns);
-
-    Workspace {
-        ignore_patterns: new_ignore_patterns,
-        ..self
-    }
-}
-
-pub async fn write_alias(self, alias: String, target: Label) -> Result<(), anyhow::Error> {
-    let workspace_file = self.paths.workspace_root.join(WORKSPACE);
-
-    let mut contents = fs::read_to_string(&workspace_file)
-        .await?
-        .parse::<Value>()?;
-
-    let new_contents = contents
-        .as_table_mut()
-        .expect("We expect workspace to be a table");
-
-    let mut alias_map = if let Some(previous_aliases) = new_contents.get("aliases") {
-        previous_aliases.as_table().unwrap().clone()
-    } else {
-        Map::new()
-    };
-
-    alias_map.insert(alias, Value::String(target.to_string()));
-    new_contents.insert("aliases".into(), Value::Table(alias_map));
-
-    let new_toml = toml::to_string(new_contents)?;
-
-    fs::write(workspace_file, new_toml)
-        .await
-        .expect("Could not write TOML");
-
-    return Ok(());
-}
-*/

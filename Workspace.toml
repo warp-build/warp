@@ -1,6 +1,6 @@
 [workspace]
 name = "warp-build"
-ignore_patterns = ["\\.git", "_build", "deps", "lib/bs", "target", "node_modules"]
+ignore_patterns = []
 use_git_hooks = true
 
 [aliases]

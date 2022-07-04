@@ -1,3 +1,4 @@
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use regex::Regex;
 use std::path::PathBuf;
 use thiserror::*;
@@ -19,7 +20,7 @@ pub enum FileScannerError {
 pub struct FileScanner {
     root: PathBuf,
     match_pattern: Regex,
-    skip_patterns: Vec<globset::GlobMatcher>,
+    skip_patterns: globset::GlobSet,
     max_concurrency: usize,
 }
 
@@ -34,7 +35,7 @@ impl FileScanner {
         FileScanner {
             root: PathBuf::from("."),
             match_pattern: Regex::new(".*").unwrap(),
-            skip_patterns: vec![],
+            skip_patterns: GlobSet::default(),
             max_concurrency: 10,
         }
     }
@@ -64,13 +65,15 @@ impl FileScanner {
         &mut self,
         patterns: &[String],
     ) -> Result<&mut FileScanner, FileScannerError> {
+        let mut builder = GlobSetBuilder::new();
+
         for pattern in patterns {
-            self.skip_patterns.push(
-                globset::Glob::new(pattern)
-                    .map_err(FileScannerError::InvalidPattern)?
-                    .compile_matcher(),
-            );
+            let glob = Glob::new(pattern).map_err(FileScannerError::InvalidPattern)?;
+            builder.add(glob);
         }
+
+        self.skip_patterns = builder.build().map_err(FileScannerError::InvalidPattern)?;
+
         Ok(self)
     }
 
@@ -84,9 +87,9 @@ impl FileScanner {
         let skip_patterns = self.skip_patterns.clone();
         async_stream::try_stream! {
             'dir_loop: while let Some(dir) = dirs.pop() {
-                let relative_dir = dir.strip_prefix(&root).unwrap().to_str().unwrap();
-                for skip_pattern in &skip_patterns {
-                    if skip_pattern.is_match(relative_dir) {
+                if dir != root {
+                    let relative_dir = dir.strip_prefix(&root).unwrap().to_str().unwrap();
+                    if skip_patterns.is_match(&relative_dir) {
                         continue 'dir_loop
                     }
                 }

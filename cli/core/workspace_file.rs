@@ -52,10 +52,10 @@ impl From<String> for WorkspaceFileError {
 pub struct WorkspaceConfig {
     pub name: String,
 
-    #[builder(default)]
+    #[builder(default = "vec![]")]
     pub ignore_patterns: Vec<String>,
 
-    #[builder(default)]
+    #[builder(default = "false")]
     pub use_git_hooks: bool,
 }
 
@@ -76,7 +76,6 @@ pub struct FlexibleRuleConfig(pub BTreeMap<String, toml::Value>);
 #[derive(Clone, Default, Debug, Builder, Serialize, Deserialize)]
 #[builder(build_fn(error = "anyhow::Error"))]
 pub struct WorkspaceFile {
-    #[builder(default)]
     pub workspace: WorkspaceConfig,
 
     #[builder(default)]

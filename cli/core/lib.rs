@@ -14,6 +14,7 @@ pub mod event_channel;
 pub mod execution_mode;
 pub mod file_scanner;
 pub mod git_hooks;
+pub mod git_ignore;
 pub mod label;
 pub mod local_cache;
 pub mod local_sandbox;
