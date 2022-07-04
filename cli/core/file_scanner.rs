@@ -9,7 +9,7 @@ pub enum FileScannerError {
     InvalidRegex(regex::Error),
 
     #[error("Invalid pattern error: {0:?}")]
-    InvalidPattern(glob::PatternError),
+    InvalidPattern(globset::Error),
 
     #[error("File I/O Error: {0:?}")]
     IOError(std::io::Error),
@@ -19,7 +19,7 @@ pub enum FileScannerError {
 pub struct FileScanner {
     root: PathBuf,
     match_pattern: Regex,
-    skip_patterns: Vec<glob::Pattern>,
+    skip_patterns: Vec<globset::GlobMatcher>,
     max_concurrency: usize,
 }
 
@@ -65,8 +65,11 @@ impl FileScanner {
         patterns: &[String],
     ) -> Result<&mut FileScanner, FileScannerError> {
         for pattern in patterns {
-            self.skip_patterns
-                .push(glob::Pattern::new(pattern).map_err(FileScannerError::InvalidPattern)?);
+            self.skip_patterns.push(
+                globset::Glob::new(pattern)
+                    .map_err(FileScannerError::InvalidPattern)?
+                    .compile_matcher(),
+            );
         }
         Ok(self)
     }
@@ -83,7 +86,7 @@ impl FileScanner {
             'dir_loop: while let Some(dir) = dirs.pop() {
                 let relative_dir = dir.strip_prefix(&root).unwrap().to_str().unwrap();
                 for skip_pattern in &skip_patterns {
-                    if skip_pattern.matches(relative_dir) {
+                    if skip_pattern.is_match(relative_dir) {
                         continue 'dir_loop
                     }
                 }

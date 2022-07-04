@@ -37,7 +37,7 @@ impl StatusReporter {
 
         let mut build_started = std::time::Instant::now();
         loop {
-            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+            tokio::time::sleep(std::time::Duration::from_micros(10)).await;
 
             pb.set_length(queued_targets + action_count);
 
