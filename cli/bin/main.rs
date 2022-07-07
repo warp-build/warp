@@ -75,7 +75,7 @@ impl Warp {
             .filter_level(log::LevelFilter::Off)
             .format_timestamp_micros()
             .format_module_path(false)
-            .parse_env("ZAP_LOG")
+            .parse_env("WARP_LOG")
             .try_init()
             .unwrap();
 
@@ -191,7 +191,7 @@ impl Goal {
 
                 let mut files = Box::pin(
                     FileScanner::new()
-                        .skipping_paths(&[".git".to_string(), "warp-outputs".to_string()])?
+                        .skipping_paths(&workspace.ignore_patterns)?
                         .starting_from(&root)
                         .await?
                         .stream_files()
@@ -199,7 +199,7 @@ impl Goal {
                 );
 
                 while let Some(path) = files.next().await {
-                    // println!("{:?}", path?)
+                    println!("{:?}", path?)
                 }
 
                 Ok(())
