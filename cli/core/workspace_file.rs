@@ -56,9 +56,11 @@ pub struct WorkspaceConfig {
     pub name: String,
 
     #[builder(default = "vec![]")]
+    #[serde(default)]
     pub ignore_patterns: Vec<String>,
 
     #[builder(default = "false")]
+    #[serde(default)]
     pub use_git_hooks: bool,
 }
 
@@ -82,9 +84,11 @@ pub struct WorkspaceFile {
     pub workspace: WorkspaceConfig,
 
     #[builder(default)]
+    #[serde(default)]
     pub aliases: BTreeMap<String, String>,
 
     #[builder(default)]
+    #[serde(default)]
     pub toolchains: BTreeMap<String, FlexibleRuleConfig>,
 }
 
