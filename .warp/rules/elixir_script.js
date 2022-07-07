@@ -32,7 +32,7 @@ const impl = (ctx) => {
     });
   });
 
-  const run = `${Label.path(label)}/run_script`;
+  const run = `${Label.path(label)}/${name}.run_script`;
 
   ctx.action().declareOutputs([run, main]);
   ctx.action().declareRunScript(run);
