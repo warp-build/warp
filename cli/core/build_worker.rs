@@ -105,7 +105,7 @@ impl BuildWorker {
             self.setup(max_concurrency).await?;
             loop {
                 // NOTE(@ostera): we don't want things to burn CPU cycles
-                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                tokio::time::sleep(std::time::Duration::from_micros(100)).await;
                 self.run(mode).await?;
                 if self.should_stop() {
                     break;
