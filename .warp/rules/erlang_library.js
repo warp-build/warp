@@ -15,7 +15,7 @@ const impl = ctx => {
     .filter(path => path.endsWith(BEAM_EXT))
     .map(File.parent)
     .unique()
-    .flatMap(dir => ["--erl", "-pa", dir])
+    .flatMap(dir => ["-pa", dir])
 
   const finalSrcs = transitiveDeps
     .filter(path => path.endsWith(ERL_EXT))
