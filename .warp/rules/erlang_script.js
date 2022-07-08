@@ -12,7 +12,7 @@ const impl = (ctx) => {
     .filter(path => path.endsWith(HEADER_EXT))
     .unique();
 
-  const extraLibPaths = transitiveDeps
+  const transitiveBeams = transitiveDeps
     .filter(path => path.endsWith(BEAM_EXT))
     .unique();
 
@@ -37,7 +37,7 @@ main(_argv) ->
   % The raw list of files.
   DepBeamFiles = [
     ${
-      transitiveDeps
+      transitiveBeams
       .map(dep => `"${dep}"`)
       .join(",\n    ")
     }
