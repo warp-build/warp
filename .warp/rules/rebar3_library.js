@@ -28,6 +28,7 @@ export default Warp.Rule({
   impl,
   cfg: {
     name: label(),
+    deps: [label()],
     srcs: [file()],
   },
   defaults: {
@@ -40,6 +41,7 @@ export default Warp.Rule({
       "rebar.config",
       "priv/**/*",
     ],
+    deps: [],
   },
   toolchains: [ErlangToolchain, Rebar3Toolchain],
 });
