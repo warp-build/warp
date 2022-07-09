@@ -95,23 +95,22 @@ impl FileScanner {
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
                     let path = entry.path().clone();
                     trace!("Reading {:?}", &path);
-                    let relative_dir = &path.strip_prefix(&root).unwrap().to_str().unwrap();
 
-                    let should_skip = skip_patterns.is_match(&relative_dir);
-
-                    if should_skip {
-                        debug!("Skipped {:?}", &path);
+                    if match_pattern.is_match(path.to_str().unwrap()) {
+                        yield path;
                         continue;
                     }
 
                     if path.is_dir() {
+                        let relative_dir = &path.strip_prefix(&root).unwrap().to_str().unwrap();
+                        let should_skip = skip_patterns.is_match(&relative_dir);
+                        if should_skip {
+                            debug!("Skipped {:?}", &path);
+                            continue;
+                        }
                         dirs.push(path);
-                        continue;
                     }
 
-                    if match_pattern.is_match(path.to_str().unwrap()) {
-                        yield path;
-                    }
                 }
             }
         }
