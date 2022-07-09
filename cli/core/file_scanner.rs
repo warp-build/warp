@@ -3,6 +3,7 @@ use regex::Regex;
 use std::path::PathBuf;
 use thiserror::*;
 use tokio::fs;
+use tracing::*;
 
 #[derive(Error, Debug)]
 pub enum FileScannerError {
@@ -88,15 +89,18 @@ impl FileScanner {
         let skip_patterns = self.skip_patterns.clone();
         async_stream::try_stream! {
             while let Some(dir) = dirs.pop() {
+                trace!("Reading {:?}", &dir);
                 let mut read_dir = fs::read_dir(&dir).await.map_err(FileScannerError::IOError)?;
 
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
                     let path = entry.path().clone();
+                    trace!("Reading {:?}", &path);
                     let relative_dir = &path.strip_prefix(&root).unwrap().to_str().unwrap();
 
                     let should_skip = skip_patterns.is_match(&relative_dir);
 
                     if should_skip {
+                        debug!("Skipped {:?}", &path);
                         continue;
                     }
 
