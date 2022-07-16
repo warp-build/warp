@@ -14,8 +14,10 @@ const impl = ctx => {
       return File.join(parent, File.join("ebin", name))
     })
     .concat(headers);
+
   ctx.action().declareOutputs([
     `${Label.path(label)}/ebin/${name}.app`,
+    `${Label.path(label)}/${name}.d`,
     ...outputs
   ]);
 
@@ -44,6 +46,9 @@ export default Warp.Rule({
     deps: [],
     headers: [ "*.hrl", "src/**/*.hrl", "include/**/*.hrl" ],
 	},
+  sandbox: {
+    mode: "copy",
+  },
   toolchains: [ErlangToolchain]
 });
 
