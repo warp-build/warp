@@ -426,6 +426,7 @@ mod tests {
                     RuleConfig::default(),
                     Runnable::NotRunnable,
                     Pinned::Unpinned,
+                    SandboxConfig::default(),
                 ),
                 RuleConfig::default(),
             ),

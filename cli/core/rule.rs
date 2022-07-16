@@ -51,6 +51,11 @@ pub struct Rule {
 
     /// Whether targets of this rule as pinned or not.
     pub pinned: Pinned,
+
+    /// The specific configuration this rule requires when being sandboxed.
+    ///
+    /// For ex. some rules can't work with symlinks, so we are forced to _copy_ source files over.
+    pub sandbox_config: SandboxConfig,
 }
 
 impl Rule {
@@ -62,6 +67,7 @@ impl Rule {
         defaults: RuleConfig,
         runnable: Runnable,
         pinned: Pinned,
+        sandbox_config: SandboxConfig,
     ) -> Rule {
         Rule {
             name,
@@ -71,6 +77,7 @@ impl Rule {
             defaults,
             runnable,
             pinned,
+            sandbox_config,
         }
     }
 
@@ -175,6 +182,21 @@ impl<'de> Deserialize<'de> for Rule {
             Pinned::Unpinned
         };
 
+        let sandbox_config = {
+            let mut default = serde_json::Map::new();
+            default.insert("mode".to_string(), "link".into());
+
+            let sandbox_obj = rule_spec["sandbox"].as_object().unwrap_or(&default);
+
+            let file_mode = if sandbox_obj["mode"].as_str().unwrap_or("link") == "copy" {
+                SandboxFileMode::Copy
+            } else {
+                SandboxFileMode::Link
+            };
+
+            SandboxConfig { file_mode }
+        };
+
         let rule = Rule::new(
             name,
             rule_spec["mnemonic"].as_str().unwrap().to_string(),
@@ -183,6 +205,7 @@ impl<'de> Deserialize<'de> for Rule {
             defaults,
             runnable,
             pinned,
+            sandbox_config,
         );
 
         Ok(rule)

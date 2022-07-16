@@ -24,6 +24,13 @@ mod error {
         #[error("Could not create directory {dst:?} at: {dst_parent:?}")]
         CouldNotCreateDir { dst: PathBuf, dst_parent: PathBuf },
 
+        #[error("When building {label:?}, could not copy {src:?} into sandbox at {dst:?}")]
+        CouldNotCopy {
+            label: Label,
+            src: PathBuf,
+            dst: PathBuf,
+        },
+
         #[error("When building {label:?}, could not link {src:?} into sandbox at {dst:?}")]
         CouldNotLink {
             label: Label,
@@ -42,6 +49,23 @@ Find the sandbox in: {sandbox_root:?}
             error: anyhow::Error,
         },
     }
+}
+
+#[derive(Debug, Clone)]
+pub enum SandboxFileMode {
+    Copy,
+    Link,
+}
+
+impl Default for SandboxFileMode {
+    fn default() -> Self {
+        SandboxFileMode::Link
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SandboxConfig {
+    pub file_mode: SandboxFileMode,
 }
 
 /// A build Sandbox.
@@ -295,25 +319,39 @@ impl LocalSandbox {
                 .map(|_| ())?;
         };
 
-        #[cfg(target_os = "windows")]
-        let link_result = match std::os::windows::fs::symlink(&src, &dst) {
-            Ok(_) => Ok(()),
-            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-            err => err,
-        };
+        match self.node.target.rule().sandbox_config.file_mode {
+            SandboxFileMode::Link => {
+                #[cfg(target_os = "windows")]
+                let link_result = match std::os::windows::fs::symlink(&src, &dst) {
+                    Ok(_) => Ok(()),
+                    Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+                    err => err,
+                };
 
-        #[cfg(not(target_os = "windows"))]
-        let link_result = match std::os::unix::fs::symlink(&src, &dst) {
-            Ok(_) => Ok(()),
-            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-            err => err,
-        };
+                #[cfg(not(target_os = "windows"))]
+                let link_result = match std::os::unix::fs::symlink(&src, &dst) {
+                    Ok(_) => Ok(()),
+                    Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
+                    err => err,
+                };
 
-        link_result.map_err(|_| error::SandboxError::CouldNotLink {
-            label: self.node.label().clone(),
-            src: src.clone(),
-            dst: dst.clone(),
-        })?;
+                link_result.map_err(|_| error::SandboxError::CouldNotLink {
+                    label: self.node.label().clone(),
+                    src: src.clone(),
+                    dst: dst.clone(),
+                })?;
+            }
+            SandboxFileMode::Copy => {
+                fs::copy(&src, &dst)
+                    .await
+                    .map_err(|_| error::SandboxError::CouldNotCopy {
+                        label: self.node.label().clone(),
+                        src: src.clone(),
+                        dst: dst.clone(),
+                    })
+                    .map(|_| ())?;
+            }
+        };
 
         Ok(())
     }

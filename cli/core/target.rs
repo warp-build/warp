@@ -103,6 +103,7 @@ mod tests {
             RuleConfig::default(),
             Runnable::NotRunnable,
             Pinned::Pinned,
+            SandboxConfig::default(),
         );
         let cfg = RuleConfig::default();
         let target = Target::new(label, &rule, cfg);
@@ -120,6 +121,7 @@ mod tests {
             RuleConfig::default(),
             Runnable::NotRunnable,
             Pinned::Pinned,
+            SandboxConfig::default(),
         );
         let cfg = RuleConfig::default();
         let target = Target::new(label, &rule, cfg);

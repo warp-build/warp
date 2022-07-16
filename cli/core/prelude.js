@@ -132,6 +132,7 @@ Warp.Rule = spec => {
   spec.defaults = spec.defaults || {};
   spec.runnable = spec.runnable || false;
   spec.pinned = spec.pinned || false;
+  spec.sandbox = spec.sandbox || { mode: "link" };
 
   // if (Warp.Rules.exists(name)) err(`There already exists rule toolchain called ${name}, consider renaming yours`);
   Warp.Rules.register(name, spec);
@@ -169,6 +170,8 @@ Warp.Toolchain = spec => {
   spec.runnable = false;
 
   spec.pinned = true;
+
+  spec.sandbox = spec.sandbox || { mode: "link" };
 
   // if (Warp.Rules.exists(name)) err(`There already exists a toolchain called ${name}, consider renaming yours`);
   Warp.Rules.register(name, spec);
