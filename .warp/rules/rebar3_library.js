@@ -30,6 +30,7 @@ export default Warp.Rule({
     name: label(),
     deps: [label()],
     srcs: [file()],
+    extra_srcs: [file()],
   },
   defaults: {
     srcs: [
@@ -41,6 +42,7 @@ export default Warp.Rule({
       "rebar.config",
       "priv/**/*",
     ],
+    extra_srcs: [],
     deps: [],
   },
   toolchains: [ErlangToolchain, Rebar3Toolchain],
