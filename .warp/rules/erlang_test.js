@@ -1,7 +1,7 @@
 import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "../toolchains/erlang.js";
 
 const impl = ctx => {
-  const { name, deps, srcs, headers, behaviors } = ctx.cfg();
+  const { name, deps, test } = ctx.cfg();
 
   const transitiveDeps = ctx.transitiveDeps().flatMap(dep => dep.outs);
 
@@ -30,7 +30,7 @@ const impl = ctx => {
   ctx.action().declareOutputs(outputs);
 
   const paths = {};
-  srcs.forEach( src => {
+  [test].forEach( src => {
     const parent = File.parent(src);
     paths[parent] = paths[parent] || [];
     paths[parent].push(src);
@@ -45,33 +45,20 @@ const impl = ctx => {
       ...srcs
     ];
 
-    ctx.action().runShell({
-      script: `#!/bin/sh
-
-PATH="${ErlangToolchain.provides().ERL_ROOT}:$PATH" \
-  ${ErlangToolchain.provides().ERLC} \
-      ${args.join(" ")}
-
-`
-    });
+    ctx.action().exec({ cmd: ErlangToolchain.provides().ERLC, args });
   });
 };
 
 export default Warp.Rule({
-  name: "erlang_library",
-  mnemonic: "ErlLibrary",
+  name: "erlang_test",
+  mnemonic: "ErlTest",
   impl,
   cfg: {
     name: label(),
+    test: file(),
     deps: [label()],
-    srcs: [file()],
-    headers: [file()],
-    behaviors: [file()],
   },
 	defaults: {
-		srcs: [ "*.erl", "src/*.erl", "src/*.hrl" ],
-		headers: [ "*.hrl", "include/*.hrl" ],
-		behaviors: [],
 		deps: [],
 	},
   toolchains: [ErlangToolchain]

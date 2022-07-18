@@ -10,13 +10,28 @@ const impl = (ctx) => {
   ctx.action().declareOutputs(outputs);
 
   const { REBAR3 } = Rebar3Toolchain.provides();
+
+  const ERL_ENV = ErlangToolchain.provides();
+
   ctx.action().runShell({
-    script: `#!/bin/bash -xe
+    script: `#!/bin/bash -x
+
+export PATH="${ERL_ENV.ERL_ROOT}:$PATH"
+export C_INCLUDE_PATH="${ERL_ENV.INCLUDE_PATH}:$C_INCLUDE_PATH"
+export CPLUS_INCLUDE_PATH="${ERL_ENV.INCLUDE_PATH}:$CPLUS_INCLUDE_PATH"
+export C_LIB_PATH="${ERL_ENV.LIB_PATH}:$C_LIB_PATH"
+export CPLUS_LIB_PATH="${ERL_ENV.LIB_PATH}:$CPLUS_LIB_PATH"
 
 cd ${cwd}
 rm -rf _build
-${REBAR3} compile \
-&& tar cf ${appTarball} _build/default/lib/${name}
+${REBAR3} compile || status=$?
+
+if [ \${status:-0} -gt 1 ]; then
+  echo "Rebar exited with status $status"
+  exit $status
+fi
+
+tar cf ${appTarball} _build/default/lib/${name}
 
 `,
   });

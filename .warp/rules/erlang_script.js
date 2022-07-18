@@ -108,7 +108,7 @@ main(_argv) ->
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
-PATH="${ErlangToolchain.provides().ERL_HOME}:$PATH" \
+PATH="${ErlangToolchain.provides().ERL_ROOT}:$PATH" \
   ${ESCRIPT} ${build}
 mv ${File.filename(run)} ${run}
 
@@ -117,7 +117,7 @@ mv ${File.filename(run)} ${run}
   ctx.action().declareOutputs([run]);
   ctx.action().setPermissions({file: run, executable: true});
   ctx.action().declareRunScript(run, {
-    env: { PATH: ErlangToolchain.provides().ERL_HOME }
+    env: { PATH: ErlangToolchain.provides().ERL_ROOT }
   });
 };
 
