@@ -21,6 +21,7 @@ const impl = (ctx) => {
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
+export PATH="${ElixirToolchain.provides().ELIXIR_HOME}:${ErlangToolchain.provides().ERL_ROOT}:$PATH"
 export MIX_ENV=prod
 
 ${ctx

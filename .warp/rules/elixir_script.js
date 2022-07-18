@@ -40,6 +40,8 @@ const impl = (ctx) => {
     dst: run,
     data: `#!/bin/bash -e
 
+export PATH="${ElixirToolchain.provides().ELIXIR_HOME}:${ErlangToolchain.provides().ERL_ROOT}:$PATH"
+
 ${transitiveDeps
   .flatMap((dep) =>
     dep.outs.flatMap((out) => {
