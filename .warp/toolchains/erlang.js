@@ -24,8 +24,13 @@ cd ${prefix}
 
 CANONICAL_SYSTEM_NAME=$(sh ./erts/autoconf/config.guess)
 
-cd bin
-ln -s $CANONICAL_SYSTEM_NAME ${host.triple}
+pushd bin;
+  ln -s $CANONICAL_SYSTEM_NAME ${host.triple}
+popd;
+
+pushd release;
+  ln -s $CANONICAL_SYSTEM_NAME ${host.triple}
+popd;
 
 `});
 
@@ -38,7 +43,9 @@ ln -s $CANONICAL_SYSTEM_NAME ${host.triple}
     ESCRIPT: File.join(binRoot, "escript"),
     CT_RUN: File.join(binRoot, "ct_run"),
     DIALYZER: File.join(binRoot, "dialyzer"),
-    ERL_HOME: `${prefix}/bin/`,
+    ERL_ROOT: `${prefix}/bin`,
+    INCLUDE_PATH: `${prefix}/release/${host.triple}/usr/include`,
+    LIB_PATH: `${prefix}/release/${host.triple}/lib`,
   });
 };
 
