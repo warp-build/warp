@@ -77,11 +77,18 @@ impl RunGoal {
             }) => Err(anyhow!("Target {} has no outputs!", &target.to_string())),
 
             Some(ComputedTarget {
-                run_script: Some(run_script),
+                run_script: Some(RunScript { run_script, env }),
                 ..
             }) => {
                 let path = local_outputs_root.join(&run_script);
                 let mut cmd = Command::new(path);
+
+                let mut env = env;
+                let extra_paths = env.get("PATH").cloned().unwrap_or_else(|| "".to_string());
+                env.remove("PATH");
+                env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
+
+                cmd.envs(&env);
 
                 cmd.stdin(Stdio::inherit())
                     .stderr(Stdio::inherit())

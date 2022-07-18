@@ -83,13 +83,22 @@ Warp.Targets.compute = target => {
 
     action: () => ({
       copy: ({src, dst}) => ffi("op_ctx_actions_copy", {label, src, dst}),
+
       declareOutputs: outs => ffi("op_ctx_actions_declare_outputs", {label, outs}),
-      declareRunScript: runScript => ffi("op_ctx_actions_declare_run_script", {label, runScript}),
+
+      declareRunScript: (runScript, opts = { env: {} }) =>
+        ffi("op_ctx_actions_declare_run_script", {label, runScript, env: opts.env}),
+
       download: ({url, sha1, output}) => ffi("op_ctx_download", {label, url, sha1, output}),
+
       exec: ({env = {}, cmd, args, cwd, needsTty = false}) => ffi("op_ctx_actions_exec", {label, cmd, args, cwd, env, needsTty}),
+
       extract: ({src, dst}) => ffi("op_ctx_extract", {label, src, dst}),
+
       runShell: ({script, env = {}, needsTty = false}) => ffi("op_ctx_actions_run_shell", {label, script, env, needsTty}),
+
       setPermissions: ({file, executable}) => ffi("op_ctx_set_permissions", {label, file, executable}),
+
       writeFile: ({data, dst}) => ffi("op_ctx_actions_write_file", {label, data, dst}),
     }),
   };

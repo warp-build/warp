@@ -36,7 +36,7 @@ pub struct ComputedTarget {
     /// The outputs of this node
     pub outs: Option<FxHashSet<PathBuf>>,
 
-    pub run_script: Option<PathBuf>,
+    pub run_script: Option<RunScript>,
 
     /// The inputs of this node
     pub srcs: Option<FxHashSet<PathBuf>>,

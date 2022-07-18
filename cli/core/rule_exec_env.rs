@@ -67,7 +67,7 @@ pub struct InnerState {
     pub paths: WorkspacePaths,
     pub rule_map: Arc<DashMap<String, Rule>>,
     pub toolchain_manager: Arc<RwLock<ToolchainManager>>,
-    pub run_script_map: Arc<DashMap<Label, PathBuf>>,
+    pub run_script_map: Arc<DashMap<Label, RunScript>>,
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
     pub toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
@@ -122,6 +122,7 @@ pub fn op_file_with_extension(args: FileWithExtension) -> Result<String, AnyErro
 pub struct DeclareRunScript {
     label: String,
     run_script: String,
+    env: HashMap<String, String>,
 }
 
 #[op]
@@ -137,7 +138,13 @@ pub fn op_ctx_actions_declare_run_script(
         None => PathBuf::from(args.run_script),
         Some(_entry) => panic!("RunScript already declared for: {:?}", &label),
     };
-    run_script_map.insert(label, run_script);
+    run_script_map.insert(
+        label,
+        RunScript {
+            run_script,
+            env: args.env,
+        },
+    );
     Ok(())
 }
 
@@ -472,7 +479,7 @@ pub struct RuleExecEnv {
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
     pub toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
-    pub run_script_map: Arc<DashMap<Label, PathBuf>>,
+    pub run_script_map: Arc<DashMap<Label, RunScript>>,
 }
 
 impl RuleExecEnv {
@@ -758,7 +765,7 @@ impl RuleExecEnv {
             .cloned()
             .collect();
 
-        let run_script: Option<PathBuf> = self.run_script_map.get(&label).map(|path| path.clone());
+        let run_script: Option<RunScript> = self.run_script_map.get(&label).map(|rs| rs.clone());
 
         let srcs: FxHashSet<PathBuf> = computed_target
             .target
