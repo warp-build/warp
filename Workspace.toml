@@ -18,13 +18,15 @@ use_git_hooks = true
 "@fmt" = "hello_world:hello_world"
 flyctl = "//warp.build/toolchains:flyctl"
 terraform = "//warp.build/toolchains:terraform"
+
 [toolchains.deno]
 sha1 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e"
 version = "1.22.2"
 
 [toolchains.elixir]
-sha1 = "325fbdde4f0a5701bb8b9d455175b85ff41470d7"
-version = "1.13.4"
+sha1 = "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa"
+kind = "source"
+version = "1.13"
 
 [toolchains.erlang]
 build_flags = ["-t"]
