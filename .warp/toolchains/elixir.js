@@ -5,17 +5,33 @@ export const EX_EXT = ".ex";
 export const EXS_EXT = ".exs";
 
 const impl = ctx => {
-  const { version, sha1 } = ctx.cfg();
+  const { kind, version, sha1 } = ctx.cfg();
 
   const output = "Precompiled.zip"
 
-  const url = `https://github.com/elixir-lang/elixir/releases/download/v${version}/Precompiled.zip`
+  const url =
+    kind === "source"
+    ? `https://github.com/elixir-lang/elixir/archive/v${version}.tar.gz`
+    : `https://github.com/elixir-lang/elixir/releases/download/v${version}/Precompiled.zip`
 
   ctx.action().download({ url, sha1, output })
 
   ctx.action().extract({ src: output, dst: "." })
 
-  const binRoot = "bin";
+  if (kind === "source") {
+    ctx.action().runShell({
+      script: `#!/bin/bash -xe
+
+export PATH="${ErlangToolchain.provides().ERL_ROOT}:$PATH"
+
+cd elixir-${version}
+make
+
+`
+    })
+  }
+
+  const binRoot = `elixir-${version}/bin`;
   const ELIXIR = File.join(binRoot, "elixir");
   const ELIXIRC = File.join(binRoot, "elixirc");
   const IEX = File.join(binRoot, "iex");
@@ -28,7 +44,7 @@ const impl = ctx => {
 
   ctx.action().declareOutputs([]);
 
-  ctx.provides({ ELIXIR, ELIXIRC, IEX, MIX });
+  ctx.provides({ ELIXIR, ELIXIRC, IEX, MIX, ELIXIR_HOME: binRoot });
 };
 
 export default Warp.Toolchain({
@@ -38,6 +54,7 @@ export default Warp.Toolchain({
   cfg: {
     version: string(),
     sha1: string(),
+    kind: string(),
   },
   toolchains: [ErlangToolchain]
 });
