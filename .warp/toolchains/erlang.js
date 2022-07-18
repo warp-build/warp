@@ -38,6 +38,7 @@ ln -s $CANONICAL_SYSTEM_NAME ${host.triple}
     ESCRIPT: File.join(binRoot, "escript"),
     CT_RUN: File.join(binRoot, "ct_run"),
     DIALYZER: File.join(binRoot, "dialyzer"),
+    ERL_HOME: `${prefix}/bin/`,
   });
 };
 

@@ -45,7 +45,15 @@ const impl = ctx => {
       ...srcs
     ];
 
-    ctx.action().exec({ cmd: ErlangToolchain.provides().ERLC, args });
+    ctx.action().runShell({
+      script: `#!/bin/sh
+
+PATH="${ErlangToolchain.provides().ERL_HOME}:$PATH" \
+  ${ErlangToolchain.provides().ERLC} \
+      ${args.join(" ")}
+
+`
+    });
   });
 };
 

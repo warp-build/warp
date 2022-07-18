@@ -108,14 +108,17 @@ main(_argv) ->
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
-${ESCRIPT} ${build}
+PATH="${ErlangToolchain.provides().ERL_HOME}:$PATH" \
+  ${ESCRIPT} ${build}
 mv ${File.filename(run)} ${run}
 
 ` })
 
   ctx.action().declareOutputs([run]);
-  ctx.action().declareRunScript(run);
   ctx.action().setPermissions({file: run, executable: true});
+  ctx.action().declareRunScript(run, {
+    env: { PATH: ErlangToolchain.provides().ERL_HOME }
+  });
 };
 
 export default Warp.Rule({
