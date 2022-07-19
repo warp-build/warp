@@ -29,6 +29,7 @@ pub mod clean;
 pub mod info;
 pub mod init;
 pub mod run;
+pub mod setup;
 
 pub use alias::*;
 pub use build::*;
@@ -36,3 +37,4 @@ pub use clean::*;
 pub use info::*;
 pub use init::*;
 pub use run::*;
+pub use setup::*;
