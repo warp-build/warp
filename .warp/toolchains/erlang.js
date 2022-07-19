@@ -37,7 +37,7 @@ mkdir dist
 
 ./configure ${configure_flags.join(" ")} \
   --with-ssl=${OpenSSLToolchain.provides().OPENSSL_HOME} \
-  --prefix=$(pwd)/dist || exit 1
+  --prefix=$WARP_BUILD_SANDBOX_NODE_PATH/${prefix}/dist || exit 1
 
 make all install ${make_flags.join(" ")} || exit 1
 

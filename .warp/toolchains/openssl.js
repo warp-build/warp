@@ -21,7 +21,7 @@ mkdir dist
 
 ./config -no-tests --prefix=$(pwd)/dist || exit 1
 make -j || exit 1
-make install -j || exit 1
+make install -j10 || exit 1
 
 `});
 
