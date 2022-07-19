@@ -108,7 +108,7 @@ impl ComputedTarget {
             }
         }
 
-        if missing_deps.len() > 0 {
+        if !missing_deps.is_empty() {
             return Err(ComputedTargetError::MissingDependencies {
                 label: target.label().clone(),
                 deps: missing_deps.iter().cloned().collect(),
@@ -234,7 +234,7 @@ impl ComputedTarget {
             }
         }
 
-        if missing_deps.len() > 0 {
+        if !missing_deps.is_empty() {
             let mut missing_deps = missing_deps.iter().cloned().collect::<Vec<Label>>();
             missing_deps.sort();
             Err(ComputedTargetError::MissingDependencies {
@@ -273,6 +273,8 @@ impl ComputedTarget {
             self.target.label().to_string(),
         );
 
+        let node_cache_path = cache_root.join(&self.hash());
+
         trace!("Running actions for {}...", self.target.label().to_string());
         event_channel.send(Event::PreparingActions {
             label: self.target.label().clone(),
@@ -286,6 +288,7 @@ impl ComputedTarget {
             action
                 .run(
                     self.target.label().clone(),
+                    &node_cache_path,
                     sandbox_root,
                     event_channel.clone(),
                 )

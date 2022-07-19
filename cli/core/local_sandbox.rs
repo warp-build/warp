@@ -448,7 +448,11 @@ impl LocalSandbox {
         debug!("Executing build rule...");
         self.node
             .execute(
-                &self.workspace.paths.local_cache_root,
+                if self.node.target.is_pinned() {
+                    &self.workspace.paths.global_cache_root
+                } else {
+                    &self.workspace.paths.local_cache_root
+                },
                 &self.root,
                 mode,
                 event_channel.clone(),

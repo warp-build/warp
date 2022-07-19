@@ -1,7 +1,6 @@
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
-use directories::ProjectDirs;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -66,32 +65,19 @@ impl WorkspacePaths {
             )
         };
 
-        let project_dirs = ProjectDirs::from("dev", "abstractmachines", "warp")
-            .context("Could not figure out Warp project directories")?;
+        let warp_home = home
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("/warp_root"));
 
-        let config_dir = if let Some(ref root) = home {
-            PathBuf::from(root)
-        } else {
-            project_dirs.config_dir().to_path_buf()
-        };
+        let global_rules_root = warp_home.join("rules");
+        let global_toolchains_root = warp_home.join("toolchains");
 
-        let global_cache_dir = if let Some(ref root) = home {
-            PathBuf::from(root).join("cache")
-        } else {
-            project_dirs.cache_dir().to_path_buf()
-        };
+        let global_cache_root = warp_home.join("cache").join("global");
+        let global_sandbox_root = warp_home.join("sandbox").join("global");
 
-        let global_rules_root = config_dir.join("rules");
-        let global_toolchains_root = config_dir.join("toolchains");
-
-        let user_root = global_cache_dir.join(format!("_user_{}", current_user));
-
-        let global_cache_root = user_root.join("cache").join("global");
-        let global_sandbox_root = user_root.join("sandbox").join("global");
-
-        let local_cache_root = user_root.join("cache").join(&workspace_name);
-        let local_sandbox_root = user_root.join("sandbox").join(&workspace_name);
-        let local_outputs_root = user_root.join("outputs").join(&workspace_name);
+        let local_cache_root = warp_home.join("cache").join(&workspace_name);
+        let local_sandbox_root = warp_home.join("sandbox").join(&workspace_name);
+        let local_outputs_root = warp_home.join("outputs").join(&workspace_name);
 
         let workspace_output_link = workspace_root.join("warp-outputs");
         let local_warp_root = workspace_root.join(".warp");

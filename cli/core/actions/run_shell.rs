@@ -16,11 +16,25 @@ pub struct RunShellAction {
 
 impl RunShellAction {
     #[tracing::instrument(name = "action::RunShellAction::run")]
-    pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn run(
+        self,
+        cache_root: &PathBuf,
+        sandbox_root: &PathBuf,
+    ) -> Result<(), anyhow::Error> {
         let mut cmd = Command::new("bash");
 
+        let mut env = self.env.clone();
+        env.insert(
+            "WARP_BUILD_SANDBOX_NODE_PATH".to_string(),
+            sandbox_root.clone().to_str().unwrap().to_string(),
+        );
+        env.insert(
+            "WARP_BUILD_CACHE_NODE_PATH".to_string(),
+            cache_root.clone().to_str().unwrap().to_string(),
+        );
+
         cmd.current_dir(sandbox_root)
-            .envs(&self.env)
+            .envs(&env)
             .stdout(Stdio::piped())
             .args(&["-c", self.script.as_str()]);
 

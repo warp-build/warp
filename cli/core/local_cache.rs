@@ -140,14 +140,17 @@ impl LocalCache {
         match fs::canonicalize(&self.local_root.join(hash)).await {
             Err(_) => {
                 let path = self.global_root.join(hash);
-                fs::canonicalize(&path).await.map_err(|_| {
-                    anyhow!(
-                        "Could not find {:?} in disk, has the cache been modified manually?",
-                        &path
-                    )
-                })
+                fs::canonicalize(&path)
+                    .await
+                    .map(|_| path.clone())
+                    .map_err(|_| {
+                        anyhow!(
+                            "Could not find {:?} in disk, has the cache been modified manually?",
+                            &path
+                        )
+                    })
             }
-            Ok(path) => Ok(path),
+            Ok(_path) => Ok(self.local_root.join(hash)),
         }
     }
 

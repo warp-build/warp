@@ -162,6 +162,7 @@ enum Goal {
     Info(InfoGoal),
     Init(InitGoal),
     Run(RunGoal),
+    Setup(SetupGoal),
 }
 
 impl Goal {
@@ -210,6 +211,7 @@ impl Goal {
             Goal::Info(x) => x.run(workspace, event_channel).await,
             Goal::Init(x) => x.run(workspace.current_user, event_channel).await,
             Goal::Run(x) => x.run(workspace, event_channel).await,
+            Goal::Setup(x) => x.run(workspace.current_user, event_channel).await,
         }
     }
 }

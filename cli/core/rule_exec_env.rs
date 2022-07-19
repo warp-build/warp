@@ -75,7 +75,7 @@ pub struct InnerState {
 
 #[op]
 pub fn op_log(json: serde_json::Value) -> Result<(), AnyError> {
-    println!("{}", json.to_string());
+    println!("{}", json);
     Ok(())
 }
 
@@ -86,7 +86,7 @@ pub fn op_label_path(str: String) -> Result<String, AnyError> {
 
 #[op]
 pub fn op_label_name(str: String) -> Result<String, AnyError> {
-    Ok(Label::new(&str).name().to_string())
+    Ok(Label::new(&str).name())
 }
 
 #[op]
@@ -113,7 +113,7 @@ pub struct FileWithExtension {
 #[op]
 pub fn op_file_with_extension(args: FileWithExtension) -> Result<String, AnyError> {
     let path = PathBuf::from(args.path);
-    let final_path = path.with_extension(args.ext.strip_prefix(".").unwrap());
+    let final_path = path.with_extension(args.ext.strip_prefix('.').unwrap());
     Ok(final_path.to_str().unwrap().to_string())
 }
 
@@ -602,7 +602,7 @@ impl RuleExecEnv {
         let mod_specifier =
             url::Url::parse(module_name).map_err(|reason| error::LoadError::BadModuleName {
                 module_name: module_name.to_string(),
-                reason: reason,
+                reason,
             })?;
         trace!("loading {:?}", &module_name);
         let mod_id = self
@@ -611,14 +611,14 @@ impl RuleExecEnv {
             .await
             .map_err(|reason| error::LoadError::ModuleResolutionError {
                 module_name: module_name.to_string(),
-                reason: reason,
+                reason,
             })?;
         trace!("evaluating {:?}", &module_name);
         let eval_future = self.runtime.mod_evaluate(mod_id);
         self.runtime.run_event_loop(false).await.map_err(|reason| {
             error::LoadError::ModuleEvaluationError {
                 module_name: module_name.to_string(),
-                reason: reason,
+                reason,
             }
         })?;
         let _ = eval_future.await.unwrap();
@@ -626,7 +626,7 @@ impl RuleExecEnv {
             .get_module_namespace(mod_id)
             .map_err(|reason| error::LoadError::ModuleEvaluationError {
                 module_name: module_name.to_string(),
-                reason: reason,
+                reason,
             })?;
         trace!("done with {:?}", &module_name);
         Ok(())
@@ -663,7 +663,7 @@ impl RuleExecEnv {
                     let mut map = serde_json::Map::new();
                     map.insert(
                         "name".to_string(),
-                        serde_json::Value::String(dep.label.name().to_string()),
+                        serde_json::Value::String(dep.label.name()),
                     );
                     map.insert(
                         "label".to_string(),
@@ -700,7 +700,7 @@ impl RuleExecEnv {
                     let mut map = serde_json::Map::new();
                     map.insert(
                         "name".to_string(),
-                        serde_json::Value::String(dep.label.name().to_string()),
+                        serde_json::Value::String(dep.label.name()),
                     );
                     map.insert(
                         "label".to_string(),
@@ -776,7 +776,7 @@ impl RuleExecEnv {
             .cloned()
             .collect();
 
-        computed_target.deps = Some(computed_target.deps.unwrap_or(FxHashSet::default()));
+        computed_target.deps = Some(computed_target.deps.unwrap_or_default());
         computed_target.srcs = Some(srcs);
         computed_target.outs = Some(outs);
         computed_target.actions = Some(actions);

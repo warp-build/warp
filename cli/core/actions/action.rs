@@ -65,6 +65,7 @@ impl Action {
     pub async fn run(
         self,
         label: Label,
+        cache_root: &PathBuf,
         sandbox_root: &PathBuf,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
@@ -74,7 +75,7 @@ impl Action {
             Action::Download(a) => a.run(label, sandbox_root, event_channel).await,
             Action::Extract(a) => a.run(label, sandbox_root, event_channel).await,
             Action::WriteFile(a) => a.run(sandbox_root).await,
-            Action::RunShell(a) => a.run(sandbox_root).await,
+            Action::RunShell(a) => a.run(cache_root, sandbox_root).await,
             Action::SetPermissions(a) => a.run(sandbox_root).await,
         }
     }
