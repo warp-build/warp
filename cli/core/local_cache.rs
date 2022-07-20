@@ -135,23 +135,46 @@ impl LocalCache {
         Ok(())
     }
 
-    #[tracing::instrument(name = "LocalCache::absolute_path_by_hash")]
-    pub async fn absolute_path_by_hash(&self, hash: &str) -> Result<PathBuf, anyhow::Error> {
-        match fs::canonicalize(&self.local_root.join(hash)).await {
-            Err(_) => {
-                let path = self.global_root.join(hash);
-                fs::canonicalize(&path)
-                    .await
-                    .map(|_| path.clone())
-                    .map_err(|_| {
-                        anyhow!(
-                            "Could not find {:?} in disk, has the cache been modified manually?",
-                            &path
-                        )
-                    })
-            }
-            Ok(_path) => Ok(self.local_root.join(hash)),
-        }
+    #[tracing::instrument(name = "LocalCache::absolute_path_by_dep")]
+    pub async fn absolute_path_by_dep(&self, dep: &Dependency) -> Result<PathBuf, anyhow::Error> {
+        let root = if dep.is_pinned {
+            self.global_root.join(&dep.hash)
+        } else {
+            self.local_root.join(&dep.hash)
+        };
+
+        fs::canonicalize(&root)
+            .await
+            .map(|_| root.clone())
+            .map_err(|_| {
+                anyhow!(
+                    "Could not find {:?} in disk, has the cache been modified manually?",
+                    &root
+                )
+            })
+    }
+
+    #[tracing::instrument(name = "LocalCache::absolute_path_by_node")]
+    pub async fn absolute_path_by_node(
+        &self,
+        node: &ComputedTarget,
+    ) -> Result<PathBuf, anyhow::Error> {
+        let hash = node.hash();
+        let root = if node.target.is_pinned() {
+            self.global_root.join(hash)
+        } else {
+            self.local_root.join(hash)
+        };
+
+        fs::canonicalize(&root)
+            .await
+            .map(|_| root.clone())
+            .map_err(|_| {
+                anyhow!(
+                    "Could not find {:?} in disk, has the cache been modified manually?",
+                    &root
+                )
+            })
     }
 
     /// Determine if a given node has been cached already or not.

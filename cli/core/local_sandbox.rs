@@ -295,7 +295,7 @@ impl LocalSandbox {
         {
             for out in dep.outs.iter() {
                 let src = build_cache
-                    .absolute_path_by_hash(&dep.hash)
+                    .absolute_path_by_dep(&dep)
                     .await
                     .map_err(error::SandboxError::Unknown)?
                     .join(&out);

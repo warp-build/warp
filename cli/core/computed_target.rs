@@ -130,6 +130,7 @@ impl ComputedTarget {
 
     pub fn as_dep(&self) -> Dependency {
         Dependency {
+            is_pinned: self.target.is_pinned(),
             label: self.target.label().clone(),
             hash: self.hash(),
             outs: self.outs(),

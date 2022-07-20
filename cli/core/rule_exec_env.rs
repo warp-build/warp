@@ -569,7 +569,7 @@ impl RuleExecEnv {
         cache: &LocalCache,
     ) -> Result<(), anyhow::Error> {
         let label = node.label();
-        let abs_node_path = cache.absolute_path_by_hash(&node.hash()).await?;
+        let abs_node_path = cache.absolute_path_by_node(&node).await?;
 
         let provides = if let Some(provides) = self.toolchain_provides_map.get(label) {
             let mut new_provides = HashMap::new();
