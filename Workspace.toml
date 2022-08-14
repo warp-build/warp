@@ -48,5 +48,6 @@ sha1 = "d5279f085d19a2234d2024080ad90bf69a09ab66"
 version = "9.1.4"
 
 [toolchains.terraform]
-sha1 = "14e5c4ec076c44e25593a3af95df656f649e2f33"
+sha1_aarch64 = "14e5c4ec076c44e25593a3af95df656f649e2f33"
+sha1_x86_64 = "4f91ac340f9722c5e11827e9b8b5aaf48ecc4b0e"
 version = "1.2.4"
