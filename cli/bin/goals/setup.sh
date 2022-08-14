@@ -3,7 +3,7 @@
 readonly APFS_UTIL=/System/Library/Filesystems/apfs.fs/Contents/Resources/apfs.util
 
 # 0. Config
-readonly WARP_MOUNT_POINT=/warp_root
+readonly WARP_MOUNT_POINT=/warp
 readonly WARP_VOLUME_LABEL="warp Store"
 
 # 1. Find the right Disk
@@ -46,15 +46,19 @@ sudo tee ${WARP_VOLUME_MOUNTD_DEST} >/dev/null <<EOF
 </plist>
 EOF
 
-launchctl bootstrap system "$WARP_VOLUME_MOUNTD_DEST" || true
-launchctl kickstart -k system/dev.abstractmachines.warp.store
+sudo launchctl bootstrap system "$WARP_VOLUME_MOUNTD_DEST" || true
+sudo launchctl kickstart -k system/dev.abstractmachines.warp.store
 
 # 5. Create the mount point on /warp  (fstab)
 echo -e "UUID=${WARP_VOLUME_ID} ${WARP_MOUNT_POINT} apfs rw,noauto,nobrowse,suid,owners" | sudo tee -a /etc/fstab >/dev/null
 
-# 6. Mount the disk
-diskutil mount ${WARP_VOLUME_ID}
 
-# 7. Create the synthetic root level /warp pointer
+# 6. Create the synthetic root level /warp pointer
 echo -e "${WARP_MOUNT_POINT}" | sed 's,/,,g' | sudo tee -a /etc/synthetic.conf >/dev/null
 { $APFS_UTIL -B || true; $APFS_UTIL -t || true; } >/dev/null 2>&1
+
+# 7. Mount the disk
+diskutil mount ${WARP_VOLUME_ID}
+
+# 8. Give write permissions to /warp folder
+sudo chown -R $(whoami): /warp
