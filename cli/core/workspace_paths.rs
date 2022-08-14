@@ -67,7 +67,7 @@ impl WorkspacePaths {
 
         let warp_home = home
             .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("/warp_root"));
+            .unwrap_or_else(|| PathBuf::from("/warp"));
 
         let global_rules_root = warp_home.join("rules");
         let global_toolchains_root = warp_home.join("toolchains");
