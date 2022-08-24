@@ -52,6 +52,10 @@ impl Target {
         }
     }
 
+    pub fn is_portable(&self) -> bool {
+        self.rule.portability == Portability::Portable
+    }
+
     pub fn is_pinned(&self) -> bool {
         self.rule.pinned == Pinned::Pinned
     }

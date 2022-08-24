@@ -311,13 +311,6 @@ impl ComputedTarget {
 
         self.target.label().hash(&mut s);
 
-        /*
-        guess_host_triple::guess_host_triple()
-            .unwrap()
-            .to_string()
-            .hash(&mut s);
-        */
-
         let deps = self.deps.as_ref().unwrap().iter().map(|d| d.hash.as_str());
 
         let actions: Vec<String> = self
@@ -362,6 +355,13 @@ impl ComputedTarget {
                 }
                 buffer[..len].hash(&mut s);
             }
+        }
+
+        if !self.target.is_portable() {
+            guess_host_triple::guess_host_triple()
+                .unwrap()
+                .to_string()
+                .hash(&mut s);
         }
 
         let hash = s.finish();

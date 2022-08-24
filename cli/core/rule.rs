@@ -18,6 +18,12 @@ pub enum Pinned {
     Unpinned,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Portability {
+    Portable,
+    ArchitectureDependent,
+}
+
 /// A Rule defines what actions to take to perform some work.
 ///
 /// Some examples of rules are `ErlangLibrary` or `ElixirTest`.
@@ -52,6 +58,9 @@ pub struct Rule {
     /// Whether targets of this rule as pinned or not.
     pub pinned: Pinned,
 
+    /// Whether targets of this rule are portability or architecture dependent.
+    pub portability: Portability,
+
     /// The specific configuration this rule requires when being sandboxed.
     ///
     /// For ex. some rules can't work with symlinks, so we are forced to _copy_ source files over.
@@ -67,6 +76,7 @@ impl Rule {
         defaults: RuleConfig,
         runnable: Runnable,
         pinned: Pinned,
+        portability: Portability,
         sandbox_config: SandboxConfig,
     ) -> Rule {
         Rule {
@@ -77,6 +87,7 @@ impl Rule {
             defaults,
             runnable,
             pinned,
+            portability,
             sandbox_config,
         }
     }
@@ -182,6 +193,12 @@ impl<'de> Deserialize<'de> for Rule {
             Pinned::Unpinned
         };
 
+        let portability = if rule_spec["portable"].as_bool().unwrap_or(false) {
+            Portability::Portable
+        } else {
+            Portability::ArchitectureDependent
+        };
+
         let sandbox_config = {
             let mut default = serde_json::Map::new();
             default.insert("mode".to_string(), "link".into());
@@ -205,6 +222,7 @@ impl<'de> Deserialize<'de> for Rule {
             defaults,
             runnable,
             pinned,
+            portability,
             sandbox_config,
         );
 
