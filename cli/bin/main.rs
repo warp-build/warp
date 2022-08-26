@@ -103,9 +103,11 @@ impl Warp {
         let event_channel = Arc::new(EventChannel::new());
         event_channel.send(Event::BuildStarted(t0));
 
-        if let Some(Goal::Init(x)) = &self.cmd {
-            return x.run(current_user.clone(), event_channel).await;
-        }
+        match &self.cmd {
+            Some(Goal::Init(x)) => return x.run(current_user.clone(), event_channel).await,
+            Some(Goal::Setup(x)) => return x.run(current_user.clone(), event_channel).await,
+            _ => (),
+        };
 
         let cwd = fs::canonicalize(PathBuf::from(&".")).await.unwrap();
         let (root, workspace_file) = WorkspaceFile::find_upwards(&cwd).await?;
