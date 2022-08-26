@@ -1,4 +1,4 @@
-ZAP_EXE=warp
+WARP_EXE=warp
 
 .PHONY: build
 build:
@@ -21,14 +21,14 @@ test.integration:
 		--ignored
 
 .PHONY: release.win
-release.win: ZAP_EXE=warp.exe
+release.win: WARP_EXE=warp.exe
 release.win: release
 
 .PHONY: release
 release:
 	cargo build --release
 	cargo strip
-	tar czf release.tar.gz -C ./target/release/ $(ZAP_EXE)
+	tar czf release.tar.gz -C ./target/release/ $(WARP_EXE)
 
 .PHONY: install
 install:
