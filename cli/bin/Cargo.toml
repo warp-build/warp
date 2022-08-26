@@ -1,6 +1,6 @@
 [package]
 name = "warp-build"
-version = "0.5.0"
+version = "0.7.0"
 authors = ["Leandro Ostera <leandro@abstractmachines.dev>"]
 description = "A simple, fast, and correct build system for modern polyglot teams"
 edition = "2021"
