@@ -28,7 +28,7 @@ release.win: release
 release:
 	cargo build --release
 	cargo strip
-	tar czf release.tar.gz -C ./target/release/ $(WARP_EXE)
+	tar czf warp.tar.gz -C ./target/release/ $(WARP_EXE)
 
 .PHONY: install
 install:

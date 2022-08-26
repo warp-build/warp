@@ -19,7 +19,15 @@ impl SetupGoal {
         _event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         println!(
-            "\nWelcome {}, let's prepare your system to go to Warp speed!\n",
+            r#"
+
+Welcome {}, let's prepare your system for warp speed!
+
+To do this, we need sudo permissions to:
+1. Create a new Disk Volume (to keep Warp stuff in its own bubble)
+2. Make sure the Warp volume mounts on start up on the right place (hint: /warp)
+
+"#,
             user,
         );
 
