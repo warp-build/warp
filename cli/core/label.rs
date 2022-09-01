@@ -19,7 +19,8 @@ pub enum Label {
         path: PathBuf,
     },
     Remote {
-        url: Url,
+        url: String,
+        host: String,
         prefix_hash: String,
         name: String,
     },
@@ -47,7 +48,7 @@ impl ToString for Label {
                 format!("{}:{}", path, name)
             }
             Label::Absolute { name, path } => format!("//{}:{}", path.to_str().unwrap(), name),
-            Label::Remote { url, .. } => url.as_str().to_string(),
+            Label::Remote { url, .. } => url.clone(),
         }
     }
 }
@@ -70,14 +71,17 @@ impl Label {
     // TODO(@ostera): turn this into Result<Label, LabelError>
     pub fn new(name: &str) -> Label {
         if let Ok(url) = Url::parse(name) {
+            let raw_url = name;
             // TODO(@ostera): actually validate that we have a path with at least one segment
             use std::hash::{Hash, Hasher};
             let mut s = SeaHasher::new();
             let _ = &url[..url::Position::AfterPath].hash(&mut s);
             let prefix_hash = s.finish().to_string();
             let name = url.path_segments().unwrap().last().unwrap().to_string();
+            let host = url.host_str().unwrap().to_string();
             return Label::Remote {
-                url,
+                url: raw_url.to_string(),
+                host,
                 name,
                 prefix_hash,
             };
@@ -174,10 +178,11 @@ impl Label {
     pub fn as_cache_key(&self) -> String {
         match self {
             Label::Remote {
-                url,
+                host,
                 prefix_hash,
                 name,
-            } => format!("{}-{}/{}", url.host_str().unwrap(), prefix_hash, name),
+                ..
+            } => format!("{}-{}/{}", host, prefix_hash, name),
             Label::Relative { .. } => todo!(),
             Label::Absolute { .. } => todo!(),
             Label::Wildcard => panic!("We can't turn a wildcard label into a cache key"),
