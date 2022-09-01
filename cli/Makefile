@@ -39,6 +39,8 @@ install:
 
 .PHONY: setup
 setup:
+	rustup default stable
+	rustup target add x86_64-apple-darwin
 	cargo install cargo-strip cargo-insta mdbook flamegraph miri
 
 .PHONY: clean
