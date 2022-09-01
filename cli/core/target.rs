@@ -107,6 +107,7 @@ mod tests {
             RuleConfig::default(),
             Runnable::NotRunnable,
             Pinned::Pinned,
+            Portability::Portable,
             SandboxConfig::default(),
         );
         let cfg = RuleConfig::default();
@@ -125,6 +126,7 @@ mod tests {
             RuleConfig::default(),
             Runnable::NotRunnable,
             Pinned::Pinned,
+            Portability::Portable,
             SandboxConfig::default(),
         );
         let cfg = RuleConfig::default();

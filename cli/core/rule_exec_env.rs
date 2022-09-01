@@ -74,12 +74,6 @@ pub struct InnerState {
 }
 
 #[op]
-pub fn op_log(json: serde_json::Value) -> Result<(), AnyError> {
-    println!("{}", json);
-    Ok(())
-}
-
-#[op]
 pub fn op_label_path(str: String) -> Result<String, AnyError> {
     Ok(Label::new(&str).path().to_str().unwrap().to_string())
 }
@@ -495,7 +489,7 @@ impl RuleExecEnv {
         let output_map = Arc::new(DashMap::new());
         let run_script_map = Arc::new(DashMap::new());
 
-        let extension = {
+        let extension: deno_core::Extension = {
             let action_map = action_map.clone();
             let output_map = output_map.clone();
             let paths = workspace.paths.clone();
@@ -532,7 +526,6 @@ impl RuleExecEnv {
                     op_file_with_extension::decl(),
                     op_label_name::decl(),
                     op_label_path::decl(),
-                    op_log::decl(),
                     op_rule_new::decl(),
                     op_toolchain_new::decl(),
                 ])
@@ -546,7 +539,7 @@ impl RuleExecEnv {
         let rt_options = deno_core::RuntimeOptions {
             startup_snapshot: Some(deno_core::Snapshot::Static(JS_SNAPSHOT)),
             module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
-            extensions: vec![extension],
+            extensions: vec![extension, deno_console::init()],
             ..Default::default()
         };
         let runtime = deno_core::JsRuntime::new(rt_options);
@@ -691,6 +684,7 @@ impl RuleExecEnv {
                 })
                 .collect(),
         );
+
         let transitive_deps: serde_json::Value = serde_json::Value::Array(
             computed_target
                 .transitive_deps(find_node)
@@ -741,6 +735,8 @@ impl RuleExecEnv {
             .replace("{DEPS}", &deps.to_string())
             .replace("{TRANSITIVE_DEPS}", &transitive_deps.to_string())
             .replace("{PLATFORM}", &platform.to_string());
+
+        debug!("{}", &compute_program);
 
         self.runtime
             .execute_script(

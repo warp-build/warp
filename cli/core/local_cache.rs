@@ -99,7 +99,8 @@ impl LocalCache {
         trace!("Promoting outputs for {}", node.target.label().to_string());
         let hash = node.hash();
         let hash_path = if node.target.is_pinned() {
-            self.global_root.join(&hash)
+            self.global_root
+                .join(format!("{}-{}", node.target.label().as_cache_key(), &hash))
         } else {
             self.local_root.join(&hash)
         };
