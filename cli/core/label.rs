@@ -75,8 +75,12 @@ impl Label {
             // TODO(@ostera): actually validate that we have a path with at least one segment
             use std::hash::{Hash, Hasher};
             let mut s = SeaHasher::new();
-            let _ = &url[..url::Position::AfterPath].hash(&mut s);
+            let _ = &url[..url::Position::BeforePath].hash(&mut s);
+            for path in url.path_segments().unwrap().rev().skip(1) {
+                path.hash(&mut s);
+            }
             let prefix_hash = s.finish().to_string();
+
             let name = url.path_segments().unwrap().last().unwrap().to_string();
             let host = url.host_str().unwrap().to_string();
             return Label::Remote {

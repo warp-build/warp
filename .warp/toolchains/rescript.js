@@ -32,7 +32,7 @@ const impl = ctx => {
 };
 
 export default Warp.Toolchain({
-  name: "//warp.build/toolchains:rescript",
+  name: "https://pkgs.warp.build/toolchains/rescript",
   mnemonic: "ReScript",
   impl,
   cfg: {

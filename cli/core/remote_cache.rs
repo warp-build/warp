@@ -31,7 +31,8 @@ impl RemoteCache {
     #[tracing::instrument(name = "RemoteCache::save", skip(sandbox))]
     pub async fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
         let node = sandbox.node();
-        let hash = node.hash();
+
+        let cache_key = node.cache_key();
 
         let artifacts = if node.target.is_pinned() {
             sandbox.all_outputs().await
@@ -58,24 +59,20 @@ impl RemoteCache {
             encoder.into_inner()
         };
 
-        self.api.upload_artifact(&hash, &body).await?;
+        self.api.upload_artifact(&cache_key, &body).await?;
 
         Ok(())
     }
 
     #[tracing::instrument(name = "RemoteCache::try_fetch", skip(node))]
     pub async fn try_fetch(&mut self, node: &ComputedTarget) -> Result<(), anyhow::Error> {
-        let hash = node.hash();
+        let cache_key = node.cache_key();
 
-        let dst = if node.target.is_pinned() {
-            self.global_root.join(&hash)
-        } else {
-            self.local_root.join(&hash)
-        };
+        let dst = self.global_root.join(&cache_key);
 
         let dst_tarball = &dst.with_extension("tar.gz");
 
-        let url = format!("{}/artifact/{}.tar.gz", self.api.url, hash);
+        let url = format!("{}/artifact/{}.tar.gz", self.api.url, cache_key);
         let client = reqwest::Client::builder().gzip(false).build()?;
         let response = client.get(url).send().await?;
 

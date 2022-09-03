@@ -38,12 +38,14 @@ impl LocalCache {
     pub async fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
         let node = sandbox.node();
         let hash = node.hash();
-        let cache_path = if node.target.is_pinned() {
+        let cache_path = 
             self.global_root
-                .join(format!("{}-{}", node.target.label().as_cache_key(), &hash))
+                .join(format!("{}-{}", node.target.label().as_cache_key(), &hash));
+            /*if node.target.is_pinned() {
         } else {
             self.local_root.join(&hash)
         };
+            */
 
         debug!(
             "Caching node {:?} hashed {:?}: {:?} outputs",
@@ -139,11 +141,7 @@ impl LocalCache {
 
     #[tracing::instrument(name = "LocalCache::absolute_path_by_dep")]
     pub async fn absolute_path_by_dep(&self, dep: &Dependency) -> Result<PathBuf, anyhow::Error> {
-        let root = if dep.is_pinned {
-            self.global_root.join(&dep.hash)
-        } else {
-            self.local_root.join(&dep.hash)
-        };
+        let root = self.global_root.join(&dep.cache_key);
 
         fs::canonicalize(&root)
             .await
@@ -161,12 +159,7 @@ impl LocalCache {
         &self,
         node: &ComputedTarget,
     ) -> Result<PathBuf, anyhow::Error> {
-        let hash = node.hash();
-        let root = if node.target.is_pinned() {
-            self.global_root.join(hash)
-        } else {
-            self.local_root.join(hash)
-        };
+        let root = self.global_root.join(node.cache_key());
 
         fs::canonicalize(&root)
             .await
@@ -190,20 +183,9 @@ impl LocalCache {
         &mut self,
         node: &ComputedTarget,
     ) -> Result<CacheHitType, anyhow::Error> {
-        let hash = node.hash();
+        let cache_key = node.cache_key();
 
-        let local_path = self.local_root.join(&hash);
-        debug!("Checking if {:?} is in the cache...", local_path);
-        if fs::metadata(&local_path).await.is_ok() {
-            debug!(
-                "Cache hit for {} at {:?}",
-                node.label().to_string(),
-                local_path
-            );
-            return Ok(CacheHitType::Local(local_path));
-        }
-
-        let global_path = self.global_root.join(&hash);
+        let global_path = self.global_root.join(&cache_key);
         debug!("Checking if {:?} is in the cache...", global_path);
         if fs::metadata(&global_path).await.is_ok() {
             debug!(
@@ -214,24 +196,11 @@ impl LocalCache {
             return Ok(CacheHitType::Global(global_path));
         }
 
-        let named_path = self
-            .global_root
-            .join(format!("{}-{}", node.label().name(), &hash));
-        debug!("Checking if {:?} is in the cache...", named_path);
-        if fs::metadata(&named_path).await.is_ok() {
-            debug!(
-                "Cache hit for {} at {:?}",
-                node.label().to_string(),
-                named_path
-            );
-            return Ok(CacheHitType::Global(named_path));
-        }
-
         debug!("No cache hit for {}", node.label().to_string());
         Ok(CacheHitType::Miss {
-            local_path,
             global_path,
-            named_path,
+            local_path: PathBuf::from("."),
+            named_path: PathBuf::from("."),
         })
     }
 

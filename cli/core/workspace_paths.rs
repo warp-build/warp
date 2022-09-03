@@ -72,7 +72,7 @@ impl WorkspacePaths {
         let global_rules_root = warp_home.join("rules");
         let global_toolchains_root = warp_home.join("toolchains");
 
-        let global_cache_root = warp_home.join("cache").join("global");
+        let global_cache_root = warp_home.join("cache");
         let global_sandbox_root = warp_home.join("sandbox").join("global");
 
         let local_cache_root = warp_home.join("cache").join(&workspace_name);
