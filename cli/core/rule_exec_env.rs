@@ -559,7 +559,7 @@ impl RuleExecEnv {
     pub async fn update_provide_map(
         &self,
         node: &ComputedTarget,
-        cache: &LocalCache,
+        cache: &Cache,
     ) -> Result<(), anyhow::Error> {
         let label = node.label();
         let abs_node_path = cache.absolute_path_by_node(&node).await?;

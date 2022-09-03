@@ -45,9 +45,7 @@ pub struct BuildWorker {
     /// The workspace this worker is currently executing.
     pub workspace: Workspace,
 
-    pub cache: LocalCache,
-
-    pub remote_cache: RemoteCache,
+    pub cache: Cache,
 
     pub rule_exec_env: RuleExecEnv,
 
@@ -83,8 +81,7 @@ impl BuildWorker {
         BuildWorker {
             role,
             rule_exec_env: RuleExecEnv::new(&workspace, toolchain_provides_map),
-            cache: LocalCache::new(&workspace),
-            remote_cache: RemoteCache::new(&workspace),
+            cache: Cache::new(&workspace),
             workspace: workspace.clone(),
             coordinator,
             build_results,
@@ -300,54 +297,27 @@ impl BuildWorker {
             rule_mnemonic: node.target.rule().mnemonic().to_string(),
         });
 
-        if let CacheHitType::Miss { .. } = self
-            .cache
-            .is_cached(&node)
-            .await
-            .map_err(WorkerError::Unknown)?
-        {
-            let _ = self.remote_cache.try_fetch(&node).await;
-        }
+        let cache_hit = self.cache.is_cached(&node).await;
+        if let CacheHitType::Hit(_) = cache_hit.map_err(WorkerError::Unknown)? {
+            debug!("Skipping {}, but promoting outputs.", name.to_string());
+            self.rule_exec_env
+                .update_provide_map(&node, &self.cache)
+                .await
+                .map_err(WorkerError::Unknown)?;
 
-        match self
-            .cache
-            .is_cached(&node)
-            .await
-            .map_err(WorkerError::Unknown)?
-        {
-            CacheHitType::Global(_cache_path) => {
-                self.rule_exec_env
-                    .update_provide_map(&node, &self.cache)
-                    .await
-                    .map_err(WorkerError::Unknown)?;
+            self.event_channel.send(Event::CacheHit(label.clone()));
 
-                self.event_channel.send(Event::CacheHit(label.clone()));
+            /* FIXME(@ostera): make this part of a a BuildOutputs struct
+            self.cache
+                .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
+                .await
+                .map_err(WorkerError::Unknown)?;
+            */
 
-                self.build_results
-                    .add_computed_target(label.clone(), node.clone());
+            self.build_results
+                .add_computed_target(label.clone(), node.clone());
 
-                return Ok(label.clone());
-            }
-            CacheHitType::Local(_cache_path) => {
-                debug!("Skipping {}, but promoting outputs.", name.to_string());
-                self.rule_exec_env
-                    .update_provide_map(&node, &self.cache)
-                    .await
-                    .map_err(WorkerError::Unknown)?;
-
-                self.event_channel.send(Event::CacheHit(label.clone()));
-
-                self.cache
-                    .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
-                    .await
-                    .map_err(WorkerError::Unknown)?;
-
-                self.build_results
-                    .add_computed_target(label.clone(), node.clone());
-
-                return Ok(label.clone());
-            }
-            CacheHitType::Miss { .. } => (),
+            return Ok(label.clone());
         }
 
         let result = {
@@ -365,23 +335,23 @@ impl BuildWorker {
                     self.build_results.add_computed_target(label.clone(), node.clone());
 
                     self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
-                   let _ =  self.remote_cache.save(&sandbox).await;
 
                     self.rule_exec_env.update_provide_map(&node, &self.cache)
                     .await
                     .map_err(WorkerError::Unknown)?;
 
+            /* FIXME(@ostera): make this part of a a BuildOutputs struct
                     self.cache
                         .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
                         .await
                         .map_err(WorkerError::Unknown)?;
+            */
 
                     Ok(label.clone())
                 },
                 ValidationStatus::NoOutputs => {
                     if node.outs().is_empty() {
                         self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
-                        let _ = self.remote_cache.save(&sandbox).await;
                         self.rule_exec_env.update_provide_map(&node, &self.cache).await.map_err(WorkerError::Unknown)?;
                         self.build_results.add_computed_target(label.clone(), node.clone());
                         Ok(label.clone())

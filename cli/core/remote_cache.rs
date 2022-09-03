@@ -14,8 +14,6 @@ use tracing::*;
 #[derive(Debug, Clone)]
 pub struct RemoteCache {
     api: API,
-    global_root: PathBuf,
-    local_root: PathBuf,
 }
 
 impl RemoteCache {
@@ -23,28 +21,21 @@ impl RemoteCache {
     pub fn new(workspace: &Workspace) -> RemoteCache {
         RemoteCache {
             api: API::from_workspace(&workspace),
-            global_root: workspace.paths.global_cache_root.clone(),
-            local_root: workspace.paths.local_cache_root.clone(),
         }
     }
 
-    #[tracing::instrument(name = "RemoteCache::save", skip(sandbox))]
-    pub async fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
-        let node = sandbox.node();
-
-        let cache_key = node.cache_key();
-
-        let artifacts = if node.target.is_pinned() {
-            sandbox.all_outputs().await
-        } else {
-            sandbox.outputs()
-        };
-
+    #[tracing::instrument(name = "RemoteCache::save", skip(artifacts))]
+    pub async fn save(
+        &mut self,
+        key: &CacheKey,
+        artifacts: &[PathBuf],
+        sandbox_root: &PathBuf,
+    ) -> Result<(), anyhow::Error> {
         // build the archive first
         let archive = {
             let mut b = async_tar::Builder::new(vec![]);
-            for artifact in &artifacts {
-                b.append_path_with_name(&sandbox.root().join(&artifact), &artifact)
+            for artifact in artifacts {
+                b.append_path_with_name(&sandbox_root.join(&artifact), &artifact)
                     .await?;
             }
             b.finish().await?;
@@ -59,20 +50,16 @@ impl RemoteCache {
             encoder.into_inner()
         };
 
-        self.api.upload_artifact(&cache_key, &body).await?;
+        self.api.upload_artifact(&key, &body).await?;
 
         Ok(())
     }
 
-    #[tracing::instrument(name = "RemoteCache::try_fetch", skip(node))]
-    pub async fn try_fetch(&mut self, node: &ComputedTarget) -> Result<(), anyhow::Error> {
-        let cache_key = node.cache_key();
-
-        let dst = self.global_root.join(&cache_key);
-
+    #[tracing::instrument(name = "RemoteCache::try_fetch")]
+    pub async fn try_fetch(&mut self, key: &CacheKey, dst: &PathBuf) -> Result<(), anyhow::Error> {
         let dst_tarball = &dst.with_extension("tar.gz");
 
-        let url = format!("{}/artifact/{}.tar.gz", self.api.url, cache_key);
+        let url = format!("{}/artifact/{}.tar.gz", self.api.url, key);
         let client = reqwest::Client::builder().gzip(false).build()?;
         let response = client.get(url).send().await?;
 

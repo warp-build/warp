@@ -10,56 +10,25 @@ use tracing::*;
 ///
 #[derive(Debug, Clone)]
 pub struct LocalCache {
-    global_root: PathBuf,
-    local_root: PathBuf,
-}
-
-#[derive(Debug, Clone)]
-pub enum CacheHitType {
-    Miss {
-        local_path: PathBuf,
-        global_path: PathBuf,
-        named_path: PathBuf,
-    },
-    Global(PathBuf),
-    Local(PathBuf),
+    cache_root: PathBuf,
 }
 
 impl LocalCache {
     #[tracing::instrument(name = "LocalCache::new", skip(workspace))]
     pub fn new(workspace: &Workspace) -> LocalCache {
         LocalCache {
-            global_root: workspace.paths.global_cache_root.clone(),
-            local_root: workspace.paths.local_cache_root.clone(),
+            cache_root: workspace.paths.global_cache_root.clone(),
         }
     }
 
-    #[tracing::instrument(name = "LocalCache::save", skip(sandbox))]
-    pub async fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
-        let node = sandbox.node();
-        let hash = node.hash();
-        let cache_path = 
-            self.global_root
-                .join(format!("{}-{}", node.target.label().as_cache_key(), &hash));
-            /*if node.target.is_pinned() {
-        } else {
-            self.local_root.join(&hash)
-        };
-            */
-
-        debug!(
-            "Caching node {:?} hashed {:?}: {:?} outputs",
-            node.label(),
-            &hash,
-            sandbox.outputs().len()
-        );
-
-        // NOTE(@ostera): see RFC0005
-        let artifacts = if node.target.is_pinned() {
-            sandbox.all_outputs().await
-        } else {
-            sandbox.outputs()
-        };
+    #[tracing::instrument(name = "LocalCache::save", skip(artifacts))]
+    pub async fn save(
+        &mut self,
+        key: &CacheKey,
+        artifacts: &[PathBuf],
+        sandbox_root: &PathBuf,
+    ) -> Result<(), anyhow::Error> {
+        let cache_path = self.cache_root.join(key);
 
         for artifact in artifacts {
             debug!("Caching build artifact: {:?}", &artifact);
@@ -76,7 +45,7 @@ impl LocalCache {
                 ))
                 .map(|_| ())?;
 
-            let sandboxed_artifact = &sandbox.root().join(artifact);
+            let sandboxed_artifact = &sandbox_root.join(artifact);
             debug!(
                 "Moving artifact from sandbox path {:?} to cache path {:?}",
                 &sandboxed_artifact, &cached_file
@@ -96,17 +65,13 @@ impl LocalCache {
     #[tracing::instrument(name = "LocalCache::promote_outputs", skip(node))]
     pub async fn promote_outputs(
         &self,
+        key: &CacheKey,
         node: &ComputedTarget,
         dst: &PathBuf,
     ) -> Result<(), anyhow::Error> {
         trace!("Promoting outputs for {}", node.target.label().to_string());
-        let hash = node.hash();
-        let hash_path = if node.target.is_pinned() {
-            self.global_root
-                .join(format!("{}-{}", node.target.label().as_cache_key(), &hash))
-        } else {
-            self.local_root.join(&hash)
-        };
+
+        let hash_path = self.cache_root.join(key);
 
         let mut paths: FxHashMap<PathBuf, ()> = FxHashMap::default();
         let mut outs: FxHashMap<PathBuf, PathBuf> = FxHashMap::default();
@@ -139,37 +104,17 @@ impl LocalCache {
         Ok(())
     }
 
-    #[tracing::instrument(name = "LocalCache::absolute_path_by_dep")]
-    pub async fn absolute_path_by_dep(&self, dep: &Dependency) -> Result<PathBuf, anyhow::Error> {
-        let root = self.global_root.join(&dep.cache_key);
-
-        fs::canonicalize(&root)
+    #[tracing::instrument(name = "LocalCache::absolute_path_for_key")]
+    pub async fn absolute_path_for_key( &self, key: &CacheKey,) -> Result<PathBuf, anyhow::Error> {
+        fs::canonicalize(&self.cache_root)
             .await
-            .map(|_| root.clone())
             .map_err(|_| {
                 anyhow!(
                     "Could not find {:?} in disk, has the cache been modified manually?",
-                    &root
+                    &self.cache_root
                 )
             })
-    }
-
-    #[tracing::instrument(name = "LocalCache::absolute_path_by_node")]
-    pub async fn absolute_path_by_node(
-        &self,
-        node: &ComputedTarget,
-    ) -> Result<PathBuf, anyhow::Error> {
-        let root = self.global_root.join(node.cache_key());
-
-        fs::canonicalize(&root)
-            .await
-            .map(|_| root.clone())
-            .map_err(|_| {
-                anyhow!(
-                    "Could not find {:?} in disk, has the cache been modified manually?",
-                    &root
-                )
-            })
+            .map(|p| p.join(key))
     }
 
     /// Determine if a given node has been cached already or not.
@@ -178,43 +123,24 @@ impl LocalCache {
     ///
     /// FIXME: check if the expected hashes of the inputs match the actual
     /// hash of the files to determine if the cache is corrupted.
-    #[tracing::instrument(name = "LocalCache::is_cached", skip(node))]
-    pub async fn is_cached(
-        &mut self,
-        node: &ComputedTarget,
-    ) -> Result<CacheHitType, anyhow::Error> {
-        let cache_key = node.cache_key();
-
-        let global_path = self.global_root.join(&cache_key);
-        debug!("Checking if {:?} is in the cache...", global_path);
-        if fs::metadata(&global_path).await.is_ok() {
-            debug!(
-                "Cache hit for {} at {:?}",
-                node.label().to_string(),
-                global_path
-            );
-            return Ok(CacheHitType::Global(global_path));
+    #[tracing::instrument(name = "LocalCache::is_cached")]
+    pub async fn is_cached(&mut self, key: &CacheKey) -> Result<CacheHitType, anyhow::Error> {
+        let cache_path = self.cache_root.join(&key);
+        if fs::metadata(&cache_path).await.is_ok() {
+            return Ok(CacheHitType::Hit(cache_path));
         }
-
-        debug!("No cache hit for {}", node.label().to_string());
-        Ok(CacheHitType::Miss {
-            global_path,
-            local_path: PathBuf::from("."),
-            named_path: PathBuf::from("."),
-        })
+        Ok(CacheHitType::Miss(cache_path))
     }
 
-    #[tracing::instrument(name = "LocalCache::evict", skip(node))]
-    pub async fn evict(&mut self, node: &ComputedTarget) -> Result<(), anyhow::Error> {
-        let hash = node.hash();
-
-        let hash_path = self.local_root.join(&hash);
-        debug!("Checking if {:?} is in the cache...", &hash_path);
-        if fs::metadata(&hash_path).await.is_ok() {
+    #[tracing::instrument(name = "LocalCache::evict")]
+    pub async fn evict(&mut self, key: &CacheKey) -> Result<(), anyhow::Error> {
+        let cache_path = self.cache_root.join(&key);
+        debug!("Checking if {:?} is in the cache...", &cache_path);
+        if fs::metadata(&cache_path).await.is_ok() {
             trace!("Found it, removing...");
-            fs::remove_dir_all(&hash_path).await?;
+            fs::remove_dir_all(&cache_path).await?;
         }
-        trace!("Cleaned from cache: {:?}", &hash_path);
+        trace!("Cleaned from cache: {:?}", &cache_path);
         Ok(())
     }
 }

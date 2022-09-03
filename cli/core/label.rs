@@ -179,7 +179,7 @@ impl Label {
         }
     }
 
-    pub fn as_cache_key(&self) -> String {
+    pub fn as_cache_prefix(&self) -> String {
         match self {
             Label::Remote {
                 host,
@@ -187,9 +187,7 @@ impl Label {
                 name,
                 ..
             } => format!("{}-{}/{}", host, prefix_hash, name),
-            Label::Relative { .. } => todo!(),
-            Label::Absolute { .. } => todo!(),
-            Label::Wildcard => panic!("We can't turn a wildcard label into a cache key"),
+            _ => panic!("We can't turn a non-remote label into a cache prefix!"),
         }
     }
 }

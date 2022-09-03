@@ -80,7 +80,7 @@ pub struct SandboxConfig {
 ///
 ///   1. ensure the rule outputs are safe
 ///   2. prepare sandbox dir
-///   3. copy dependences & inputs into sandbox
+///   3. copy dependencies & inputs into sandbox
 ///   4. enter sandbox
 ///      5. build the node rule
 ///      6. validate rule's outputs
@@ -280,10 +280,10 @@ impl LocalSandbox {
         Ok(current_dir)
     }
 
-    #[tracing::instrument(name = "LocalSandbox::copy_dependences", skip(self, find_node))]
-    async fn copy_dependences(
+    #[tracing::instrument(name = "LocalSandbox::copy_dependencies", skip(self, find_node))]
+    async fn copy_dependencies(
         &mut self,
-        build_cache: &LocalCache,
+        build_cache: &Cache,
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
     ) -> Result<(), error::SandboxError> {
         // copy all the direct dependency outputs
@@ -430,7 +430,7 @@ impl LocalSandbox {
     #[tracing::instrument(name = "LocalSandbox::run", skip(self, find_node))]
     pub async fn run(
         &mut self,
-        build_cache: &LocalCache,
+        build_cache: &Cache,
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
         mode: ExecutionMode,
         event_channel: Arc<EventChannel>,
@@ -441,7 +441,7 @@ impl LocalSandbox {
 
         self.prepare_sandbox_dir().await?;
 
-        self.copy_dependences(build_cache, find_node).await?;
+        self.copy_dependencies(build_cache, find_node).await?;
 
         self.copy_inputs().await?;
 

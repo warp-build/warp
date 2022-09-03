@@ -6,7 +6,6 @@ pub struct Dependency {
     pub is_pinned: bool,
     pub label: Label,
     pub hash: String,
-    pub cache_key: String,
     pub outs: Vec<PathBuf>,
     pub srcs: Vec<PathBuf>,
 }

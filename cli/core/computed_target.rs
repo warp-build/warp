@@ -133,14 +133,9 @@ impl ComputedTarget {
             is_pinned: self.target.is_pinned(),
             label: self.target.label().clone(),
             hash: self.hash(),
-            cache_key: self.cache_key(),
             outs: self.outs(),
             srcs: self.srcs(),
         }
-    }
-
-    pub fn cache_key(&self) -> String {
-        format!("{}-{}", self.target.label().as_cache_key(), &self.hash())
     }
 
     pub fn mark_failed(&mut self) {
