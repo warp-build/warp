@@ -50,6 +50,7 @@ impl API {
         }
     }
 
+    #[tracing::instrument(name = "API::get_signed_url", skip(self, contents))]
     pub async fn get_signed_url(&mut self, hash: &str) -> Result<url::Url, ApiError> {
         let url = format!("{}/artifact/{}.tar.gz", self.url, &hash);
         let response = self
@@ -69,6 +70,7 @@ impl API {
             .map_err(ApiError::UrlError)
     }
 
+    #[tracing::instrument(name = "API::upload_artifact", skip(self, contents))]
     pub async fn upload_artifact(&mut self, hash: &str, contents: &[u8]) -> Result<(), ApiError> {
         let upload_url = self.get_signed_url(&hash).await?;
 
