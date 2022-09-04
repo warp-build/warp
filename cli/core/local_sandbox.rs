@@ -117,9 +117,9 @@ pub enum ValidationStatus {
 
 impl LocalSandbox {
     #[tracing::instrument(name="LocalSandbox::for_node", skip(workspace, node), fields(warp.target = %node.target.label().to_string()))]
-    pub fn for_node(workspace: &Workspace, node: ComputedTarget) -> LocalSandbox {
+    pub async fn for_node(workspace: &Workspace, cache: &Cache, node: ComputedTarget) -> LocalSandbox {
         let workspace = workspace.clone();
-        let root = workspace.paths.local_sandbox_root.join(node.hash());
+        let root = cache.absolute_path_by_node(&node).await.unwrap();
         let outputs_root = workspace.paths.local_outputs_root.clone();
         LocalSandbox {
             node,

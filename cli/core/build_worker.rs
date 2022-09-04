@@ -307,12 +307,10 @@ impl BuildWorker {
 
             self.event_channel.send(Event::CacheHit(label.clone()));
 
-            /* FIXME(@ostera): make this part of a a BuildOutputs struct
             self.cache
                 .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
                 .await
                 .map_err(WorkerError::Unknown)?;
-            */
 
             self.build_results
                 .add_computed_target(label.clone(), node.clone());
@@ -321,7 +319,7 @@ impl BuildWorker {
         }
 
         let result = {
-            let mut sandbox = LocalSandbox::for_node(&self.workspace, node.clone());
+            let mut sandbox = LocalSandbox::for_node(&self.workspace, &self.cache, node.clone()).await;
 
             let result = {
                 let find_node = |label| self.build_results.get_computed_target(&label);
@@ -334,7 +332,7 @@ impl BuildWorker {
                 ValidationStatus::Valid => {
                     self.build_results.add_computed_target(label.clone(), node.clone());
 
-                    self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
+                    // self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
 
                     self.rule_exec_env.update_provide_map(&node, &self.cache)
                     .await
@@ -351,7 +349,7 @@ impl BuildWorker {
                 },
                 ValidationStatus::NoOutputs => {
                     if node.outs().is_empty() {
-                        self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
+                        // self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
                         self.rule_exec_env.update_provide_map(&node, &self.cache).await.map_err(WorkerError::Unknown)?;
                         self.build_results.add_computed_target(label.clone(), node.clone());
                         Ok(label.clone())

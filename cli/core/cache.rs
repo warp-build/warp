@@ -113,4 +113,14 @@ impl Cache {
         let cache_key = self.cache_key(node);
         self.local_cache.absolute_path_for_key(&cache_key).await
     }
+
+    #[tracing::instrument(name = "Cache::promote_outputs", skip(node))]
+    pub async fn promote_outputs(
+        &self,
+        node: &ComputedTarget,
+        dst: &PathBuf,
+    ) -> Result<(), anyhow::Error> {
+        let cache_key = self.cache_key(node);
+        self.local_cache.promote_outputs(&cache_key,node, dst).await
+    }
 }
