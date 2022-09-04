@@ -33,11 +33,9 @@ ${
 
 export OTP_SMALL_BUILD OTP_TINY_BUILD
 
-mkdir -p $WARP_BUILD_CACHE_NODE_PATH/${prefix}/dist
-
 ./configure ${configure_flags.join(" ")} \
   --with-ssl=${OpenSSLToolchain.provides().OPENSSL_HOME} \
-  --prefix=$WARP_BUILD_CACHE_NODE_PATH/${prefix}/dist || exit 1
+  --prefix=$(pwd)/dist || exit 1
 
 make all install ${make_flags.join(" ")} || exit 1
 
@@ -60,7 +58,7 @@ make all install ${make_flags.join(" ")} || exit 1
 };
 
 export default Warp.Toolchain({
-  name: "//warp.build/toolchains:erlang",
+  name: "https://pkgs.warp.build/toolchains/erlang",
   mnemonic: "Erlang/OTP",
   impl,
   cfg: {

@@ -17,11 +17,9 @@ const impl = ctx => {
 
 cd ${prefix}
 
-mkdir -p $WARP_BUILD_CACHE_NODE_PATH/${prefix}/dist
-
-./config -no-tests --prefix=$WARP_BUILD_CACHE_NODE_PATH/${prefix}/dist || exit 1
-make -j || exit 1
-make install -j10 || exit 1
+./config -no-tests --prefix=$(pwd)/dist
+make -j
+make install -j10
 
 `});
 

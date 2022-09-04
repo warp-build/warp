@@ -48,7 +48,7 @@ make
 };
 
 export default Warp.Toolchain({
-  name: "//warp.build/toolchains:elixir",
+  name: "https://pkgs.warp.build/toolchains/elixir",
   mnemonic: "Elixir/OTP",
   impl,
   cfg: {

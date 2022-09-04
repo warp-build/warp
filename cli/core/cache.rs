@@ -60,6 +60,7 @@ impl Cache {
         self.local_cache
             .save(&cache_key, &artifacts, &sandbox.root())
             .await?;
+
         let _ = self
             .remote_cache
             .save(&cache_key, &artifacts, &sandbox.root())
