@@ -61,10 +61,12 @@ impl Cache {
             .save(&cache_key, &artifacts, &sandbox.root())
             .await?;
 
+        /* FIXME(@ostera): to reenable this we need to rework the API
         let _ = self
             .remote_cache
             .save(&cache_key, &artifacts, &sandbox.root())
             .await;
+ */
 
         Ok(())
     }

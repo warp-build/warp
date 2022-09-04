@@ -15,6 +15,9 @@ pub enum ComputedTargetError {
     #[error("The target name `{label:?}` is missing dependencies: {deps:?}")]
     MissingDependencies { label: Label, deps: Vec<Label> },
 
+    #[error("Oops, this rule would collide by creating outputs that would override dependency outputs: {outputs:?}")]
+    ConflictingOutputs { outputs: Vec<PathBuf> },
+
     #[error("Something went wrong.")]
     Unknown,
 }
@@ -65,20 +68,6 @@ impl Default for ComputeStatus {
 }
 
 impl ComputedTarget {
-    pub fn from_global_target(target: Target) -> ComputedTarget {
-        ComputedTarget {
-            target,
-            status: ComputeStatus::Pending,
-            actions: None,
-            deps: Some(FxHashSet::default()),
-            transitive_deps: None,
-            hash: None,
-            outs: Some(FxHashSet::default()),
-            srcs: Some(FxHashSet::default()),
-            run_script: None,
-        }
-    }
-
     pub fn from_target(target: Target) -> ComputedTarget {
         ComputedTarget {
             target,
@@ -367,6 +356,23 @@ impl ComputedTarget {
 
         let hash = s.finish();
         self.hash = Some(hash.to_string());
+    }
+
+    /// check that transitive output names and current rule output names
+    /// do not collide.
+    #[tracing::instrument(name = "ComputedTarget::ensure_outputs_are_safe", skip(self))]
+    pub fn ensure_outputs_are_safe(&mut self) -> Result<(), ComputedTargetError> {
+        let output_set: FxHashSet<PathBuf> = self.outs().iter().cloned().collect();
+
+        let dep_output_set: FxHashSet<PathBuf> =
+            self.deps().iter().flat_map(|os| os.outs.clone()).collect();
+
+        if !output_set.is_disjoint(&dep_output_set) {
+            let outputs = output_set.intersection(&dep_output_set).cloned().collect::<Vec<PathBuf>>();
+            Err(ComputedTargetError::ConflictingOutputs { outputs })
+        } else {
+            Ok(())
+        }
     }
 }
 

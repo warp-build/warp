@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::{anyhow, Context};
+use anyhow::{ Context};
 use futures::FutureExt;
 use fxhash::*;
 use std::path::PathBuf;
@@ -379,31 +379,6 @@ impl LocalSandbox {
         Ok(())
     }
 
-    /// check that transitive output names and current rule output names
-    /// do not collide.
-    #[tracing::instrument(name = "LocalSandbox::ensure_outputs_are_safe", skip(self))]
-    async fn ensure_outputs_are_safe(&mut self) -> Result<(), anyhow::Error> {
-        let output_set: FxHashSet<PathBuf> = self.node.outs().iter().cloned().collect();
-
-        let dep_output_set: FxHashSet<PathBuf> = self
-            .node
-            .deps()
-            .iter()
-            .flat_map(|os| os.outs.clone())
-            .collect();
-
-        if !output_set.is_disjoint(&dep_output_set) {
-            let overlapping_outputs = output_set.intersection(&dep_output_set);
-            Err(anyhow!(
-                "Oops, this rule would collide by creating outputs that would
-          override dependency outputs: {:?}",
-                overlapping_outputs
-            ))
-        } else {
-            Ok(())
-        }
-    }
-
     #[tracing::instrument(name = "LocalSandbox::promote_outputs", skip(self))]
     async fn promote_outputs(&mut self) -> Result<(), anyhow::Error> {
         for out in &self.outputs {
@@ -436,8 +411,6 @@ impl LocalSandbox {
         event_channel: Arc<EventChannel>,
     ) -> Result<ValidationStatus, anyhow::Error> {
         debug!("Running sandbox at: {:?}", &self.root);
-
-        self.ensure_outputs_are_safe().await?;
 
         self.prepare_sandbox_dir().await?;
 

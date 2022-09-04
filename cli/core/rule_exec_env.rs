@@ -46,7 +46,7 @@ pub mod error {
     #[derive(Error, Debug)]
     pub enum RuleExecError {
         #[error(transparent)]
-        MissingDependencies(ComputedTargetError),
+        ComputedTargetError(ComputedTargetError),
 
         #[error("Could not find declared outputs for target {label:?}")]
         MissingDeclaredOutputs { label: Label },
@@ -688,7 +688,7 @@ impl RuleExecEnv {
         let transitive_deps: serde_json::Value = serde_json::Value::Array(
             computed_target
                 .transitive_deps(find_node)
-                .map_err(error::RuleExecError::MissingDependencies)?
+                .map_err(error::RuleExecError::ComputedTargetError)?
                 .iter()
                 .map(|dep| {
                     let mut map = serde_json::Map::new();
@@ -783,6 +783,7 @@ impl RuleExecEnv {
         computed_target.run_script = run_script;
 
         computed_target.recompute_hash();
+        computed_target.ensure_outputs_are_safe().map_err(error::RuleExecError::ComputedTargetError)?;
 
         trace!(
             "Sealed ComputedTarget {} with FxHash {:?}",

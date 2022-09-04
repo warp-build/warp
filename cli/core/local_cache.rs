@@ -105,7 +105,7 @@ impl LocalCache {
     }
 
     #[tracing::instrument(name = "LocalCache::absolute_path_for_key")]
-    pub async fn absolute_path_for_key( &self, key: &CacheKey,) -> Result<PathBuf, anyhow::Error> {
+    pub async fn absolute_path_for_key(&self, key: &CacheKey) -> Result<PathBuf, anyhow::Error> {
         fs::canonicalize(&self.cache_root)
             .await
             .map_err(|_| {

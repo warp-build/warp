@@ -160,7 +160,7 @@ impl BuildWorker {
                     computed_target::ComputedTargetError::MissingDependencies { deps, .. },
                 ))
                 | Err(WorkerError::RuleExecError(
-                    rule_exec_env::error::RuleExecError::MissingDependencies(
+                    rule_exec_env::error::RuleExecError::ComputedTargetError(
                         computed_target::ComputedTargetError::MissingDependencies { deps, .. },
                     ),
                 )) => {
