@@ -27,6 +27,10 @@ export PATH="${ErlangToolchain.provides().ERL_ROOT}:$PATH"
 cd elixir-${version}
 make
 
+# NOTE(@ostera): to avoid separately handling this, we will force-install hex
+# at this stage.
+./bin/mix local.hex --force
+
 `
     })
   }

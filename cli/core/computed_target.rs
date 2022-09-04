@@ -132,6 +132,7 @@ impl ComputedTarget {
         Dependency {
             is_pinned: self.target.is_pinned(),
             label: self.target.label().clone(),
+            rule_name: self.target.rule().name().to_string(),
             hash: self.hash(),
             outs: self.outs(),
             srcs: self.srcs(),

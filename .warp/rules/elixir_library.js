@@ -2,10 +2,12 @@ import {TAR_EXT} from "./archive.js";
 import ElixirToolchain, {EX_EXT} from "../toolchains/elixir.js";
 import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
 
+import ElixirLibrary from "./elixir_library.js";
+import MixLibrary from "./mix_library.js";
+
 
 const impl = ctx => {
   const { label, name, deps, srcs, modules, elixirc_opts} = ctx.cfg();
-
 
   const prefix = Label.path(label)
   const relativeRoot = prefix.split('/').map(_ => `..`).join("/")
@@ -37,28 +39,36 @@ const impl = ctx => {
   }
   ctx.action().declareOutputs(outputs);
 
-  const transitiveDeps = ctx.transitiveDeps()
-  transitiveDeps.forEach(dep => {
-    dep.outs.forEach(out => {
+  const transitiveDeps = ctx.transitiveDeps();
+  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == ElixirLibrary.name);
+  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == MixLibrary.name);
+
+  const extraPaths = [
+    ...mixLibraries
+      .map((dep) => `${Label.path(dep.label)}/_build/prod/lib/${Label.name(dep.label)}/ebin`)
+      .unique(),
+    ...elixirLibraries
+      .flatMap(dep =>
+        dep.outs
+          .filter((out) => out.endsWith(BEAM_EXT))
+          .map((path) => File.parent(path))
+          .unique()
+      ),
+  ]
+    .flatMap((path) => ["-pa", path])
+    .join(" ");
+
+  mixLibraries.forEach((dep) => {
+    dep.outs.forEach((out) => {
       if (out.endsWith(TAR_EXT)) {
         ctx.action().exec({
           cmd: "tar",
           args: ["xf", File.filename(out)],
-          cwd: Label.path(dep.label)
-        })
+          cwd: Label.path(dep.label),
+        });
       }
-    })
+    });
   });
-
-  const extraPaths = transitiveDeps
-    .flatMap(dep => [
-      `${Label.path(dep.label)}/_build/prod/lib/${Label.name(dep.label)}/ebin`,
-      ...dep.outs.filter(out => out.endsWith(BEAM_EXT)) .map(path => File.parent(path)),
-    ])
-    .sort()
-    .unique()
-    .flatMap(path => ["-pa", path])
-    .join(" ")
 
   const { ELIXIR, ELIXIRC } = ElixirToolchain.provides()
   ctx.action().runShell({
@@ -69,7 +79,7 @@ export PATH="${ElixirToolchain.provides().ELIXIR_HOME}:${ErlangToolchain.provide
 ${ELIXIRC} \
   ${extraPaths} \
   ${elixirc_opts.join(" ")} \
-  -o ${Label.path(label)} \
+  -o ${prefix} \
   ${srcs.join(" ")}
 `
   });

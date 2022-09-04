@@ -50,7 +50,7 @@ impl API {
         }
     }
 
-    #[tracing::instrument(name = "API::get_signed_url", skip(self, contents))]
+    #[tracing::instrument(name = "API::get_signed_url", skip(self))]
     pub async fn get_signed_url(&mut self, hash: &str) -> Result<url::Url, ApiError> {
         let url = format!("{}/artifact/{}.tar.gz", self.url, &hash);
         let response = self

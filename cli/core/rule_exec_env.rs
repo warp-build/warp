@@ -697,6 +697,10 @@ impl RuleExecEnv {
                         serde_json::Value::String(dep.label.name()),
                     );
                     map.insert(
+                        "ruleName".to_string(),
+                        serde_json::Value::String(dep.rule_name.clone()),
+                    );
+                    map.insert(
                         "label".to_string(),
                         serde_json::Value::String(dep.label.to_string()),
                     );
