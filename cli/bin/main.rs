@@ -157,7 +157,6 @@ enum Goal {
     // Test(TestGoal),
     // Toolchains(ToolchainGoal),
     // Workspace(WorkspaceGoal),
-    ListTargets,
     Alias(AliasGoal),
     Build(BuildGoal),
     Clean(CleanGoal),
@@ -186,27 +185,6 @@ impl Goal {
             // Goal::Test(x) => x.run(),
             // Goal::Toolchains(x) => x.run(config).await,
             // Goal::Workspace(x) => x.run(config).await,
-            Goal::ListTargets => {
-                use futures::StreamExt;
-
-                let cwd = fs::canonicalize(PathBuf::from(&".")).await.unwrap();
-                let (root, _workspace_file) = WorkspaceFile::find_upwards(&cwd).await?;
-
-                let mut files = Box::pin(
-                    FileScanner::new()
-                        .skipping_paths(&workspace.ignore_patterns)?
-                        .starting_from(&root)
-                        .await?
-                        .stream_files()
-                        .await,
-                );
-
-                while let Some(path) = files.next().await {
-                    println!("{:?}", path?)
-                }
-
-                Ok(())
-            }
             Goal::Alias(x) => x.run(workspace, event_channel).await,
             Goal::Build(x) => x.run(workspace, event_channel).await,
             Goal::Clean(x) => x.run(workspace, event_channel).await,
