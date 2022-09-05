@@ -200,10 +200,11 @@ impl BuildWorker {
             .setup()
             .map_err(WorkerError::RuleExecError)?;
 
-        let built_in_rules = warp_ext::TOOLCHAINS
-            .iter()
-            .chain(warp_ext::RULES.iter())
-            .map(|(name, src)| (name.to_string(), src.to_string()));
+        let global_rules = (self.workspace.global_rules.iter()).map(|rule| {
+            let name = format!("file://{}", rule.to_str().unwrap());
+            let src = std::fs::read_to_string(rule).unwrap();
+            (name, src)
+        });
 
         let custom_rules = (self.workspace.local_toolchains.iter())
             .chain(self.workspace.local_rules.iter())
@@ -214,7 +215,7 @@ impl BuildWorker {
             });
 
         let mut errored = false;
-        for (name, src) in built_in_rules.chain(custom_rules) {
+        for (name, src) in global_rules.chain(custom_rules) {
             let load_result = self
                 .rule_exec_env
                 .load(&name, Some(src))
