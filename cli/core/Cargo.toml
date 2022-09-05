@@ -9,8 +9,6 @@ edition = "2021"
 path = "lib.rs"
 
 [dependencies]
-warp-ext = { path = "../ext", version = "*" }
-
 anyhow = "1.0"
 assert_matches = "1"
 async-compression = { version = "0.3", features = ["all"] }
