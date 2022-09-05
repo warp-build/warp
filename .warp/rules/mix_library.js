@@ -2,6 +2,8 @@ import { TAR_EXT } from "./archive.js";
 import ElixirToolchain from "../toolchains/elixir.js";
 import ErlangToolchain, { BEAM_EXT } from "../toolchains/erlang.js";
 
+const RULE_NAME = "mix_library"
+
 const impl = (ctx) => {
   const { label, name, deps, srcs, skip_deps, deps_args, compile_args } =
     ctx.cfg();
@@ -18,14 +20,17 @@ const impl = (ctx) => {
       ? ""
       : `${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")}`;
 
+  const transitiveDeps = ctx.transitiveDeps();
+  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "elixir_library");
+  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == RULE_NAME);
+
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
 export PATH="${ElixirToolchain.provides().ELIXIR_HOME}:${ErlangToolchain.provides().ERL_ROOT}:$PATH"
 export MIX_ENV=prod
 
-${ctx
-  .transitiveDeps()
+${mixLibraries
   .flatMap((dep) =>
     dep.outs.flatMap((out) => {
       if (out.endsWith(TAR_EXT)) {
@@ -60,7 +65,7 @@ tar cf ${appTarball} _build/prod/lib/${name} deps/${name}
 };
 
 export default Warp.Rule({
-  name: "mix_library",
+  name: RULE_NAME,
   mnemonic: "MixLib",
   impl,
   cfg: {

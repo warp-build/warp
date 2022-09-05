@@ -80,6 +80,7 @@ impl ModuleLoader for NetModuleLoader {
 static JS_SNAPSHOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/JS_SNAPSHOT.bin"));
 
 pub mod error {
+    use crate::ComputedTarget;
     use crate::ComputedTargetError;
     use crate::Label;
     use thiserror::Error;
@@ -119,8 +120,12 @@ pub mod error {
         #[error(transparent)]
         DenoExecutionError(deno_core::error::AnyError),
 
-        #[error(transparent)]
-        ExecutionError(anyhow::Error),
+        #[error("Execution Error for {}\nTarget: {computed_target:#?}\n\nError: {err:?}", label.to_string())]
+        ExecutionError {
+            err: anyhow::Error,
+            label: Label,
+            computed_target: Box<ComputedTarget>,
+        },
 
         #[error("Something went wrong.")]
         Unknown,
@@ -812,7 +817,11 @@ impl RuleExecEnv {
                 &format!("<computed_target: {:?}>", &label.to_string()),
                 &compute_program,
             )
-            .map_err(error::RuleExecError::ExecutionError)?;
+            .map_err(|err| error::RuleExecError::ExecutionError {
+                err,
+                label: label.clone(),
+                computed_target: Box::new(computed_target.clone()),
+            })?;
 
         let actions = self
             .action_map

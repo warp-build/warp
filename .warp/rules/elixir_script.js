@@ -2,9 +2,6 @@ import ElixirToolchain, { EX_EXT } from "../toolchains/elixir.js";
 import ErlangToolchain, { BEAM_EXT } from "../toolchains/erlang.js";
 import { TAR_EXT } from "./archive.js";
 
-import ElixirLibrary from "./elixir_library.js";
-import MixLibrary from "./mix_library.js";
-
 const impl = (ctx) => {
   const { label, name, srcs, deps, main } = ctx.cfg();
 
@@ -12,8 +9,8 @@ const impl = (ctx) => {
 
   const transitiveDeps = ctx.transitiveDeps();
 
-  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == ElixirLibrary.name);
-  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == MixLibrary.name);
+  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "elixir_library");
+  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == "mix_library");
 
   const extraPaths = [
     ...mixLibraries

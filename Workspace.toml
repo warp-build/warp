@@ -4,6 +4,7 @@ ignore_patterns = [
   "warp-*",
   ".terraform*",
   "3rdparty/hexpm",
+  "3rdparty/tests",
   "3rdparty/rebar3",
   "3rdparty/npm",
   "node_modules",
