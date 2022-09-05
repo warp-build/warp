@@ -51,6 +51,35 @@ impl WorkspaceScanner {
         Ok(Box::pin(paths))
     }
 
+    pub async fn find_global_rules(&self) -> Result<Vec<PathBuf>, WorkspaceScannerError> {
+        debug!(
+            "Scanning for local rules in {:?}",
+            self.paths.local_rules_root
+        );
+        let mut files = Box::pin(
+            FileScanner::new()
+                .starting_from(&self.paths.global_rules_root)
+                .await
+                .map_err(WorkspaceScannerError::FileScannerError)?
+                .matching_path("\\.js$")
+                .map_err(WorkspaceScannerError::FileScannerError)?
+                .skipping_paths(&self.ignore_patterns)
+                .map_err(WorkspaceScannerError::FileScannerError)?
+                .stream_files()
+                .await,
+        );
+
+        let mut paths = vec![];
+        while let Some(path) = files.next().await {
+            let path = path.map_err(WorkspaceScannerError::FileScannerError)?;
+            paths.push(path.clone());
+        }
+
+        debug!("Found {} local rules...", paths.len());
+
+        Ok(paths)
+    }
+
     pub async fn find_rules(&self) -> Result<Vec<PathBuf>, WorkspaceScannerError> {
         debug!(
             "Scanning for local rules in {:?}",

@@ -62,6 +62,9 @@ pub struct Workspace {
     /// The archives defined in the workspace declaration file
     pub toolchain_configs: Vec<RuleConfig>,
 
+    /// A list of rules that have been downloaded
+    pub global_rules: Vec<PathBuf>,
+
     /// A list of local rules defined in this project
     pub local_rules: Vec<PathBuf>,
 
@@ -95,16 +98,18 @@ impl WorkspaceBuilder {
         self.name(file.workspace.name.clone());
 
         let mut ignore_patterns = vec![];
-
         for pat in DEFAULT_IGNORE {
             ignore_patterns.push(pat.to_string());
         }
-
         ignore_patterns.extend(file.workspace.ignore_patterns.clone());
-
         self.ignore_patterns(ignore_patterns);
 
         self.use_git_hooks(file.workspace.use_git_hooks);
+
+        if let Some(url) = &file.workspace.remote_cache_url {
+            let url: Url = url.parse().expect("remote_cache_url should be a valid URL");
+            self.remote_cache_url(Some(url));
+        }
 
         let mut aliases: HashMap<String, Label> = HashMap::default();
         for (name, label) in file.aliases.clone() {
@@ -128,10 +133,15 @@ impl WorkspaceBuilder {
             return Err(anyhow::anyhow!("Attempted to scan while building a Workspace before setting the right paths. This is a bug."));
         }
 
-        let (local_rules, local_toolchains) = {
+        let (local_rules, local_toolchains, global_rules) = {
             let scanner = WorkspaceScanner::new(self.paths.as_ref().unwrap(), &[]);
-            futures::join!(scanner.find_rules(), scanner.find_toolchains())
+            futures::join!(
+                scanner.find_rules(),
+                scanner.find_toolchains(),
+                scanner.find_global_rules()
+            )
         };
+        self.global_rules(global_rules.map_err(WorkspaceError::WorkspaceScannerError)?);
         self.local_rules(local_rules.map_err(WorkspaceError::WorkspaceScannerError)?);
         self.local_toolchains(local_toolchains.map_err(WorkspaceError::WorkspaceScannerError)?);
 

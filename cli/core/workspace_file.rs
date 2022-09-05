@@ -62,6 +62,10 @@ pub struct WorkspaceConfig {
     #[builder(default = "false")]
     #[serde(default)]
     pub use_git_hooks: bool,
+
+    #[builder(default)]
+    #[serde(default)]
+    pub remote_cache_url: Option<String>,
 }
 
 impl WorkspaceConfig {
