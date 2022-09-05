@@ -246,6 +246,24 @@ impl BuildWorker {
             let toolchains = (*self.rule_exec_env.toolchain_manager).read().unwrap();
             toolchains.get(label)
         };
+
+        /*
+        if toolchain.is_none() && label.is_remote() {
+            println!("Handling remote label: {:?}!", label.url());
+            let client = reqwest::Client::builder().gzip(false).build().unwrap();
+            let response = client.get(label.url()).send().await;
+            let mut byte_stream = response.unwrap().bytes_stream();
+            let mut outfile =
+                fs::File::create(&self.workspace.paths.global_rules_root.join(label.name()))
+                    .await
+                    .unwrap();
+            while let Some(chunk) = byte_stream.next().await {
+                outfile.write_all_buf(&mut chunk.unwrap()).await.unwrap();
+            }
+            // figure out how to _fetch_ this thing and then _load it_
+        }
+        */
+
         let target = if let Some(toolchain) = toolchain {
             toolchain
         } else {
@@ -333,24 +351,22 @@ impl BuildWorker {
                 ValidationStatus::Valid => {
                     self.build_results.add_computed_target(label.clone(), node.clone());
 
-                    // self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
+                    self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
 
                     self.rule_exec_env.update_provide_map(&node, &self.cache)
                     .await
                     .map_err(WorkerError::Unknown)?;
 
-            /* FIXME(@ostera): make this part of a a BuildOutputs struct
                     self.cache
                         .promote_outputs(&node, &self.workspace.paths.local_outputs_root)
                         .await
                         .map_err(WorkerError::Unknown)?;
-            */
 
                     Ok(label.clone())
                 },
                 ValidationStatus::NoOutputs => {
                     if node.outs().is_empty() {
-                        // self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
+                        self.cache.save(&sandbox).await.map_err(WorkerError::Unknown)?;
                         self.rule_exec_env.update_provide_map(&node, &self.cache).await.map_err(WorkerError::Unknown)?;
                         self.build_results.add_computed_target(label.clone(), node.clone());
                         Ok(label.clone())
