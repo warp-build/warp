@@ -30,6 +30,7 @@ make
 # NOTE(@ostera): to avoid separately handling this, we will force-install hex
 # at this stage.
 ./bin/mix local.hex --force
+./bin/mix local.rebar --force
 
 `
     })
