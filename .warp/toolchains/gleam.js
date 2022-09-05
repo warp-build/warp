@@ -19,7 +19,7 @@ const impl = ctx => {
 };
 
 export default Warp.Toolchain({
-  name: "//warp.build/toolchains:gleam",
+  name: "https://pkgs.warp.build/toolchains/gleam",
   mnemonic: "Gleam",
   impl,
   cfg: {

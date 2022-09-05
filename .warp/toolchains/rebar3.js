@@ -14,7 +14,7 @@ const impl = (ctx) => {
 };
 
 export default Warp.Toolchain({
-  name: "//warp.build/toolchains:rebar3",
+  name: "https://pkgs.warp.build/toolchains/rebar3",
   mnemonic: "Rebar3",
   impl,
   cfg: {
