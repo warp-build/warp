@@ -23,8 +23,8 @@ impl Cache {
     #[tracing::instrument(name = "Cache::new", skip(workspace))]
     pub fn new(workspace: &Workspace) -> Self {
         Cache {
-            local_cache: LocalCache::new(&workspace),
-            remote_cache: RemoteCache::new(&workspace),
+            local_cache: LocalCache::new(workspace),
+            remote_cache: RemoteCache::new(workspace),
             workspace_prefix: workspace.paths.workspace_name.clone(),
         }
     }
@@ -48,7 +48,7 @@ impl Cache {
     #[tracing::instrument(name = "Cache::save", skip(sandbox))]
     pub async fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
         let node = sandbox.node();
-        let cache_key = self.cache_key(&node);
+        let cache_key = self.cache_key(node);
 
         // NOTE(@ostera): see RFC0005
         let artifacts = if node.target.is_pinned() {
@@ -57,16 +57,10 @@ impl Cache {
             sandbox.outputs()
         };
 
-        self.local_cache
-            .save(&cache_key, &artifacts, &sandbox.root())
-            .await?;
-
-        /* FIXME(@ostera): to reenable this we need to rework the API
         let _ = self
             .remote_cache
             .save(&cache_key, &artifacts, &sandbox.root())
             .await;
- */
 
         Ok(())
     }
@@ -78,7 +72,7 @@ impl Cache {
         &mut self,
         node: &ComputedTarget,
     ) -> Result<CacheHitType, anyhow::Error> {
-        let cache_key = self.cache_key(&node);
+        let cache_key = self.cache_key(node);
 
         match self.local_cache.is_cached(&cache_key).await? {
             CacheHitType::Miss(_) => {
@@ -95,7 +89,7 @@ impl Cache {
 
     #[tracing::instrument(name = "Cache::evict", skip(node))]
     pub async fn evict(&mut self, node: &ComputedTarget) -> Result<(), anyhow::Error> {
-        let cache_key = self.cache_key(&node);
+        let cache_key = self.cache_key(node);
         self.local_cache.evict(&cache_key).await
     }
 
@@ -121,6 +115,8 @@ impl Cache {
         dst: &PathBuf,
     ) -> Result<(), anyhow::Error> {
         let cache_key = self.cache_key(node);
-        self.local_cache.promote_outputs(&cache_key,node, dst).await
+        self.local_cache
+            .promote_outputs(&cache_key, node, dst)
+            .await
     }
 }
