@@ -1,16 +1,81 @@
 use super::*;
 use anyhow::anyhow;
 use dashmap::DashMap;
+use deno_core::anyhow::{bail, Error};
 use deno_core::error::AnyError;
+use deno_core::futures::FutureExt;
+use deno_core::resolve_import;
+use deno_core::ModuleLoader;
+use deno_core::ModuleSource;
+use deno_core::ModuleSourceFuture;
+use deno_core::ModuleSpecifier;
+use deno_core::ModuleType;
 use deno_core::*;
 use fxhash::*;
 use serde::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::RwLock;
+use tokio::fs;
 use tracing::*;
+
+pub struct NetModuleLoader;
+
+/// NOTE(@ostera): this feature copied from `deno-simple-module-loader`:
+///     https://github.com/andreubotella/deno-simple-module-loader)
+impl ModuleLoader for NetModuleLoader {
+    fn resolve(
+        &self,
+        specifier: &str,
+        referrer: &str,
+        _is_main: bool,
+    ) -> Result<ModuleSpecifier, Error> {
+        Ok(resolve_import(specifier, referrer)?)
+    }
+
+    fn load(
+        &self,
+        module_specifier: &ModuleSpecifier,
+        _maybe_referrer: Option<ModuleSpecifier>,
+        _is_dyn_import: bool,
+    ) -> Pin<Box<ModuleSourceFuture>> {
+        let module_specifier = module_specifier.clone();
+        let string_specifier = module_specifier.to_string();
+        async {
+            let bytes = match module_specifier.scheme() {
+                "http" | "https" => reqwest::get(module_specifier).await?.bytes().await?,
+                "file" => {
+                    let path = match module_specifier.to_file_path() {
+                        Ok(path) => path,
+                        Err(_) => bail!("Invalid file URL."),
+                    };
+                    fs::read(path).await?.into()
+                }
+                schema => bail!("Invalid schema {}", schema),
+            };
+
+            // Strip BOM
+            let code = if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+                bytes.slice(3..)
+            } else {
+                bytes
+            }
+            .to_vec()
+            .into_boxed_slice();
+
+            Ok(ModuleSource {
+                code,
+                module_type: ModuleType::JavaScript,
+                module_url_specified: string_specifier.clone(),
+                module_url_found: string_specifier,
+            })
+        }
+        .boxed_local()
+    }
+}
 
 static JS_SNAPSHOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/JS_SNAPSHOT.bin"));
 
@@ -441,7 +506,7 @@ pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyErr
 pub fn op_toolchain_new(state: &mut OpState, toolchain: Rule) -> Result<(), AnyError> {
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
 
-    trace!("Registering toolchain: {}", &toolchain.name().to_string());
+    debug!("Registering toolchain: {}", &toolchain.name().to_string());
     (*inner_state.toolchain_manager)
         .read()
         .unwrap()
@@ -538,7 +603,7 @@ impl RuleExecEnv {
 
         let rt_options = deno_core::RuntimeOptions {
             startup_snapshot: Some(deno_core::Snapshot::Static(JS_SNAPSHOT)),
-            module_loader: Some(Rc::new(deno_core::FsModuleLoader)),
+            module_loader: Some(Rc::new(NetModuleLoader)),
             extensions: vec![extension, deno_console::init()],
             ..Default::default()
         };
@@ -783,7 +848,9 @@ impl RuleExecEnv {
         computed_target.run_script = run_script;
 
         computed_target.recompute_hash();
-        computed_target.ensure_outputs_are_safe().map_err(error::RuleExecError::ComputedTargetError)?;
+        computed_target
+            .ensure_outputs_are_safe()
+            .map_err(error::RuleExecError::ComputedTargetError)?;
 
         trace!(
             "Sealed ComputedTarget {} with FxHash {:?}",
