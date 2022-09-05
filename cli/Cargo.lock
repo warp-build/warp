@@ -2978,7 +2978,7 @@ dependencies = [
 
 [[package]]
 name = "warp-build"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3064,12 +3064,7 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "v8 0.42.1",
- "warp-ext",
 ]
-
-[[package]]
-name = "warp-ext"
-version = "0.5.0"
 
 [[package]]
 name = "wasi"
