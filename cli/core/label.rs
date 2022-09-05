@@ -144,12 +144,22 @@ impl Label {
         }
     }
 
+    pub fn url(&self) -> Url {
+        match self {
+            Label::Remote { url, .. } => url.parse().unwrap(),
+            _ => panic!("Tried to get a URl out of a local label: {:?}", self),
+        }
+    }
+
     pub fn path(&self) -> PathBuf {
         match self {
             Label::Wildcard => PathBuf::from(DOT),
             Label::Relative { path, .. } => path.to_path_buf(),
             Label::Absolute { path, .. } => path.to_path_buf(),
-            Label::Remote { .. } => todo!(),
+            Label::Remote { .. } => panic!(
+                "Tried to get a local path out of a remote label: {:?}",
+                self
+            ),
         }
     }
 
