@@ -1,5 +1,5 @@
 use super::*;
-use anyhow::{ Context};
+use anyhow::Context;
 use futures::FutureExt;
 use fxhash::*;
 use std::path::PathBuf;
@@ -117,7 +117,11 @@ pub enum ValidationStatus {
 
 impl LocalSandbox {
     #[tracing::instrument(name="LocalSandbox::for_node", skip(workspace, node), fields(warp.target = %node.target.label().to_string()))]
-    pub async fn for_node(workspace: &Workspace, cache: &Cache, node: ComputedTarget) -> LocalSandbox {
+    pub async fn for_node(
+        workspace: &Workspace,
+        cache: &Cache,
+        node: ComputedTarget,
+    ) -> LocalSandbox {
         let workspace = workspace.clone();
         let root = cache.absolute_path_by_node(&node).await.unwrap();
         let outputs_root = workspace.paths.local_outputs_root.clone();
@@ -407,7 +411,6 @@ impl LocalSandbox {
         &mut self,
         build_cache: &Cache,
         find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
-        mode: ExecutionMode,
         event_channel: Arc<EventChannel>,
     ) -> Result<ValidationStatus, anyhow::Error> {
         debug!("Running sandbox at: {:?}", &self.root);
@@ -427,7 +430,6 @@ impl LocalSandbox {
                     &self.workspace.paths.local_cache_root
                 },
                 &self.root,
-                mode,
                 event_channel.clone(),
             )
             .await

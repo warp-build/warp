@@ -255,7 +255,6 @@ impl ComputedTarget {
         &self,
         cache_root: &PathBuf,
         sandbox_root: &PathBuf,
-        mode: ExecutionMode,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         trace!(
@@ -368,7 +367,10 @@ impl ComputedTarget {
             self.deps().iter().flat_map(|os| os.outs.clone()).collect();
 
         if !output_set.is_disjoint(&dep_output_set) {
-            let outputs = output_set.intersection(&dep_output_set).cloned().collect::<Vec<PathBuf>>();
+            let outputs = output_set
+                .intersection(&dep_output_set)
+                .cloned()
+                .collect::<Vec<PathBuf>>();
             Err(ComputedTargetError::ConflictingOutputs { outputs })
         } else {
             Ok(())

@@ -1,7 +1,6 @@
 use crate::reporter::*;
 use std::sync::Arc;
 use structopt::StructOpt;
-use tracing::*;
 use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -51,8 +50,6 @@ impl BuildGoal {
             .get(&self.target)
             .cloned()
             .unwrap_or_else(|| self.target.into());
-        debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
-        debug!("Target: {}", &target.to_string());
 
         let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
 

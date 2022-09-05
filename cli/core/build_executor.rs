@@ -48,18 +48,6 @@ impl BuildExecutor {
         target: Label,
         event_channel: Arc<EventChannel>,
     ) -> Result<Option<ComputedTarget>, anyhow::Error> {
-        self.execute(&target, ExecutionMode::OnlyBuild, event_channel)
-            .await?;
-        Ok(self.results.get_computed_target(&target))
-    }
-
-    #[tracing::instrument(name = "BuildExecutor::execute", skip(self))]
-    pub async fn execute(
-        &self,
-        target: &Label,
-        mode: ExecutionMode,
-        event_channel: Arc<EventChannel>,
-    ) -> Result<(), BuildExecutorError> {
         let build_queue = Arc::new(BuildQueue::new(
             target.clone(),
             self.results.clone(),
@@ -120,7 +108,7 @@ impl BuildExecutor {
                         .map_err(BuildExecutorError::WorkerError)?;
 
                     worker
-                        .setup_and_run(mode, worker_limit)
+                        .setup_and_run(worker_limit)
                         .instrument(sub_worker_span)
                         .await
                         .map_err(BuildExecutorError::WorkerError)
@@ -128,15 +116,17 @@ impl BuildExecutor {
                 worker_tasks.push(thread);
             }
         }
+
         let _span = main_worker_span.enter();
-        let (_, result) = futures::future::join(futures::future::join_all(worker_tasks), async {
+        futures::future::join(futures::future::join_all(worker_tasks), async {
             worker
-                .setup_and_run(mode, worker_limit)
+                .setup_and_run(worker_limit)
                 .await
                 .map_err(BuildExecutorError::WorkerError)
         })
-        .await;
+        .await
+        .1?;
 
-        result
+        Ok(self.results.get_computed_target(&target))
     }
 }

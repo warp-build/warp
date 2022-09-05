@@ -93,17 +93,13 @@ impl BuildWorker {
     }
 
     #[tracing::instrument(name = "BuildWorker::run", skip(self))]
-    pub async fn setup_and_run(
-        &mut self,
-        mode: ExecutionMode,
-        max_concurrency: usize,
-    ) -> Result<(), WorkerError> {
+    pub async fn setup_and_run(&mut self, max_concurrency: usize) -> Result<(), WorkerError> {
         let result = {
             self.setup(max_concurrency).await?;
             loop {
                 // NOTE(@ostera): we don't want things to burn CPU cycles
                 tokio::time::sleep(std::time::Duration::from_micros(100)).await;
-                self.run(mode).await?;
+                self.run().await?;
                 if self.should_stop() {
                     break;
                 }
@@ -148,9 +144,9 @@ impl BuildWorker {
         }
     }
 
-    pub async fn run(&mut self, mode: ExecutionMode) -> Result<(), WorkerError> {
+    pub async fn run(&mut self) -> Result<(), WorkerError> {
         if let Some(label) = self.build_queue.next() {
-            let result = match self.execute(&label, mode).await {
+            let result = match self.execute(&label).await {
                 Ok(_node_label) => {
                     self.build_queue.ack(&label);
                     Ok(())
@@ -237,11 +233,7 @@ impl BuildWorker {
     }
 
     #[tracing::instrument(name = "BuildWorker::execute", skip(self))]
-    pub async fn execute(
-        &mut self,
-        label: &Label,
-        mode: ExecutionMode,
-    ) -> Result<Label, WorkerError> {
+    pub async fn execute(&mut self, label: &Label) -> Result<Label, WorkerError> {
         let toolchain = {
             let toolchains = (*self.rule_exec_env.toolchain_manager).read().unwrap();
             toolchains.get(label)
@@ -287,15 +279,11 @@ impl BuildWorker {
                 .map_err(WorkerError::Unknown)?
                 .clone()
         };
-        self.execute_target(target, mode).await
+        self.execute_target(target).await
     }
 
     #[tracing::instrument(name="BuildWorker::execute_target", skip(self), fields(warp.target = %target.label().to_string()))]
-    pub async fn execute_target(
-        &mut self,
-        target: Target,
-        mode: ExecutionMode,
-    ) -> Result<Label, WorkerError> {
+    pub async fn execute_target(&mut self, target: Target) -> Result<Label, WorkerError> {
         let label = target.label().clone();
 
         self.rule_exec_env.clear();
@@ -343,7 +331,7 @@ impl BuildWorker {
             let result = {
                 let find_node = |label| self.build_results.get_computed_target(&label);
                 sandbox
-                    .run(&self.cache, &find_node, mode, self.event_channel.clone()).await
+                    .run(&self.cache, &find_node, self.event_channel.clone()).await
                     .map_err(WorkerError::Unknown)?
             };
 

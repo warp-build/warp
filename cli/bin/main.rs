@@ -46,7 +46,7 @@ struct Warp {
 }
 
 impl Warp {
-    async fn run(self) -> Result<(), anyhow::Error> {
+    async fn run(mut self) -> Result<(), anyhow::Error> {
         let t0 = std::time::Instant::now();
 
         human_panic::setup_panic!(Metadata {
@@ -96,7 +96,7 @@ impl Warp {
     }
 
     #[tracing::instrument(name = "Warp::start")]
-    async fn start(&self, t0: std::time::Instant) -> Result<(), anyhow::Error> {
+    async fn start(&mut self, t0: std::time::Instant) -> Result<(), anyhow::Error> {
         let current_user = self.user.clone().unwrap_or_else(whoami::username);
         let warp_home = self.warp_home.clone();
 
@@ -109,6 +109,7 @@ impl Warp {
             _ => (),
         };
 
+        // NOTE(@ostera): save the current directory, to return to it when we're done building
         let cwd = fs::canonicalize(PathBuf::from(&".")).await.unwrap();
         let (root, workspace_file) = WorkspaceFile::find_upwards(&cwd).await?;
 
@@ -122,18 +123,11 @@ impl Warp {
             .from_file(workspace_file)
             .await
             .unwrap()
-            .find_rules_and_toolchains()
-            .await?
             .build()?;
-
-        if workspace.use_git_hooks {
-            let githooks = GitHooks::from_workspace(&workspace);
-            githooks.ensure_installed().await?;
-        }
 
         let result = self
             .cmd
-            .clone()
+            .take()
             .unwrap_or_else(|| Goal::Build(BuildGoal::all()))
             .run(workspace, event_channel)
             .await;
@@ -146,17 +140,6 @@ impl Warp {
 
 #[derive(StructOpt, Debug, Clone)]
 enum Goal {
-    // Cache(CacheGoal),
-    // DepGraph(DepGraphGoal),
-    // Deps(DepsGoal),
-    // Fmt(FmtGoal),
-    // Lift(LiftGoal),
-    // New(NewGoal),
-    // Query(QueryGoal),
-    // Rules(RulesGoal),
-    // Test(TestGoal),
-    // Toolchains(ToolchainGoal),
-    // Workspace(WorkspaceGoal),
     Alias(AliasGoal),
     Build(BuildGoal),
     Clean(CleanGoal),
@@ -174,17 +157,6 @@ impl Goal {
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         match self {
-            // Goal::Cache(x) => x.run(config).await,
-            // Goal::DepGraph(x) => x.run(config).await,
-            // Goal::Deps(x) => x.run(),
-            // Goal::Fmt(x) => x.run(),
-            // Goal::Lift(x) => x.run(),
-            // Goal::New(x) => x.run(),
-            // Goal::Query(x) => x.run(),
-            // Goal::Rules(x) => x.run(config).await,
-            // Goal::Test(x) => x.run(),
-            // Goal::Toolchains(x) => x.run(config).await,
-            // Goal::Workspace(x) => x.run(config).await,
             Goal::Alias(x) => x.run(workspace, event_channel).await,
             Goal::Build(x) => x.run(workspace, event_channel).await,
             Goal::Clean(x) => x.run(workspace, event_channel).await,
