@@ -71,10 +71,6 @@ impl BuildExecutor {
             event_channel.clone(),
             toolchain_provides_map.clone(),
         );
-        worker
-            .load_rules()
-            .await
-            .map_err(BuildExecutorError::WorkerError)?;
 
         let main_worker_span = main_worker_span.exit();
 
