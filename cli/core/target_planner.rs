@@ -1,6 +1,5 @@
-use fxhash::FxHashSet;
-
 use super::*;
+use fxhash::FxHashSet;
 use std::sync::Arc;
 
 pub struct TargetPlanner {
@@ -25,7 +24,7 @@ impl TargetPlanner {
         })
     }
 
-    pub fn find_transitive_deps(
+    pub async fn find_transitive_deps(
         &self,
         target: &Target,
     ) -> Result<Vec<Dependency>, TargetPlannerError> {
