@@ -1,13 +1,12 @@
 use super::*;
 
-pub struct LocalExecutor {
+pub struct LocalTargetExecutor {
     store: Arc<Store>,
 }
+pub enum LocalExecutorError {}
 
-impl TargetExecutor for LocalExecutor {
-    type Error = LocalExecutorError;
-
-    async fn schedule(&self, target: &ExecutableTarget) -> Result<(), Error> {
+impl LocalTargetExecutor {
+    pub async fn execute(&self, target: &ExecutableTarget) -> Result<(), LocalExecutorError> {
         if self.store.has_manifest_for_target(&target) {
             return Ok(());
         }

@@ -1,11 +1,18 @@
+use fxhash::FxHashSet;
+
+use super::*;
+use std::sync::Arc;
+
 pub struct TargetPlanner {
     build_results: Arc<BuildResults>,
     rule_loader: Arc<RuleLoader>,
     rule_executor: Arc<RuleExecutor>,
 }
 
+pub enum TargetPlannerError {}
+
 impl TargetPlanner {
-    pub fn plan(&self, target: &Target) -> Result<ExecutableTarget, TargetPlannerError> {
+    pub async fn plan(&self, target: &Target) -> Result<ExecutableTarget, TargetPlannerError> {
         let transitive_deps = self.find_transitive_deps(&target).await?;
 
         let rule = self.rule_loader.load(&target.rule).await?;

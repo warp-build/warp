@@ -4,6 +4,12 @@ pub struct LabelResolver {
     store: LabelStore,
 }
 
+pub enum LabelResolverError {
+    LabelStoreError(LabelStoreError),
+    CouldNotResolveLabel(Label),
+    TargetNotFound(PathBuf, Label),
+}
+
 impl LabelResolver {
     pub async fn resolve(&self, label: &Label) -> Result<Target, LabelResolverError> {
         let path = if label.is_remote() {
@@ -11,11 +17,12 @@ impl LabelResolver {
                 .fetch(&label)
                 .await
                 .map_err(LabelResolverError::LabelStoreError)?
+                .ok_or_else(|| LabelResolverError::CouldNotResolveLabel(label.clone()))
         } else {
-            label.path()
-        };
+            Ok(label.path())
+        }?;
 
-        let buildfile = Buildfile::from_file(path)
+        let buildfile = Buildfile::from_file(&path)
             .await
             .map_err(LabelResolverError::BuildfileError)?;
 
@@ -23,7 +30,7 @@ impl LabelResolver {
             .targets
             .iter()
             .find(|t| *t.label() == *label)
-            .ok_or_else(|| LabelResolverError::TargetNotFound(path, label))?
+            .ok_or_else(|| LabelResolverError::TargetNotFound(path, label.clone()))?
     }
 }
 

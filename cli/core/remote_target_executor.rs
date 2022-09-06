@@ -1,27 +1,16 @@
-use super::TargetExecutor;
+use super::*;
 
-pub struct RemoteExecutor {
+pub struct RemoteTargetExecutor {
     api: Api,
 }
 
-impl TargetExecutor for RemoteExecutor {
-    type Error = RemoteExecutorError;
+pub enum RemoteExecutorError {}
 
-    async fn schedule(&self, target: &ExecutableTarget) -> Result<(), Error> {
-        if self.store.has_manifest_for_target(&target) {
-            return Ok(());
-        }
-
-        self.clean_folder().await?;
-        self.copy_sources(&target).await?;
-        self.copy_dependencies(&target).await?;
-        self.execute_actions(&target).await?;
-        self.validate_outputs(&target).await?;
-        self.write_manifest(&target).await?;
-
-        Ok(())
+impl RemoteTargetExecutor {
+    pub async fn schedule(&self, target: &ExecutableTarget) -> Result<(), RemoteExecutorError> {
+        let job_id = self.api.schedule_target(&target).await?;
+        self.api.poll_job(job_id).await
     }
 }
 
 mod tests {}
-

@@ -1,8 +1,14 @@
 use super::*;
 
-pub struct TargetExecutor;
+pub struct TargetExecutor {
+    local: LocalTargetExecutor,
+    remote: RemoteTargetExecutor,
+}
 
-pub trait TargetExecutor {
-    type Error;
-    async fn schedule(&self, target: &ExecutableTarget) -> Result<(), Self::Error>;
+pub enum TargetExecutorError {}
+
+impl TargetExecutor {
+    pub async fn execute(&self, target: &ExecutableTarget) -> Result<(), TargetExecutorError> {
+        todo!()
+    }
 }
