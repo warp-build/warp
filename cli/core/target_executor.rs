@@ -1,5 +1,7 @@
 use super::*;
 
+pub struct TargetExecutor;
+
 pub trait TargetExecutor {
     type Error;
     async fn schedule(&self, target: &ExecutableTarget) -> Result<(), Self::Error>;

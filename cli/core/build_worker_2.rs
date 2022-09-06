@@ -1,3 +1,5 @@
+use super::*;
+
 pub struct BuildWorker {
     label_resolver: LabelResolver,
     target_planner: TargetPlanner,
@@ -6,7 +8,7 @@ pub struct BuildWorker {
 
 impl BuildWorker {
     #[tracing::instrument(name = "BuildWorker::execute", skip(self))]
-    pub async fn execute(&mut self, label: &Label) -> Result<Label, WorkerError> {
+    pub async fn execute(&mut self, label: &Label) -> Result<Label, BuildWorkerError> {
         let target = self.label_resolver.resolve(&label).await?;
         let executable_target = self.target_planner.plan(&target).await?;
         self.target_executor.schedule(&executable_target).await
