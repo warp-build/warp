@@ -15,7 +15,7 @@ pub struct AliasGoal {
         long = "target",
         help = r#"The label of the target you are aliasing."#
     )]
-    target: String,
+    label: String,
 
     #[structopt(
         name = "name",
@@ -34,7 +34,7 @@ impl AliasGoal {
     ) -> Result<(), anyhow::Error> {
         workspace
             .aliases
-            .insert(self.name.clone(), self.target.into());
+            .insert(self.name.clone(), self.label.into());
         let file: WorkspaceFile = (&workspace).try_into()?;
         file.write(&workspace.paths.workspace_root).await?;
         Ok(())

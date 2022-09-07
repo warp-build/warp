@@ -1,8 +1,8 @@
 use super::*;
-use anyhow::*;
 use fxhash::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use thiserror::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CfgValueType {
@@ -35,6 +35,26 @@ impl ConfigSpec {
     pub fn as_map(&self) -> &FxHashMap<String, CfgValueType> {
         &self.0
     }
+}
+
+#[derive(Error, Debug)]
+pub enum RuleConfigError {
+    #[error("Could not fetch key {0:?} from rule configuration")]
+    MissingKey(String),
+
+    #[error("Expected all values in list to be of type {expected:?}, but found {found:?}")]
+    UnexpectedValueTypeInList {
+        expected: CfgValueType,
+        found: CfgValue,
+        key: String,
+    },
+
+    #[error("Expected key {key:?} to be of type {expected:?} but found {found:?} instead.")]
+    KeyHadWrongType {
+        expected: CfgValueType,
+        found: CfgValue,
+        key: String,
+    },
 }
 
 #[derive(Debug, Clone, Default)]
@@ -76,11 +96,11 @@ impl RuleConfig {
         self.insert(key, CfgValue::File(val.clone()))
     }
 
-    pub fn get_label_list(&self, key: &str) -> Result<Vec<Label>, anyhow::Error> {
+    pub fn get_label_list(&self, key: &str) -> Result<Vec<Label>, RuleConfigError> {
         let entry = self
             .config
             .get(key)
-            .context(format!("Could not find key {:?}", key))?;
+            .ok_or_else(|| RuleConfigError::MissingKey(key.to_string()))?;
 
         if let CfgValue::List(elements) = entry {
             let mut labels = vec![];
@@ -88,24 +108,24 @@ impl RuleConfig {
                 if let CfgValue::Label(l) = el {
                     labels.push(l.clone());
                 } else {
-                    return Err(anyhow!(
-                        "Expected all values in {:?} to be labels, but found {:?}",
-                        key,
-                        el
-                    ));
+                    return Err(RuleConfigError::UnexpectedValueTypeInList {
+                        expected: CfgValueType::Label,
+                        found: el.clone(),
+                        key: key.to_string(),
+                    });
                 }
             }
             Ok(labels)
         } else {
-            Err(anyhow!(
-                "Expected key {:?} to be a label list but found {:?} instead.",
-                key,
-                entry
-            ))
+            Err(RuleConfigError::KeyHadWrongType {
+                expected: CfgValueType::List(Box::new(CfgValueType::Label)),
+                found: entry.clone(),
+                key: key.to_string(),
+            })
         }
     }
 
-    pub fn get_file_lists(&self) -> Result<Vec<PathBuf>, anyhow::Error> {
+    pub fn get_file_lists(&self) -> Result<Vec<PathBuf>, RuleConfigError> {
         let mut files = vec![];
         for (_name, entry) in self.config.iter() {
             if let CfgValue::List(elements) = entry {
@@ -122,11 +142,11 @@ impl RuleConfig {
         Ok(files)
     }
 
-    pub fn get_file_list(&self, key: &str) -> Result<Vec<PathBuf>, anyhow::Error> {
+    pub fn get_file_list(&self, key: &str) -> Result<Vec<PathBuf>, RuleConfigError> {
         let entry = self
             .config
             .get(key)
-            .context(format!("Could not find key {:?}", key))?;
+            .ok_or_else(|| RuleConfigError::MissingKey(key.to_string()))?;
 
         if let CfgValue::List(elements) = entry {
             let mut paths = vec![];
@@ -134,20 +154,20 @@ impl RuleConfig {
                 if let CfgValue::File(path) = el {
                     paths.push(path.clone());
                 } else {
-                    return Err(anyhow!(
-                        "Expected all values in {:?} to be file paths, but found {:?}",
-                        key,
-                        el
-                    ));
+                    return Err(RuleConfigError::UnexpectedValueTypeInList {
+                        expected: CfgValueType::File,
+                        found: el.clone(),
+                        key: key.to_string(),
+                    });
                 }
             }
             Ok(paths)
         } else {
-            Err(anyhow!(
-                "Expected key {:?} to be a file list but found {:?} instead.",
-                key,
-                entry
-            ))
+            Err(RuleConfigError::KeyHadWrongType {
+                expected: CfgValueType::List(Box::new(CfgValueType::File)),
+                found: entry.clone(),
+                key: key.to_string(),
+            })
         }
     }
 }
@@ -212,7 +232,6 @@ pub mod toml_codecs {
     use std::collections::BTreeMap;
 
     use super::*;
-    use thiserror::*;
     use toml;
 
     #[derive(Error, Debug)]
@@ -222,9 +241,9 @@ pub mod toml_codecs {
     }
 
     impl TryFrom<CfgValue> for toml::Value {
-        type Error = anyhow::Error;
+        type Error = ParseError;
 
-        fn try_from(value: CfgValue) -> Result<toml::Value, anyhow::Error> {
+        fn try_from(value: CfgValue) -> Result<toml::Value, Self::Error> {
             match value {
                 CfgValue::String(s) => Ok(toml::Value::String(s)),
                 CfgValue::List(arr) => {
@@ -245,9 +264,9 @@ pub mod toml_codecs {
     }
 
     impl TryFrom<&RuleConfig> for FlexibleRuleConfig {
-        type Error = anyhow::Error;
+        type Error = ParseError;
 
-        fn try_from(rule: &RuleConfig) -> Result<FlexibleRuleConfig, anyhow::Error> {
+        fn try_from(rule: &RuleConfig) -> Result<FlexibleRuleConfig, Self::Error> {
             let mut map: BTreeMap<String, toml::Value> = BTreeMap::default();
 
             for (key, value) in &rule.config {
@@ -260,9 +279,9 @@ pub mod toml_codecs {
     }
 
     impl TryFrom<toml::Value> for CfgValue {
-        type Error = anyhow::Error;
+        type Error = ParseError;
 
-        fn try_from(value: toml::Value) -> Result<CfgValue, anyhow::Error> {
+        fn try_from(value: toml::Value) -> Result<CfgValue, Self::Error> {
             match value {
                 toml::Value::String(s) => Ok(CfgValue::String(s)),
                 toml::Value::Array(arr) => {
@@ -286,11 +305,9 @@ pub mod toml_codecs {
     }
 
     impl TryFrom<(String, FlexibleRuleConfig)> for RuleConfig {
-        type Error = anyhow::Error;
+        type Error = ParseError;
 
-        fn try_from(
-            (name, cfg): (String, FlexibleRuleConfig),
-        ) -> Result<RuleConfig, anyhow::Error> {
+        fn try_from((name, cfg): (String, FlexibleRuleConfig)) -> Result<RuleConfig, Self::Error> {
             let mut values = RuleConfig::new(name);
 
             for (key, value) in cfg.0 {
@@ -302,3 +319,5 @@ pub mod toml_codecs {
         }
     }
 }
+
+mod tests {}

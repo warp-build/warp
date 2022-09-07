@@ -66,16 +66,16 @@ impl LocalCache {
     pub async fn promote_outputs(
         &self,
         key: &CacheKey,
-        node: &ComputedTarget,
+        node: &ExecutableTarget,
         dst: &PathBuf,
     ) -> Result<(), anyhow::Error> {
-        trace!("Promoting outputs for {}", node.target.label().to_string());
+        trace!("Promoting outputs for {}", node.label.to_string());
 
         let hash_path = self.cache_root.join(key);
 
         let mut paths: FxHashMap<PathBuf, ()> = FxHashMap::default();
         let mut outs: FxHashMap<PathBuf, PathBuf> = FxHashMap::default();
-        for out in node.outs() {
+        for out in &node.outs {
             paths.insert(dst.join(&out).parent().unwrap().to_path_buf(), ());
             outs.insert(hash_path.join(&out), dst.join(&out).to_path_buf());
         }

@@ -5,10 +5,14 @@ use std::fs::File;
 use std::hash::{Hash, Hasher};
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
+use thiserror::*;
 
 /// An ExecutableTarget is a self-contained description of how to build a target in a workspace.
 ///
+#[derive(Debug, Clone)]
 pub struct ExecutableTarget {
+    pub label: Label,
+
     /// A vector of actions to be taken _in order_ to produce the target's outputs
     pub actions: Vec<Action>,
 
@@ -16,35 +20,55 @@ pub struct ExecutableTarget {
     pub deps: FxHashSet<Dependency>,
 
     pub hash: String,
+
     pub outs: FxHashSet<PathBuf>,
+
     pub run_script: Option<RunScript>,
+
     pub srcs: FxHashSet<PathBuf>,
-    pub target: Target,
+
     pub transitive_deps: FxHashSet<Dependency>,
+
+    pub rule: Rule,
 }
 
+#[derive(Error, Debug)]
 pub enum ExecutableTargetError {
+    #[error("The following outputs conflict with dependency outputs: {outputs:?}")]
     ConflictingOutputs { outputs: Vec<PathBuf> },
 }
 
 impl ExecutableTarget {
-    pub fn new(
+    pub async fn new(
         env: &ExecutionEnvironment,
+        rule: &Rule,
         target: &Target,
-        exec_res: ExecutionResult,
+        deps: &[Dependency],
+        transitive_deps: &[Dependency],
+        exec_result: ExecutionResult,
     ) -> Result<Self, ExecutableTargetError> {
-        let mut target = todo!();
+        let mut this = Self {
+            actions: exec_result.actions,
+            deps: deps.iter().cloned().collect(),
+            hash: "0".to_string(),
+            label: target.label.clone(),
+            outs: exec_result.outs,
+            rule: rule.clone(),
+            run_script: exec_result.run_script,
+            srcs: exec_result.srcs,
+            transitive_deps: transitive_deps.iter().cloned().collect(),
+        };
 
-        target.ensure_outputs_are_safe()?;
-        target.recompute_hash(env);
+        this.ensure_outputs_are_safe()?;
+        this.recompute_hash(env).await;
 
-        Ok(target)
+        Ok(this)
     }
 
-    fn recompute_hash(&mut self, env: &ExecutionEnvironment) {
+    async fn recompute_hash(&mut self, env: &ExecutionEnvironment) {
         let mut s = SeaHasher::new();
 
-        self.target.label().hash(&mut s);
+        self.label.hash(&mut s);
 
         let deps = self.deps.iter().map(|d| d.hash.as_str());
 
@@ -54,12 +78,11 @@ impl ExecutableTarget {
         srcs.dedup_by(|a, b| a == b);
         srcs.sort();
 
-        let mut seeds: Vec<&str> = {
-            deps.chain(self.outs.iter().map(|o| o.to_str().unwrap()))
-                .chain(actions.iter().map(|a| a.as_str()))
-                .chain(srcs.iter().map(|s| s.to_str().unwrap()))
-                .collect()
-        };
+        let mut seeds: Vec<&str> = deps
+            .chain(self.outs.iter().map(|o| o.to_str().unwrap()))
+            .chain(actions.iter().map(|a| a.as_str()))
+            .chain(srcs.iter().map(|s| s.to_str().unwrap()))
+            .collect();
 
         seeds.dedup_by(|a, b| a == b);
         seeds.sort_unstable();
@@ -80,7 +103,7 @@ impl ExecutableTarget {
             }
         }
 
-        if !self.target.is_portable() {
+        if !self.is_portable() {
             env.hash(&mut s);
         }
 
@@ -104,6 +127,15 @@ impl ExecutableTarget {
             Ok(())
         }
     }
+
+    pub fn is_portable(&self) -> bool {
+        self.rule.portability == Portability::Portable
+    }
+
+    pub fn is_pinned(&self) -> bool {
+        self.rule.pinned == Pinned::Pinned
+    }
 }
 
+#[cfg(test)]
 mod tests {}

@@ -1,4 +1,4 @@
-use super::{ComputedTarget, Dependency, Label, Target};
+use super::{Dependency, ExecutableTarget, Label, Target};
 use anyhow::{anyhow, Context};
 use daggy::{Dag, NodeIndex};
 use fxhash::*;
@@ -30,7 +30,7 @@ use tracing::debug;
 #[derive(Debug, Default)]
 pub struct DepGraph {
     /// The build graph from all of the Targets, linked by their Labels
-    pub _inner_graph: StableDiGraph<ComputedTarget, ()>,
+    pub _inner_graph: StableDiGraph<ExecutableTarget, ()>,
 
     /// A lookup map used to find a node in the graph by its label alone
     nodes: FxHashMap<Label, NodeIndex>,
@@ -43,13 +43,13 @@ impl DepGraph {
 
     #[tracing::instrument(name = "DepGraph::from_targets", skip(targets))]
     pub fn from_targets(targets: &[Target]) -> Result<DepGraph, anyhow::Error> {
-        let mut dag: Dag<ComputedTarget, (), u32> = Dag::new();
+        let mut dag: Dag<ExecutableTarget, (), u32> = Dag::new();
         let mut nodes: FxHashMap<Label, NodeIndex> = FxHashMap::default();
 
         debug!("Building table of labels to node indices...");
         for target in targets {
-            let label = target.label().clone();
-            let node = dag.add_node(ComputedTarget::from_target(target.clone()));
+            let label = target.label.clone();
+            let node = dag.add_node(ExecutableTarget::from_target(target.clone()));
             nodes.insert(label, node);
         }
         debug!("Added {} nodes to table.", nodes.len());
@@ -58,7 +58,7 @@ impl DepGraph {
         debug!("Building dependency adjacency matrix...");
         for node_idx in nodes.values() {
             let node = dag.node_weight(*node_idx).unwrap();
-            for label in node.target.deps().iter().cloned() {
+            for label in node.deps.iter().cloned() {
                 let dep = nodes.get(&label);
                 if let Some(dep) = dep {
                     let edge = (*dep, *node_idx);
@@ -67,7 +67,7 @@ impl DepGraph {
                     return Err(anyhow!(format!(
                         "Could not resolve dependency {:?} for target {:?}",
                         &label.to_string(),
-                        node.label().to_string()
+                        node.label.to_string()
                     )));
                 }
             }
@@ -85,14 +85,14 @@ impl DepGraph {
                     for dst_idx in nodes.values() {
                         let dst_node = dag.node_weight(*dst_idx).unwrap();
 
-                        for label in dst_node.target.deps().iter().clone() {
-                            if label == src_node.label() {
-                                for src_label in src_node.target.deps().iter().clone() {
-                                    if src_label == dst_node.label() {
+                        for label in dst_node.deps.iter().clone() {
+                            if label == src_node.label {
+                                for src_label in src_node.deps.iter().clone() {
+                                    if src_label == dst_node.label {
                                         cycles.push(format!(
                                             "{} <-> {}",
-                                            src_node.label().to_string(),
-                                            dst_node.label().to_string()
+                                            src_node.label.to_string(),
+                                            dst_node.label.to_string()
                                         ));
                                     }
                                 }
@@ -110,12 +110,12 @@ impl DepGraph {
             &edges.len()
         );
 
-        let mut _inner_graph: StableDiGraph<ComputedTarget, ()> = dag.into_graph().into();
+        let mut _inner_graph: StableDiGraph<ExecutableTarget, ()> = dag.into_graph().into();
         let mut nodes: FxHashMap<Label, NodeIndex> = FxHashMap::default();
 
         let mut walker = Topo::new(&_inner_graph);
         while let Some(idx) = walker.next(&_inner_graph) {
-            let label = _inner_graph[idx].target.label().clone();
+            let label = _inner_graph[idx].label.clone();
             nodes.insert(label, idx);
         }
 
@@ -126,14 +126,14 @@ impl DepGraph {
     }
 
     #[tracing::instrument(name = "DepGraph::scope", skip(self))]
-    pub fn scope(&mut self, target: &Label) -> Result<&mut DepGraph, anyhow::Error> {
-        if target.is_all() {
+    pub fn scope(&mut self, label: &Label) -> Result<&mut DepGraph, anyhow::Error> {
+        if label.is_all() {
             Ok(self)
         } else {
             let node_index = self
                 .nodes
-                .get(&target)
-                .context(format!("Could not find node: {:?}", &target))?;
+                .get(&label)
+                .context(format!("Could not find node: {:?}", &label))?;
             let nodes_to_keep = DepGraph::subgraph(&mut self._inner_graph, *node_index);
             self._inner_graph
                 .retain_nodes(|_g, node| nodes_to_keep.contains_key(&node));
@@ -147,15 +147,15 @@ impl DepGraph {
     }
 
     fn subgraph(
-        mut graph: &mut StableDiGraph<ComputedTarget, ()>,
+        mut graph: &mut StableDiGraph<ExecutableTarget, ()>,
         node: NodeIndex,
     ) -> FxHashMap<NodeIndex, Label> {
         let mut nodes = FxHashMap::default();
-        nodes.insert(node, graph[node].target.label().clone());
+        nodes.insert(node, graph[node].label.clone());
 
         let mut walker = graph.neighbors_directed(node, Direction::Incoming).detach();
         while let Some(neighbor) = walker.next_node(&graph) {
-            nodes.insert(neighbor, graph[neighbor].target.label().clone());
+            nodes.insert(neighbor, graph[neighbor].label.clone());
             nodes.extend(DepGraph::subgraph(&mut graph, neighbor));
         }
 
@@ -169,27 +169,27 @@ impl DepGraph {
                 &self._inner_graph,
                 &[dot::Config::EdgeNoLabel, dot::Config::NodeNoLabel],
                 &|_graph, _edge| "".to_string(),
-                &|_graph, (_idx, target)| format!("label = \"{}\"", target.label().to_string())
+                &|_graph, (_idx, target)| format!("label = \"{}\"", target.label.to_string())
             )
         )
     }
 
-    pub fn find_nodes(&self, labels: &[Label]) -> Vec<ComputedTarget> {
+    pub fn find_nodes(&self, labels: &[Label]) -> Vec<ExecutableTarget> {
         labels.iter().flat_map(|l| self.find_node(l)).collect()
     }
 
-    pub fn find_node(&self, label: &Label) -> Option<ComputedTarget> {
+    pub fn find_node(&self, label: &Label) -> Option<ExecutableTarget> {
         let node_index = *self.nodes.get(label)?;
         Some(self._inner_graph[node_index].clone())
     }
 
-    pub fn put(&mut self, node_index: NodeIndex, target: ComputedTarget) -> ComputedTarget {
+    pub fn put(&mut self, node_index: NodeIndex, target: ExecutableTarget) -> ExecutableTarget {
         self._inner_graph[node_index] = target.clone();
         target
     }
 
-    pub fn get(&self, node_index: NodeIndex) -> ComputedTarget {
-        let labels = self._inner_graph[node_index].target.deps();
+    pub fn get(&self, node_index: NodeIndex) -> ExecutableTarget {
+        let labels = self._inner_graph[node_index].deps;
 
         let deps: FxHashSet<Dependency> = self
             .find_nodes(&labels)
@@ -199,13 +199,13 @@ impl DepGraph {
 
         let target = self._inner_graph[node_index].clone();
 
-        ComputedTarget {
+        ExecutableTarget {
             deps: Some(deps),
             ..target
         }
     }
 
-    pub fn targets(&mut self) -> Vec<ComputedTarget> {
+    pub fn targets(&mut self) -> Vec<ExecutableTarget> {
         let mut walker = Topo::new(&self._inner_graph);
 
         let mut nodes = vec![];
@@ -221,7 +221,7 @@ impl DepGraph {
 
         let mut nodes: Vec<String> = vec![];
         while let Some(idx) = walker.next(&self._inner_graph) {
-            nodes.push(self._inner_graph[idx].label().to_string());
+            nodes.push(self._inner_graph[idx].label.to_string());
         }
 
         nodes
@@ -249,7 +249,7 @@ mod tests {
         }
         fn execute(
             &self,
-            _ct: &ComputedTarget,
+            _ct: &ExecutableTarget,
             _tm: &ToolchainManager,
         ) -> Result<Vec<Action>, anyhow::Error> {
             Ok(vec![])
@@ -485,7 +485,7 @@ Caused by:
         assert_eq!(1, nodes.len());
         assert_eq!(
             r#"[
-    ComputedTarget {
+    ExecutableTarget {
         target: test_rule(name = ":c"),
         hash: None,
         deps: None,
@@ -508,7 +508,7 @@ Caused by:
         let target = depgraph
             .seal_target_by_label(&Label::new(":a"), &ToolchainManager::new())
             .unwrap();
-        assert_eq!(r#"[]"#, format!("{:#?}", target.deps()));
+        assert_eq!(r#"[]"#, format!("{:#?}", target.deps));
     }
 
     #[test]
@@ -519,7 +519,7 @@ Caused by:
 
         // Node without dependencies just returns an empty vector
         let target = depgraph.find_node(&Label::new(":c")).unwrap();
-        assert_eq!(r#"[]"#, format!("{:#?}", target.deps()));
+        assert_eq!(r#"[]"#, format!("{:#?}", target.deps));
     }
 
     #[test]

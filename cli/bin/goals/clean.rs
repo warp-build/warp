@@ -6,20 +6,20 @@ use warp_core::*;
 #[structopt(
     name = "clean",
     setting = structopt::clap::AppSettings::ColoredHelp,
-    about = "cleans a target"
+    about = "cleans a label"
 )]
 pub struct CleanGoal {
-    #[structopt(help = r"The target to evict from the cache.
+    #[structopt(help = r"The label to evict from the cache.
 
 
-NOTE that after cleaning it, we may need to recompile all the dependants of this target.
+NOTE that after cleaning it, we may need to recompile all the dependants of this label.
 
 A path to a directory with a warp file, followed by a colon
 and the name of the label to be cleaned.
 
 Example: //my/library:shell
 ")]
-    target: String,
+    label: String,
 }
 
 impl CleanGoal {
@@ -29,32 +29,32 @@ impl CleanGoal {
         _workspace: Workspace,
         _event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        let _ = self.target;
+        let _ = self.label;
         /*
 
-        let target: Label = self.target.into();
+        let label: Label = self.label.into();
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
-        debug!("Target: {}", &target.to_string());
+        debug!("label: {}", &label.to_string());
 
         let mut cache = LocalCache::new(&workspace);
         let mut warp = LocalWorker::from_workspace(workspace.clone());
 
-        let name = if target.is_all() {
+        let name = if label.is_all() {
             "workspace".to_string()
         } else {
-            target.to_string()
+            label.to_string()
         };
 
         print!("🔨 Preparing {}...", &name);
         std::io::stdout().flush().unwrap();
 
-        warp.prepare(&target).await?;
+        warp.prepare(&label).await?;
 
         let nodes = warp.compute_nodes().await?;
 
-        if target.is_all() {
+        if label.is_all() {
             for node in &nodes {
-                if node.target.is_local() {
+                if node.label.is_local() {
                     let sandbox = LocalSandbox::for_node(&workspace, node.clone());
                     sandbox.clear_sandbox().await?;
                     cache.evict(&node).await?;
@@ -62,7 +62,7 @@ impl CleanGoal {
             }
         } else {
             for node in &nodes {
-                if *node.target.label() == target {
+                if *node.label.label() == label {
                     let sandbox = LocalSandbox::for_node(&workspace, node.clone());
                     sandbox.clear_sandbox().await?;
                     cache.evict(&node).await?;

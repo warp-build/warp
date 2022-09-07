@@ -23,12 +23,17 @@ pub enum QueueError {
 
     #[error(transparent)]
     Unknown(anyhow::Error),
+
+    #[error(transparent)]
+    DependencyCycle(anyhow::Error),
 }
 
 /// A thread-safe queue for compilation targets, to be consumed by workers.
 ///
 #[derive(Debug)]
 pub struct BuildQueue {
+    workspace: Workspace,
+
     /// Targets currently being built.
     busy_targets: Arc<DashMap<Label, ()>>,
 
@@ -57,6 +62,7 @@ impl BuildQueue {
         target: Label,
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
+        workspace: Workspace,
     ) -> BuildQueue {
         BuildQueue {
             inner_queue: Arc::new(crossbeam::deque::Injector::new()),
@@ -66,6 +72,7 @@ impl BuildQueue {
             target_count: AtomicUsize::new(0),
             event_channel,
             build_results,
+            workspace,
         }
     }
 
@@ -110,42 +117,44 @@ impl BuildQueue {
     }
 
     #[tracing::instrument(name = "BuildQueue::queue", skip(self))]
-    pub fn queue(&self, target: Label) -> Result<(), QueueError> {
-        if target.is_all() {
+    pub fn queue(&self, label: Label) -> Result<(), QueueError> {
+        if label.is_all() {
             return Err(QueueError::CannotQueueTargetAll);
         }
-        if self.build_results.is_target_built(&target)
-            || self.busy_targets.contains_key(&target)
-            || self.in_queue_targets.contains_key(&target)
+        if self.build_results.is_target_built(&label)
+            || self.busy_targets.contains_key(&label)
+            || self.in_queue_targets.contains_key(&label)
         {
             return Ok(());
         }
-        self.build_results.add_expected_target(target.clone());
-        self.in_queue_targets.insert(target.clone(), ());
-        self.inner_queue.push(target);
+        self.build_results.add_expected_target(label.clone());
+        self.in_queue_targets.insert(label.clone(), ());
+        self.inner_queue.push(label);
         Ok(())
     }
 
-    pub async fn queue_entire_workspace(
-        &self,
-        max_concurrency: usize,
-        workspace: &Workspace,
-        rule_exec_env: &RuleExecEnv,
-    ) -> Result<(), QueueError> {
+    pub fn queue_deps(&self, label: &Label, deps: &[Dependency]) -> Result<(), QueueError> {
+        self.build_results
+            .add_dependencies(label.clone(), &deps.iter().map(|d| d.label).to_owned())
+            .map_err(QueueError::DependencyCycle)?;
+        for dep in deps {
+            self.queue(dep.label)?;
+        }
+        Ok(())
+    }
+
+    pub async fn queue_entire_workspace(&self, max_concurrency: usize) -> Result<(), QueueError> {
         debug!("Queueing all targets...");
         self.event_channel.send(Event::QueueingWorkspace);
-        let mut buildfiles = workspace
+        let mut buildfiles = self
+            .workspace
             .scanner()
             .find_build_files(max_concurrency)
             .await
             .map_err(QueueError::WorkspaceScannerError)?;
         while let Some(path) = buildfiles.next().await {
             let path = path.map_err(QueueError::FileScannerError)?;
-            let buildfile = Buildfile::from_file(
-                &workspace.paths.workspace_root,
-                &path,
-                rule_exec_env.rule_map.clone(),
-            );
+            let buildfile = Buildfile::from_file(&path).await;
 
             match buildfile {
                 Err(err) => {
@@ -154,7 +163,7 @@ impl BuildQueue {
                 }
                 Ok(buildfile) => {
                     for target in buildfile.targets {
-                        self.queue(target.label().clone())?;
+                        self.queue(target.label.clone())?;
                     }
                 }
             }
@@ -167,6 +176,7 @@ impl BuildQueue {
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -301,3 +311,4 @@ mod tests {
         assert!(q.next().is_some());
     }
 }
+*/

@@ -22,7 +22,7 @@ Use //... to build the entire project.
 ",
         default_value = "//..."
     )]
-    target: String,
+    label: String,
 
     #[structopt(
         help = r"The amount of workers to use to execute any necessary build tasks.",
@@ -35,7 +35,7 @@ Use //... to build the entire project.
 impl BuildGoal {
     pub fn all() -> BuildGoal {
         BuildGoal {
-            target: "//...".to_string(),
+            label: "//...".to_string(),
             max_workers: None,
         }
     }
@@ -46,10 +46,10 @@ impl BuildGoal {
         workspace: Workspace,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        let target: Label = (&workspace.aliases)
-            .get(&self.target)
+        let label: Label = (&workspace.aliases)
+            .get(&self.label)
             .cloned()
-            .unwrap_or_else(|| self.target.into());
+            .unwrap_or_else(|| self.label.into());
 
         let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
 
@@ -57,8 +57,8 @@ impl BuildGoal {
 
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
-            warp.build(target.clone(), event_channel.clone()),
-            status_reporter.run(target),
+            warp.build(label.clone(), event_channel.clone()),
+            status_reporter.run(label),
         )
         .await;
 

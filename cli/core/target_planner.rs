@@ -1,27 +1,44 @@
 use super::*;
 use fxhash::FxHashSet;
 use std::sync::Arc;
+use thiserror::*;
 
 pub struct TargetPlanner {
     build_results: Arc<BuildResults>,
-    rule_loader: Arc<RuleLoader>,
-    rule_executor: Arc<RuleExecutor>,
+    rule_loader: RuleLoader,
+    rule_executor: RuleExecutor,
 }
 
-pub enum TargetPlannerError {}
+#[derive(Error, Debug)]
+pub enum TargetPlannerError {
+    #[error("When planning {label:?}, the following dependencies were missing: {deps:?}")]
+    MissingDependencies { deps: Vec<Dependency>, label: Label },
+
+    #[error(transparent)]
+    ExecutableTargetError(ExecutableTargetError),
+}
 
 impl TargetPlanner {
+    pub fn new(build_results: Arc<BuildResults>) -> Self {
+        Self {
+            build_results,
+            rule_loader,
+            rule_executor: RuleExecutor::new(),
+        }
+    }
+
     pub async fn plan(&self, target: &Target) -> Result<ExecutableTarget, TargetPlannerError> {
         let transitive_deps = self.find_transitive_deps(&target).await?;
 
         let rule = self.rule_loader.load(&target.rule).await?;
 
-        let exec_result = self.rule_executor.execute(env, rule, target).await?;
+        let exec_result = self
+            .rule_executor
+            .execute(&env, &rule, &target, &transitive_deps)
+            .await?;
 
-        Ok(ExecutableTarget {
-            actions: exec_result.action,
-            // ...
-        })
+        ExecutableTarget::new(&env, &rule, &target, &transitive_deps, &exec_result)
+            .map_err(TargetPlannerError::ExecutableTargetError)
     }
 
     pub async fn find_transitive_deps(
@@ -33,9 +50,9 @@ impl TargetPlanner {
 
         if let Some(this_deps) = &target.deps {
             for dep in this_deps {
-                if let Some(mut node) = find_node(dep.label.clone()) {
+                if let Some(mut node) = self.build_results.get_computed_target(dep.label.clone()) {
                     deps.insert(dep.clone());
-                    for dep in node.transitive_deps(find_node)? {
+                    for dep in self.find_transitive_deps(node)? {
                         deps.insert(dep);
                     }
                 } else {
@@ -45,17 +62,15 @@ impl TargetPlanner {
         }
 
         if !missing_deps.is_empty() {
-            let mut missing_deps = missing_deps.iter().cloned().collect::<Vec<Label>>();
-            missing_deps.sort();
-            Err(ComputedTargetError::MissingDependencies {
-                label: target.target.label().clone(),
+            // NOTE(@ostera): we want to build the things that are furthest away from our target
+            // first, so the dependencies of our dependencies.
+            let mut missing_deps = missing_deps.iter().rev().cloned().collect::<Vec<Label>>();
+            Err(TargetPlannerError::MissingDependencies {
+                label: target.label.clone(),
                 deps: missing_deps,
             })
         } else {
-            let transitive_deps = deps;
             let mut deps = transitive_deps.iter().cloned().collect::<Vec<Dependency>>();
-            deps.sort();
-            target.transitive_deps = Some(transitive_deps);
             Ok(deps.to_vec())
         }
     }

@@ -16,7 +16,7 @@ and the name of the label to be built.
 
 Example: //my/library:shell
 ")]
-    target: String,
+    label: String,
 }
 
 impl InfoGoal {
@@ -25,33 +25,33 @@ impl InfoGoal {
         _workspace: Workspace,
         _event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        let _ = self.target;
+        let _ = self.label;
         /*
-            let target: Label = self.target.into();
+            let label: Label = self.label.into();
             debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
-            debug!("Target: {}", &target.to_string());
+            debug!("Target: {}", &label.to_string());
 
             let mut warp = LocalWorker::from_workspace(workspace);
 
-            let name = if target.is_all() {
+            let name = if label.is_all() {
                 "workspace".to_string()
             } else {
-                target.to_string()
+                label.to_string()
             };
 
             print!("🔨 Preparing {}...", &name);
             std::io::stdout().flush().unwrap();
 
-            warp.prepare(&target).await?;
+            warp.prepare(&label).await?;
 
             for node in &warp.compute_nodes().await? {
-                if *node.target.label() == target {
+                if *node.label == label {
                     println!("");
                     println!("Target info:");
                     println!(" - Label: {}", name);
-                    println!(" - Rule: {}", node.target.rule().name());
-                    println!(" - Kind: {:?}", node.target.kind());
-                    println!(" - Hash: {}", node.hash());
+                    println!(" - Rule: {}", node.rule.name());
+                    println!(" - Kind: {:?}", node.kind);
+                    println!(" - Hash: {}", node.hash);
                     println!(" - Sources: ");
                     for src in node.srcs() {
                         println!("    - {}", src.to_str().unwrap());

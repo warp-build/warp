@@ -26,31 +26,29 @@ pub enum Portability {
 
 /// A Rule defines what actions to take to perform some work.
 ///
-/// Some examples of rules are `ErlangLibrary` or `ElixirTest`.
-///
 #[derive(Debug, Clone)]
 pub struct Rule {
     /// The name of this rule.
     ///
     /// Rule names are unique in a workspace.
     ///
-    name: RuleName,
+    pub name: RuleName,
 
     /// A pretty name to print while running this rule.
-    mnemonic: String,
+    pub mnemonic: String,
 
     /// The toolchains this tool depends on.
-    toolchains: Vec<Label>,
+    pub toolchains: Vec<Label>,
 
     /// The rule's configuration map.
     ///
     /// These are the things that a user can pass in when configuring their target,
     /// and it will always support at least `name: String`.
     ///
-    cfg: ConfigSpec,
+    pub config: ConfigSpec,
 
     /// A map of default configuration values.
-    defaults: RuleConfig,
+    pub defaults: RuleConfig,
 
     /// Whether this rule is runnable or not
     pub runnable: Runnable,
@@ -72,7 +70,7 @@ impl Rule {
         name: RuleName,
         mnemonic: String,
         toolchains: Vec<Label>,
-        cfg: ConfigSpec,
+        config: ConfigSpec,
         defaults: RuleConfig,
         runnable: Runnable,
         pinned: Pinned,
@@ -83,33 +81,13 @@ impl Rule {
             name,
             mnemonic,
             toolchains,
-            cfg,
+            config,
             defaults,
             runnable,
             pinned,
             portability,
             sandbox_config,
         }
-    }
-
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn mnemonic(&self) -> &str {
-        &self.mnemonic
-    }
-
-    pub fn toolchains(&self) -> &[Label] {
-        &self.toolchains
-    }
-
-    pub fn config(&self) -> &ConfigSpec {
-        &self.cfg
-    }
-
-    pub fn defaults(&self) -> &RuleConfig {
-        &self.defaults
     }
 }
 
@@ -150,7 +128,7 @@ impl<'de> Deserialize<'de> for Rule {
 
             cfg.insert(k.to_string(), value_type);
         }
-        let config = ConfigSpec(cfg);
+        let config = ConfigSpec { field1: cfg };
 
         let mut default_cfg = HashMap::new();
         for (k, v) in rule_spec["defaults"]

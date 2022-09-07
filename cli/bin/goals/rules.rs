@@ -69,7 +69,7 @@ impl RulesGoal {
         )?;
 
         for computed_target in dep_graph.targets() {
-            for output in computed_target.outs() {
+            for output in computed_target.outs {
                 println!("{}", output.to_str().unwrap());
             }
         }
@@ -86,7 +86,7 @@ impl RulesGoal {
         )?;
 
         for computed_target in dep_graph.targets() {
-            for action in computed_target.actions() {
+            for action in computed_target.actions {
                 println!("{:?}", action);
             }
         }

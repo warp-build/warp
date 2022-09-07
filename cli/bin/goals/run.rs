@@ -23,7 +23,7 @@ Example: //my/library:shell
 NOTE: not all targets are runnable. Non-runnable targets will
 build their dependencies and exit.
 ")]
-    target: String,
+    label: String,
 
     #[structopt(
         help = r"The amount of workers to use to execute any necessary build tasks.",
@@ -42,15 +42,15 @@ impl RunGoal {
         workspace: Workspace,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        let target: Label = (&workspace.aliases)
-            .get(&self.target)
+        let label: Label = (&workspace.aliases)
+            .get(&self.label)
             .cloned()
-            .unwrap_or_else(|| self.target.into());
+            .unwrap_or_else(|| self.label.into());
 
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
-        debug!("Target: {}", &target.to_string());
+        debug!("Target: {}", &label.to_string());
 
-        if target.is_all() {
+        if label.is_all() {
             print!(
                 "You can't run everything. Please specify a target like this: warp build //my/app"
             );
@@ -64,8 +64,8 @@ impl RunGoal {
 
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
-            warp.build(target.clone(), event_channel.clone()),
-            status_reporter.run(target.clone()),
+            warp.build(label.clone(), event_channel.clone()),
+            status_reporter.run(label.clone()),
         )
         .await;
 
@@ -101,7 +101,7 @@ impl RunGoal {
                 trace!("Waiting on {:?}", &cmd);
                 proc.wait()
                     .map(|_| ())
-                    .context(format!("Error executing {}", &target.to_string()))?;
+                    .context(format!("Error executing {}", &label.to_string()))?;
 
                 trace!("Exited with status: {}", cmd.status()?);
                 Ok(())

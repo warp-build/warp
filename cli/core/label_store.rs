@@ -1,8 +1,11 @@
 use super::*;
 use std::path::PathBuf;
+use thiserror::*;
 
+#[derive(Debug)]
 pub struct LabelStore;
 
+#[derive(Error, Debug)]
 pub enum LabelStoreError {}
 
 impl LabelStore {

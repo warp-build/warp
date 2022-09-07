@@ -8,7 +8,7 @@ use tokio::fs;
 use tracing::*;
 
 mod error {
-    use crate::ComputedTargetError;
+    use crate::ExecutableTargetError;
     use crate::Label;
     use std::path::PathBuf;
     use thiserror::Error;
@@ -19,7 +19,7 @@ mod error {
         Unknown(anyhow::Error),
 
         #[error(transparent)]
-        MissingDependencies(ComputedTargetError),
+        MissingDependencies(ExecutableTargetError),
 
         #[error("Could not create directory {dst:?} at: {dst_parent:?}")]
         CouldNotCreateDir { dst: PathBuf, dst_parent: PathBuf },
@@ -72,7 +72,7 @@ pub struct SandboxConfig {
 ///
 /// This is a spot where we isolate build nodes to execute them.
 ///
-/// By the time we have created a Sandbox for a particular ComputedTarget, the node
+/// By the time we have created a Sandbox for a particular ExecutableTarget, the node
 /// is already _known_ to need building. This means that the node will already
 /// be hashed.
 ///
@@ -89,7 +89,7 @@ pub struct SandboxConfig {
 ///
 pub struct LocalSandbox {
     /// The node to be built.
-    node: ComputedTarget,
+    node: ExecutableTarget,
 
     /// The path to this sandbox on disk
     root: PathBuf,
@@ -116,11 +116,11 @@ pub enum ValidationStatus {
 }
 
 impl LocalSandbox {
-    #[tracing::instrument(name="LocalSandbox::for_node", skip(workspace, node), fields(warp.target = %node.target.label().to_string()))]
+    #[tracing::instrument(name="LocalSandbox::for_node", skip(workspace, node), fields(warp.target = %node.label.to_string()))]
     pub async fn for_node(
         workspace: &Workspace,
         cache: &Cache,
-        node: ComputedTarget,
+        node: ExecutableTarget,
     ) -> LocalSandbox {
         let workspace = workspace.clone();
         let root = cache.absolute_path_by_node(&node).await.unwrap();
@@ -135,7 +135,7 @@ impl LocalSandbox {
         }
     }
 
-    pub fn node(&self) -> &ComputedTarget {
+    pub fn node(&self) -> &ExecutableTarget {
         &self.node
     }
 
@@ -288,7 +288,7 @@ impl LocalSandbox {
     async fn copy_dependencies(
         &mut self,
         build_cache: &Cache,
-        find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
+        find_node: &dyn Fn(Label) -> Option<ExecutableTarget>,
     ) -> Result<(), error::SandboxError> {
         // copy all the direct dependency outputs
         for dep in self
@@ -323,7 +323,7 @@ impl LocalSandbox {
                 .map(|_| ())?;
         };
 
-        match self.node.target.rule().sandbox_config.file_mode {
+        match self.node.rule.sandbox_config.file_mode {
             SandboxFileMode::Link => {
                 #[cfg(target_os = "windows")]
                 let link_result = match std::os::windows::fs::symlink(&src, &dst) {
@@ -410,7 +410,7 @@ impl LocalSandbox {
     pub async fn run(
         &mut self,
         build_cache: &Cache,
-        find_node: &dyn Fn(Label) -> Option<ComputedTarget>,
+        find_node: &dyn Fn(Label) -> Option<ExecutableTarget>,
         event_channel: Arc<EventChannel>,
     ) -> Result<ValidationStatus, anyhow::Error> {
         debug!("Running sandbox at: {:?}", &self.root);
@@ -424,7 +424,7 @@ impl LocalSandbox {
         debug!("Executing build rule...");
         self.node
             .execute(
-                if self.node.target.is_pinned() {
+                if self.node.is_pinned() {
                     &self.workspace.paths.global_cache_root
                 } else {
                     &self.workspace.paths.local_cache_root
