@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::*;
 
 pub struct LabelResolver {
@@ -8,6 +10,7 @@ pub enum LabelResolverError {
     LabelStoreError(LabelStoreError),
     CouldNotResolveLabel(Label),
     TargetNotFound(PathBuf, Label),
+    BuildfileError(BuildfileError),
 }
 
 impl LabelResolver {
@@ -22,7 +25,7 @@ impl LabelResolver {
             Ok(label.path())
         }?;
 
-        let buildfile = Buildfile::from_file(&path)
+        let buildfile = Buildfile2::from_file(&path)
             .await
             .map_err(LabelResolverError::BuildfileError)?;
 

@@ -6,29 +6,20 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct Target {
     /// The name of this target.
-    label: Label,
+    pub label: Label,
 
     /// The dependencies of this target.
-    deps: Vec<Label>,
+    pub deps: Vec<Label>,
 
     /// The rule used to build this target.
-    rule: Rule,
+    pub rule_name: RuleName,
 
     /// The target's configuration. To be type-checked against the rule.
-    cfg: RuleConfig,
-
-    /// Whether this is a runnable or not
-    kind: TargetKind,
-}
-
-#[derive(Debug, Copy, PartialEq, Eq, Clone)]
-pub enum TargetKind {
-    Runnable,
-    Buildable,
+    pub cfg: RuleConfig,
 }
 
 impl Target {
-    pub fn new(label: Label, rule: &Rule, cfg: RuleConfig) -> Target {
+    pub fn new(label: Label, rule_name: &str, cfg: RuleConfig) -> Target {
         let mut deps: Vec<Label> = cfg
             .get_label_list("deps")
             .unwrap_or_default()
@@ -37,18 +28,11 @@ impl Target {
             .collect();
         deps.extend_from_slice(rule.toolchains());
 
-        let kind = if rule.runnable == Runnable::Runnable {
-            TargetKind::Runnable
-        } else {
-            TargetKind::Buildable
-        };
-
         Target {
             deps,
             cfg,
             label,
-            rule: rule.clone(),
-            kind,
+            rule_name: rule_name.to_string(),
         }
     }
 
@@ -58,26 +42,6 @@ impl Target {
 
     pub fn is_pinned(&self) -> bool {
         self.rule.pinned == Pinned::Pinned
-    }
-
-    pub fn kind(&self) -> &TargetKind {
-        &self.kind
-    }
-
-    pub fn config(&self) -> &RuleConfig {
-        &self.cfg
-    }
-
-    pub fn rule(&self) -> &Rule {
-        &self.rule
-    }
-
-    pub fn label(&self) -> &Label {
-        &self.label
-    }
-
-    pub fn deps(&self) -> &[Label] {
-        &self.deps
     }
 }
 

@@ -88,7 +88,7 @@ impl ExecutableTarget {
         self.hash = hash.to_string();
     }
 
-    fn ensure_outputs_are_safe(&mut self) -> Result<(), ComputedTargetError> {
+    fn ensure_outputs_are_safe(&mut self) -> Result<(), ExecutableTargetError> {
         let output_set: FxHashSet<PathBuf> = self.outs.iter().cloned().collect();
 
         let dep_output_set: FxHashSet<PathBuf> =
