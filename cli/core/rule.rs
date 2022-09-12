@@ -58,11 +58,6 @@ pub struct Rule {
 
     /// Whether targets of this rule are portability or architecture dependent.
     pub portability: Portability,
-
-    /// The specific configuration this rule requires when being sandboxed.
-    ///
-    /// For ex. some rules can't work with symlinks, so we are forced to _copy_ source files over.
-    pub sandbox_config: SandboxConfig,
 }
 
 impl Rule {
@@ -75,7 +70,6 @@ impl Rule {
         runnable: Runnable,
         pinned: Pinned,
         portability: Portability,
-        sandbox_config: SandboxConfig,
     ) -> Rule {
         Rule {
             name,
@@ -86,7 +80,6 @@ impl Rule {
             runnable,
             pinned,
             portability,
-            sandbox_config,
         }
     }
 }
@@ -128,7 +121,7 @@ impl<'de> Deserialize<'de> for Rule {
 
             cfg.insert(k.to_string(), value_type);
         }
-        let config = ConfigSpec { field1: cfg };
+        let config = ConfigSpec(cfg);
 
         let mut default_cfg = HashMap::new();
         for (k, v) in rule_spec["defaults"]
@@ -142,7 +135,7 @@ impl<'de> Deserialize<'de> for Rule {
             let typed_value = (v.clone(), t.clone()).into();
             default_cfg.insert(k.to_string(), typed_value);
         }
-        let defaults = RuleConfig::new(name.clone()).with_defaults(default_cfg);
+        let defaults = RuleConfig::new().with_defaults(default_cfg);
 
         let toolchains: Vec<Label> = (&rule_spec["toolchains"])
             .as_array()
@@ -177,6 +170,7 @@ impl<'de> Deserialize<'de> for Rule {
             Portability::ArchitectureDependent
         };
 
+        /*
         let sandbox_config = {
             let mut default = serde_json::Map::new();
             default.insert("mode".to_string(), "link".into());
@@ -191,6 +185,7 @@ impl<'de> Deserialize<'de> for Rule {
 
             SandboxConfig { file_mode }
         };
+        */
 
         let rule = Rule::new(
             name,
@@ -201,7 +196,6 @@ impl<'de> Deserialize<'de> for Rule {
             runnable,
             pinned,
             portability,
-            sandbox_config,
         );
 
         Ok(rule)

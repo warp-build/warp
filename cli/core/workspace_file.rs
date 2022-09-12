@@ -162,12 +162,6 @@ impl TryFrom<&Workspace> for WorkspaceFile {
                     .map(|(k, v)| (k.clone(), v.to_string()))
                     .collect(),
             )
-            .toolchains(
-                w.toolchain_configs
-                    .iter()
-                    .map(|t| (t.name.clone(), t.try_into().unwrap()))
-                    .collect(),
-            )
             .build()
     }
 }

@@ -3,12 +3,12 @@ use dashmap::DashMap;
 use deno_core::anyhow::{bail, Error};
 use deno_core::futures::FutureExt;
 use deno_core::resolve_import;
+use deno_core::Extension;
 use deno_core::ModuleLoader;
 use deno_core::ModuleSource;
 use deno_core::ModuleSourceFuture;
 use deno_core::ModuleSpecifier;
 use deno_core::ModuleType;
-use deno_core::*;
 use fxhash::FxHashSet;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -116,7 +116,7 @@ pub enum RuleExecutorError {
     MissingDeclaredOutputs { label: Label },
 
     #[error(transparent)]
-    DenoExecutionError(AnyError),
+    DenoExecutionError(anyhow::Error),
 
     #[error("Execution Error for {}\nTarget: {target:#?}\n\nError: {err:?}", label.to_string())]
     ExecutionError {
@@ -298,7 +298,7 @@ impl RuleExecutor {
     }
 
     pub async fn execute(
-        &self,
+        &mut self,
         env: &ExecutionEnvironment,
         rule: &Rule,
         target: &Target,
@@ -368,6 +368,10 @@ impl RuleExecutor {
             srcs,
             run_script,
         })
+    }
+
+    pub async fn load_rule(&self, _rule_file: PathBuf) -> Result<Rule, RuleExecutorError> {
+        todo!()
     }
 }
 

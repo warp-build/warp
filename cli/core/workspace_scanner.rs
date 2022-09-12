@@ -38,7 +38,7 @@ impl WorkspaceScanner {
         );
         let paths = FileScanner::new()
             .max_concurrency(max_concurrency)
-            .matching_path(WARPFILE)
+            .matching_path(BUILDFILE)
             .map_err(WorkspaceScannerError::FileScannerError)?
             .starting_from(&self.paths.workspace_root)
             .await

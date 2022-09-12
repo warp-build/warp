@@ -189,7 +189,7 @@ impl Label {
         }
     }
 
-    pub fn as_cache_prefix(&self) -> String {
+    pub fn as_store_prefix(&self) -> String {
         match self {
             Label::Remote {
                 host,

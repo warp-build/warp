@@ -1,9 +1,18 @@
 use super::*;
 use std::fmt;
 use std::fmt::{Display, Formatter};
+use thiserror::*;
+
+#[derive(Error, Debug)]
+pub enum TargetError {
+    #[error("Expected TOML used to read this target to be a table, instead we found: {toml:?}")]
+    TargetTomlReprMustBeATable { toml: toml::Value },
+}
 
 /// A Target in the Warp dependency graph is a labeled instantiation of a rule plus a configuration
 /// object.
+///
+/// It represents something that we want to have built or executed.
 ///
 #[derive(Debug, Clone)]
 pub struct Target {
@@ -22,7 +31,7 @@ pub struct Target {
 
 impl Target {
     pub fn new(label: Label, rule_name: &str, config: RuleConfig) -> Target {
-        let mut deps: Vec<Label> = config
+        let deps: Vec<Label> = config
             .get_label_list("deps")
             .unwrap_or_default()
             .iter()

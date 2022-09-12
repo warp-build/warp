@@ -65,6 +65,17 @@ impl ExecutableTarget {
         Ok(this)
     }
 
+    pub fn to_dependency(&self) -> Dependency {
+        Dependency {
+            is_pinned: false,
+            rule_name: self.rule.name.clone(),
+            label: self.label.clone(),
+            hash: self.hash.clone(),
+            outs: self.outs.iter().cloned().collect(),
+            srcs: self.srcs.iter().cloned().collect(),
+        }
+    }
+
     async fn recompute_hash(&mut self, env: &ExecutionEnvironment) {
         let mut s = SeaHasher::new();
 

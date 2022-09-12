@@ -64,11 +64,11 @@ impl ConfigExpander {
         value: CfgValue,
         value_type: &CfgValueType,
     ) -> Result<CfgValue, ConfigExpanderError> {
-        match (value_type, value) {
+        match (value_type, &value) {
             (CfgValueType::File, CfgValue::File(_)) => Ok(value),
             (CfgValueType::File, CfgValue::String(path)) => self.expand_glob(&path),
             (CfgValueType::String, CfgValue::String(_)) => Ok(value),
-            (CfgValueType::List(t), CfgValue::List(parts)) => self.expand_list(parts, &t),
+            (CfgValueType::List(t), CfgValue::List(parts)) => self.expand_list(parts.to_vec(), &t),
             _ => Err(ConfigExpanderError::InvalidTypeForField {
                 field: value,
                 expected_type: value_type.clone(),

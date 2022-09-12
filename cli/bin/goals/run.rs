@@ -72,11 +72,11 @@ impl RunGoal {
         match result? {
             None => Err(anyhow!("There was no target to run.")),
 
-            Some(ComputedTarget {
+            Some(ExecutableTarget {
                 run_script: None, ..
-            }) => Err(anyhow!("Target {} has no outputs!", &target.to_string())),
+            }) => Err(anyhow!("Target {} has no outputs!", &label.to_string())),
 
-            Some(ComputedTarget {
+            Some(ExecutableTarget {
                 run_script: Some(RunScript { run_script, env }),
                 ..
             }) => {

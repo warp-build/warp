@@ -45,21 +45,24 @@ impl Store {
         self._store_key(&dep.hash, &dep.label)
     }
 
-    #[tracing::instrument(name = "Store::save", skip(sandbox))]
-    pub async fn save(&mut self, sandbox: &LocalSandbox) -> Result<(), anyhow::Error> {
-        let node = sandbox.node();
-        let store_key = self.store_key(node);
+    #[tracing::instrument(name = "Store::save")]
+    pub async fn save(&mut self, node: &ExecutableTarget) -> Result<(), anyhow::Error> {
+        let store_key = self.store_key(&node);
 
         // NOTE(@ostera): see RFC0005
+        /*
         let artifacts = if node.is_pinned() {
             sandbox.all_outputs().await
         } else {
             sandbox.outputs()
         };
+        */
+        let local_path = self.local_store.absolute_path_for_key(&store_key).await?;
+        let artifacts = node.outs.iter().cloned().collect::<Vec<PathBuf>>();
 
         let _ = self
             .remote_store
-            .save(&store_key, &artifacts, &sandbox.root())
+            .save(&store_key, &artifacts, &local_path)
             .await;
 
         Ok(())

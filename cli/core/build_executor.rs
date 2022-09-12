@@ -1,8 +1,4 @@
-/// WARNING: He-man, stateful, multi-threaded programming happening below.
-///
 use super::*;
-use dashmap::DashMap;
-use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
@@ -10,10 +6,7 @@ use tracing::*;
 #[derive(Error, Debug)]
 pub enum BuildExecutorError {
     #[error(transparent)]
-    WorkerError(build_worker::WorkerError),
-
-    #[error(transparent)]
-    Unknown(anyhow::Error),
+    WorkerError(build_worker::BuildWorkerError),
 }
 
 /// A BuildExecutor orchestrates a local build starting from the target and
@@ -47,32 +40,30 @@ impl BuildExecutor {
         &self,
         target: Label,
         event_channel: Arc<EventChannel>,
-    ) -> Result<Option<ComputedTarget>, anyhow::Error> {
+    ) -> Result<Option<ExecutableTarget>, anyhow::Error> {
+        let worker_limit = self.worker_limit;
+        debug!("Starting build executor with {} workers...", &worker_limit);
+
         let build_queue = Arc::new(BuildQueue::new(
             target.clone(),
             self.results.clone(),
             event_channel.clone(),
+            self.workspace.clone(),
         ));
-        let toolchain_provides_map: Arc<DashMap<Label, HashMap<String, String>>> =
-            Arc::new(DashMap::new());
-
-        let worker_limit = self.worker_limit;
-        debug!("Starting build executor with {} workers...", &worker_limit);
-
-        let main_worker_span = trace_span!("BuildExecutor::main_worker").entered();
+        let store = Arc::new(Store::new(&self.workspace));
+        let label_resolver = Arc::new(LabelResolver::new());
+        let target_executor = Arc::new(TargetExecutor::new(store.clone()));
 
         let mut worker = BuildWorker::new(
             Role::MainWorker,
-            &self.workspace,
             target.clone(),
             self.coordinator.clone(),
-            self.results.clone(),
-            build_queue.clone(),
             event_channel.clone(),
-            toolchain_provides_map.clone(),
+            build_queue.clone(),
+            self.results.clone(),
+            label_resolver.clone(),
+            target_executor.clone(),
         );
-
-        let main_worker_span = main_worker_span.exit();
 
         let mut worker_tasks = vec![];
         if worker_limit > 0 {
@@ -83,25 +74,21 @@ impl BuildExecutor {
                 let build_queue = build_queue.clone();
                 let build_results = self.results.clone();
                 let event_channel = event_channel.clone();
+                let label_resolver = label_resolver.clone();
+                let target_executor = target_executor.clone();
                 let target = target.clone();
-                let toolchain_provides_map = toolchain_provides_map.clone();
-                let workspace = self.workspace.clone();
+
                 let thread = worker_pool.spawn_pinned(move || async move {
                     let mut worker = BuildWorker::new(
                         Role::HelperWorker(worker_id),
-                        &workspace,
                         target,
                         build_coordinator,
-                        build_results,
-                        build_queue,
                         event_channel,
-                        toolchain_provides_map,
+                        build_queue,
+                        build_results,
+                        label_resolver,
+                        target_executor,
                     );
-
-                    worker
-                        .load_rules()
-                        .await
-                        .map_err(BuildExecutorError::WorkerError)?;
 
                     worker
                         .setup_and_run(worker_limit)
@@ -113,7 +100,7 @@ impl BuildExecutor {
             }
         }
 
-        let _span = main_worker_span.enter();
+        let _span = trace_span!("BuildExecutor::main_worker").entered();
         futures::future::join(futures::future::join_all(worker_tasks), async {
             worker
                 .setup_and_run(worker_limit)

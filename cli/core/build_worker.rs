@@ -16,9 +16,6 @@ pub enum BuildWorkerError {
     QueueError(build_queue::QueueError),
 
     #[error(transparent)]
-    Unknown(anyhow::Error),
-
-    #[error(transparent)]
     LabelResolverError(LabelResolverError),
 }
 
@@ -34,6 +31,8 @@ pub struct BuildWorker {
     pub label_resolver: Arc<LabelResolver>,
     pub target_executor: Arc<TargetExecutor>,
 
+    pub env: ExecutionEnvironment,
+
     pub target_planner: TargetPlanner,
 }
 
@@ -48,16 +47,19 @@ impl BuildWorker {
         label_resolver: Arc<LabelResolver>,
         target_executor: Arc<TargetExecutor>,
     ) -> Self {
+        let env = ExecutionEnvironment::new();
+        let target_planner = TargetPlanner::new(build_results.clone());
         Self {
-            role,
-            coordinator,
-            event_channel,
-            target,
             build_queue,
             build_results,
+            coordinator,
+            env,
+            event_channel,
             label_resolver,
+            role,
+            target,
             target_executor,
-            target_planner: TargetPlanner::new(build_results.clone()),
+            target_planner,
         }
     }
 
@@ -121,25 +123,37 @@ impl BuildWorker {
                 .await
                 .map_err(BuildWorkerError::LabelResolverError)?;
 
-            let executable_target = match self.target_planner.plan(&target).await {
+            let executable_target = match self.target_planner.plan(&self.env, &target).await {
                 Err(TargetPlannerError::MissingDependencies { deps, .. }) => {
                     if let Err(QueueError::DependencyCycle(err)) =
                         self.build_queue.queue_deps(&label, &deps)
                     {
-                        self.event_channel
-                            .send(Event::BuildError(label.clone(), err));
+                        self.event_channel.send(Event::BuildError(
+                            label.clone(),
+                            BuildError::BuildResultError(err),
+                        ));
                         self.coordinator.signal_shutdown();
                     }
 
                     self.build_queue.nack(label.clone());
                     return Ok(());
                 }
+                Err(err) => {
+                    self.event_channel.send(Event::BuildError(
+                        label.clone(),
+                        BuildError::TargetPlannerError(err),
+                    ));
+                    self.coordinator.signal_shutdown();
+                    return Ok(());
+                }
                 Ok(executable_target) => executable_target,
             };
 
             if let Err(err) = self.target_executor.execute(&executable_target).await {
-                self.event_channel
-                    .send(Event::BuildError(label.clone(), err));
+                self.event_channel.send(Event::BuildError(
+                    label.clone(),
+                    BuildError::TargetExecutorError(err),
+                ));
                 self.coordinator.signal_shutdown();
             } else {
                 self.build_queue.ack(&label);

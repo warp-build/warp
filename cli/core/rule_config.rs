@@ -55,18 +55,19 @@ pub enum RuleConfigError {
         found: CfgValue,
         key: String,
     },
+
+    #[error("Expected TOML used to read this target to be a table, instead we found: {toml:?}")]
+    RuleShouldBeTable { toml: toml::Value },
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct RuleConfig {
     config: HashMap<String, CfgValue>,
-    pub name: String,
 }
 
 impl RuleConfig {
-    pub fn new(name: String) -> RuleConfig {
+    pub fn new() -> RuleConfig {
         RuleConfig {
-            name,
             config: HashMap::new(),
         }
     }
@@ -94,6 +95,23 @@ impl RuleConfig {
 
     pub fn insert_path(&mut self, key: String, val: &PathBuf) -> &mut RuleConfig {
         self.insert(key, CfgValue::File(val.clone()))
+    }
+
+    pub fn get_string(&self, key: &str) -> Result<String, RuleConfigError> {
+        let entry = self
+            .config
+            .get(key)
+            .ok_or_else(|| RuleConfigError::MissingKey(key.to_string()))?;
+
+        if let CfgValue::String(name) = entry {
+            Ok(name.to_string())
+        } else {
+            Err(RuleConfigError::KeyHadWrongType {
+                expected: CfgValueType::String,
+                found: entry.clone(),
+                key: key.to_string(),
+            })
+        }
     }
 
     pub fn get_label_list(&self, key: &str) -> Result<Vec<Label>, RuleConfigError> {
@@ -234,14 +252,8 @@ pub mod toml_codecs {
     use super::*;
     use toml;
 
-    #[derive(Error, Debug)]
-    pub enum ParseError {
-        #[error("Something went wrong.")]
-        Unknown,
-    }
-
     impl TryFrom<CfgValue> for toml::Value {
-        type Error = ParseError;
+        type Error = RuleConfigError;
 
         fn try_from(value: CfgValue) -> Result<toml::Value, Self::Error> {
             match value {
@@ -264,7 +276,7 @@ pub mod toml_codecs {
     }
 
     impl TryFrom<&RuleConfig> for FlexibleRuleConfig {
-        type Error = ParseError;
+        type Error = RuleConfigError;
 
         fn try_from(rule: &RuleConfig) -> Result<FlexibleRuleConfig, Self::Error> {
             let mut map: BTreeMap<String, toml::Value> = BTreeMap::default();
@@ -278,8 +290,23 @@ pub mod toml_codecs {
         }
     }
 
+    impl TryFrom<FlexibleRuleConfig> for RuleConfig {
+        type Error = RuleConfigError;
+
+        fn try_from(cfg: FlexibleRuleConfig) -> Result<Self, Self::Error> {
+            let mut values = RuleConfig::new();
+
+            for (key, value) in cfg.0 {
+                let value: CfgValue = TryFrom::try_from(value.clone())?;
+                values.insert(key.to_string(), value);
+            }
+
+            Ok(values)
+        }
+    }
+
     impl TryFrom<toml::Value> for CfgValue {
-        type Error = ParseError;
+        type Error = RuleConfigError;
 
         fn try_from(value: toml::Value) -> Result<CfgValue, Self::Error> {
             match value {
@@ -304,13 +331,17 @@ pub mod toml_codecs {
         }
     }
 
-    impl TryFrom<(String, FlexibleRuleConfig)> for RuleConfig {
-        type Error = ParseError;
+    impl TryFrom<&toml::Value> for RuleConfig {
+        type Error = RuleConfigError;
 
-        fn try_from((name, cfg): (String, FlexibleRuleConfig)) -> Result<RuleConfig, Self::Error> {
-            let mut values = RuleConfig::new(name);
+        fn try_from(toml: &toml::Value) -> Result<Self, Self::Error> {
+            let mut values = RuleConfig::default();
 
-            for (key, value) in cfg.0 {
+            let kvs = toml
+                .as_table()
+                .ok_or_else(|| RuleConfigError::RuleShouldBeTable { toml: toml.clone() })?;
+
+            for (key, value) in kvs {
                 let value: CfgValue = TryFrom::try_from(value.clone())?;
                 values.insert(key.to_string(), value);
             }

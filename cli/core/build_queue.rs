@@ -22,10 +22,7 @@ pub enum QueueError {
     BuildfileError(anyhow::Error),
 
     #[error(transparent)]
-    Unknown(anyhow::Error),
-
-    #[error(transparent)]
-    DependencyCycle(anyhow::Error),
+    DependencyCycle(BuildResultError),
 }
 
 /// A thread-safe queue for compilation targets, to be consumed by workers.
@@ -133,25 +130,29 @@ impl BuildQueue {
         Ok(())
     }
 
-    pub fn queue_deps(&self, label: &Label, deps: &[Dependency]) -> Result<(), QueueError> {
+    pub fn queue_deps(&self, label: &Label, deps: &[Label]) -> Result<(), QueueError> {
         self.build_results
-            .add_dependencies(label.clone(), &deps.iter().map(|d| d.label).to_owned())
+            .add_dependencies(label.clone(), &deps)
             .map_err(QueueError::DependencyCycle)?;
-        for dep in deps {
-            self.queue(dep.label)?;
+
+        for dep in deps.iter().rev() {
+            self.queue(dep.clone())?;
         }
+
         Ok(())
     }
 
     pub async fn queue_entire_workspace(&self, max_concurrency: usize) -> Result<(), QueueError> {
         debug!("Queueing all targets...");
         self.event_channel.send(Event::QueueingWorkspace);
+
         let mut buildfiles = self
             .workspace
             .scanner()
             .find_build_files(max_concurrency)
             .await
             .map_err(QueueError::WorkspaceScannerError)?;
+
         while let Some(path) = buildfiles.next().await {
             let path = path.map_err(QueueError::FileScannerError)?;
             let buildfile = Buildfile::from_file(&path).await;
@@ -181,7 +182,7 @@ impl BuildQueue {
 mod tests {
     use super::*;
 
-    fn dummy_target(label: Label) -> ComputedTarget {
+    fn dummy_target(label: Label) -> ExecutableTarget {
         let rule = Rule::new(
             "test_rule".to_string(),
             "TestRule".to_string(),
@@ -195,7 +196,7 @@ mod tests {
         );
         let cfg = RuleConfig::default();
         let target = Target::new(label, &rule, cfg);
-        ComputedTarget::from_target(target)
+        ExecutableTarget::from_target(target)
     }
 
     #[test]

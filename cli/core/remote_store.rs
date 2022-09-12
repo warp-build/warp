@@ -9,25 +9,25 @@ use tokio::io::AsyncWriteExt;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use tracing::*;
 
-/// The RemoteCache implements an external cache.
+/// The RemoteStore implements an external cache.
 ///
 #[derive(Debug, Clone)]
-pub struct RemoteCache {
+pub struct RemoteStore {
     api: API,
 }
 
-impl RemoteCache {
-    #[tracing::instrument(name = "RemoteCache::new", skip(workspace))]
-    pub fn new(workspace: &Workspace) -> RemoteCache {
-        RemoteCache {
+impl RemoteStore {
+    #[tracing::instrument(name = "RemoteStore::new", skip(workspace))]
+    pub fn new(workspace: &Workspace) -> RemoteStore {
+        RemoteStore {
             api: API::from_workspace(&workspace),
         }
     }
 
-    #[tracing::instrument(name = "RemoteCache::save", skip(artifacts))]
+    #[tracing::instrument(name = "RemoteStore::save", skip(artifacts))]
     pub async fn save(
         &mut self,
-        key: &CacheKey,
+        key: &StoreKey,
         artifacts: &[PathBuf],
         sandbox_root: &PathBuf,
     ) -> Result<(), anyhow::Error> {
@@ -55,8 +55,8 @@ impl RemoteCache {
         Ok(())
     }
 
-    #[tracing::instrument(name = "RemoteCache::try_fetch")]
-    pub async fn try_fetch(&mut self, key: &CacheKey, dst: &PathBuf) -> Result<(), anyhow::Error> {
+    #[tracing::instrument(name = "RemoteStore::try_fetch")]
+    pub async fn try_fetch(&mut self, key: &StoreKey, dst: &PathBuf) -> Result<(), anyhow::Error> {
         let dst_tarball = &dst.with_extension("tar.gz");
 
         let url = format!("{}/artifact/{}.tar.gz", self.api.url, key);

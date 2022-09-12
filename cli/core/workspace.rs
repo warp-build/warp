@@ -60,7 +60,7 @@ pub struct Workspace {
     pub aliases: HashMap<String, Label>,
 
     /// The archives defined in the workspace declaration file
-    pub toolchain_configs: Vec<RuleConfig>,
+    pub toolchain_configs: HashMap<String, RuleConfig>,
 
     /// A list of rules that have been downloaded
     pub global_rules: Vec<PathBuf>,
@@ -117,9 +117,9 @@ impl WorkspaceBuilder {
         }
         self.aliases(aliases);
 
-        let mut toolchains: Vec<RuleConfig> = vec![];
-        for toolchain in file.toolchains.clone() {
-            toolchains.push(toolchain.try_into()?);
+        let mut toolchains: HashMap<String, RuleConfig> = HashMap::default();
+        for (name, config) in file.toolchains.clone() {
+            toolchains.insert(name.clone(), config.try_into()?);
         }
         self.toolchain_configs(toolchains);
 

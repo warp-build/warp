@@ -1,12 +1,22 @@
-use super::*;
+use dashmap::DashMap;
+use std::path::PathBuf;
+use thiserror::*;
 
-pub struct RuleLoader {
-    store: RuleStore,
+#[derive(Default)]
+pub struct RuleStore {
     loaded_rules: DashMap<String, ()>,
 }
 
-impl RuleLoader {
-    pub async fn ensure_loaded(&self, name: &str) -> Result<(), RuleLoaderError> {
+#[derive(Error, Debug)]
+pub enum RuleStoreError {}
+
+impl RuleStore {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub async fn get(&self, _name: &str) -> Result<PathBuf, RuleStoreError> {
+        /*
         if self.loaded_rules.has_key(&name) {
             return Ok(());
         }
@@ -22,6 +32,8 @@ impl RuleLoader {
         let path = self.fetch(&name).await?;
 
         self.load(path).await
+        */
+        todo!()
     }
 }
 

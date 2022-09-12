@@ -1,4 +1,4 @@
-use super::Label;
+use super::*;
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
