@@ -94,7 +94,7 @@ impl BuildResults {
 
         dag.extend_with_edges(edges)
             .map_err(|e| BuildResultError::DepGraphError {
-                label: label,
+                label,
                 inner_error: e,
             })?;
 
@@ -102,21 +102,20 @@ impl BuildResults {
     }
 
     pub fn get_computed_target(&self, label: &Label) -> Option<ExecutableTarget> {
-        self.computed_targets.get(&label).map(|n| n.clone()).clone()
+        self.computed_targets.get(label).map(|n| n.clone())
     }
 
     pub fn is_target_built(&self, label: &Label) -> bool {
-        self.computed_targets.contains_key(&label)
+        self.computed_targets.contains_key(label)
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
 
     use super::*;
 
-    fn dummy_target(label: Label) -> ExecutableTarget {
+    async fn dummy_target(label: Label) -> ExecutableTarget {
         let rule = Rule::new(
             "test_rule".to_string(),
             "TestRule".to_string(),
@@ -126,11 +125,19 @@ mod tests {
             Runnable::NotRunnable,
             Pinned::Pinned,
             Portability::Portable,
-            SandboxConfig::default(),
         );
         let cfg = RuleConfig::default();
-        let target = Target::new(label, &rule, cfg);
-        ExecutableTarget::from_target(target)
+        let target = Target::new(label, &rule.name, cfg);
+        ExecutableTarget::new(
+            &ExecutionEnvironment::new(),
+            &rule,
+            &target,
+            &[],
+            &[],
+            ExecutionResult::default(),
+        )
+        .await
+        .unwrap()
     }
 
     #[test]
@@ -139,8 +146,8 @@ mod tests {
         assert!(!br.has_all_expected_targets());
     }
 
-    #[test]
-    fn build_results_needs_expected_and_completed_targets_to_match() {
+    #[tokio::test]
+    async fn build_results_needs_expected_and_completed_targets_to_match() {
         let br = BuildResults::new();
 
         let label = Label::new("//test/0");
@@ -148,41 +155,41 @@ mod tests {
         assert!(!br.has_all_expected_targets());
 
         let bad_label = Label::new("//test/another-label");
-        let target = dummy_target(bad_label.clone());
+        let target = dummy_target(bad_label.clone()).await;
         br.add_computed_target(bad_label.clone(), target);
         assert!(!br.has_all_expected_targets());
 
-        let target = dummy_target(label.clone());
+        let target = dummy_target(label.clone()).await;
         br.add_computed_target(label.clone(), target);
         assert!(br.has_all_expected_targets());
 
         let new_label = Label::new("//test/1");
-        br.add_expected_target(new_label.clone());
+        br.add_expected_target(new_label);
         assert!(!br.has_all_expected_targets());
     }
 
-    #[test]
-    fn after_adding_a_computed_target_we_can_ask_if_it_is_built() {
+    #[tokio::test]
+    async fn after_adding_a_computed_target_we_can_ask_if_it_is_built() {
         let br = BuildResults::new();
 
         let label = Label::new("//test/0");
 
         assert!(!br.is_target_built(&label));
 
-        let target = dummy_target(label.clone());
+        let target = dummy_target(label.clone()).await;
         br.add_computed_target(label.clone(), target);
         assert!(br.is_target_built(&label));
     }
 
-    #[test]
-    fn after_adding_a_computed_target_we_can_fetch_it() {
+    #[tokio::test]
+    async fn after_adding_a_computed_target_we_can_fetch_it() {
         let br = BuildResults::new();
 
         let label = Label::new("//test/0");
 
         assert!(br.get_computed_target(&label).is_none());
 
-        let target = dummy_target(label.clone());
+        let target = dummy_target(label.clone()).await;
         br.add_computed_target(label.clone(), target);
         assert!(br.get_computed_target(&label).is_some());
     }
@@ -197,9 +204,9 @@ mod tests {
         let deps_a = vec![label_b.clone()];
         let deps_b = vec![label_a.clone()];
 
-        assert!(br.add_dependencies(label_a.clone(), &deps_a).is_ok());
+        assert!(br.add_dependencies(label_a, &deps_a).is_ok());
         assert_matches!(
-            br.add_dependencies(label_b.clone(), &deps_b),
+            br.add_dependencies(label_b, &deps_b),
             Err(BuildResultError::DepGraphError {
                 label: _,
                 inner_error: daggy::WouldCycle(_)
@@ -207,4 +214,3 @@ mod tests {
         );
     }
 }
-*/

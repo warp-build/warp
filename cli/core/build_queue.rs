@@ -132,7 +132,7 @@ impl BuildQueue {
 
     pub fn queue_deps(&self, label: &Label, deps: &[Label]) -> Result<(), QueueError> {
         self.build_results
-            .add_dependencies(label.clone(), &deps)
+            .add_dependencies(label.clone(), deps)
             .map_err(QueueError::DependencyCycle)?;
 
         for dep in deps.iter().rev() {
@@ -217,7 +217,7 @@ mod tests {
         );
 
         assert!(q.is_empty());
-        q.queue(final_target.clone()).unwrap();
+        q.queue(final_target).unwrap();
         assert!(!q.is_empty());
         q.next().unwrap();
         assert!(q.is_empty());
@@ -308,7 +308,7 @@ mod tests {
         let br = Arc::new(BuildResults::new());
         let q = BuildQueue::new(
             final_target.clone(),
-            br.clone(),
+            br,
             Arc::new(EventChannel::new()),
             Workspace::default(),
         );

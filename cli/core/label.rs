@@ -295,7 +295,7 @@ mod tests {
         assert!(l1.is_remote());
         assert_eq!(l1.name(), "openssl");
         assert!(
-            matches!(l1, Label::Remote { prefix_hash, .. } if prefix_hash == "16536928392000722264")
+            matches!(l1, Label::Remote { prefix_hash, .. } if prefix_hash == "12420716278727001446")
         );
     }
 
@@ -305,7 +305,7 @@ mod tests {
         let l1 = Label::new(path);
         assert_eq!(
             l1.as_store_prefix(),
-            "pkgs.warp.build-16536928392000722264/openssl"
+            "pkgs.warp.build-12420716278727001446/openssl"
         );
     }
 }
