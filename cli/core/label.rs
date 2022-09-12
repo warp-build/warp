@@ -300,11 +300,11 @@ mod tests {
     }
 
     #[test]
-    fn can_turn_into_cache_key() {
+    fn can_turn_into_store_prefix() {
         let path = "https://pkgs.warp.build/toolchains/openssl";
         let l1 = Label::new(path);
         assert_eq!(
-            l1.as_cache_key(),
+            l1.as_store_prefix(),
             "pkgs.warp.build-16536928392000722264/openssl"
         );
     }

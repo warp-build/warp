@@ -26,3 +26,9 @@ impl BuildCoordinator {
         *(self.status.write().unwrap()) = Status::Shutdown
     }
 }
+
+impl Default for BuildCoordinator {
+    fn default() -> Self {
+        Self::new()
+    }
+}

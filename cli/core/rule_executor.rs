@@ -19,6 +19,7 @@ use thiserror::*;
 use tokio::fs;
 use tracing::*;
 
+#[derive(Default)]
 pub struct ExecutionResult {
     pub actions: Vec<Action>,
     pub outs: FxHashSet<PathBuf>,
@@ -374,6 +375,3 @@ impl RuleExecutor {
         todo!()
     }
 }
-
-#[cfg(tests)]
-mod tests {}

@@ -44,8 +44,6 @@ pub struct Workspace {
     /// The name of this workspace.
     pub name: String,
 
-    pub workspace_file: WorkspaceFile,
-
     /// The current user.
     pub current_user: String,
 
@@ -53,27 +51,35 @@ pub struct Workspace {
     /// The URL to the remote cache service
     pub remote_cache_url: Option<Url>,
 
+    #[builder(default)]
     /// The collection of paths required for a Warp Workspace to work.
     pub paths: WorkspacePaths,
 
+    #[builder(default)]
     /// A map of aliases for commonly used targets
     pub aliases: HashMap<String, Label>,
 
+    #[builder(default)]
     /// The archives defined in the workspace declaration file
     pub toolchain_configs: HashMap<String, RuleConfig>,
 
+    #[builder(default)]
     /// A list of rules that have been downloaded
     pub global_rules: Vec<PathBuf>,
 
+    #[builder(default)]
     /// A list of local rules defined in this project
     pub local_rules: Vec<PathBuf>,
 
+    #[builder(default)]
     /// A list of local toolchains defined in this project
     pub local_toolchains: Vec<PathBuf>,
 
+    #[builder(default)]
     /// A list of patterns to be ignored from the repository
     pub ignore_patterns: Vec<String>,
 
+    #[builder(default)]
     /// Whether to make sure we have git hooks installed or not
     pub use_git_hooks: bool,
 }
@@ -83,13 +89,19 @@ impl Workspace {
         WorkspaceBuilder::default()
     }
 
-    pub fn default() -> Self {
-        let builder = Self::builder();
-        builder.build().unwrap()
-    }
-
     pub fn scanner(&self) -> WorkspaceScanner {
         WorkspaceScanner::new(&self.paths, &self.ignore_patterns)
+    }
+}
+
+impl Default for Workspace {
+    fn default() -> Self {
+        let mut builder = Self::builder();
+        builder
+            .name("default-workspace".to_string())
+            .current_user("user".to_string())
+            .build()
+            .unwrap()
     }
 }
 
@@ -122,8 +134,6 @@ impl WorkspaceBuilder {
             toolchains.insert(name.clone(), config.try_into()?);
         }
         self.toolchain_configs(toolchains);
-
-        self.workspace_file(file);
 
         Ok(self)
     }

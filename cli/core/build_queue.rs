@@ -177,12 +177,11 @@ impl BuildQueue {
     }
 }
 
-/*
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn dummy_target(label: Label) -> ExecutableTarget {
+    async fn dummy_target(label: Label) -> ExecutableTarget {
         let rule = Rule::new(
             "test_rule".to_string(),
             "TestRule".to_string(),
@@ -192,11 +191,19 @@ mod tests {
             Runnable::NotRunnable,
             Pinned::Pinned,
             Portability::Portable,
-            SandboxConfig::default(),
         );
         let cfg = RuleConfig::default();
-        let target = Target::new(label, &rule, cfg);
-        ExecutableTarget::from_target(target)
+        let target = Target::new(label, &rule.name, cfg);
+        ExecutableTarget::new(
+            &ExecutionEnvironment::new(),
+            &rule,
+            &target,
+            &vec![],
+            &vec![],
+            ExecutionResult::default(),
+        )
+        .await
+        .unwrap()
     }
 
     #[test]
@@ -206,6 +213,7 @@ mod tests {
             final_target.clone(),
             Arc::new(BuildResults::new()),
             Arc::new(EventChannel::new()),
+            Workspace::default(),
         );
 
         assert!(q.is_empty());
@@ -222,6 +230,7 @@ mod tests {
             final_target.clone(),
             Arc::new(BuildResults::new()),
             Arc::new(EventChannel::new()),
+            Workspace::default(),
         );
 
         assert!(q.is_empty());
@@ -241,33 +250,38 @@ mod tests {
         assert!(q.is_empty());
     }
 
-    #[test]
-    fn already_built_targets_are_ignored_when_queueing_new_targets() {
+    #[tokio::test]
+    async fn already_built_targets_are_ignored_when_queueing_new_targets() {
         let final_target = Label::new("//test/0");
         let br = Arc::new(BuildResults::new());
         let q = BuildQueue::new(
             final_target.clone(),
             br.clone(),
             Arc::new(EventChannel::new()),
+            Workspace::default(),
         );
 
         assert!(q.is_empty());
         // we load up a target that is already built
-        br.add_computed_target(final_target.clone(), dummy_target(final_target.clone()));
+        br.add_computed_target(
+            final_target.clone(),
+            dummy_target(final_target.clone()).await,
+        );
         q.queue(final_target).unwrap();
 
         // our queue should still be empty
         assert!(q.is_empty());
     }
 
-    #[test]
-    fn once_a_target_is_built_we_discard_it() {
+    #[tokio::test]
+    async fn once_a_target_is_built_we_discard_it() {
         let final_target = Label::new("//test/0");
         let br = Arc::new(BuildResults::new());
         let q = BuildQueue::new(
             final_target.clone(),
             br.clone(),
             Arc::new(EventChannel::new()),
+            Workspace::default(),
         );
 
         assert!(q.is_empty());
@@ -278,7 +292,10 @@ mod tests {
         assert!(!q.is_empty());
 
         // then it gets built
-        br.add_computed_target(final_target.clone(), dummy_target(final_target.clone()));
+        br.add_computed_target(
+            final_target.clone(),
+            dummy_target(final_target.clone()).await,
+        );
         // so every future queue entry for that target gets discarded
         assert!(q.next().is_none());
         // and we'll have an empty queue
@@ -293,6 +310,7 @@ mod tests {
             final_target.clone(),
             br.clone(),
             Arc::new(EventChannel::new()),
+            Workspace::default(),
         );
 
         assert!(q.is_empty());
@@ -312,4 +330,3 @@ mod tests {
         assert!(q.next().is_some());
     }
 }
-*/

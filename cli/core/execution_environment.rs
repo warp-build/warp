@@ -12,6 +12,12 @@ impl ExecutionEnvironment {
     }
 }
 
+impl Default for ExecutionEnvironment {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Hash for ExecutionEnvironment {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.host_triple.hash(state);
