@@ -50,7 +50,7 @@ impl ExecutableTarget {
         let mut this = Self {
             actions: exec_result.actions,
             deps: deps.iter().cloned().collect(),
-            hash: "0".to_string(),
+            hash: "".to_string(),
             label: target.label.clone(),
             outs: exec_result.outs,
             rule: rule.clone(),
@@ -67,7 +67,7 @@ impl ExecutableTarget {
 
     pub fn to_dependency(&self) -> Dependency {
         Dependency {
-            is_pinned: false,
+            is_pinned: self.is_pinned(),
             rule_name: self.rule.name.clone(),
             label: self.label.clone(),
             hash: self.hash.clone(),
@@ -149,4 +149,144 @@ impl ExecutableTarget {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    fn rule() -> Rule {
+        Rule::new(
+            "test_rule".to_string(),
+            "TestRule".to_string(),
+            vec![],
+            ConfigSpec::default(),
+            RuleConfig::default(),
+            Runnable::NotRunnable,
+            Pinned::Pinned,
+            Portability::Portable,
+        )
+    }
+
+    async fn target(label: Label) -> ExecutableTarget {
+        let rule = rule();
+        let cfg = RuleConfig::default();
+        let target = Target::new(label, &rule.name, cfg);
+        ExecutableTarget::new(
+            &ExecutionEnvironment::new(),
+            &rule,
+            &target,
+            &[],
+            &[],
+            ExecutionResult::default(),
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn can_be_turned_into_a_dependency() {
+        let t = target(Label::new("test")).await;
+        let d = t.to_dependency();
+
+        assert_eq!(d.rule_name, t.rule.name);
+        assert_eq!(d.label, t.label);
+        assert_eq!(d.hash, t.hash);
+        assert_eq!(d.outs, t.outs.iter().cloned().collect::<Vec<PathBuf>>());
+        assert_eq!(d.srcs, t.srcs.iter().cloned().collect::<Vec<PathBuf>>());
+        assert_eq!(d.is_pinned, t.is_pinned());
+    }
+
+    #[tokio::test]
+    async fn preserves_target_information() {
+        let l = Label::new("test");
+
+        let rule = rule();
+        let target = ExecutableTarget::new(
+            &ExecutionEnvironment::new(),
+            &rule,
+            &Target::new(l.clone(), &rule.name, RuleConfig::default()),
+            &[],
+            &[],
+            ExecutionResult::default(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(target.label, l);
+    }
+
+    #[tokio::test]
+    async fn preserves_results_from_rule_execution() {
+        let l = Label::new("test");
+
+        let actions = vec![];
+        let outs = vec![].iter().cloned().collect::<FxHashSet<PathBuf>>();
+        let srcs = vec![].iter().cloned().collect::<FxHashSet<PathBuf>>();
+        let run_script = Some(RunScript {
+            env: HashMap::default(),
+            run_script: PathBuf::from("run"),
+        });
+
+        let rule = rule();
+        let target = ExecutableTarget::new(
+            &ExecutionEnvironment::new(),
+            &rule,
+            &Target::new(l, &rule.name, RuleConfig::default()),
+            &[],
+            &[],
+            ExecutionResult {
+                actions: actions.clone(),
+                outs: outs.clone(),
+                srcs: srcs.clone(),
+                run_script: run_script.clone(),
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(target.actions, actions);
+        assert_eq!(target.outs, outs);
+        assert_eq!(target.srcs, srcs);
+        assert_eq!(target.run_script, run_script);
+    }
+
+    #[tokio::test]
+    async fn ensures_outputs_are_safe_on_creation() {
+        let l = Label::new("test");
+        let rule = rule();
+
+        let conflicting_output = PathBuf::from("conflicting-file");
+
+        let deps = vec![Dependency {
+            is_pinned: false,
+            rule_name: "rule-name".to_string(),
+            label: Label::new("dep"),
+            hash: "".to_string(),
+            outs: vec![conflicting_output.clone()],
+            srcs: vec![],
+        }];
+
+        let result = ExecutableTarget::new(
+            &ExecutionEnvironment::new(),
+            &rule,
+            &Target::new(l, &rule.name, RuleConfig::default()),
+            &deps,
+            &[],
+            ExecutionResult {
+                actions: vec![],
+                outs: vec![conflicting_output.clone()]
+                    .iter()
+                    .cloned()
+                    .collect::<FxHashSet<PathBuf>>(),
+                srcs: FxHashSet::default(),
+                run_script: None,
+            },
+        )
+        .await;
+
+        assert!(matches!(
+            result,
+            Err(ExecutableTargetError::ConflictingOutputs { outputs }) if outputs == vec![conflicting_output.clone()]
+        ));
+    }
+}
