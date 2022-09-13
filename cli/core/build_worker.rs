@@ -162,3 +162,74 @@ impl BuildWorker {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn target(label: Label) -> ExecutableTarget {
+        let rule = Rule::new(
+            "test_rule".to_string(),
+            "TestRule".to_string(),
+            vec![],
+            ConfigSpec::default(),
+            RuleConfig::default(),
+            Runnable::NotRunnable,
+            Pinned::Pinned,
+            Portability::Portable,
+        );
+        let cfg = RuleConfig::default();
+        let target = Target::new(label, &rule.name, cfg);
+        ExecutableTarget::new(
+            &ExecutionEnvironment::new(),
+            &rule,
+            &target,
+            &[],
+            &[],
+            ExecutionResult::default(),
+        )
+        .await
+        .unwrap()
+    }
+
+    fn worker_with_results(
+        r: Role,
+        br: Arc<BuildResults>,
+        bc: Arc<BuildCoordinator>,
+    ) -> BuildWorker {
+        let w = Workspace::default();
+        let l = Label::new("//hello/world");
+        let ec = Arc::new(EventChannel::new());
+        let bq = Arc::new(BuildQueue::new(
+            l.clone(),
+            br.clone(),
+            ec.clone(),
+            w.clone(),
+        ));
+        let lr = Arc::new(LabelResolver::new());
+        let s = Arc::new(Store::new(&w));
+        let te = Arc::new(TargetExecutor::new(s));
+        BuildWorker::new(r, l, bc, ec, bq, br, lr, te)
+    }
+
+    #[tokio::test]
+    async fn when_results_are_finished_main_worker_stops_then_helpers() {
+        let l = Label::new("//test/0");
+
+        let bc = Arc::new(BuildCoordinator::new());
+        let br = Arc::new(BuildResults::new());
+
+        let main_worker = worker_with_results(Role::MainWorker, br.clone(), bc.clone());
+        let help_worker = worker_with_results(Role::HelperWorker(0), br.clone(), bc.clone());
+
+        assert!(!main_worker.should_stop());
+        assert!(!help_worker.should_stop());
+
+        br.add_expected_target(l.clone());
+        br.add_computed_target(l.clone(), target(l).await);
+
+        assert!(!help_worker.should_stop());
+        assert!(main_worker.should_stop());
+        assert!(help_worker.should_stop());
+    }
+}
