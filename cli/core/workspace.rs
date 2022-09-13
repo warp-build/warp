@@ -130,7 +130,7 @@ impl WorkspaceBuilder {
         self.aliases(aliases);
 
         let mut toolchains: HashMap<String, RuleConfig> = HashMap::default();
-        for (name, config) in file.toolchains.clone() {
+        for (name, config) in file.toolchains {
             toolchains.insert(name.clone(), config.try_into()?);
         }
         self.toolchain_configs(toolchains);

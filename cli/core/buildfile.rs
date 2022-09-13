@@ -16,8 +16,8 @@ pub struct Buildfile {
 
 #[derive(Error, Debug)]
 pub enum BuildfileError {
-    #[error(transparent)]
-    FileReadError(std::io::Error),
+    #[error("Could not read build file at {file:?} due to: {err:?}")]
+    FileReadError { file: PathBuf, err: std::io::Error },
 
     #[error(transparent)]
     TomlError(toml::de::Error),
@@ -44,9 +44,13 @@ pub enum BuildfileError {
 impl Buildfile {
     #[tracing::instrument(name = "Buildfile::from_file")]
     pub async fn from_file(file: &PathBuf) -> Result<Buildfile, BuildfileError> {
-        let string = fs::read_to_string(&file)
-            .await
-            .map_err(BuildfileError::FileReadError)?;
+        let string =
+            fs::read_to_string(&file)
+                .await
+                .map_err(|err| BuildfileError::FileReadError {
+                    err,
+                    file: file.clone(),
+                })?;
 
         let contents = string
             .parse::<toml::Value>()

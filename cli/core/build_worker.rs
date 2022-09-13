@@ -206,7 +206,7 @@ mod tests {
             ec.clone(),
             w.clone(),
         ));
-        let lr = Arc::new(LabelResolver::new());
+        let lr = Arc::new(LabelResolver::new(&w));
         let s = Arc::new(Store::new(&w));
         let te = Arc::new(TargetExecutor::new(s));
         BuildWorker::new(r, l, bc, ec, bq, br, lr, te)

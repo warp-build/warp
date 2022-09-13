@@ -12,9 +12,6 @@ pub struct WorkspacePaths {
     /// The name of the current workspace
     pub workspace_name: String,
 
-    /// The directories for Warp according to XDG conventions
-    // warp_dirs: ProjectDirs,
-
     /// The location of the global cache
     pub global_cache_root: PathBuf,
 
