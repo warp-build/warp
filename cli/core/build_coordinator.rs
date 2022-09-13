@@ -32,3 +32,32 @@ impl Default for BuildCoordinator {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn when_starting_it_should_not_shutdown() {
+        let bc = BuildCoordinator::new();
+        assert!(!bc.should_shutdown());
+    }
+
+    #[test]
+    fn after_signaling_to_shutdown_it_should_shutdown() {
+        let bc = BuildCoordinator::new();
+        bc.signal_shutdown();
+        assert!(bc.should_shutdown());
+    }
+
+    #[test]
+    fn multiple_signalign_does_not_toggle_shutdown() {
+        let bc = BuildCoordinator::new();
+        bc.signal_shutdown();
+        assert!(bc.should_shutdown());
+        bc.signal_shutdown();
+        assert!(bc.should_shutdown());
+        bc.signal_shutdown();
+        assert!(bc.should_shutdown());
+    }
+}
