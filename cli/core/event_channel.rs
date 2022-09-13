@@ -23,3 +23,24 @@ impl EventChannel {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn can_only_receive_after_send() {
+        let ec = EventChannel::new();
+        assert!(matches!(ec.recv(), None));
+        ec.send(Event::QueueingWorkspace);
+        assert!(matches!(ec.recv(), Some(Event::QueueingWorkspace)));
+    }
+
+    #[test]
+    fn receive_consumes_a_message() {
+        let ec = EventChannel::new();
+        ec.send(Event::QueueingWorkspace);
+        assert!(matches!(ec.recv(), Some(Event::QueueingWorkspace)));
+        assert!(matches!(ec.recv(), None));
+    }
+}
