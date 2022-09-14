@@ -63,7 +63,7 @@ impl Action {
     }
 
     pub async fn run(
-        self,
+        &self,
         label: Label,
         cache_root: &PathBuf,
         sandbox_root: &PathBuf,

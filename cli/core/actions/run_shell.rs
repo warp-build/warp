@@ -17,7 +17,7 @@ pub struct RunShellAction {
 impl RunShellAction {
     #[tracing::instrument(name = "action::RunShellAction::run")]
     pub async fn run(
-        self,
+        &self,
         cache_root: &PathBuf,
         sandbox_root: &PathBuf,
     ) -> Result<(), anyhow::Error> {

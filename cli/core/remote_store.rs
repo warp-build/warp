@@ -30,56 +30,89 @@ impl RemoteStore {
         key: &StoreKey,
         artifacts: &[PathBuf],
         sandbox_root: &PathBuf,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), StoreError> {
         // build the archive first
         let archive = {
             let mut b = async_tar::Builder::new(vec![]);
             for artifact in artifacts {
                 b.append_path_with_name(&sandbox_root.join(&artifact), &artifact)
-                    .await?;
+                    .await
+                    .map_err(StoreError::IOError)?;
             }
-            b.finish().await?;
-            b.into_inner().await?
+            b.finish().await.map_err(StoreError::IOError)?;
+            b.into_inner().await.map_err(StoreError::IOError)?
         };
 
         // then compress it
         let body = {
             let mut encoder = GzipEncoder::new(vec![]);
-            encoder.write_all(&archive).await?;
-            encoder.shutdown().await?;
+            encoder
+                .write_all(&archive)
+                .await
+                .map_err(StoreError::IOError)?;
+            encoder.shutdown().await.map_err(StoreError::IOError)?;
             encoder.into_inner()
         };
 
-        self.api.upload_artifact(&key, &body).await?;
+        self.api
+            .upload_artifact(&key, &body)
+            .await
+            .map_err(StoreError::ApiError)?;
 
         Ok(())
     }
 
     #[tracing::instrument(name = "RemoteStore::try_fetch")]
-    pub async fn try_fetch(&mut self, key: &StoreKey, dst: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn try_fetch(&mut self, key: &StoreKey, dst: &PathBuf) -> Result<(), StoreError> {
         let dst_tarball = &dst.with_extension("tar.gz");
 
         let url = format!("{}/artifact/{}.tar.gz", self.api.url, key);
-        let client = reqwest::Client::builder().gzip(false).build()?;
-        let response = client.get(url).send().await?;
+
+        let client = reqwest::Client::builder()
+            .gzip(false)
+            .build()
+            .map_err(StoreError::HTTPError)?;
+
+        let response = client
+            .get(url)
+            .send()
+            .await
+            .map_err(StoreError::HTTPError)?;
 
         if response.status() == 200 {
             let mut byte_stream = response
                 .bytes_stream()
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
 
-            fs::create_dir_all(&dst_tarball.parent().unwrap()).await?;
+            fs::create_dir_all(&dst_tarball.parent().unwrap())
+                .await
+                .map_err(StoreError::IOError)?;
 
-            let mut outfile = fs::File::create(&dst_tarball).await?;
+            let mut outfile = fs::File::create(&dst_tarball)
+                .await
+                .map_err(StoreError::IOError)?;
+
             while let Some(chunk) = byte_stream.next().await {
-                outfile.write_all_buf(&mut chunk?).await?;
+                let mut chunk = chunk.map_err(StoreError::IOError)?;
+
+                outfile
+                    .write_all_buf(&mut chunk)
+                    .await
+                    .map_err(StoreError::IOError)?;
             }
 
-            let file = fs::File::open(&dst_tarball).await?;
+            let file = fs::File::open(&dst_tarball)
+                .await
+                .map_err(StoreError::IOError)?;
+
             let decompress_stream = GzipDecoder::new(futures::io::BufReader::new(file.compat()));
+
             let tar = async_tar::Archive::new(decompress_stream);
-            tar.unpack(dst).await?;
-            fs::remove_file(&dst_tarball).await?;
+            tar.unpack(dst).await.map_err(StoreError::IOError)?;
+
+            fs::remove_file(&dst_tarball)
+                .await
+                .map_err(StoreError::IOError)?;
         }
 
         Ok(())

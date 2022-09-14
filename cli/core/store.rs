@@ -2,6 +2,7 @@ use super::local_store::*;
 use super::remote_store::*;
 use super::*;
 use std::path::PathBuf;
+use thiserror::*;
 use tracing::*;
 
 pub type StoreKey = String;
@@ -17,6 +18,18 @@ pub struct Store {
 pub enum StoreHitType {
     Miss(PathBuf),
     Hit(PathBuf),
+}
+
+#[derive(Error, Debug)]
+pub enum StoreError {
+    #[error(transparent)]
+    IOError(std::io::Error),
+
+    #[error(transparent)]
+    HTTPError(reqwest::Error),
+
+    #[error(transparent)]
+    ApiError(ApiError),
 }
 
 impl Store {
@@ -46,7 +59,7 @@ impl Store {
     }
 
     #[tracing::instrument(name = "Store::save")]
-    pub async fn save(&mut self, node: &ExecutableTarget) -> Result<(), anyhow::Error> {
+    pub async fn save(&mut self, node: &ExecutableTarget) -> Result<(), StoreError> {
         let store_key = self.store_key(&node);
 
         // NOTE(@ostera): see RFC0005
@@ -74,7 +87,7 @@ impl Store {
     pub async fn is_in_store(
         &mut self,
         node: &ExecutableTarget,
-    ) -> Result<StoreHitType, anyhow::Error> {
+    ) -> Result<StoreHitType, StoreError> {
         let store_key = self.store_key(node);
 
         match self.local_store.is_stored(&store_key).await? {
@@ -90,14 +103,14 @@ impl Store {
         }
     }
 
-    #[tracing::instrument(name = "Store::evict", skip(node))]
-    pub async fn evict(&mut self, node: &ExecutableTarget) -> Result<(), anyhow::Error> {
+    #[tracing::instrument(name = "Store::clean", skip(node))]
+    pub async fn clean(&self, node: &ExecutableTarget) -> Result<(), StoreError> {
         let store_key = self.store_key(node);
-        self.local_store.evict(&store_key).await
+        self.local_store.clean(&store_key).await
     }
 
     #[tracing::instrument(name = "Store::absolute_path_by_dep")]
-    pub async fn absolute_path_by_dep(&self, dep: &Dependency) -> Result<PathBuf, anyhow::Error> {
+    pub async fn absolute_path_by_dep(&self, dep: &Dependency) -> Result<PathBuf, StoreError> {
         let store_key = self.store_key_for_dep(dep);
         self.local_store.absolute_path_for_key(&store_key).await
     }
@@ -106,7 +119,7 @@ impl Store {
     pub async fn absolute_path_by_node(
         &self,
         node: &ExecutableTarget,
-    ) -> Result<PathBuf, anyhow::Error> {
+    ) -> Result<PathBuf, StoreError> {
         let store_key = self.store_key(node);
         self.local_store.absolute_path_for_key(&store_key).await
     }
@@ -116,10 +129,15 @@ impl Store {
         &self,
         node: &ExecutableTarget,
         dst: &PathBuf,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), StoreError> {
         let store_key = self.store_key(node);
         self.local_store
             .promote_outputs(&store_key, node, dst)
             .await
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 }

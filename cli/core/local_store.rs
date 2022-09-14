@@ -27,7 +27,7 @@ impl LocalStore {
         key: &StoreKey,
         artifacts: &[PathBuf],
         sandbox_root: &PathBuf,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), StoreError> {
         let cache_path = self.cache_root.join(key);
 
         for artifact in artifacts {
@@ -68,7 +68,7 @@ impl LocalStore {
         key: &StoreKey,
         node: &ExecutableTarget,
         dst: &PathBuf,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), StoreError> {
         trace!("Promoting outputs for {}", node.label.to_string());
 
         let hash_path = self.cache_root.join(key);
@@ -105,7 +105,7 @@ impl LocalStore {
     }
 
     #[tracing::instrument(name = "LocalStore::absolute_path_for_key")]
-    pub async fn absolute_path_for_key(&self, key: &StoreKey) -> Result<PathBuf, anyhow::Error> {
+    pub async fn absolute_path_for_key(&self, key: &StoreKey) -> Result<PathBuf, StoreError> {
         fs::canonicalize(&self.cache_root)
             .await
             .map_err(|_| {
@@ -114,6 +114,7 @@ impl LocalStore {
                     &self.cache_root
                 )
             })
+            .map_err(StoreError::IOError)
             .map(|p| p.join(key))
     }
 
@@ -124,7 +125,7 @@ impl LocalStore {
     /// FIXME: check if the expected hashes of the inputs match the actual
     /// hash of the files to determine if the cache is corrupted.
     #[tracing::instrument(name = "LocalStore::is_stored")]
-    pub async fn is_stored(&mut self, key: &StoreKey) -> Result<StoreHitType, anyhow::Error> {
+    pub async fn is_stored(&mut self, key: &StoreKey) -> Result<StoreHitType, StoreError> {
         let cache_path = self.cache_root.join(&key);
         if fs::metadata(&cache_path).await.is_ok() {
             return Ok(StoreHitType::Hit(cache_path));
@@ -132,15 +133,56 @@ impl LocalStore {
         Ok(StoreHitType::Miss(cache_path))
     }
 
-    #[tracing::instrument(name = "LocalStore::evict")]
-    pub async fn evict(&mut self, key: &StoreKey) -> Result<(), anyhow::Error> {
+    #[tracing::instrument(name = "LocalStore::clean")]
+    pub async fn clean(&self, key: &StoreKey) -> Result<(), StoreError> {
         let cache_path = self.cache_root.join(&key);
         debug!("Checking if {:?} is in the cache...", &cache_path);
         if fs::metadata(&cache_path).await.is_ok() {
             trace!("Found it, removing...");
-            fs::remove_dir_all(&cache_path).await?;
+            fs::remove_dir_all(&cache_path)
+                .await
+                .map_err(StoreError::IOError)?;
         }
         trace!("Cleaned from cache: {:?}", &cache_path);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn root() -> PathBuf {
+        PathBuf::from(&env!("CARGO_MANIFEST_DIR")).join("tests")
+    }
+
+    async fn local_store() -> LocalStore {
+        let paths = WorkspacePaths::new(
+            &root().join("workspace"),
+            Some(root().to_str().unwrap().to_string()),
+            "test-user".to_string(),
+        )
+        .unwrap();
+
+        let workspace_file = WorkspaceFile::builder()
+            .workspace(
+                WorkspaceConfig::builder()
+                    .name("test-workspace".to_string())
+                    .build()
+                    .unwrap(),
+            )
+            .build()
+            .unwrap();
+
+        let workspace = Workspace::builder()
+            .current_user("test-user".to_string())
+            .paths(paths)
+            .from_file(workspace_file)
+            .await
+            .unwrap()
+            .build()
+            .unwrap();
+
+        LocalStore::new(&workspace)
     }
 }

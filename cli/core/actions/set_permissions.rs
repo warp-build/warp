@@ -11,7 +11,7 @@ pub struct SetPermissionsAction {
 
 impl SetPermissionsAction {
     #[tracing::instrument(name = "action::SetPermissionsAction::run")]
-    pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn run(&self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         #[cfg(not(target_os = "windows"))]
         {
             let file = fs::File::open(sandbox_root.join(&self.file)).await?;

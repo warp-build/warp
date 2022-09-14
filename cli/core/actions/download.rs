@@ -21,7 +21,7 @@ pub struct DownloadAction {
 impl DownloadAction {
     #[tracing::instrument(name = "action::DownloadAction::run")]
     pub async fn run(
-        self,
+        &self,
         label: Label,
         sandbox_root: &PathBuf,
         event_channel: Arc<EventChannel>,

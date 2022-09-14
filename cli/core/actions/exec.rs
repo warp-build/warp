@@ -18,13 +18,13 @@ pub struct ExecAction {
 
 impl ExecAction {
     #[tracing::instrument(name = "action::ExecAction::run")]
-    pub async fn run(self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
+    pub async fn run(&self, sandbox_root: &PathBuf) -> Result<(), anyhow::Error> {
         let mut cmd = Command::new(&self.cmd);
 
         cmd.envs(&self.env);
 
         cmd.stdout(Stdio::piped()).args(&self.args);
-        let cwd = if let Some(cwd) = self.cwd {
+        let cwd = if let Some(cwd) = &self.cwd {
             sandbox_root.join(cwd)
         } else {
             sandbox_root.to_path_buf()

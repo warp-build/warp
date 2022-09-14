@@ -16,7 +16,7 @@ pub struct ExtractAction {
 impl ExtractAction {
     #[tracing::instrument(name = "action::ExtractAction::run")]
     pub async fn run(
-        self,
+        &self,
         label: Label,
         sandbox_root: &PathBuf,
         event_channel: Arc<EventChannel>,

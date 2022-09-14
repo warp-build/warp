@@ -52,7 +52,7 @@ impl BuildExecutor {
         ));
         let store = Arc::new(Store::new(&self.workspace));
         let label_resolver = Arc::new(LabelResolver::new(&self.workspace));
-        let target_executor = Arc::new(TargetExecutor::new(store.clone()));
+        let target_executor = Arc::new(TargetExecutor::new(store.clone(), event_channel.clone()));
 
         let mut worker = BuildWorker::new(
             Role::MainWorker,
