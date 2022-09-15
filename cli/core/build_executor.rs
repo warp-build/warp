@@ -40,7 +40,7 @@ impl BuildExecutor {
         &self,
         target: Label,
         event_channel: Arc<EventChannel>,
-    ) -> Result<Option<ExecutableTarget>, anyhow::Error> {
+    ) -> Result<Option<ExecutableTarget>, BuildExecutorError> {
         let worker_limit = self.worker_limit;
         debug!("Starting build executor with {} workers...", &worker_limit);
 
@@ -56,6 +56,7 @@ impl BuildExecutor {
 
         let mut worker = BuildWorker::new(
             Role::MainWorker,
+            &self.workspace,
             target.clone(),
             self.coordinator.clone(),
             event_channel.clone(),
@@ -63,13 +64,15 @@ impl BuildExecutor {
             self.results.clone(),
             label_resolver.clone(),
             target_executor.clone(),
-        );
+        )
+        .map_err(BuildExecutorError::WorkerError)?;
 
         let mut worker_tasks = vec![];
         if worker_limit > 0 {
             let worker_pool = tokio_util::task::LocalPoolHandle::new(worker_limit);
             for worker_id in 1..worker_limit {
                 let sub_worker_span = trace_span!("BuildExecutor::sub_worker");
+                let workspace = self.workspace.clone();
                 let build_coordinator = self.coordinator.clone();
                 let build_queue = build_queue.clone();
                 let build_results = self.results.clone();
@@ -81,6 +84,7 @@ impl BuildExecutor {
                 let thread = worker_pool.spawn_pinned(move || async move {
                     let mut worker = BuildWorker::new(
                         Role::HelperWorker(worker_id),
+                        &workspace,
                         target,
                         build_coordinator,
                         event_channel,
@@ -88,7 +92,8 @@ impl BuildExecutor {
                         build_results,
                         label_resolver,
                         target_executor,
-                    );
+                    )
+                    .map_err(BuildExecutorError::WorkerError)?;
 
                     worker
                         .setup_and_run(worker_limit)

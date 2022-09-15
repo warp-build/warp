@@ -42,6 +42,11 @@ pub enum BuildfileError {
 }
 
 impl Buildfile {
+    #[tracing::instrument(name = "Buildfile::from_label")]
+    pub async fn from_label(label: &Label) -> Result<Buildfile, BuildfileError> {
+        Self::from_file(&label.path().join(BUILDFILE)).await
+    }
+
     #[tracing::instrument(name = "Buildfile::from_file")]
     pub async fn from_file(file: &PathBuf) -> Result<Buildfile, BuildfileError> {
         let string =
@@ -56,7 +61,7 @@ impl Buildfile {
             .parse::<toml::Value>()
             .map_err(BuildfileError::TomlError)?;
 
-        Self::from_toml(file, &contents).await
+        Self::from_toml(file.parent().unwrap(), &contents).await
     }
 
     pub async fn from_toml(path: &Path, toml: &toml::Value) -> Result<Buildfile, BuildfileError> {

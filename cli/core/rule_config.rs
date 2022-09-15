@@ -125,6 +125,8 @@ impl RuleConfig {
             for el in elements {
                 if let CfgValue::Label(l) = el {
                     labels.push(l.clone());
+                } else if let CfgValue::String(s) = el {
+                    labels.push(Label::new(s));
                 } else {
                     return Err(RuleConfigError::UnexpectedValueTypeInList {
                         expected: CfgValueType::Label,

@@ -27,6 +27,7 @@ pub enum ConfigExpanderError {
 }
 
 impl ConfigExpander {
+    #[tracing::instrument(name = "ConfigExpander::expand", skip(self, rule, target))]
     pub async fn expand(
         &self,
         rule: &Rule,
@@ -34,7 +35,7 @@ impl ConfigExpander {
     ) -> Result<RuleConfig, ConfigExpanderError> {
         let mut values: RuleConfig = rule.defaults.clone();
 
-        for (key, value_type) in rule.config.as_map().iter() {
+        for (key, value_type) in rule.config.as_map() {
             let value =
                 match target.config.get(key) {
                     Some(value) => value,
@@ -46,7 +47,7 @@ impl ConfigExpander {
                     })?,
                 };
 
-            let expanded_value = self.expand_value(value, &value_type)?;
+            let expanded_value = self.expand_value(&target.label, value, value_type)?;
 
             values.insert(key.to_string(), expanded_value);
         }
@@ -59,16 +60,23 @@ impl ConfigExpander {
         Ok(values)
     }
 
+    #[tracing::instrument(name = "ConfigExpander::expand_value", skip(self))]
     pub fn expand_value(
         &self,
+        label: &Label,
         value: CfgValue,
         value_type: &CfgValueType,
     ) -> Result<CfgValue, ConfigExpanderError> {
         match (value_type, &value) {
-            (CfgValueType::File, CfgValue::File(_)) => Ok(value),
-            (CfgValueType::File, CfgValue::String(path)) => self.expand_glob(&path),
+            (CfgValueType::File, CfgValue::File(path)) => {
+                self.expand_glob(label, path.to_str().unwrap())
+            }
+            (CfgValueType::File, CfgValue::String(path)) => self.expand_glob(label, path),
+            (CfgValueType::Label, CfgValue::String(name)) => Ok(CfgValue::Label(Label::new(name))),
+            (CfgValueType::List(t), CfgValue::List(parts)) => {
+                self.expand_list(label, parts.to_vec(), t)
+            }
             (CfgValueType::String, CfgValue::String(_)) => Ok(value),
-            (CfgValueType::List(t), CfgValue::List(parts)) => self.expand_list(parts.to_vec(), &t),
             _ => Err(ConfigExpanderError::InvalidTypeForField {
                 field: value,
                 expected_type: value_type.clone(),
@@ -76,7 +84,10 @@ impl ConfigExpander {
         }
     }
 
-    pub fn expand_glob(&self, path: &str) -> Result<CfgValue, ConfigExpanderError> {
+    #[tracing::instrument(name = "ConfigExpander::expand_glob", skip(self))]
+    pub fn expand_glob(&self, label: &Label, path: &str) -> Result<CfgValue, ConfigExpanderError> {
+        let path = label.path().join(path);
+        let path = path.to_str().unwrap();
         if path.contains('*') {
             let entries =
                 glob::glob(path).map_err(|err| ConfigExpanderError::InvalidGlobPattern {
@@ -95,15 +106,17 @@ impl ConfigExpander {
         }
     }
 
+    #[tracing::instrument(name = "ConfigExpander::expand_list", skip(self))]
     pub fn expand_list(
         &self,
+        label: &Label,
         parts: Vec<CfgValue>,
         value_type: &CfgValueType,
     ) -> Result<CfgValue, ConfigExpanderError> {
         let mut elements = vec![];
 
         for p in parts {
-            let expanded_value = self.expand_value(p, &value_type)?;
+            let expanded_value = self.expand_value(label, p, value_type)?;
             elements.extend(match expanded_value {
                 CfgValue::List(subparts) => subparts,
                 el => vec![el],
@@ -112,4 +125,9 @@ impl ConfigExpander {
 
         Ok(CfgValue::List(elements))
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 }

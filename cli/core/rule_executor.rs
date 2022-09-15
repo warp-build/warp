@@ -27,11 +27,125 @@ pub struct ExecutionResult {
     pub run_script: Option<RunScript>,
 }
 
+pub struct ComputeTargetProgram;
+
+impl ComputeTargetProgram {
+    pub fn as_js_source(
+        env: &ExecutionEnvironment,
+        target: &Target,
+        deps: &[Dependency],
+        transitive_deps: &[Dependency],
+        rule: &Rule,
+        config: &RuleConfig,
+    ) -> String {
+        let config: serde_json::Value = config.clone().into();
+
+        let deps: serde_json::Value = serde_json::Value::Array(
+            deps.iter()
+                .map(|dep| {
+                    let mut map = serde_json::Map::new();
+                    map.insert(
+                        "name".to_string(),
+                        serde_json::Value::String(dep.label.name()),
+                    );
+                    map.insert(
+                        "label".to_string(),
+                        serde_json::Value::String(dep.label.to_string()),
+                    );
+                    map.insert(
+                        "srcs".to_string(),
+                        serde_json::Value::Array(
+                            dep.srcs
+                                .iter()
+                                .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
+                                .collect(),
+                        ),
+                    );
+                    map.insert(
+                        "outs".to_string(),
+                        serde_json::Value::Array(
+                            dep.outs
+                                .iter()
+                                .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
+                                .collect(),
+                        ),
+                    );
+                    serde_json::Value::Object(map)
+                })
+                .collect(),
+        );
+
+        let transitive_deps: serde_json::Value = serde_json::Value::Array(
+            transitive_deps
+                .iter()
+                .map(|dep| {
+                    let mut map = serde_json::Map::new();
+                    map.insert(
+                        "name".to_string(),
+                        serde_json::Value::String(dep.label.name()),
+                    );
+                    map.insert(
+                        "ruleName".to_string(),
+                        serde_json::Value::String(dep.rule_name.clone()),
+                    );
+                    map.insert(
+                        "label".to_string(),
+                        serde_json::Value::String(dep.label.to_string()),
+                    );
+                    map.insert(
+                        "srcs".to_string(),
+                        serde_json::Value::Array(
+                            dep.srcs
+                                .iter()
+                                .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
+                                .collect(),
+                        ),
+                    );
+                    map.insert(
+                        "outs".to_string(),
+                        serde_json::Value::Array(
+                            dep.outs
+                                .iter()
+                                .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
+                                .collect(),
+                        ),
+                    );
+                    serde_json::Value::Object(map)
+                })
+                .collect(),
+        );
+
+        let env: serde_json::Value = env.clone().into();
+
+        r#"
+
+(() => {
+    Warp.Targets.compute({
+      label: "{LABEL_NAME}",
+      rule: "{RULE_NAME}",
+      cfg: {CONFIG},
+      deps: {DEPS},
+      transitiveDeps: {TRANSITIVE_DEPS},
+      env: {ENVIRONMENT},
+    });
+})();
+
+        "#
+        .replace("{LABEL_NAME}", &target.label.to_string())
+        .replace("{RULE_NAME}", &rule.name)
+        .replace("{CONFIG}", &config.to_string())
+        .replace("{DEPS}", &deps.to_string())
+        .replace("{TRANSITIVE_DEPS}", &transitive_deps.to_string())
+        .replace("{ENVIRONMENT}", &env.to_string())
+    }
+}
+
 pub struct NetModuleLoader;
 
 /// NOTE(@ostera): this feature copied from `deno-simple-module-loader`:
 ///     https://github.com/andreubotella/deno-simple-module-loader)
 impl ModuleLoader for NetModuleLoader {
+    #[tracing::instrument(name = "NetModuleLoader::resolve", skip(self))]
     fn resolve(
         &self,
         specifier: &str,
@@ -41,6 +155,10 @@ impl ModuleLoader for NetModuleLoader {
         Ok(resolve_import(specifier, referrer)?)
     }
 
+    #[tracing::instrument(
+        name = "NetModuleLoader::load",
+        skip(self, _maybe_referrer, _is_dyn_import)
+    )]
     fn load(
         &self,
         module_specifier: &ModuleSpecifier,
@@ -85,30 +203,6 @@ impl ModuleLoader for NetModuleLoader {
 static JS_SNAPSHOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/JS_SNAPSHOT.bin"));
 
 #[derive(Error, Debug)]
-pub enum LoadError {
-    #[error("The module name `{module_name}` is invalid: {reason:?}")]
-    BadModuleName {
-        module_name: String,
-        reason: deno_core::url::ParseError,
-    },
-
-    #[error("The module `{module_name}` had issues importing some other files: {reason:?}")]
-    ModuleResolutionError {
-        module_name: String,
-        reason: anyhow::Error,
-    },
-
-    #[error("The module name `{module_name}` could not be evaluated: {reason:?}")]
-    ModuleEvaluationError {
-        module_name: String,
-        reason: anyhow::Error,
-    },
-
-    #[error("Something went wrong.")]
-    Unknown,
-}
-
-#[derive(Error, Debug)]
 pub enum RuleExecutorError {
     #[error(transparent)]
     ExecutableTargetError(ExecutableTargetError),
@@ -127,11 +221,32 @@ pub enum RuleExecutorError {
         rule: Rule,
     },
 
-    #[error("Something went wrong.")]
-    Unknown,
-
     #[error(transparent)]
     ConfigExpanderError(ConfigExpanderError),
+
+    #[error("Could not load file at {file:?} due to {err:?}")]
+    CouldNotReadFile { file: PathBuf, err: std::io::Error },
+
+    #[error("The module name `{module_name}` is invalid: {reason:?}")]
+    BadModuleName {
+        module_name: String,
+        reason: deno_core::url::ParseError,
+    },
+
+    #[error("The module `{module_name}` had issues importing some other files: {reason:?}")]
+    ModuleResolutionError {
+        module_name: String,
+        reason: anyhow::Error,
+    },
+
+    #[error("The module name `{module_name}` could not be evaluated: {reason:?}")]
+    ModuleEvaluationError {
+        module_name: String,
+        reason: anyhow::Error,
+    },
+
+    #[error("Could not find rule {rule_name:?} in the rules map")]
+    RuleNotFound { rule_name: String },
 }
 
 /// The Rule Execution Environment abstracts away the communication between the Dependency Graph
@@ -151,7 +266,7 @@ pub struct RuleExecutor {
 }
 
 impl RuleExecutor {
-    pub fn new() -> RuleExecutor {
+    pub fn new() -> Result<RuleExecutor, RuleExecutorError> {
         let rule_map = Arc::new(DashMap::new());
         let action_map = Arc::new(DashMap::new());
         let output_map = Arc::new(DashMap::new());
@@ -166,6 +281,7 @@ impl RuleExecutor {
             let run_script_map = run_script_map.clone();
 
             let inner_state = InnerState {
+                id: uuid::Uuid::new_v4(),
                 action_map,
                 output_map,
                 provides_map,
@@ -192,7 +308,6 @@ impl RuleExecutor {
                     rule_exec_env_ffi::op_label_name::decl(),
                     rule_exec_env_ffi::op_label_path::decl(),
                     rule_exec_env_ffi::op_rule_new::decl(),
-                    rule_exec_env_ffi::op_toolchain_new::decl(),
                 ])
                 .state(move |state| {
                     state.put(inner_state.clone());
@@ -209,14 +324,18 @@ impl RuleExecutor {
         };
         let runtime = deno_core::JsRuntime::new(rt_options);
 
-        RuleExecutor {
+        let mut rule_executor = RuleExecutor {
             action_map,
             output_map,
             provides_map,
             rule_map,
             run_script_map,
             runtime,
-        }
+        };
+
+        rule_executor.setup()?;
+
+        Ok(rule_executor)
     }
 
     #[tracing::instrument(name = "RuleExecutor::update_provide_map", skip(self, node, store))]
@@ -225,7 +344,7 @@ impl RuleExecutor {
         node: &ExecutableTarget,
         store: &Store,
     ) -> Result<(), anyhow::Error> {
-        let abs_node_path = store.absolute_path_by_node(&node).await?;
+        let abs_node_path = store.absolute_path_by_node(node).await?;
 
         let provides = if let Some(provides) = self.provides_map.get(&node.label) {
             let mut new_provides = HashMap::new();
@@ -245,50 +364,89 @@ impl RuleExecutor {
         Ok(())
     }
 
+    #[tracing::instrument(name = "RuleExecutor::clear", skip(self))]
     pub fn clear(&mut self) {
         self.action_map.clear();
         self.output_map.clear();
-        self.provides_map.clear();
     }
 
+    #[tracing::instrument(name = "RuleExecutor::load_rule", skip(self))]
+    pub async fn load_rule(
+        &mut self,
+        rule_name: &str,
+        file: PathBuf,
+    ) -> Result<Rule, RuleExecutorError> {
+        // NOTE(@ostera): avoid IO and redefining rules if it is already computed in this worker
+        if let Some(r) = self.rule_map.get(rule_name) {
+            return Ok(r.value().clone());
+        }
+
+        self.load_file(file).await?;
+
+        self.rule_map
+            .get(rule_name)
+            .map(|r| r.value().clone())
+            .ok_or_else(|| RuleExecutorError::RuleNotFound {
+                rule_name: rule_name.to_string(),
+            })
+    }
+
+    #[tracing::instrument(name = "RuleExecutor::load_file", skip(self))]
+    pub async fn load_file(&mut self, file: PathBuf) -> Result<(), RuleExecutorError> {
+        let module_name = format!("file://{}", file.to_str().unwrap());
+        let module_code =
+            fs::read_to_string(&file)
+                .await
+                .map_err(|err| RuleExecutorError::CouldNotReadFile {
+                    file: file.clone(),
+                    err,
+                })?;
+        self.load(&module_name, Some(module_code)).await
+    }
+
+    #[tracing::instrument(name = "RuleExecutor::load", skip(self, module_code))]
     pub async fn load(
         &mut self,
         module_name: &str,
         module_code: Option<String>,
-    ) -> Result<(), LoadError> {
+    ) -> Result<(), RuleExecutorError> {
         let mod_specifier =
-            url::Url::parse(module_name).map_err(|reason| LoadError::BadModuleName {
+            url::Url::parse(module_name).map_err(|reason| RuleExecutorError::BadModuleName {
                 module_name: module_name.to_string(),
                 reason,
             })?;
-        trace!("loading {:?}", &module_name);
+
         let mod_id = self
             .runtime
             .load_side_module(&mod_specifier, module_code)
             .await
-            .map_err(|reason| LoadError::ModuleResolutionError {
+            .map_err(|reason| RuleExecutorError::ModuleResolutionError {
                 module_name: module_name.to_string(),
                 reason,
             })?;
-        trace!("evaluating {:?}", &module_name);
+
         let eval_future = self.runtime.mod_evaluate(mod_id);
+
         self.runtime.run_event_loop(false).await.map_err(|reason| {
-            LoadError::ModuleEvaluationError {
+            RuleExecutorError::ModuleEvaluationError {
                 module_name: module_name.to_string(),
                 reason,
             }
         })?;
+
         let _ = eval_future.await.unwrap();
+
         self.runtime
             .get_module_namespace(mod_id)
-            .map_err(|reason| LoadError::ModuleEvaluationError {
+            .map_err(|reason| RuleExecutorError::ModuleEvaluationError {
                 module_name: module_name.to_string(),
                 reason,
             })?;
-        trace!("done with {:?}", &module_name);
+
         Ok(())
     }
 
+    #[tracing::instrument(name = "RuleExecutor::setup", skip(self))]
     pub fn setup(&mut self) -> Result<(), RuleExecutorError> {
         trace!("Running prelude.js");
         self.runtime
@@ -298,32 +456,25 @@ impl RuleExecutor {
         Ok(())
     }
 
+    #[tracing::instrument(
+        name = "RuleExecutor::execute",
+        skip(self, env, rule, target, deps, transitive_deps)
+    )]
     pub async fn execute(
         &mut self,
         env: &ExecutionEnvironment,
         rule: &Rule,
         target: &Target,
+        deps: &[Dependency],
         transitive_deps: &[Dependency],
     ) -> Result<ExecutionResult, RuleExecutorError> {
         let config = ConfigExpander
-            .expand(&rule, &target)
+            .expand(rule, target)
             .await
             .map_err(RuleExecutorError::ConfigExpanderError)?;
 
-        let compute_program = r#"
-
-(() => {
-    Warp.Targets.compute({
-      label: "{LABEL_NAME}",
-      rule: "{RULE_NAME}",
-      cfg: {CONFIG},
-      deps: {DEPS},
-      transitiveDeps: {TRANSITIVE_DEPS},
-      platform: {PLATFORM},
-    });
-})();
-
-        "#;
+        let compute_program =
+            ComputeTargetProgram::as_js_source(env, target, deps, transitive_deps, rule, &config);
 
         let script_name = format!("<target: {:?}>", &target.label.to_string());
         self.runtime
@@ -369,9 +520,5 @@ impl RuleExecutor {
             srcs,
             run_script,
         })
-    }
-
-    pub async fn load_rule(&self, _rule_file: PathBuf) -> Result<Rule, RuleExecutorError> {
-        todo!()
     }
 }

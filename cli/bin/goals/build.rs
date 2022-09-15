@@ -62,6 +62,8 @@ impl BuildGoal {
         )
         .await;
 
-        result.map(|_| ())
+        result?;
+
+        Ok(())
     }
 }

@@ -25,22 +25,24 @@ pub enum TargetPlannerError {
 }
 
 impl TargetPlanner {
-    pub fn new(build_results: Arc<BuildResults>) -> Self {
-        Self {
+    #[tracing::instrument(name = "TargetPlanner::new", skip(workspace, build_results))]
+    pub fn new(
+        workspace: &Workspace,
+        build_results: Arc<BuildResults>,
+    ) -> Result<Self, TargetPlannerError> {
+        Ok(Self {
             build_results,
-            rule_store: RuleStore::new(),
-            rule_executor: RuleExecutor::new(),
-        }
+            rule_store: RuleStore::new(workspace),
+            rule_executor: RuleExecutor::new().map_err(TargetPlannerError::RuleExecutorError)?,
+        })
     }
 
+    #[tracing::instrument(name = "TargetPlanner::plan", skip(self, env))]
     pub async fn plan(
         &mut self,
         env: &ExecutionEnvironment,
         target: &Target,
     ) -> Result<ExecutableTarget, TargetPlannerError> {
-        let deps = self.find_deps(target).await?;
-        let transitive_deps = self.find_transitive_deps(target).await?;
-
         let rule_file = self
             .rule_store
             .get(&target.rule_name)
@@ -49,13 +51,19 @@ impl TargetPlanner {
 
         let rule = self
             .rule_executor
-            .load_rule(rule_file)
+            .load_rule(&target.rule_name, rule_file)
             .await
             .map_err(TargetPlannerError::RuleExecutorError)?;
 
+        self.find_toolchains(target, &rule)?;
+
+        let deps = self.find_deps(target)?;
+
+        let transitive_deps = self.find_transitive_deps(target)?;
+
         let exec_result = self
             .rule_executor
-            .execute(env, &rule, target, &transitive_deps)
+            .execute(env, &rule, target, &deps, &transitive_deps)
             .await
             .map_err(TargetPlannerError::RuleExecutorError)?;
 
@@ -64,11 +72,19 @@ impl TargetPlanner {
             .map_err(TargetPlannerError::ExecutableTargetError)
     }
 
-    pub async fn find_deps(&self, target: &Target) -> Result<Vec<Dependency>, TargetPlannerError> {
+    #[tracing::instrument(name = "TargetPlanner::find_toolchains", skip(self))]
+    pub fn find_toolchains(&self, target: &Target, rule: &Rule) -> Result<(), TargetPlannerError> {
+        self._deps(&target.label, &rule.toolchains, true)
+            .map(|_| ())
+    }
+
+    #[tracing::instrument(name = "TargetPlanner::find_deps", skip(self))]
+    pub fn find_deps(&self, target: &Target) -> Result<Vec<Dependency>, TargetPlannerError> {
         self._deps(&target.label, &target.deps, false)
     }
 
-    pub async fn find_transitive_deps(
+    #[tracing::instrument(name = "TargetPlanner::find_transitive_deps", skip(self))]
+    pub fn find_transitive_deps(
         &self,
         target: &Target,
     ) -> Result<Vec<Dependency>, TargetPlannerError> {
@@ -85,16 +101,19 @@ impl TargetPlanner {
         let mut missing_deps: FxHashSet<Label> = FxHashSet::default();
 
         for dep in deps {
-            if let Some(node) = self.build_results.get_computed_target(&dep) {
+            if let Some(node) = self.build_results.get_computed_target(dep) {
                 collected_deps.insert(node.to_dependency());
+
                 if transitive {
                     let node_deps = node
                         .deps
                         .iter()
                         .map(|d| d.label.clone())
                         .collect::<Vec<Label>>();
+
                     let node_deps = node_deps.as_slice();
-                    for dep in self._deps(&node.label, &node_deps, transitive)? {
+
+                    for dep in self._deps(&node.label, node_deps, transitive)? {
                         collected_deps.insert(dep);
                     }
                 }

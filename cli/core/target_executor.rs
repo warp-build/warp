@@ -1,7 +1,10 @@
 use super::*;
 use futures::FutureExt;
 use fxhash::FxHashSet;
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use thiserror::*;
 use tokio::fs;
 
@@ -40,6 +43,7 @@ pub enum ValidationStatus {
         expected_but_missing: Vec<PathBuf>,
         unexpected_but_present: Vec<PathBuf>,
     },
+    Cached,
     NoOutputs,
     Valid {
         outputs: Vec<PathBuf>,
@@ -49,8 +53,8 @@ pub enum ValidationStatus {
 impl TargetExecutor {
     pub fn new(store: Arc<Store>, event_channel: Arc<EventChannel>) -> Self {
         Self {
-            store: store.clone(),
-            event_channel: event_channel.clone(),
+            store,
+            event_channel,
         }
     }
 
@@ -68,6 +72,11 @@ impl TargetExecutor {
             .absolute_path_by_node(target)
             .await
             .map_err(TargetExecutorError::StoreError)?;
+
+        // NOTE: nooope
+        if fs::metadata(&store_path).await.is_ok() {
+            return Ok(ValidationStatus::Cached);
+        }
 
         self.store
             .clean(target)
@@ -87,14 +96,14 @@ impl TargetExecutor {
 
     async fn copy_files(
         &self,
-        store_path: &PathBuf,
+        store_path: &Path,
         target: &ExecutableTarget,
     ) -> Result<(), TargetExecutorError> {
         // Copy dependencies
         for dep in &target.transitive_deps {
             let dep_src = self
                 .store
-                .absolute_path_by_dep(&dep)
+                .absolute_path_by_dep(dep)
                 .await
                 .map_err(TargetExecutorError::StoreError)?;
 
@@ -108,7 +117,7 @@ impl TargetExecutor {
         // Copy sources
         for src in &target.srcs {
             let dst = store_path.join(&src);
-            self.copy_file(&target.label, &src, &dst).await?;
+            self.copy_file(&target.label, src, &dst).await?;
         }
 
         Ok(())
@@ -132,8 +141,8 @@ impl TargetExecutor {
             action
                 .run(
                     target.label.clone(),
-                    &store_path,
-                    &store_path,
+                    store_path,
+                    store_path,
                     self.event_channel.clone(),
                 )
                 .await
@@ -156,7 +165,7 @@ impl TargetExecutor {
         let expected_outputs: FxHashSet<PathBuf> = target.outs.iter().cloned().collect();
 
         let all_outputs: FxHashSet<PathBuf> = self
-            .scan_files(&store_path)
+            .scan_files(store_path)
             .await
             .iter()
             .flat_map(|path| path.strip_prefix(&store_path))
@@ -214,8 +223,8 @@ impl TargetExecutor {
 
     async fn write_manifest(
         &self,
-        store_path: &PathBuf,
-        target: &ExecutableTarget,
+        _store_path: &Path,
+        _target: &ExecutableTarget,
     ) -> Result<(), TargetExecutorError> {
         todo!()
     }

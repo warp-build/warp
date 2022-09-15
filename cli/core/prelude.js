@@ -9,7 +9,7 @@ Array.prototype.unique = function() {
 }
 
 const ffi = (name, args) => Deno.core.opSync(name, args);
-const err = x => {
+const panic = x => {
   throw new Error(x);
 };
 
@@ -41,7 +41,7 @@ Warp.Rules.register = (name, spec) => {
 
 Warp.Rules.getByName = name => {
     if (Warp.Rules.exists(name)) return __RULES[name];
-    err(`Expected rule ${name} but could not find it in store!`);
+    panic(`Expected rule ${name} but could not find it in store!`);
 };
 
 
@@ -54,7 +54,7 @@ Warp.Targets.compute = target => {
   const config = Object.fromEntries(Object.entries(rule.cfg)
     .map( ([k, type]) => {
       const value = target.cfg[k] === undefined ? rule.defaults[k] : target.cfg[k];
-      if (value === undefined) err(`Expected target  ${target.label}  to have config key '${k}' (of type ${type}) but it was not present in your Build.toml, and it doesn't have a default value.`);
+      if (value === undefined) panic(`Expected target  ${target.label}  to have config key '${k}' (of type ${type}) but it was not present in your Build.toml, and it doesn't have a default value.`);
       return [k, value];
     }));
 
@@ -65,13 +65,14 @@ Warp.Targets.compute = target => {
     deps: () => target.deps,
     transitiveDeps: () => target.transitiveDeps,
 
+    // TODO(@ostera): build this entire object on the Rust side
     env: () => ({
       host: {
-        triple: target.platform,
-        arch: target.platform.split("-")[0],
-        os: target.platform.endsWith("darwin") ? "darwin" :
-            target.platform.endsWith("linux-gnu") ? "linux" :
-            target.platform.endsWith("win32") ? "win32" : "unknown",
+        triple: target.env.platform,
+        arch: target.env.platform.split("-")[0],
+        os: target.env.platform.endsWith("darwin") ? "darwin" :
+            target.env.platform.endsWith("linux-gnu") ? "linux" :
+            target.env.platform.endsWith("win32") ? "win32" : "unknown",
       }
     }),
 
@@ -106,7 +107,7 @@ Warp.Targets.compute = target => {
 const check_config = cfg => {
   return Object.fromEntries(Object.entries(cfg).map(([k, t]) => {
     if (Array.isArray(t)) {
-      if (t.length == 0) err(`Cfg map for rule ${name} found an empty list. Did you mean to use   [label()]   ?`);
+      if (t.length == 0) panic(`Cfg map for rule ${name} found an empty list. Did you mean to use   [label()]   ?`);
       return [k, `list_of_${t[0]}`];
     } else {
       return [k, t];
@@ -116,21 +117,21 @@ const check_config = cfg => {
 
 Warp.Rule = spec => {
   const name = spec.name;
-  if (!name) err(`Rule must have a string name`);
-  if (typeof name !== "string") err(`Rule name must be a string, instead found: ${name}`);
-  if (name.length < 5) err(`Rule name "${name}" should be at least 5 characters long`);
+  if (!name) panic(`Rule must have a string name`);
+  if (typeof name !== "string") panic(`Rule name must be a string, instead found: ${name}`);
+  if (name.length < 5) panic(`Rule name "${name}" should be at least 5 characters long`);
 
   const mnemonic = spec.mnemonic;
-  if (!mnemonic) err(`Rule must have a string mnemonic`);
-  if (typeof mnemonic !== "string") err(`Rule mnemonic must be a string, instead found: ${mnemonic}`);
+  if (!mnemonic) panic(`Rule must have a string mnemonic`);
+  if (typeof mnemonic !== "string") panic(`Rule mnemonic must be a string, instead found: ${mnemonic}`);
 
   const impl = spec.impl;
-  if (!impl) err(`Rule ${name} must have an implementation.`);
-  if (typeof impl !== "function") err(`Rule ${name} implementation should be a function, instead found: ${typeof impl}`);
+  if (!impl) panic(`Rule ${name} must have an implementation.`);
+  if (typeof impl !== "function") panic(`Rule ${name} implementation should be a function, instead found: ${typeof impl}`);
 
   const cfg = spec.cfg;
-  if (!cfg) err(`Rule ${name} must define a config map with   cfg   `);
-  if (Object.entries(cfg).length == 0) err(`Config map for rule ${name} is empty! Try adding a   name: label()   key?`);
+  if (!cfg) panic(`Rule ${name} must define a config map with   cfg   `);
+  if (Object.entries(cfg).length == 0) panic(`Config map for rule ${name} is empty! Try adding a   name: label()   key?`);
   spec.cfg = check_config(spec.cfg);
 
   spec.toolchains = (spec.toolchains || []).map( toolchain => toolchain.name );
@@ -140,7 +141,6 @@ Warp.Rule = spec => {
   spec.portable = spec.portable || false;
   spec.sandbox = spec.sandbox || { mode: "link" };
 
-  // if (Warp.Rules.exists(name)) err(`There already exists rule toolchain called ${name}, consider renaming yours`);
   Warp.Rules.register(name, spec);
 
 
@@ -155,17 +155,17 @@ Warp.Rule = spec => {
 //
 Warp.Toolchain = spec => {
   const name = spec.name;
-  if (!name) err(`Toolchain must have a string name.`);
-  if (typeof name !== "string") err(`Toolchain name must be a string, instead found: ${name}.`);
-  if (name === "") err(`Toolchain name was empty! Here's some inspiration:   super_lang  `);
+  if (!name) panic(`Toolchain must have a string name.`);
+  if (typeof name !== "string") panic(`Toolchain name must be a string, instead found: ${name}.`);
+  if (name === "") panic(`Toolchain name was empty! Here's some inspiration:   super_lang  `);
 
   const impl = spec.impl;
-  if (!impl) err(`Rule ${name} must have an implementation.`);
-  if (typeof impl !== "function") err(`Rule ${name} implementation should be a function, instead found: ${typeof impl}`);
+  if (!impl) panic(`Rule ${name} must have an implementation.`);
+  if (typeof impl !== "function") panic(`Rule ${name} implementation should be a function, instead found: ${typeof impl}`);
 
   const cfg = spec.cfg;
-  if (!cfg) err(`Rule ${name} must define a config map with   cfg   `);
-  if (Object.entries(cfg).length == 0) err(`Config map for rule ${name} is empty! Try adding a   name: label()   key?`);
+  if (!cfg) panic(`Rule ${name} must define a config map with   cfg   `);
+  if (Object.entries(cfg).length == 0) panic(`Config map for rule ${name} is empty! Try adding a   name: label()   key?`);
   spec.cfg = check_config(spec.cfg);
 
   spec.defaults = spec.defaults || {};
@@ -180,10 +180,9 @@ Warp.Toolchain = spec => {
 
   spec.sandbox = spec.sandbox || { mode: "link" };
 
-  // if (Warp.Rules.exists(name)) err(`There already exists a toolchain called ${name}, consider renaming yours`);
   Warp.Rules.register(name, spec);
 
-  ffi("op_toolchain_new", spec);
+  ffi("op_rule_new", spec);
 
   return spec;
 };

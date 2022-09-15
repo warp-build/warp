@@ -97,12 +97,10 @@ impl WorkspacePaths {
 
         for path in &[
             &global_rules_root,
-            &global_toolchains_root,
             &global_cache_root,
             &local_warp_root,
             &local_rules_root,
             &local_toolchains_root,
-            &local_sandbox_root,
             &local_outputs_root,
         ] {
             std::fs::create_dir_all(&path).map_err(|err| {

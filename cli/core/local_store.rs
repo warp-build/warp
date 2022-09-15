@@ -1,5 +1,4 @@
 use super::*;
-use anyhow::{anyhow, Context};
 use fxhash::*;
 use std::path::PathBuf;
 use tokio::fs;
@@ -92,13 +91,8 @@ impl LocalStore {
     #[tracing::instrument(name = "LocalStore::clean")]
     pub async fn clean(&self, key: &StoreKey) -> Result<(), StoreError> {
         let cache_path = self.cache_root.join(&key);
-        debug!("Checking if {:?} is in the cache...", &cache_path);
-        if fs::metadata(&cache_path).await.is_ok() {
-            trace!("Found it, removing...");
-            fs::remove_dir_all(&cache_path)
-                .await
-                .map_err(StoreError::IOError)?;
-        }
+        let _ = fs::remove_dir_all(&cache_path).await;
+        let _ = fs::create_dir_all(&cache_path).await;
         trace!("Cleaned from cache: {:?}", &cache_path);
         Ok(())
     }

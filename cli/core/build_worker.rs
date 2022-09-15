@@ -17,6 +17,9 @@ pub enum BuildWorkerError {
 
     #[error(transparent)]
     LabelResolverError(LabelResolverError),
+
+    #[error(transparent)]
+    TargetPlannerError(TargetPlannerError),
 }
 
 pub struct BuildWorker {
@@ -39,6 +42,7 @@ pub struct BuildWorker {
 impl BuildWorker {
     pub fn new(
         role: Role,
+        workspace: &Workspace,
         target: Label,
         coordinator: Arc<BuildCoordinator>,
         event_channel: Arc<EventChannel>,
@@ -46,10 +50,13 @@ impl BuildWorker {
         build_results: Arc<BuildResults>,
         label_resolver: Arc<LabelResolver>,
         target_executor: Arc<TargetExecutor>,
-    ) -> Self {
+    ) -> Result<Self, BuildWorkerError> {
         let env = ExecutionEnvironment::new();
-        let target_planner = TargetPlanner::new(build_results.clone());
-        Self {
+
+        let target_planner = TargetPlanner::new(workspace, build_results.clone())
+            .map_err(BuildWorkerError::TargetPlannerError)?;
+
+        Ok(Self {
             build_queue,
             build_results,
             coordinator,
@@ -60,30 +67,29 @@ impl BuildWorker {
             target,
             target_executor,
             target_planner,
-        }
+        })
     }
 
     #[tracing::instrument(name = "BuildWorker::setup_and_run", skip(self))]
     pub async fn setup_and_run(&mut self, max_concurrency: usize) -> Result<(), BuildWorkerError> {
-        let result = {
-            self.setup(max_concurrency).await?;
-            loop {
-                // NOTE(@ostera): we don't want things to burn CPU cycles
-                tokio::time::sleep(std::time::Duration::from_micros(100)).await;
-                self.run().await?;
-                if self.should_stop() {
-                    break;
-                }
+        self.setup(max_concurrency).await?;
+
+        loop {
+            // NOTE(@ostera): we don't want things to burn CPU cycles
+            tokio::time::sleep(std::time::Duration::from_micros(100)).await;
+            let result = self.run().await;
+            if result.is_err() {
+                self.coordinator.signal_shutdown();
+                self.finish();
+                return result;
             }
-            Ok(())
-        };
-
-        if result.is_err() {
-            self.coordinator.signal_shutdown();
+            if self.should_stop() {
+                self.finish();
+                break;
+            }
         }
-        self.finish();
 
-        result
+        Ok(())
     }
 
     pub fn should_stop(&self) -> bool {
@@ -119,48 +125,60 @@ impl BuildWorker {
     #[tracing::instrument(name = "BuildWorker::run", skip(self))]
     pub async fn run(&mut self) -> Result<(), BuildWorkerError> {
         if let Some(label) = self.build_queue.next() {
-            let target = self
-                .label_resolver
-                .resolve(&label)
-                .await
-                .map_err(BuildWorkerError::LabelResolverError)?;
+            let result = self.run_target(label).await;
+            result?;
+        }
+        Ok(())
+    }
 
-            let executable_target = match self.target_planner.plan(&self.env, &target).await {
-                Err(TargetPlannerError::MissingDependencies { deps, .. }) => {
-                    if let Err(QueueError::DependencyCycle(err)) =
-                        self.build_queue.queue_deps(&label, &deps)
-                    {
-                        self.event_channel.send(Event::BuildError(
-                            label.clone(),
-                            BuildError::BuildResultError(err),
-                        ));
-                        self.coordinator.signal_shutdown();
-                    }
+    #[tracing::instrument(name = "BuildWorker::run_target", skip(self))]
+    pub async fn run_target(&mut self, label: Label) -> Result<(), BuildWorkerError> {
+        let target = self
+            .label_resolver
+            .resolve(&label)
+            .await
+            .map_err(BuildWorkerError::LabelResolverError)?;
 
-                    self.build_queue.nack(label.clone());
-                    return Ok(());
-                }
-                Err(err) => {
+        let executable_target = match self.target_planner.plan(&self.env, &target).await {
+            Err(TargetPlannerError::MissingDependencies { deps, .. }) => {
+                if let Err(QueueError::DependencyCycle(err)) =
+                    self.build_queue.queue_deps(&label, &deps)
+                {
                     self.event_channel.send(Event::BuildError(
                         label.clone(),
-                        BuildError::TargetPlannerError(err),
+                        BuildError::BuildResultError(err),
                     ));
                     self.coordinator.signal_shutdown();
-                    return Ok(());
                 }
-                Ok(executable_target) => executable_target,
-            };
 
-            if let Err(err) = self.target_executor.execute(&executable_target).await {
+                self.build_queue.nack(label.clone());
+                return Ok(());
+            }
+
+            Err(err) => {
                 self.event_channel.send(Event::BuildError(
                     label.clone(),
-                    BuildError::TargetExecutorError(err),
+                    BuildError::TargetPlannerError(err),
                 ));
                 self.coordinator.signal_shutdown();
-            } else {
-                self.build_queue.ack(&label);
+                return Ok(());
             }
+
+            Ok(executable_target) => executable_target,
+        };
+
+        if let Err(err) = self.target_executor.execute(&executable_target).await {
+            self.event_channel.send(Event::BuildError(
+                label.clone(),
+                BuildError::TargetExecutorError(err),
+            ));
+            self.coordinator.signal_shutdown();
+        } else {
+            self.build_results
+                .add_computed_target(&label, executable_target);
+            self.build_queue.ack(&label);
         }
+
         Ok(())
     }
 }
@@ -211,7 +229,7 @@ mod tests {
         let lr = Arc::new(LabelResolver::new(&w));
         let s = Arc::new(Store::new(&w));
         let te = Arc::new(TargetExecutor::new(s, ec.clone()));
-        BuildWorker::new(r, l, bc, ec, bq, br, lr, te)
+        BuildWorker::new(r, &w, l, bc, ec, bq, br, lr, te).unwrap()
     }
 
     #[tokio::test]

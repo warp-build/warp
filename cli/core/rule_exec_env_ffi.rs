@@ -11,6 +11,7 @@ use tracing::*;
 
 #[derive(Default, Clone, Debug)]
 pub struct InnerState {
+    pub id: uuid::Uuid,
     pub rule_map: Arc<DashMap<String, Rule>>,
     pub run_script_map: Arc<DashMap<Label, RunScript>>,
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
@@ -136,6 +137,7 @@ pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Re
         Some(_) => return Err(anyhow!("You can't specify provides twice!")),
     };
     provides_map.insert(label, new_provides);
+
     Ok(())
 }
 
@@ -155,7 +157,9 @@ pub fn op_ctx_fetch_provides(
 
     let label = Label::new(&args.label);
     let provides = match provides_map.get(&label) {
-        None => panic!("Undefined provides for label: {:?}", &label),
+        None => {
+            panic!("Undefined provides for label: {:?}", &label)
+        }
         Some(provides) => provides.clone(),
     };
 
@@ -383,16 +387,10 @@ pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyErr
 }
 
 #[op]
-pub fn op_toolchain_new(state: &mut OpState, toolchain: Rule) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
-    panic!("don't forget about the toolchains")
-}
-
-#[op]
 pub fn op_rule_new(state: &mut OpState, rule: Rule) -> Result<(), AnyError> {
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
 
-    trace!("Registering rule: {}", &rule.name.to_string());
+    debug!("Registering rule: {}", &rule.name);
     inner_state.rule_map.insert(rule.name.to_string(), rule);
     Ok(())
 }

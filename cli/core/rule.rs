@@ -6,19 +6,19 @@ use std::collections::HashMap;
 
 pub type RuleName = String;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Runnable {
     Runnable,
     NotRunnable,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pinned {
     Pinned,
     Unpinned,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Portability {
     Portable,
     ArchitectureDependent,
@@ -169,23 +169,6 @@ impl<'de> Deserialize<'de> for Rule {
         } else {
             Portability::ArchitectureDependent
         };
-
-        /*
-        let sandbox_config = {
-            let mut default = serde_json::Map::new();
-            default.insert("mode".to_string(), "link".into());
-
-            let sandbox_obj = rule_spec["sandbox"].as_object().unwrap_or(&default);
-
-            let file_mode = if sandbox_obj["mode"].as_str().unwrap_or("link") == "copy" {
-                SandboxFileMode::Copy
-            } else {
-                SandboxFileMode::Link
-            };
-
-            SandboxConfig { file_mode }
-        };
-        */
 
         let rule = Rule::new(
             name,
