@@ -63,7 +63,7 @@ impl BuildWorker {
         }
     }
 
-    #[tracing::instrument(name = "BuildWorker::run", skip(self))]
+    #[tracing::instrument(name = "BuildWorker::setup_and_run", skip(self))]
     pub async fn setup_and_run(&mut self, max_concurrency: usize) -> Result<(), BuildWorkerError> {
         let result = {
             self.setup(max_concurrency).await?;
@@ -93,6 +93,7 @@ impl BuildWorker {
         self.coordinator.should_shutdown()
     }
 
+    #[tracing::instrument(name = "BuildWorker::setup", skip(self))]
     pub async fn setup(&mut self, max_concurrency: usize) -> Result<(), BuildWorkerError> {
         if self.role == Role::MainWorker {
             if self.target.is_all() {
@@ -115,6 +116,7 @@ impl BuildWorker {
         }
     }
 
+    #[tracing::instrument(name = "BuildWorker::run", skip(self))]
     pub async fn run(&mut self) -> Result<(), BuildWorkerError> {
         if let Some(label) = self.build_queue.next() {
             let target = self

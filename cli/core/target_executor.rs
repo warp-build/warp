@@ -65,7 +65,7 @@ impl TargetExecutor {
         */
         let store_path = self
             .store
-            .absolute_path_by_node(&target)
+            .absolute_path_by_node(target)
             .await
             .map_err(TargetExecutorError::StoreError)?;
 
@@ -250,7 +250,7 @@ impl TargetExecutor {
         Ok(())
     }
 
-    fn scan_files(&self, root: &PathBuf) -> futures::future::BoxFuture<'_, Vec<PathBuf>> {
+    fn scan_files<'a>(&'a self, root: &'a PathBuf) -> futures::future::BoxFuture<'_, Vec<PathBuf>> {
         async move {
             if root.is_dir() {
                 let mut entries = vec![];

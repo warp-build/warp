@@ -21,47 +21,6 @@ impl LocalStore {
         }
     }
 
-    #[tracing::instrument(name = "LocalStore::save", skip(artifacts))]
-    pub async fn save(
-        &mut self,
-        key: &StoreKey,
-        artifacts: &[PathBuf],
-        sandbox_root: &PathBuf,
-    ) -> Result<(), StoreError> {
-        let cache_path = self.cache_root.join(key);
-
-        for artifact in artifacts {
-            debug!("Caching build artifact: {:?}", &artifact);
-            let cached_file = cache_path.join(&artifact);
-
-            // ensure all dirs are there for this file
-            let cached_dir = &cached_file.parent().unwrap();
-            debug!("Creating artifact cache path: {:?}", &cached_dir);
-            fs::create_dir_all(&cached_dir)
-                .await
-                .context(format!(
-                    "Could not prepare directory for artifact {:?} into cache path: {:?}",
-                    &artifact, &cached_dir
-                ))
-                .map(|_| ())?;
-
-            let sandboxed_artifact = &sandbox_root.join(artifact);
-            debug!(
-                "Moving artifact from sandbox path {:?} to cache path {:?}",
-                &sandboxed_artifact, &cached_file
-            );
-            fs::copy(&sandboxed_artifact, &cached_file)
-                .await
-                .context(format!(
-                    "Could not move artifact {:?} into cache path: {:?}",
-                    sandboxed_artifact, cached_file
-                ))
-                .map(|_| ())?;
-        }
-
-        Ok(())
-    }
-
     #[tracing::instrument(name = "LocalStore::promote_outputs", skip(node))]
     pub async fn promote_outputs(
         &self,
@@ -81,8 +40,11 @@ impl LocalStore {
         }
 
         for (path, _) in paths {
-            fs::create_dir_all(&path).await?;
+            fs::create_dir_all(&path)
+                .await
+                .map_err(StoreError::IOError)?;
         }
+
         for (src, dst) in outs {
             let _ = fs::remove_file(&dst).await;
 
@@ -90,14 +52,14 @@ impl LocalStore {
             match std::os::windows::fs::symlink(&src, &dst) {
                 Ok(_) => Ok(()),
                 Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-                err => Err(anyhow!("Could not create symlink because of: {:?}", err)),
+                Err(err) => Err(StoreError::IOError(err)),
             }?;
 
             #[cfg(not(target_os = "windows"))]
             match std::os::unix::fs::symlink(&src, &dst) {
                 Ok(_) => Ok(()),
                 Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-                err => Err(anyhow!("Could not create symlink because of: {:?}", err)),
+                Err(err) => Err(StoreError::IOError(err)),
             }?;
         }
 
@@ -108,12 +70,6 @@ impl LocalStore {
     pub async fn absolute_path_for_key(&self, key: &StoreKey) -> Result<PathBuf, StoreError> {
         fs::canonicalize(&self.cache_root)
             .await
-            .map_err(|_| {
-                anyhow!(
-                    "Could not find {:?} in disk, has the cache been modified manually?",
-                    &self.cache_root
-                )
-            })
             .map_err(StoreError::IOError)
             .map(|p| p.join(key))
     }

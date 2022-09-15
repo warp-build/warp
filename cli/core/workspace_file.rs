@@ -1,10 +1,9 @@
 use super::*;
-use anyhow::*;
 use futures::StreamExt;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use thiserror::Error;
+use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tracing::*;
@@ -30,9 +29,6 @@ pub enum WorkspaceFileError {
 
     #[error("{0}")]
     ValidationError(String),
-
-    #[error(transparent)]
-    Unknown(anyhow::Error),
 }
 
 impl From<derive_builder::UninitializedFieldError> for WorkspaceFileError {
@@ -51,7 +47,7 @@ impl From<String> for WorkspaceFileError {
 /// Warp Workspace.
 ///
 #[derive(Clone, Default, Debug, Builder, Serialize, Deserialize)]
-#[builder(build_fn(error = "anyhow::Error"))]
+#[builder(build_fn(error = "WorkspaceFileError"))]
 pub struct WorkspaceConfig {
     pub name: String,
 
@@ -83,7 +79,7 @@ pub struct FlexibleRuleConfig(pub BTreeMap<String, toml::Value>);
 /// through a semantic API that hides the TOML disk representation.
 ///
 #[derive(Clone, Default, Debug, Builder, Serialize, Deserialize)]
-#[builder(build_fn(error = "anyhow::Error"))]
+#[builder(build_fn(error = "WorkspaceFileError"))]
 pub struct WorkspaceFile {
     pub workspace: WorkspaceConfig,
 
@@ -109,33 +105,40 @@ impl WorkspaceFile {
         }
     }
 
-    pub async fn find_upwards(cwd: &Path) -> Result<(PathBuf, Self), anyhow::Error> {
+    #[tracing::instrument(name = "WorkspaceFile::find_upwards")]
+    pub async fn find_upwards(cwd: &Path) -> Result<(PathBuf, Self), WorkspaceFileError> {
         let mut dirs = Box::pin(WorkspaceFile::walk_uptree(cwd.to_path_buf()).await);
         while let Some(path) = dirs.next().await {
             let here = &path.join(WORKSPACE);
             if fs::canonicalize(&here).await.is_ok() {
-                let file = WorkspaceFile::read_from_file(here).await?;
-                return Ok((path.clone(), file));
+                return WorkspaceFile::read_from_file(here)
+                    .await
+                    .map(|file| (path.clone(), file));
             }
         }
-        Err(anyhow!("Could not find Workspace file"))
+        Err(WorkspaceFileError::WorkspaceFileNotFound)
     }
 
     pub fn builder() -> WorkspaceFileBuilder {
         WorkspaceFileBuilder::default()
     }
 
+    #[tracing::instrument(name = "WorkspaceFile::read_from_file")]
     pub async fn read_from_file(path: &Path) -> Result<Self, WorkspaceFileError> {
         let mut bytes = vec![];
+
         let mut file = fs::File::open(path)
             .await
             .map_err(WorkspaceFileError::IOError)?;
+
         file.read_to_end(&mut bytes)
             .await
             .map_err(WorkspaceFileError::IOError)?;
+
         toml::from_slice(&bytes).map_err(WorkspaceFileError::ParseError)
     }
 
+    #[tracing::instrument(name = "WorkspaceFile::write")]
     pub async fn write(&self, root: &Path) -> Result<(), WorkspaceFileError> {
         let toml = toml::to_string(&self).map_err(WorkspaceFileError::PrintError)?;
         fs::write(&root.join(WORKSPACE), toml)
@@ -145,9 +148,9 @@ impl WorkspaceFile {
 }
 
 impl TryFrom<&Workspace> for WorkspaceFile {
-    type Error = anyhow::Error;
+    type Error = WorkspaceFileError;
 
-    fn try_from(w: &Workspace) -> Result<Self, anyhow::Error> {
+    fn try_from(w: &Workspace) -> Result<Self, WorkspaceFileError> {
         Self::builder()
             .workspace(
                 WorkspaceConfig::builder()
@@ -172,7 +175,7 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    fn parse(toml: toml::Value, root: &PathBuf) -> Result<Workspace, anyhow::Error> {
+    fn parse(toml: toml::Value, root: &PathBuf) -> Result<Workspace, WorkspaceFileError> {
         let root = std::fs::canonicalize(root).unwrap();
         let paths = WorkspacePaths::new(&root, None, None).unwrap();
         WorkspaceParser::from_toml(toml, paths)

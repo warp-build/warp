@@ -47,6 +47,7 @@ pub struct WorkspacePaths {
 }
 
 impl WorkspacePaths {
+    #[tracing::instrument(name = "WorkspacePaths::new")]
     pub fn new(
         workspace_root: &Path,
         home: Option<String>,
@@ -111,6 +112,7 @@ impl WorkspacePaths {
     }
 
     #[cfg(target_os = "windows")]
+    #[tracing::instrument(name = "WorkspacePaths::setup_links")]
     fn setup_links(
         local_outputs_root: &PathBuf,
         workspace_output_link: &PathBuf,
@@ -124,6 +126,7 @@ impl WorkspacePaths {
     }
 
     #[cfg(not(target_os = "windows"))]
+    #[tracing::instrument(name = "WorkspacePaths::setup_links")]
     fn setup_links(
         local_outputs_root: &PathBuf,
         workspace_output_link: &PathBuf,
