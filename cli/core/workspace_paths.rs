@@ -1,8 +1,21 @@
-use anyhow::anyhow;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use std::path::Path;
 use std::path::PathBuf;
+use thiserror::*;
+
+#[derive(Error, Debug)]
+pub enum WorkspacePathsError {
+    #[error("Could not create workspace path at {path:?} due to: {err:?}")]
+    CouldNotCreateDir { path: PathBuf, err: std::io::Error },
+
+    #[error("Could not symlink workspace path from {src:?} to {dst:?} due to: {err:?}")]
+    CannotCreateSymlink {
+        src: PathBuf,
+        dst: PathBuf,
+        err: std::io::Error,
+    },
+}
 
 #[derive(Clone, Default, Debug)]
 pub struct WorkspacePaths {
@@ -52,7 +65,7 @@ impl WorkspacePaths {
         workspace_root: &Path,
         home: Option<String>,
         current_user: String,
-    ) -> Result<WorkspacePaths, anyhow::Error> {
+    ) -> Result<WorkspacePaths, WorkspacePathsError> {
         let workspace_name = {
             let mut hasher = Sha1::new();
             hasher.input_str(workspace_root.to_str().unwrap());
@@ -82,14 +95,24 @@ impl WorkspacePaths {
         let local_rules_root = local_warp_root.join("rules");
         let local_toolchains_root = local_warp_root.join("toolchains");
 
-        std::fs::create_dir_all(&global_rules_root)?;
-        std::fs::create_dir_all(&global_toolchains_root)?;
-        std::fs::create_dir_all(&global_cache_root)?;
-        std::fs::create_dir_all(&local_warp_root)?;
-        std::fs::create_dir_all(&local_rules_root)?;
-        std::fs::create_dir_all(&local_toolchains_root)?;
-        std::fs::create_dir_all(&local_sandbox_root)?;
-        std::fs::create_dir_all(&local_outputs_root)?;
+        for path in &[
+            &global_rules_root,
+            &global_toolchains_root,
+            &global_cache_root,
+            &local_warp_root,
+            &local_rules_root,
+            &local_toolchains_root,
+            &local_sandbox_root,
+            &local_outputs_root,
+        ] {
+            std::fs::create_dir_all(&path).map_err(|err| {
+                WorkspacePathsError::CouldNotCreateDir {
+                    path: path.to_path_buf(),
+                    err,
+                }
+            })?;
+        }
+
         WorkspacePaths::setup_links(&local_outputs_root, &workspace_output_link)?;
 
         let paths = WorkspacePaths {
@@ -116,12 +139,16 @@ impl WorkspacePaths {
     fn setup_links(
         local_outputs_root: &PathBuf,
         workspace_output_link: &PathBuf,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), WorkspacePathsError> {
         let _ = std::fs::remove_file(workspace_output_link);
         match std::os::windows::fs::symlink_dir(local_outputs_root.clone(), workspace_output_link) {
             Ok(_) => Ok(()),
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-            err => Err(anyhow!("Could not create symlink because of: {:?}", err)),
+            Err(err) => Err(WorkspacePathsError::CannotCreateSymlink {
+                src: local_outputs_root.clone(),
+                dst: workspace_output_link.clone(),
+                err,
+            }),
         }
     }
 
@@ -130,12 +157,16 @@ impl WorkspacePaths {
     fn setup_links(
         local_outputs_root: &PathBuf,
         workspace_output_link: &PathBuf,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<(), WorkspacePathsError> {
         let _ = std::fs::remove_file(workspace_output_link);
         match std::os::unix::fs::symlink(local_outputs_root.clone(), workspace_output_link) {
             Ok(_) => Ok(()),
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-            err => Err(anyhow!("Could not create symlink because of: {:?}", err)),
+            Err(err) => Err(WorkspacePathsError::CannotCreateSymlink {
+                src: local_outputs_root.clone(),
+                dst: workspace_output_link.clone(),
+                err,
+            }),
         }
     }
 }
