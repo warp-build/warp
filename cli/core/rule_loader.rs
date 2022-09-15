@@ -4,7 +4,7 @@ use thiserror::*;
 
 #[derive(Default)]
 pub struct RuleStore {
-    loaded_rules: DashMap<String, ()>,
+    loaded_rules: DashMap<String, PathBuf>,
 }
 
 #[derive(Error, Debug)]
@@ -15,25 +15,21 @@ impl RuleStore {
         Self::default()
     }
 
-    pub async fn get(&self, _name: &str) -> Result<PathBuf, RuleStoreError> {
-        /*
-        if self.loaded_rules.has_key(&name) {
-            return Ok(());
+    pub async fn get(&self, name: &str) -> Result<PathBuf, RuleStoreError> {
+        if let Some(path) = self.loaded_rules.get(&name) {
+            return Ok(path.clone());
         }
 
         if let Some(path) = self.find_in_workspace(&name).await? {
-            return self.load(path).await;
+            return Ok(path.clone());
         }
 
         if let Some(path) = self.find_in_store(&name).await? {
-            return self.load(path).await;
+            return Ok(path.clone());
         }
 
         let path = self.fetch(&name).await?;
-
-        self.load(path).await
-        */
-        todo!()
+        self.load(path).await;
     }
 }
 

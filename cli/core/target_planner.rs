@@ -38,8 +38,8 @@ impl TargetPlanner {
         env: &ExecutionEnvironment,
         target: &Target,
     ) -> Result<ExecutableTarget, TargetPlannerError> {
-        let deps = self.find_deps(&target).await?;
-        let transitive_deps = self.find_transitive_deps(&target).await?;
+        let deps = self.find_deps(target).await?;
+        let transitive_deps = self.find_transitive_deps(target).await?;
 
         let rule_file = self
             .rule_store
@@ -55,11 +55,11 @@ impl TargetPlanner {
 
         let exec_result = self
             .rule_executor
-            .execute(&env, &rule, &target, &transitive_deps)
+            .execute(env, &rule, target, &transitive_deps)
             .await
             .map_err(TargetPlannerError::RuleExecutorError)?;
 
-        ExecutableTarget::new(&env, &rule, &target, &deps, &transitive_deps, exec_result)
+        ExecutableTarget::new(env, &rule, target, &deps, &transitive_deps, exec_result)
             .await
             .map_err(TargetPlannerError::ExecutableTargetError)
     }
