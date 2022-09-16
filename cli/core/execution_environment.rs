@@ -29,13 +29,13 @@ impl Hash for ExecutionEnvironment {
     }
 }
 
-impl Into<serde_json::Value> for ExecutionEnvironment {
-    fn into(self) -> serde_json::Value {
+impl From<ExecutionEnvironment> for serde_json::Value {
+    fn from(val: ExecutionEnvironment) -> Self {
         let mut map: serde_json::map::Map<String, serde_json::Value> = serde_json::map::Map::new();
 
         map.insert(
             "platform".to_string(),
-            serde_json::Value::String(self.host_triple),
+            serde_json::Value::String(val.host_triple),
         );
 
         serde_json::Value::Object(map)

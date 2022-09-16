@@ -155,7 +155,7 @@ impl BuildQueue {
 
         while let Some(path) = buildfiles.next().await {
             let path = path.map_err(QueueError::FileScannerError)?;
-            let buildfile = Buildfile::from_file(&path, &path.parent().unwrap()).await;
+            let buildfile = Buildfile::from_file(&path, path.parent().unwrap()).await;
 
             match buildfile {
                 Err(err) => {
@@ -198,8 +198,8 @@ mod tests {
             &ExecutionEnvironment::new(),
             &rule,
             &target,
-            &vec![],
-            &vec![],
+            &[],
+            &[],
             ExecutionResult::default(),
         )
         .await

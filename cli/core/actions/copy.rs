@@ -2,7 +2,7 @@ use anyhow::*;
 use std::path::PathBuf;
 use tokio::fs;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CopyAction {
     pub src: PathBuf,
     pub dst: PathBuf,

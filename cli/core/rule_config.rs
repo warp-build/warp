@@ -1,7 +1,7 @@
 use super::*;
 use fxhash::*;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use thiserror::*;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -73,7 +73,7 @@ impl RuleConfig {
     }
 
     pub fn with_defaults(self, config: HashMap<String, CfgValue>) -> RuleConfig {
-        RuleConfig { config, ..self }
+        RuleConfig { config }
     }
 
     pub fn as_map(&self) -> &HashMap<String, CfgValue> {
@@ -81,7 +81,7 @@ impl RuleConfig {
     }
 
     pub fn get(&self, key: &str) -> Option<CfgValue> {
-        self.config.get(key).map(|entry| entry.clone())
+        self.config.get(key).cloned()
     }
 
     pub fn insert(&mut self, key: String, val: CfgValue) -> &mut RuleConfig {
@@ -93,8 +93,8 @@ impl RuleConfig {
         self.insert(key, CfgValue::String(val.to_string()))
     }
 
-    pub fn insert_path(&mut self, key: String, val: &PathBuf) -> &mut RuleConfig {
-        self.insert(key, CfgValue::File(val.clone()))
+    pub fn insert_path(&mut self, key: String, val: &Path) -> &mut RuleConfig {
+        self.insert(key, CfgValue::File(val.to_path_buf()))
     }
 
     pub fn get_string(&self, key: &str) -> Result<String, RuleConfigError> {
@@ -219,9 +219,9 @@ pub mod json_codecs {
         }
     }
 
-    impl Into<serde_json::Value> for CfgValue {
-        fn into(self) -> serde_json::Value {
-            match self {
+    impl From<CfgValue> for serde_json::Value {
+        fn from(val: CfgValue) -> Self {
+            match val {
                 CfgValue::String(string) => serde_json::Value::String(string),
                 CfgValue::Label(label) => serde_json::Value::String(label.to_string()),
                 CfgValue::File(path) => {
@@ -234,12 +234,12 @@ pub mod json_codecs {
         }
     }
 
-    impl Into<serde_json::Value> for RuleConfig {
-        fn into(self) -> serde_json::Value {
+    impl From<RuleConfig> for serde_json::Value {
+        fn from(val: RuleConfig) -> Self {
             let mut map: serde_json::map::Map<String, serde_json::Value> =
                 serde_json::map::Map::new();
 
-            for (key, value) in self.config.iter() {
+            for (key, value) in val.config.iter() {
                 map.insert(key.to_string(), value.clone().into());
             }
 

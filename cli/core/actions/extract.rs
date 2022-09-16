@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::fs;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExtractAction {
     pub src: PathBuf,
     pub dst: PathBuf,

@@ -20,7 +20,7 @@ impl RemoteStore {
     #[tracing::instrument(name = "RemoteStore::new", skip(workspace))]
     pub fn new(workspace: &Workspace) -> RemoteStore {
         RemoteStore {
-            api: API::from_workspace(&workspace),
+            api: API::from_workspace(workspace),
         }
     }
 
@@ -55,7 +55,7 @@ impl RemoteStore {
         };
 
         self.api
-            .upload_artifact(&key, &body)
+            .upload_artifact(key, &body)
             .await
             .map_err(StoreError::ApiError)?;
 

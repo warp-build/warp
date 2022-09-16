@@ -72,7 +72,7 @@ impl API {
 
     #[tracing::instrument(name = "API::upload_artifact", skip(self, contents))]
     pub async fn upload_artifact(&mut self, hash: &str, contents: &[u8]) -> Result<(), ApiError> {
-        let upload_url = self.get_signed_url(&hash).await?;
+        let upload_url = self.get_signed_url(hash).await?;
 
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert("ACL", "public-read".parse().map_err(ApiError::HeaderError)?);

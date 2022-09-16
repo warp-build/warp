@@ -116,7 +116,7 @@ impl<'de> Deserialize<'de> for Rule {
                     "list_of_label" => Ok(CfgValueType::List(Box::new(CfgValueType::Label))),
                     "list_of_file" => Ok(CfgValueType::List(Box::new(CfgValueType::File))),
                     "list_of_string" => Ok(CfgValueType::List(Box::new(CfgValueType::String))),
-                    _ => Err(de::Error::custom(format!("Unrecognized rule config key type {} -- valid types are  label(), file(), string(), and their array variants", t.to_string()))),
+                    _ => Err(de::Error::custom(format!("Unrecognized rule config key type {} -- valid types are  label(), file(), string(), and their array variants", t))),
                 }?;
 
             cfg.insert(k.to_string(), value_type);

@@ -103,7 +103,7 @@ impl ExecutableTarget {
         }
 
         for src in srcs {
-            let f = File::open(&src).expect(&format!("Unable to open: {:?}", &src));
+            let f = File::open(&src).unwrap_or_else(|_| panic!("Unable to open: {:?}", &src));
             let mut buffer = [0; 2048];
             let mut reader = BufReader::new(f);
             while let Ok(len) = reader.read(&mut buffer) {
