@@ -2,7 +2,7 @@ import { TAR_EXT } from "https://pkgs.warp.build/rules/archive.js";
 import ElixirToolchain from "https://pkgs.warp.build/toolchains/elixir.js";
 import ErlangToolchain, { BEAM_EXT } from "https://pkgs.warp.build/toolchains/erlang.js";
 
-const RULE_NAME = "mix_library"
+const RULE_NAME = "https://pkgs.warp.build/rules/mix_library"
 
 const impl = (ctx) => {
   const { label, name, deps, srcs, skip_deps, deps_args, compile_args } =
@@ -21,7 +21,7 @@ const impl = (ctx) => {
       : `${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")}`;
 
   const transitiveDeps = ctx.transitiveDeps();
-  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "elixir_library");
+  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://pkgs.warp.build/rules/elixir_library");
   const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == RULE_NAME);
 
   ctx.action().runShell({
