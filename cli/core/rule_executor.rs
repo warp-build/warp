@@ -270,10 +270,13 @@ pub struct RuleExecutor {
 
 impl RuleExecutor {
     pub fn new() -> Result<RuleExecutor, RuleExecutorError> {
+        // FIXME(@ostera): rule_map and provides_map should come from a SharedRuleExecutorState
+        // struct that is just a bunch of shared Arcs.
         let rule_map = Arc::new(DashMap::new());
+        let provides_map = Arc::new(DashMap::new());
+
         let action_map = Arc::new(DashMap::new());
         let output_map = Arc::new(DashMap::new());
-        let provides_map = Arc::new(DashMap::new());
         let run_script_map = Arc::new(DashMap::new());
 
         let extension: deno_core::Extension = {
