@@ -7,6 +7,8 @@ use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
+const DEFAULT_RULE_URL: &str = "https://pkgs.warp.build/rules";
+
 #[derive(Default)]
 pub struct RuleStore {
     local_rules_root: PathBuf,
@@ -42,25 +44,35 @@ impl RuleStore {
     }
 
     #[tracing::instrument(name = "RuleStore::get", skip(self))]
-    pub async fn get(&self, name: &str) -> Result<PathBuf, RuleStoreError> {
+    pub async fn get(&self, name: &str) -> Result<(PathBuf, String), RuleStoreError> {
         // Optimization to avoid doing IO every time
         if let Some(path) = self.loaded_rules.get(&name.to_string()) {
-            return Ok(path.clone());
+            return Ok((path.clone(), name.to_string()));
         }
 
         if let Some(path) = self.find_in_workspace(name).await? {
             self.save(name, &path);
-            return Ok(path);
+            return Ok((path, name.to_string()));
         }
 
-        if let Some(path) = self.fetch(name).await? {
-            self.save(name, &path);
-            return Ok(path);
+        let name = self.normalize_name(name);
+        if let Some(path) = self.fetch(&name).await? {
+            self.save(&name, &path);
+            return Ok((path, name.to_string()));
         }
 
         Err(RuleStoreError::CouldNotFindRule {
             name: name.to_string(),
         })
+    }
+
+    fn normalize_name(&self, name: &str) -> String {
+        let url = url::Url::parse(name);
+        if url.is_ok() {
+            name.to_string()
+        } else {
+            format!("{}/{}", DEFAULT_RULE_URL, name)
+        }
     }
 
     #[tracing::instrument(name = "RuleStore::save", skip(self))]

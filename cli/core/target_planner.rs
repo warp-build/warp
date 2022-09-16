@@ -54,7 +54,7 @@ impl TargetPlanner {
         env: &ExecutionEnvironment,
         target: &Target,
     ) -> Result<ExecutableTarget, TargetPlannerError> {
-        let rule_file = self
+        let (rule_file, rule_name) = self
             .rule_store
             .get(&target.rule_name)
             .await
@@ -62,7 +62,7 @@ impl TargetPlanner {
 
         let rule = self
             .rule_executor
-            .load_rule(&target.rule_name, rule_file)
+            .load_rule(&rule_name, rule_file)
             .await
             .map_err(TargetPlannerError::RuleExecutorError)?;
 
