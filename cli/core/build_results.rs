@@ -64,9 +64,9 @@ impl BuildResults {
         self.missing_targets.insert(label, ());
     }
 
-    pub fn add_computed_target(&self, label: &Label, target: ExecutableTarget) {
+    pub fn add_computed_target(&self, label: Label, target: ExecutableTarget) {
         self.missing_targets.remove(&label);
-        self.computed_targets.insert(label.clone(), target);
+        self.computed_targets.insert(label, target);
     }
 
     pub fn add_dependencies(&self, label: Label, deps: &[Label]) -> Result<(), BuildResultError> {

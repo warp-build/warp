@@ -182,7 +182,7 @@ impl BuildWorker {
                 .map_err(BuildWorkerError::TargetPlannerError)?;
 
             self.build_results
-                .add_computed_target(&label, executable_target);
+                .add_computed_target(label.clone(), executable_target);
 
             self.build_queue.ack(&label);
         }
@@ -236,7 +236,7 @@ mod tests {
         ));
         let lr = Arc::new(LabelResolver::new(&w));
         let s = Arc::new(Store::new(&w));
-        let te = Arc::new(TargetExecutor::new(s, ec.clone()));
+        let te = Arc::new(TargetExecutor::new(s.clone(), ec.clone()));
         BuildWorker::new(r, &w, l, bc, ec, bq, br, lr, te, s).unwrap()
     }
 

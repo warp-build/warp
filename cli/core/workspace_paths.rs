@@ -28,23 +28,14 @@ pub struct WorkspacePaths {
     /// The location of the global cache
     pub global_cache_root: PathBuf,
 
-    /// The location of the global sandbox
-    pub global_sandbox_root: PathBuf,
-
     /// The location of global rules
     pub global_rules_root: PathBuf,
-
-    /// The location of global toolchains
-    pub global_toolchains_root: PathBuf,
 
     /// The location of the outputs for this workspace
     pub local_outputs_root: PathBuf,
 
     /// The location of the custom rules for this workspace
     pub local_rules_root: PathBuf,
-
-    /// The location of the sandbox for this workspace
-    pub local_sandbox_root: PathBuf,
 
     /// The location of the cache for this workspace
     pub local_cache_root: PathBuf,
@@ -81,13 +72,10 @@ impl WorkspacePaths {
             .unwrap_or_else(|| PathBuf::from("/warp"));
 
         let global_rules_root = warp_home.join("rules");
-        let global_toolchains_root = warp_home.join("toolchains");
 
-        let global_cache_root = warp_home.join("cache");
-        let global_sandbox_root = warp_home.join("sandbox").join("global");
+        let global_cache_root = warp_home.join("store");
 
-        let local_cache_root = warp_home.join("cache").join(&workspace_name);
-        let local_sandbox_root = warp_home.join("sandbox").join(&workspace_name);
+        let local_cache_root = global_cache_root.join(&workspace_name);
         let local_outputs_root = warp_home.join("outputs").join(&workspace_name);
 
         let workspace_output_link = workspace_root.join("warp-outputs");
@@ -117,13 +105,10 @@ impl WorkspacePaths {
             current_user,
             workspace_name,
             global_cache_root,
-            global_sandbox_root,
             global_rules_root,
-            global_toolchains_root,
             local_outputs_root,
             local_rules_root,
             local_cache_root,
-            local_sandbox_root,
             local_toolchains_root,
             workspace_output_link,
             workspace_root: workspace_root.to_path_buf(),

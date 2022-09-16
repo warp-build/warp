@@ -99,40 +99,4 @@ impl LocalStore {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn root() -> PathBuf {
-        PathBuf::from(&env!("CARGO_MANIFEST_DIR")).join("tests")
-    }
-
-    async fn local_store() -> LocalStore {
-        let paths = WorkspacePaths::new(
-            &root().join("workspace"),
-            Some(root().to_str().unwrap().to_string()),
-            "test-user".to_string(),
-        )
-        .unwrap();
-
-        let workspace_file = WorkspaceFile::builder()
-            .workspace(
-                WorkspaceConfig::builder()
-                    .name("test-workspace".to_string())
-                    .build()
-                    .unwrap(),
-            )
-            .build()
-            .unwrap();
-
-        let workspace = Workspace::builder()
-            .current_user("test-user".to_string())
-            .paths(paths)
-            .from_file(workspace_file)
-            .await
-            .unwrap()
-            .build()
-            .unwrap();
-
-        LocalStore::new(&workspace)
-    }
-}
+mod tests {}

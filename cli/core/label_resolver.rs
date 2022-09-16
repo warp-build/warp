@@ -36,7 +36,7 @@ impl LabelResolver {
             return self.resolve_remote(label);
         }
 
-        let buildfile = Buildfile::from_label(&label)
+        let buildfile = Buildfile::from_label(&self.workspace_root, label)
             .await
             .map_err(LabelResolverError::BuildfileError)?;
 
