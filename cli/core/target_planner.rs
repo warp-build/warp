@@ -7,6 +7,7 @@ pub struct TargetPlanner {
     build_results: Arc<BuildResults>,
     rule_store: RuleStore,
     rule_executor: RuleExecutor,
+    store: Arc<Store>,
 }
 
 #[derive(Error, Debug)]
@@ -29,12 +30,22 @@ impl TargetPlanner {
     pub fn new(
         workspace: &Workspace,
         build_results: Arc<BuildResults>,
+        store: Arc<Store>,
     ) -> Result<Self, TargetPlannerError> {
         Ok(Self {
             build_results,
+            store,
             rule_store: RuleStore::new(workspace),
             rule_executor: RuleExecutor::new().map_err(TargetPlannerError::RuleExecutorError)?,
         })
+    }
+
+    #[tracing::instrument(name = "TargetPlanner::update", skip(self))]
+    pub async fn update(&mut self, target: &ExecutableTarget) -> Result<(), TargetPlannerError> {
+        self.rule_executor
+            .update_provide_map(target, &self.store)
+            .await
+            .map_err(TargetPlannerError::RuleExecutorError)
     }
 
     #[tracing::instrument(name = "TargetPlanner::plan", skip(self, env))]

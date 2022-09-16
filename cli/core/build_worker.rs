@@ -50,10 +50,11 @@ impl BuildWorker {
         build_results: Arc<BuildResults>,
         label_resolver: Arc<LabelResolver>,
         target_executor: Arc<TargetExecutor>,
+        store: Arc<Store>,
     ) -> Result<Self, BuildWorkerError> {
         let env = ExecutionEnvironment::new();
 
-        let target_planner = TargetPlanner::new(workspace, build_results.clone())
+        let target_planner = TargetPlanner::new(workspace, build_results.clone(), store)
             .map_err(BuildWorkerError::TargetPlannerError)?;
 
         Ok(Self {
@@ -172,10 +173,17 @@ impl BuildWorker {
                 label.clone(),
                 BuildError::TargetExecutorError(err),
             ));
+
             self.coordinator.signal_shutdown();
         } else {
+            self.target_planner
+                .update(&executable_target)
+                .await
+                .map_err(BuildWorkerError::TargetPlannerError)?;
+
             self.build_results
                 .add_computed_target(&label, executable_target);
+
             self.build_queue.ack(&label);
         }
 
@@ -229,7 +237,7 @@ mod tests {
         let lr = Arc::new(LabelResolver::new(&w));
         let s = Arc::new(Store::new(&w));
         let te = Arc::new(TargetExecutor::new(s, ec.clone()));
-        BuildWorker::new(r, &w, l, bc, ec, bq, br, lr, te).unwrap()
+        BuildWorker::new(r, &w, l, bc, ec, bq, br, lr, te, s).unwrap()
     }
 
     #[tokio::test]

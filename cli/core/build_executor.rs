@@ -64,6 +64,7 @@ impl BuildExecutor {
             self.results.clone(),
             label_resolver.clone(),
             target_executor.clone(),
+            store.clone(),
         )
         .map_err(BuildExecutorError::WorkerError)?;
 
@@ -80,6 +81,7 @@ impl BuildExecutor {
                 let label_resolver = label_resolver.clone();
                 let target_executor = target_executor.clone();
                 let target = target.clone();
+                let store = store.clone();
 
                 let thread = worker_pool.spawn_pinned(move || async move {
                     let mut worker = BuildWorker::new(
@@ -92,6 +94,7 @@ impl BuildExecutor {
                         build_results,
                         label_resolver,
                         target_executor,
+                        store,
                     )
                     .map_err(BuildExecutorError::WorkerError)?;
 

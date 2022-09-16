@@ -247,6 +247,9 @@ pub enum RuleExecutorError {
 
     #[error("Could not find rule {rule_name:?} in the rules map")]
     RuleNotFound { rule_name: String },
+
+    #[error(transparent)]
+    StoreError(StoreError),
 }
 
 /// The Rule Execution Environment abstracts away the communication between the Dependency Graph
@@ -343,8 +346,11 @@ impl RuleExecutor {
         &self,
         node: &ExecutableTarget,
         store: &Store,
-    ) -> Result<(), anyhow::Error> {
-        let abs_node_path = store.absolute_path_by_node(node).await?;
+    ) -> Result<(), RuleExecutorError> {
+        let abs_node_path = store
+            .absolute_path_by_node(node)
+            .await
+            .map_err(RuleExecutorError::StoreError)?;
 
         let provides = if let Some(provides) = self.provides_map.get(&node.label) {
             let mut new_provides = HashMap::new();
