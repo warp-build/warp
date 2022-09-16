@@ -1,4 +1,4 @@
-import { TAR_EXT } from "https://pkgs.warp.build/toolchains/archive.js";
+import { TAR_EXT } from "https://pkgs.warp.build/rules/archive.js";
 import ElixirToolchain from "https://pkgs.warp.build/toolchains/elixir.js";
 import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
 
