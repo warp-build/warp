@@ -14,9 +14,9 @@ export default Warp.Rule({
     srcs: [file()],
     deps: [label()],
   },
-	defaults: {
+  defaults: {
     srcs: [ "*.js" ],
     deps: [],
-	},
+  },
   toolchains: [DenoToolchain]
 });

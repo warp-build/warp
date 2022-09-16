@@ -48,11 +48,11 @@ export default Warp.Rule({
     deps: [label()],
     headers: [file()]
   },
-	defaults: {
+  defaults: {
     srcs: [ "*.erl", "src/**/*.erl", "erlang.mk", "Makefile" ],
     deps: [],
     headers: [ "*.hrl", "src/**/*.hrl", "include/**/*.hrl" ],
-	},
+  },
   sandbox: {
     mode: "copy",
   },

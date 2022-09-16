@@ -92,11 +92,11 @@ export default Warp.Rule({
     elixirc_opts: [string()],
     modules: [string()]
   },
-	defaults: {
+  defaults: {
     srcs: [ "*.ex", "lib/**/*.ex" ],
-		deps: [],
+    deps: [],
     modules: [],
     elixirc_opts: [ "--warnings-as-errors" ],
-	},
+  },
   toolchains: [ElixirToolchain]
 });

@@ -29,9 +29,9 @@ export default Warp.Rule({
     deps: [label()],
     permissions: [string()],
   },
-	defaults: {
+  defaults: {
     deps: [],
     permissions: [],
-	},
+  },
   toolchains: [DenoToolchain]
 });

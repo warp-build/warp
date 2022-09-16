@@ -25,11 +25,11 @@ export default Warp.Rule({
     srcs: [file()],
     deps: [label()],
   },
-	defaults: {
+  defaults: {
     srcs: [
       "package.json",
     ],
     deps: [],
-	}
+  }
 });
 

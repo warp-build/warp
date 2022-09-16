@@ -46,7 +46,7 @@ export default Warp.Rule({
     make_opts: [string()],
     targets: [string()],
   },
-	defaults: {
+  defaults: {
     srcs: [ "./**/*" ],
     outs: [],
     deps: [],
@@ -55,7 +55,7 @@ export default Warp.Rule({
     configure_flags: [],
     make_opts: [],
     targets: ["clean", "all"],
-	},
+  },
   sandbox: {
     mode: "copy",
   },

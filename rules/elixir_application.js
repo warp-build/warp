@@ -66,11 +66,11 @@ export default Warp.Rule({
     mod: string(),
     apps: [string()],
   },
-	defaults: {
+  defaults: {
     apps: ["kernel", "stdlib"],
-		deps: [],
+    deps: [],
     config: "config.exs",
-	},
+  },
   toolchains: [ElixirToolchain, ErlangToolchain]
 });
 

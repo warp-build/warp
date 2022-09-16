@@ -20,8 +20,8 @@ export default Warp.Rule({
     args: [string()],
     deps: [label()],
   },
-	defaults: {
-		deps: [],
-	},
+  defaults: {
+    deps: [],
+  },
   toolchains: [NgrokToolchain]
 })

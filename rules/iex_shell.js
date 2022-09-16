@@ -66,10 +66,10 @@ export default Warp.Rule({
     dot_iex: file(),
     deps: [label()],
   },
-	defaults: {
+  defaults: {
     args: [],
     dot_iex: "",
-		deps: [],
-	},
+    deps: [],
+  },
   toolchains: [ElixirToolchain, ErlangToolchain]
 });

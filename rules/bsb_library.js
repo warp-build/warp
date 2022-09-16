@@ -49,14 +49,14 @@ export default Warp.Rule({
     srcs: [file()],
     deps: [label()],
   },
-	defaults: {
+  defaults: {
     srcs: [
       "src/**/*.res",
       "src/**/*.resi",
       "bsconfig.json",
     ],
     deps: [],
-	},
+  },
   toolchains: [ReScriptToolchain]
 });
 

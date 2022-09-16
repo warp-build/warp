@@ -18,9 +18,9 @@ export default Warp.Rule({
     name: label(),
     deps: [label()],
   },
-	defaults: {
-		deps: [],
-	},
+  defaults: {
+    deps: [],
+  },
   toolchains: [ElixirToolchain, ErlangToolchain]
 });
 

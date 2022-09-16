@@ -15,10 +15,10 @@ export default Warp.Rule({
     deps: [label()],
     srcs: [file()],
   },
-	defaults: {
+  defaults: {
     srcs: [ "*.eex", "lib/**/*.eex" ],
-		deps: [],
-	},
+    deps: [],
+  },
   toolchains: [ElixirToolchain]
 });
 

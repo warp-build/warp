@@ -68,11 +68,11 @@ export default Warp.Rule({
     headers: [file()],
     behaviors: [file()],
   },
-	defaults: {
-		srcs: [ "*.erl", "src/*.erl", "src/*.hrl" ],
-		headers: [ "*.hrl", "include/*.hrl" ],
-		behaviors: [],
-		deps: [],
-	},
+  defaults: {
+    srcs: [ "*.erl", "src/*.erl", "src/*.hrl" ],
+    headers: [ "*.hrl", "include/*.hrl" ],
+    behaviors: [],
+    deps: [],
+  },
   toolchains: [ErlangToolchain]
 });

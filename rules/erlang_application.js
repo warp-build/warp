@@ -47,8 +47,8 @@ export default Warp.Rule({
     app_src: file(),
     deps: [label()],
   },
-	defaults: {
-		deps: [],
-	},
+  defaults: {
+    deps: [],
+  },
   toolchains: [ErlangToolchain]
 });
