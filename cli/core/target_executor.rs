@@ -87,9 +87,11 @@ impl TargetExecutor {
         self.execute_actions(&store_path, target).await?;
 
         let validation_result = self.validate_outputs(&store_path, target).await?;
+        /*
         if let ValidationStatus::Valid { .. } = &validation_result {
             self.write_manifest(&store_path, target).await?;
         }
+        */
 
         Ok(validation_result)
     }

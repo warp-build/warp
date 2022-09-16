@@ -155,7 +155,13 @@ impl BuildQueue {
 
         while let Some(path) = buildfiles.next().await {
             let path = path.map_err(QueueError::FileScannerError)?;
-            let buildfile = Buildfile::from_file(&path, path.parent().unwrap()).await;
+            let relative_path = path
+                .parent()
+                .unwrap()
+                .strip_prefix(&self.workspace.paths.workspace_root)
+                .unwrap();
+
+            let buildfile = Buildfile::from_file(&path, relative_path).await;
 
             match buildfile {
                 Err(err) => {
