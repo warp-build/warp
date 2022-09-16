@@ -1,4 +1,4 @@
-import ReScriptToolchain, {MERLIN, JS_EXT, RES_EXT, RESI_EXT, CMT_EXT, CMI_EXT} from "../toolchains/rescript.js";
+import ReScriptToolchain, {MERLIN, JS_EXT, RES_EXT, RESI_EXT, CMT_EXT, CMI_EXT} from "https://pkgs.warp.build/toolchains/rescript.js";
 
 const impl = ctx => {
   const { label, name, deps, srcs, } = ctx.cfg();
