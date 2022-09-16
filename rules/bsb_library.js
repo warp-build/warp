@@ -41,7 +41,7 @@ ${RESCRIPT} build
 };
 
 export default Warp.Rule({
-  name: "bsb_library",
+  name: "https://pkgs.warp.build/rules/bsb_library",
   mnemonic: "BsbLib",
   impl,
   cfg: {
