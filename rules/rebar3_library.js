@@ -1,5 +1,5 @@
-import ErlangToolchain, { BEAM_EXT } from "../toolchains/erlang.js";
-import Rebar3Toolchain from "../toolchains/rebar3.js";
+import ErlangToolchain, { BEAM_EXT } from "https://pkgs.warp.build/toolchains/erlang.js";
+import Rebar3Toolchain from "https://pkgs.warp.build/toolchains/rebar3.js";
 
 const impl = (ctx) => {
   const { label, name, deps, srcs } = ctx.cfg();

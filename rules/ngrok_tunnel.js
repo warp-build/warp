@@ -1,4 +1,4 @@
-import NgrokToolchain from "../toolchains/ngrok.js"
+import NgrokToolchain from "https://pkgs.warp.build/toolchains/ngrok.js"
 
 const impl = ctx => {
   const { label, args} = ctx.cfg()

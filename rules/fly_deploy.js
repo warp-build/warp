@@ -1,4 +1,4 @@
-import FlyCtlToolchain from "../toolchains/flyctl.js";
+import FlyCtlToolchain from "https://pkgs.warp.build/toolchains/flyctl.js";
 
 const impl = ctx => {
   const { label, name } = ctx.cfg();

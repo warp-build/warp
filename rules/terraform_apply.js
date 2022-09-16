@@ -1,4 +1,4 @@
-import TerraformToolchain from "../toolchains/terraform.js";
+import TerraformToolchain from "https://pkgs.warp.build/toolchains/terraform.js";
 
 const impl = ctx => {
   const { label, name } = ctx.cfg();

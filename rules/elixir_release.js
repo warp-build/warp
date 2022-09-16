@@ -1,5 +1,5 @@
-import ElixirToolchain, {EX_EXT} from "../toolchains/elixir.js";
-import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
+import ElixirToolchain, {EX_EXT} from "https://pkgs.warp.build/toolchains/elixir.js";
+import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { name, deps, } = ctx.cfg();

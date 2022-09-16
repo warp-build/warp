@@ -1,5 +1,5 @@
-import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js"
-import GleamToolchain, {GLEAM_EXT} from "../toolchains/gleam.js"
+import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erlang.js"
+import GleamToolchain, {GLEAM_EXT} from "https://pkgs.warp.build/toolchains/gleam.js"
 
 const impl = ctx => {
   const { label, name, deps } = ctx.cfg()

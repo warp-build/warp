@@ -1,4 +1,4 @@
-import ElixirToolchain, {BEAM_EXT} from "../toolchains/elixir.js";
+import ElixirToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/elixir.js";
 
 const impl = ctx => {
   const { name, deps, srcs, } = ctx.cfg();

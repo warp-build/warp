@@ -1,4 +1,4 @@
-import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "../toolchains/erlang.js";
+import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { label, name, app_src, mod, apps} = ctx.cfg();

@@ -1,4 +1,4 @@
-import DenoToolchain, {JS_EXT} from "../toolchains/deno.js";
+import DenoToolchain, {JS_EXT} from "https://pkgs.warp.build/toolchains/deno.js";
 
 const impl = ctx => {
   const { label, name, srcs } = ctx.cfg();

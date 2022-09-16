@@ -1,5 +1,5 @@
-import ElixirToolchain, { EX_EXT } from "../toolchains/elixir.js";
-import ErlangToolchain, { BEAM_EXT } from "../toolchains/erlang.js";
+import ElixirToolchain, { EX_EXT } from "https://pkgs.warp.build/toolchains/elixir.js";
+import ErlangToolchain, { BEAM_EXT } from "https://pkgs.warp.build/toolchains/erlang.js";
 import { TAR_EXT } from "./archive.js";
 
 const impl = (ctx) => {

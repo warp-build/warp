@@ -1,6 +1,6 @@
 import {TAR_EXT} from "./archive.js";
-import ElixirToolchain from "../toolchains/elixir.js";
-import ErlangToolchain, {BEAM_EXT} from "../toolchains/erlang.js";
+import ElixirToolchain from "https://pkgs.warp.build/toolchains/elixir.js";
+import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { label, name, srcs, deps, args, dot_iex, elixirc_opts} = ctx.cfg();

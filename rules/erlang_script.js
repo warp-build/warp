@@ -1,4 +1,4 @@
-import ErlangToolchain, { BEAM_EXT, HEADER_EXT } from "../toolchains/erlang.js";
+import ErlangToolchain, { BEAM_EXT, HEADER_EXT } from "https://pkgs.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
   const { ERLC, ESCRIPT } = ErlangToolchain.provides();
