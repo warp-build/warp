@@ -106,7 +106,9 @@ impl RuleStore {
 
     pub fn _store_key(&self, name: &str) -> PathBuf {
         let label = Label::new(name);
-        self.global_rules_root.join(label.as_store_prefix())
+        self.global_rules_root
+            .join(label.as_store_prefix())
+            .with_extension("js")
     }
 
     #[tracing::instrument(name = "RuleStore::download", skip(self))]
