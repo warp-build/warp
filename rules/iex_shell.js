@@ -1,4 +1,4 @@
-import {TAR_EXT} from "./archive.js";
+import { TAR_EXT } from "https://pkgs.warp.build/toolchains/archive.js";
 import ElixirToolchain from "https://pkgs.warp.build/toolchains/elixir.js";
 import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
 
@@ -57,7 +57,7 @@ chmod +x ${run}
 
 export default Warp.Rule({
   runnable: true,
-  name: "iex_shell",
+  name: "https://pkgs.warp.build/rules/iex_shell",
   mnemonic: "IExShell",
   impl,
   cfg: {

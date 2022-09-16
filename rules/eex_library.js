@@ -7,7 +7,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "eex_library",
+  name: "https://pkgs.warp.build/rules/eex_library",
   mnemonic: "EExLib",
   impl,
   cfg: {

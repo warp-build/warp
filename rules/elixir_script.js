@@ -1,6 +1,6 @@
+import { TAR_EXT } from "https://pkgs.warp.build/toolchains/archive.js";
 import ElixirToolchain, { EX_EXT } from "https://pkgs.warp.build/toolchains/elixir.js";
 import ErlangToolchain, { BEAM_EXT } from "https://pkgs.warp.build/toolchains/erlang.js";
-import { TAR_EXT } from "./archive.js";
 
 const impl = (ctx) => {
   const { label, name, srcs, deps, main } = ctx.cfg();
@@ -83,7 +83,7 @@ chmod +x ${run}
 
 export default Warp.Rule({
   runnable: true,
-  name: "elixir_script",
+  name: "https://pkgs.warp.build/rules/elixir_script",
   mnemonic: "ExScript",
   impl,
   cfg: {

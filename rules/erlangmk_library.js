@@ -39,7 +39,7 @@ make clean app
 };
 
 export default Warp.Rule({
-  name: "erlangmk_library",
+  name: "https://pkgs.warp.build/rules/erlangmk_library",
   mnemonic: "ErlMkLib",
   impl,
   cfg: {

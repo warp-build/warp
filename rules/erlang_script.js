@@ -83,7 +83,7 @@ main(_argv) ->
   % The file names with their contents compiled to bytecode.
   SrcBeams = lists:map(fun (SrcFile) ->
     {ok, _, BeamCode} = compile:file(SrcFile, [binary, debug_info]),
-    BeamFile = filename:join([filename:basename(SrcFile, ".erl"), ".beam"]),
+    BeamFile = filename:join([filename:basename(SrcFile, "https://pkgs.warp.build/rules/.erl"), ".beam"]),
     {filename:basename(BeamFile), BeamCode}
   end, SrcFiles),
 
@@ -123,7 +123,7 @@ mv ${File.filename(run)} ${run}
 
 export default Warp.Rule({
   runnable: true,
-  name: "erlang_script",
+  name: "https://pkgs.warp.build/rules/erlang_script",
   mnemonic: "ErlScript",
   impl,
   cfg: {

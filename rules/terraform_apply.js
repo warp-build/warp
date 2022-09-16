@@ -22,7 +22,7 @@ ${TERRAFORM} apply
 
 export default Warp.Rule({
   runnable: true,
-  name: "terraform_apply",
+  name: "https://pkgs.warp.build/rules/terraform_apply",
   mnemonic: "TerraformApply",
   impl,
   cfg: {

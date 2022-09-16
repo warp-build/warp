@@ -1,4 +1,4 @@
-import ErlangToolchain from "./erlang.js";
+import ErlangToolchain from "https://pkgs.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
   const { url, sha1 } = ctx.cfg();

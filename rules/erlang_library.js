@@ -58,7 +58,7 @@ PATH="${ErlangToolchain.provides().ERL_ROOT}:$PATH" \
 };
 
 export default Warp.Rule({
-  name: "erlang_library",
+  name: "https://pkgs.warp.build/rules/erlang_library",
   mnemonic: "ErlLibrary",
   impl,
   cfg: {

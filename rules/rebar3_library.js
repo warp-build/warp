@@ -38,7 +38,7 @@ tar cf ${appTarball} _build/default/lib/${name}
 };
 
 export default Warp.Rule({
-  name: "rebar3_library",
+  name: "https://pkgs.warp.build/rules/rebar3_library",
   mnemonic: "Rebar3Lib",
   impl,
   cfg: {

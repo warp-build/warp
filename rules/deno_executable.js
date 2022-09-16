@@ -20,7 +20,7 @@ ${DENO} compile ${permissions.join(" ")} ${File.filename(src)}
 };
 
 export default Warp.Rule({
-  name: "deno_executable",
+  name: "https://pkgs.warp.build/rules/deno_executable",
   mnemonic: "DenoExe",
   impl,
   cfg: {

@@ -11,7 +11,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "elixir_release",
+  name: "https://pkgs.warp.build/rules/elixir_release",
   mnemonic: "ExRel",
   impl,
   cfg: {

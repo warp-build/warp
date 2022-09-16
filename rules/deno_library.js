@@ -6,7 +6,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "deno_library",
+  name: "https://pkgs.warp.build/rules/deno_library",
   mnemonic: "DenoLib",
   impl,
   cfg: {

@@ -1,4 +1,4 @@
-import ErlangToolchain from "./erlang.js";
+import ErlangToolchain from "https://pkgs.warp.build/toolchains/erlang.js";
 
 export const BEAM_EXT = ".beam";
 export const EX_EXT = ".ex";

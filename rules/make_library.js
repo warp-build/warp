@@ -32,7 +32,7 @@ make ${make_opts.join(" ")} ${targets.join(" ")}
 };
 
 export default Warp.Rule({
-  name: "make_library",
+  name: "https://pkgs.warp.build/rules/make_library",
   mnemonic: "MakeLib",
   impl,
   cfg: {

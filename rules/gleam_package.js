@@ -14,7 +14,7 @@ const impl = ctx => {
 }
 
 export default Warp.Rule({
-  name: "gleam_package",
+  name: "https://pkgs.warp.build/rules/gleam_package",
   mnemonic: "GleamPackage",
   impl,
   cfg: {

@@ -23,7 +23,7 @@ ${FLYCTL} launch
 
 export default Warp.Rule({
   runnable: true,
-  name: "fly_launch",
+  name: "https://pkgs.warp.build/rules/fly_launch",
   mnemonic: "FlyLaunch",
   impl,
   cfg: {

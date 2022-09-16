@@ -7,7 +7,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "otp_release",
+  name: "https://pkgs.warp.build/rules/otp_release",
   mnemonic: "OtpRel",
   impl,
   cfg: {

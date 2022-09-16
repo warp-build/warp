@@ -55,7 +55,7 @@ tar cf ${Label.path(label)}/${name}.ebin.tar ${Label.path(label)}/ebin
 };
 
 export default Warp.Rule({
-  name: "elixir_application",
+  name: "https://pkgs.warp.build/rules/elixir_application",
   mnemonic: "ExApp",
   impl,
   cfg: {

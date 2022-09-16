@@ -1,4 +1,4 @@
-import OpenSSLToolchain from "./openssl.js";
+import OpenSSLToolchain from "https://pkgs.warp.build/toolchains/openssl.js";
 
 export const HEADER_EXT = ".hrl";
 export const BEAM_EXT = ".beam";

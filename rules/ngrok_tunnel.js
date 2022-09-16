@@ -12,7 +12,7 @@ const impl = ctx => {
 
 export default Warp.Rule({
   runnable: true,
-  name: "ngrok_tunnel",
+  name: "https://pkgs.warp.build/rules/ngrok_tunnel",
   mnemonic: "NgrokTunel",
   impl,
   cfg: {

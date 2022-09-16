@@ -11,7 +11,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "elixir_image",
+  name: "https://pkgs.warp.build/rules/elixir_image",
   mnemonic: "ExImage",
   impl,
   cfg: {

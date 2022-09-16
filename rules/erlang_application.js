@@ -39,7 +39,7 @@ tar cf ${Label.path(label)}/${name}.ebin.tar ${Label.path(label)}/ebin
 };
 
 export default Warp.Rule({
-  name: "erlang_application",
+  name: "https://pkgs.warp.build/rules/erlang_application",
   mnemonic: "ErlApp",
   impl,
   cfg: {

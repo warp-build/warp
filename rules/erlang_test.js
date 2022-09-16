@@ -50,7 +50,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "erlang_test",
+  name: "https://pkgs.warp.build/rules/erlang_test",
   mnemonic: "ErlTest",
   impl,
   cfg: {
