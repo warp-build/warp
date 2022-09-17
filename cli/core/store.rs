@@ -67,19 +67,15 @@ impl Store {
     }
 
     #[tracing::instrument(name = "Store::save")]
-    pub async fn save(&self, node: &ExecutableTarget) -> Result<(), StoreError> {
+    pub async fn save(
+        &self,
+        node: &ExecutableTarget,
+        manifest: &TargetManifest,
+    ) -> Result<(), StoreError> {
         let store_key = self.store_key(node);
 
-        // NOTE(@ostera): see RFC0005
-        /*
-        let artifacts = if node.is_pinned() {
-            sandbox.all_outputs().await
-        } else {
-            sandbox.outputs()
-        };
-        */
         let local_path = self.local_store.absolute_path_for_key(&store_key).await?;
-        let mut artifacts = node.outs.iter().cloned().collect::<Vec<PathBuf>>();
+        let mut artifacts = manifest.outs.clone();
         artifacts.push(PathBuf::from("Manifest.toml"));
 
         self.local_store.write_manifest(&local_path, node).await?;

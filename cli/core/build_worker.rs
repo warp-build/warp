@@ -216,11 +216,7 @@ impl BuildWorker {
                 self.coordinator.signal_shutdown();
             }
 
-            Ok(
-                status @ (ValidationStatus::Cached
-                | ValidationStatus::Valid { .. }
-                | ValidationStatus::NoOutputs),
-            ) => {
+            Ok(status @ (ValidationStatus::Cached | ValidationStatus::Valid { .. })) => {
                 self.target_planner
                     .update(&executable_target)
                     .await

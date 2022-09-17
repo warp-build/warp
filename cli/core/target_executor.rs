@@ -44,9 +44,8 @@ pub enum ValidationStatus {
         unexpected_but_present: Vec<PathBuf>,
     },
     Cached,
-    NoOutputs,
     Valid {
-        outputs: Vec<PathBuf>,
+        manifest: TargetManifest,
     },
 }
 
@@ -93,9 +92,9 @@ impl TargetExecutor {
         let validation_result = self.validate_outputs(&store_path, target).await?;
 
         match &validation_result {
-            ValidationStatus::NoOutputs | ValidationStatus::Valid { .. } => {
+            ValidationStatus::Valid { manifest } => {
                 self.store
-                    .save(target)
+                    .save(target, manifest)
                     .await
                     .map_err(TargetExecutorError::StoreError)?;
 
@@ -178,8 +177,6 @@ impl TargetExecutor {
 
         let inputs: FxHashSet<PathBuf> = node_inputs.union(&deps_inputs).cloned().collect();
 
-        let expected_outputs: FxHashSet<PathBuf> = target.outs.iter().cloned().collect();
-
         let all_outputs: FxHashSet<PathBuf> = self
             .scan_files(store_path)
             .await
@@ -188,9 +185,31 @@ impl TargetExecutor {
             .map(|path| path.to_path_buf())
             .collect();
 
-        // No outputs either expected or created, what did this rule do anyway?
+        // NOTE(@ostera): if a directory has been specified as an output, we'll just expand it
+        // to all the _actual_ files that live within that folder. This is an antipattern, because
+        // it means that we don't know what the outputs of a rule will be until the rule is run.
+        //
+        // It is, however, _useful_ for rules that generate large amounts of outputs, such as lower
+        // level C-style libraries (think OpenSSL).
+        //
+        let mut expected_outputs: FxHashSet<PathBuf> = FxHashSet::default();
+        for out in &target.outs {
+            let abs_out = store_path.join(out);
+            if abs_out.is_dir() {
+                for path in self.scan_files(&abs_out).await {
+                    let path = path.strip_prefix(&store_path).unwrap().to_path_buf();
+                    expected_outputs.insert(path);
+                }
+            } else {
+                expected_outputs.insert(out.to_path_buf());
+            }
+        }
+
+        // NOTE(@ostera): no expected or actual outputs, so lets bail early!
         if expected_outputs.is_empty() || all_outputs.is_empty() {
-            return Ok(ValidationStatus::NoOutputs);
+            return Ok(ValidationStatus::Valid {
+                manifest: TargetManifest { outs: vec![] },
+            });
         }
 
         // All files found minus Inputs
@@ -210,8 +229,10 @@ impl TargetExecutor {
 
         // No diff means we have the outputs we expected!
         if no_difference {
-            let outputs = expected_outputs.iter().cloned().collect();
-            Ok(ValidationStatus::Valid { outputs })
+            let outs = expected_outputs.iter().cloned().collect();
+            Ok(ValidationStatus::Valid {
+                manifest: TargetManifest { outs },
+            })
         } else {
             let expected_but_missing = expected_outputs
                 .difference(&actual_outputs)
