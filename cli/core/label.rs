@@ -1,4 +1,3 @@
-use seahash::SeaHasher;
 use std::path::{Path, PathBuf};
 use url::Url;
 
@@ -70,7 +69,7 @@ impl Label {
         if let Ok(abs_path) = std::fs::canonicalize(PathBuf::from(&full_path)) {
             if let Ok(rel_path) = abs_path.strip_prefix(workspace_root) {
                 let stripped_path = rel_path.to_str().unwrap();
-                return Label::new(&stripped_path);
+                return Label::new(stripped_path);
             }
         }
         Label::new(path)
@@ -87,13 +86,12 @@ impl Label {
         if let Ok(url) = Url::parse(name) {
             let raw_url = name;
             // TODO(@ostera): actually validate that we have a path with at least one segment
-            use std::hash::{Hash, Hasher};
-            let mut s = SeaHasher::new();
-            let _ = &url[..url::Position::BeforePath].hash(&mut s);
+            let mut s = blake3::Hasher::new();
+            s.update(url[..url::Position::BeforePath].as_bytes());
             for path in url.path_segments().unwrap().rev().skip(1) {
-                path.hash(&mut s);
+                s.update(path.as_bytes());
             }
-            let prefix_hash = s.finish().to_string();
+            let prefix_hash = s.finalize().to_string();
 
             let name = url.path_segments().unwrap().last().unwrap().to_string();
             let host = url.host_str().unwrap().to_string();
