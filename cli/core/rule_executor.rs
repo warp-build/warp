@@ -19,6 +19,18 @@ use thiserror::*;
 use tokio::fs;
 use tracing::*;
 
+#[derive(Debug, Default)]
+pub struct SharedRuleExecutorState {
+    pub rule_map: Arc<DashMap<String, Rule>>,
+    pub provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
+}
+
+impl SharedRuleExecutorState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 #[derive(Default)]
 pub struct ExecutionResult {
     pub actions: Vec<Action>,
@@ -262,6 +274,7 @@ pub enum RuleExecutorError {
 pub struct RuleExecutor {
     runtime: deno_core::JsRuntime,
     pub rule_map: Arc<DashMap<String, Rule>>,
+    pub loaded_rules: HashMap<String, Rule>,
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
     pub provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
@@ -269,12 +282,9 @@ pub struct RuleExecutor {
 }
 
 impl RuleExecutor {
-    pub fn new() -> Result<RuleExecutor, RuleExecutorError> {
-        // FIXME(@ostera): rule_map and provides_map should come from a SharedRuleExecutorState
-        // struct that is just a bunch of shared Arcs.
-        let rule_map = Arc::new(DashMap::new());
-        let provides_map = Arc::new(DashMap::new());
-
+    pub fn new(
+        shared_state: Arc<SharedRuleExecutorState>,
+    ) -> Result<RuleExecutor, RuleExecutorError> {
         let action_map = Arc::new(DashMap::new());
         let output_map = Arc::new(DashMap::new());
         let run_script_map = Arc::new(DashMap::new());
@@ -282,8 +292,8 @@ impl RuleExecutor {
         let extension: deno_core::Extension = {
             let action_map = action_map.clone();
             let output_map = output_map.clone();
-            let provides_map = provides_map.clone();
-            let rule_map = Arc::clone(&rule_map);
+            let provides_map = shared_state.provides_map.clone();
+            let rule_map = shared_state.rule_map.clone();
             let run_script_map = run_script_map.clone();
 
             let inner_state = InnerState {
@@ -333,10 +343,11 @@ impl RuleExecutor {
         let mut rule_executor = RuleExecutor {
             action_map,
             output_map,
-            provides_map,
-            rule_map,
+            provides_map: shared_state.provides_map.clone(),
+            rule_map: shared_state.rule_map.clone(),
             run_script_map,
             runtime,
+            loaded_rules: HashMap::new(),
         };
 
         rule_executor.setup()?;
@@ -386,18 +397,24 @@ impl RuleExecutor {
         file: PathBuf,
     ) -> Result<Rule, RuleExecutorError> {
         // NOTE(@ostera): avoid IO and redefining rules if it is already computed in this worker
-        if let Some(r) = self.rule_map.get(rule_name) {
-            return Ok(r.value().clone());
+        if let Some(r) = self.loaded_rules.get(rule_name) {
+            return Ok(r.clone());
         }
 
         self.load_file(file).await?;
 
-        self.rule_map
+        let rule = self
+            .rule_map
             .get(rule_name)
             .map(|r| r.value().clone())
             .ok_or_else(|| RuleExecutorError::RuleNotFound {
                 rule_name: rule_name.to_string(),
-            })
+            })?;
+
+        self.loaded_rules
+            .insert(rule_name.to_string(), rule.clone());
+
+        Ok(rule)
     }
 
     #[tracing::instrument(name = "RuleExecutor::load_file", skip(self))]

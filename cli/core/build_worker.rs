@@ -51,11 +51,17 @@ impl BuildWorker {
         label_resolver: Arc<LabelResolver>,
         target_executor: Arc<TargetExecutor>,
         store: Arc<Store>,
+        share_rule_executor_state: Arc<SharedRuleExecutorState>,
     ) -> Result<Self, BuildWorkerError> {
         let env = ExecutionEnvironment::new();
 
-        let target_planner = TargetPlanner::new(workspace, build_results.clone(), store)
-            .map_err(BuildWorkerError::TargetPlannerError)?;
+        let target_planner = TargetPlanner::new(
+            workspace,
+            build_results.clone(),
+            store,
+            share_rule_executor_state,
+        )
+        .map_err(BuildWorkerError::TargetPlannerError)?;
 
         Ok(Self {
             build_queue,
@@ -237,7 +243,8 @@ mod tests {
         let lr = Arc::new(LabelResolver::new(&w));
         let s = Arc::new(Store::new(&w));
         let te = Arc::new(TargetExecutor::new(s.clone(), ec.clone()));
-        BuildWorker::new(r, &w, l, bc, ec, bq, br, lr, te, s).unwrap()
+        let sres = Arc::new(SharedRuleExecutorState::new());
+        BuildWorker::new(r, &w, l, bc, ec, bq, br, lr, te, s, sres).unwrap()
     }
 
     #[tokio::test]

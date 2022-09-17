@@ -31,12 +31,14 @@ impl TargetPlanner {
         workspace: &Workspace,
         build_results: Arc<BuildResults>,
         store: Arc<Store>,
+        share_rule_executor_state: Arc<SharedRuleExecutorState>,
     ) -> Result<Self, TargetPlannerError> {
         Ok(Self {
             build_results,
             store,
             rule_store: RuleStore::new(workspace),
-            rule_executor: RuleExecutor::new().map_err(TargetPlannerError::RuleExecutorError)?,
+            rule_executor: RuleExecutor::new(share_rule_executor_state)
+                .map_err(TargetPlannerError::RuleExecutorError)?,
         })
     }
 

@@ -143,7 +143,6 @@ Warp.Rule = spec => {
 
   Warp.Rules.register(name, spec);
 
-
   ffi("op_rule_new", spec);
 
   return spec;

@@ -54,6 +54,8 @@ impl BuildExecutor {
         let label_resolver = Arc::new(LabelResolver::new(&self.workspace));
         let target_executor = Arc::new(TargetExecutor::new(store.clone(), event_channel.clone()));
 
+        let share_rule_executor_state = Arc::new(SharedRuleExecutorState::new());
+
         let mut worker = BuildWorker::new(
             Role::MainWorker,
             &self.workspace,
@@ -65,6 +67,7 @@ impl BuildExecutor {
             label_resolver.clone(),
             target_executor.clone(),
             store.clone(),
+            share_rule_executor_state.clone(),
         )
         .map_err(BuildExecutorError::WorkerError)?;
 
@@ -82,6 +85,7 @@ impl BuildExecutor {
                 let target_executor = target_executor.clone();
                 let target = target.clone();
                 let store = store.clone();
+                let share_rule_executor_state = share_rule_executor_state.clone();
 
                 let thread = worker_pool.spawn_pinned(move || async move {
                     let mut worker = BuildWorker::new(
@@ -95,6 +99,7 @@ impl BuildExecutor {
                         label_resolver,
                         target_executor,
                         store,
+                        share_rule_executor_state,
                     )
                     .map_err(BuildExecutorError::WorkerError)?;
 

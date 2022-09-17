@@ -1,5 +1,4 @@
 use super::*;
-use anyhow::anyhow;
 use dashmap::DashMap;
 use deno_core::error::AnyError;
 use deno_core::*;
@@ -132,11 +131,7 @@ pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Re
     let provides_map = &inner_state.provides_map;
 
     let label = Label::new(&args.label);
-    let new_provides = match provides_map.get(&label) {
-        None => args.provides,
-        Some(_) => return Err(anyhow!("You can't specify provides twice!")),
-    };
-    provides_map.insert(label, new_provides);
+    provides_map.insert(label, args.provides);
 
     Ok(())
 }
