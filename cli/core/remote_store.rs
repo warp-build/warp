@@ -14,6 +14,7 @@ use tracing::*;
 #[derive(Debug, Clone)]
 pub struct RemoteStore {
     api: API,
+    client: reqwest::Client,
 }
 
 impl RemoteStore {
@@ -21,6 +22,7 @@ impl RemoteStore {
     pub fn new(workspace: &Workspace) -> RemoteStore {
         RemoteStore {
             api: API::from_workspace(workspace),
+            client: reqwest::Client::builder().gzip(false).build().unwrap(),
         }
     }
 
@@ -63,17 +65,13 @@ impl RemoteStore {
     }
 
     #[tracing::instrument(name = "RemoteStore::try_fetch")]
-    pub async fn try_fetch(&mut self, key: &StoreKey, dst: &PathBuf) -> Result<(), StoreError> {
+    pub async fn try_fetch(&self, key: &StoreKey, dst: &PathBuf) -> Result<(), StoreError> {
         let dst_tarball = &dst.with_extension("tar.gz");
 
         let url = format!("{}/artifact/{}.tar.gz", self.api.url, key);
 
-        let client = reqwest::Client::builder()
-            .gzip(false)
-            .build()
-            .map_err(StoreError::HTTPError)?;
-
-        let response = client
+        let response = self
+            .client
             .get(url)
             .send()
             .await

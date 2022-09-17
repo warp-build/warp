@@ -34,12 +34,6 @@ pub enum TargetExecutorError {
 
     #[error(transparent)]
     ActionError(anyhow::Error),
-
-    #[error("When building {:?}, could not create Manifest file due to: {err:?}", target.label.to_string())]
-    CouldNotCreateManifest {
-        target: Box<ExecutableTarget>,
-        err: std::io::Error,
-    },
 }
 
 #[derive(Debug, Clone)]
@@ -68,18 +62,23 @@ impl TargetExecutor {
         &self,
         target: &ExecutableTarget,
     ) -> Result<ValidationStatus, TargetExecutorError> {
-        let store_path = self
+        if let Ok(StoreHitType::Hit(_)) = self
             .store
-            .absolute_path_by_node(target)
+            .is_in_store(target)
             .await
-            .map_err(TargetExecutorError::StoreError)?;
-
-        if self.find_manifest(&store_path, target).await {
+            .map_err(TargetExecutorError::StoreError)
+        {
             return Ok(ValidationStatus::Cached);
         }
 
         self.store
             .clean(target)
+            .await
+            .map_err(TargetExecutorError::StoreError)?;
+
+        let store_path = self
+            .store
+            .absolute_path_by_node(target)
             .await
             .map_err(TargetExecutorError::StoreError)?;
 
@@ -90,7 +89,6 @@ impl TargetExecutor {
 
         match &validation_result {
             ValidationStatus::NoOutputs | ValidationStatus::Valid { .. } => {
-                self.write_manifest(&store_path, target).await?;
                 self.store
                     .save(target)
                     .await
@@ -227,26 +225,6 @@ impl TargetExecutor {
                 expected_but_missing,
             })
         }
-    }
-
-    async fn find_manifest(&self, store_path: &Path, _target: &ExecutableTarget) -> bool {
-        fs::metadata(&store_path.join("Manifest.toml"))
-            .await
-            .is_ok()
-    }
-
-    async fn write_manifest(
-        &self,
-        store_path: &Path,
-        target: &ExecutableTarget,
-    ) -> Result<(), TargetExecutorError> {
-        fs::File::create(store_path.join("Manifest.toml"))
-            .await
-            .map(|_| ())
-            .map_err(|err| TargetExecutorError::CouldNotCreateManifest {
-                target: Box::new(target.clone()),
-                err,
-            })
     }
 
     #[tracing::instrument(name = "TargetExecutor::copy_file", skip(self))]

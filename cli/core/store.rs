@@ -30,6 +30,12 @@ pub enum StoreError {
 
     #[error(transparent)]
     ApiError(ApiError),
+
+    #[error("When building {:?}, could not create Manifest file due to: {err:?}", target.label.to_string())]
+    CouldNotCreateManifest {
+        target: Box<ExecutableTarget>,
+        err: std::io::Error,
+    },
 }
 
 impl Store {
@@ -71,7 +77,11 @@ impl Store {
         };
         */
         let local_path = self.local_store.absolute_path_for_key(&store_key).await?;
-        let artifacts = node.outs.iter().cloned().collect::<Vec<PathBuf>>();
+        let mut artifacts = node.outs.iter().cloned().collect::<Vec<PathBuf>>();
+        artifacts.push(PathBuf::from("Manifest.toml"));
+        dbg!(&artifacts);
+
+        self.local_store.write_manifest(&local_path, node).await?;
 
         let _ = self
             .remote_store
@@ -84,20 +94,17 @@ impl Store {
     /// Determine if a given node has been stored already or not.
     ///
     #[tracing::instrument(name = "Store::is_stored", skip(node))]
-    pub async fn is_in_store(
-        &mut self,
-        node: &ExecutableTarget,
-    ) -> Result<StoreHitType, StoreError> {
+    pub async fn is_in_store(&self, node: &ExecutableTarget) -> Result<StoreHitType, StoreError> {
         let store_key = self.store_key(node);
 
-        match self.local_store.is_stored(&store_key).await? {
+        match self.local_store.find_manifest(&store_key).await? {
             StoreHitType::Miss(_) => {
                 let expected_path = self.local_store.absolute_path_for_key(&store_key).await?;
                 let _ = self
                     .remote_store
                     .try_fetch(&store_key, &expected_path)
                     .await;
-                self.local_store.is_stored(&store_key).await
+                self.local_store.find_manifest(&store_key).await
             }
             result => Ok(result),
         }

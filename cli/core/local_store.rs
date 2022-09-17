@@ -1,6 +1,6 @@
 use super::*;
 use fxhash::*;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio::fs;
 use tracing::*;
 
@@ -18,6 +18,35 @@ impl LocalStore {
         LocalStore {
             cache_root: workspace.paths.global_cache_root.clone(),
         }
+    }
+
+    /// Determine if a given node has been cached already or not.
+    ///
+    /// This is based on hash of the node (see `BuildRule::hash`).
+    ///
+    /// FIXME: check if the expected hashes of the inputs match the actual
+    /// hash of the files to determine if the cache is corrupted.
+    #[tracing::instrument(name = "LocalStore::find_manifest")]
+    pub async fn find_manifest(&self, key: &StoreKey) -> Result<StoreHitType, StoreError> {
+        let cache_path = self.cache_root.join(&key).join("Manifest.toml");
+        if fs::metadata(&cache_path).await.is_ok() {
+            return Ok(StoreHitType::Hit(cache_path));
+        }
+        Ok(StoreHitType::Miss(cache_path))
+    }
+
+    pub async fn write_manifest(
+        &self,
+        store_path: &Path,
+        target: &ExecutableTarget,
+    ) -> Result<(), StoreError> {
+        fs::File::create(store_path.join("Manifest.toml"))
+            .await
+            .map(|_| ())
+            .map_err(|err| StoreError::CouldNotCreateManifest {
+                target: Box::new(target.clone()),
+                err,
+            })
     }
 
     #[tracing::instrument(name = "LocalStore::promote_outputs", skip(node))]
@@ -71,21 +100,6 @@ impl LocalStore {
             .await
             .map_err(StoreError::IOError)
             .map(|p| p.join(key))
-    }
-
-    /// Determine if a given node has been cached already or not.
-    ///
-    /// This is based on hash of the node (see `BuildRule::hash`).
-    ///
-    /// FIXME: check if the expected hashes of the inputs match the actual
-    /// hash of the files to determine if the cache is corrupted.
-    #[tracing::instrument(name = "LocalStore::is_stored")]
-    pub async fn is_stored(&mut self, key: &StoreKey) -> Result<StoreHitType, StoreError> {
-        let cache_path = self.cache_root.join(&key);
-        if fs::metadata(&cache_path).await.is_ok() {
-            return Ok(StoreHitType::Hit(cache_path));
-        }
-        Ok(StoreHitType::Miss(cache_path))
     }
 
     #[tracing::instrument(name = "LocalStore::clean")]
