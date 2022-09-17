@@ -9,8 +9,9 @@ use deno_core::ModuleSource;
 use deno_core::ModuleSourceFuture;
 use deno_core::ModuleSpecifier;
 use deno_core::ModuleType;
+use fxhash::FxHashMap;
 use fxhash::FxHashSet;
-use std::collections::HashMap;
+use once_cell::sync::Lazy;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
@@ -22,7 +23,7 @@ use tracing::*;
 #[derive(Debug, Default)]
 pub struct SharedRuleExecutorState {
     pub rule_map: Arc<DashMap<String, Rule>>,
-    pub provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
+    pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
 }
 
 impl SharedRuleExecutorState {
@@ -154,6 +155,9 @@ impl ComputeTargetProgram {
 
 pub struct NetModuleLoader;
 
+static NET_CLIENT: Lazy<reqwest::Client> =
+    Lazy::new(|| reqwest::Client::builder().gzip(false).build().unwrap());
+
 /// NOTE(@ostera): this feature copied from `deno-simple-module-loader`:
 ///     https://github.com/andreubotella/deno-simple-module-loader)
 impl ModuleLoader for NetModuleLoader {
@@ -181,7 +185,10 @@ impl ModuleLoader for NetModuleLoader {
         let string_specifier = module_specifier.to_string();
         async {
             let bytes = match module_specifier.scheme() {
-                "http" | "https" => reqwest::get(module_specifier).await?.bytes().await?,
+                "http" | "https" => {
+                    let response = NET_CLIENT.get(module_specifier).send().await?;
+                    response.bytes().await?
+                }
                 "file" => {
                     let path = match module_specifier.to_file_path() {
                         Ok(path) => path,
@@ -274,10 +281,10 @@ pub enum RuleExecutorError {
 pub struct RuleExecutor {
     runtime: deno_core::JsRuntime,
     pub rule_map: Arc<DashMap<String, Rule>>,
-    pub loaded_rules: HashMap<String, Rule>,
+    pub loaded_rules: FxHashMap<String, Rule>,
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
-    pub provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
+    pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
     pub run_script_map: Arc<DashMap<Label, RunScript>>,
 }
 
@@ -347,7 +354,7 @@ impl RuleExecutor {
             rule_map: shared_state.rule_map.clone(),
             run_script_map,
             runtime,
-            loaded_rules: HashMap::new(),
+            loaded_rules: FxHashMap::default(),
         };
 
         rule_executor.setup()?;
@@ -367,7 +374,7 @@ impl RuleExecutor {
             .map_err(RuleExecutorError::StoreError)?;
 
         let provides = if let Some(provides) = self.provides_map.get(&node.label) {
-            let mut new_provides = HashMap::new();
+            let mut new_provides = FxHashMap::default();
             for (k, v) in provides.value() {
                 new_provides.insert(
                     k.clone(),
@@ -376,7 +383,7 @@ impl RuleExecutor {
             }
             new_provides
         } else {
-            HashMap::new()
+            FxHashMap::default()
         };
 
         self.provides_map.insert(node.label.clone(), provides);

@@ -9,7 +9,6 @@ fn main() {
     let snapshot_path = o.join("JS_SNAPSHOT.bin");
     let options = RuntimeOptions {
         will_snapshot: true,
-        extensions: vec![deno_console::init()],
         ..Default::default()
     };
     let mut isolate = JsRuntime::new(options);

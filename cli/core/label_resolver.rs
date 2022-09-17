@@ -1,5 +1,5 @@
 use super::*;
-use std::collections::HashMap;
+use fxhash::*;
 use std::path::PathBuf;
 use thiserror::*;
 use tracing::*;
@@ -7,7 +7,7 @@ use tracing::*;
 #[derive(Debug)]
 pub struct LabelResolver {
     workspace_root: PathBuf,
-    toolchain_configs: HashMap<String, RuleConfig>,
+    toolchain_configs: FxHashMap<String, RuleConfig>,
 }
 
 #[derive(Error, Debug)]

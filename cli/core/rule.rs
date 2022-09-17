@@ -2,7 +2,6 @@ use super::*;
 use fxhash::*;
 use serde::de;
 use serde::Deserialize;
-use std::collections::HashMap;
 
 pub type RuleName = String;
 
@@ -123,7 +122,7 @@ impl<'de> Deserialize<'de> for Rule {
         }
         let config = ConfigSpec(cfg);
 
-        let mut default_cfg = HashMap::new();
+        let mut default_cfg = FxHashMap::default();
         for (k, v) in rule_spec["defaults"]
             .as_object()
             .ok_or_else(|| de::Error::custom("Expected 'defaults' to be an Object".to_string()))?

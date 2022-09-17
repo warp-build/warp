@@ -1,6 +1,7 @@
 use super::*;
 use anyhow::*;
-use std::{collections::HashMap, path::PathBuf};
+use fxhash::*;
+use std::path::PathBuf;
 use thiserror::*;
 use url::Url;
 
@@ -57,11 +58,11 @@ pub struct Workspace {
 
     #[builder(default)]
     /// A map of aliases for commonly used targets
-    pub aliases: HashMap<String, Label>,
+    pub aliases: FxHashMap<String, Label>,
 
     #[builder(default)]
     /// The archives defined in the workspace declaration file
-    pub toolchain_configs: HashMap<String, RuleConfig>,
+    pub toolchain_configs: FxHashMap<String, RuleConfig>,
 
     #[builder(default)]
     /// A list of rules that have been downloaded
@@ -123,13 +124,13 @@ impl WorkspaceBuilder {
             self.remote_cache_url(Some(url));
         }
 
-        let mut aliases: HashMap<String, Label> = HashMap::default();
+        let mut aliases: FxHashMap<String, Label> = FxHashMap::default();
         for (name, label) in file.aliases.clone() {
             aliases.insert(name, label.into());
         }
         self.aliases(aliases);
 
-        let mut toolchains: HashMap<String, RuleConfig> = HashMap::default();
+        let mut toolchains: FxHashMap<String, RuleConfig> = FxHashMap::default();
         for (name, config) in file.toolchains {
             toolchains.insert(name.clone(), config.try_into()?);
         }

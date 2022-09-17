@@ -1,7 +1,9 @@
 use super::*;
+use anyhow::anyhow;
 use dashmap::DashMap;
 use deno_core::error::AnyError;
 use deno_core::*;
+use fxhash::*;
 use serde::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -15,7 +17,7 @@ pub struct InnerState {
     pub run_script_map: Arc<DashMap<Label, RunScript>>,
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
-    pub provides_map: Arc<DashMap<Label, HashMap<String, String>>>,
+    pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
 }
 
 #[op]
@@ -122,7 +124,7 @@ pub fn op_ctx_actions_declare_outputs(
 #[serde(rename_all = "camelCase")]
 pub struct DeclareProvides {
     label: String,
-    provides: std::collections::HashMap<String, String>,
+    provides: FxHashMap<String, String>,
 }
 
 #[op]
@@ -131,6 +133,9 @@ pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Re
     let provides_map = &inner_state.provides_map;
 
     let label = Label::new(&args.label);
+    if provides_map.get(&label).is_some() {
+        return Err(anyhow!("You can't specify provides twice!"));
+    };
     provides_map.insert(label, args.provides);
 
     Ok(())
@@ -146,7 +151,7 @@ pub struct FetchProvides {
 pub fn op_ctx_fetch_provides(
     state: &mut OpState,
     args: FetchProvides,
-) -> Result<HashMap<String, String>, AnyError> {
+) -> Result<FxHashMap<String, String>, AnyError> {
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let provides_map = &inner_state.provides_map;
 

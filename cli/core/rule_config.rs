@@ -1,6 +1,5 @@
 use super::*;
 use fxhash::*;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use thiserror::*;
 
@@ -62,21 +61,21 @@ pub enum RuleConfigError {
 
 #[derive(Debug, Clone, Default)]
 pub struct RuleConfig {
-    config: HashMap<String, CfgValue>,
+    config: FxHashMap<String, CfgValue>,
 }
 
 impl RuleConfig {
     pub fn new() -> RuleConfig {
         RuleConfig {
-            config: HashMap::new(),
+            config: FxHashMap::default(),
         }
     }
 
-    pub fn with_defaults(self, config: HashMap<String, CfgValue>) -> RuleConfig {
+    pub fn with_defaults(self, config: FxHashMap<String, CfgValue>) -> RuleConfig {
         RuleConfig { config }
     }
 
-    pub fn as_map(&self) -> &HashMap<String, CfgValue> {
+    pub fn as_map(&self) -> &FxHashMap<String, CfgValue> {
         &self.config
     }
 
