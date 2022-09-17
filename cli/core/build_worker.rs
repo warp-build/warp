@@ -1,5 +1,6 @@
 use super::Event;
 use super::*;
+use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
@@ -20,6 +21,14 @@ pub enum BuildWorkerError {
 
     #[error(transparent)]
     TargetPlannerError(TargetPlannerError),
+
+    #[error("Node {} expected the following but missing outputs: {:?}\n\ninstead it found the following unexpected outputs: {:?}", label.to_string(), expected_but_missing, unexpected_but_present)]
+    TargetFailedValidation {
+        label: Label,
+        expected_but_missing: Vec<PathBuf>,
+        unexpected_but_present: Vec<PathBuf>,
+        expected_and_present: Vec<PathBuf>,
+    },
 }
 
 pub struct BuildWorker {
@@ -174,23 +183,60 @@ impl BuildWorker {
             Ok(executable_target) => executable_target,
         };
 
-        if let Err(err) = self.target_executor.execute(&executable_target).await {
-            self.event_channel.send(Event::BuildError(
-                label.clone(),
-                BuildError::TargetExecutorError(err),
-            ));
+        self.event_channel.send(Event::BuildingTarget {
+            label: label.clone(),
+            rule_mnemonic: executable_target.rule.mnemonic.to_string(),
+        });
 
-            self.coordinator.signal_shutdown();
-        } else {
-            self.target_planner
-                .update(&executable_target)
-                .await
-                .map_err(BuildWorkerError::TargetPlannerError)?;
+        match self.target_executor.execute(&executable_target).await {
+            Err(err) => {
+                self.event_channel.send(Event::BuildError(
+                    label.clone(),
+                    BuildError::TargetExecutorError(err),
+                ));
 
-            self.build_results
-                .add_computed_target(label.clone(), executable_target);
+                self.coordinator.signal_shutdown();
+            }
 
-            self.build_queue.ack(&label);
+            Ok(ValidationStatus::Invalid {
+                expected_and_present,
+                expected_but_missing,
+                unexpected_but_present,
+            }) => {
+                self.event_channel.send(Event::BuildError(
+                    label.clone(),
+                    BuildError::BuildWorkerError(BuildWorkerError::TargetFailedValidation {
+                        label: label.clone(),
+                        expected_but_missing,
+                        unexpected_but_present,
+                        expected_and_present,
+                    }),
+                ));
+
+                self.coordinator.signal_shutdown();
+            }
+
+            Ok(
+                status @ (ValidationStatus::Cached
+                | ValidationStatus::Valid { .. }
+                | ValidationStatus::NoOutputs),
+            ) => {
+                self.target_planner
+                    .update(&executable_target)
+                    .await
+                    .map_err(BuildWorkerError::TargetPlannerError)?;
+
+                self.build_results
+                    .add_computed_target(label.clone(), executable_target);
+
+                if let ValidationStatus::Cached = status {
+                    self.event_channel.send(Event::CacheHit(label.clone()));
+                } else {
+                    self.event_channel.send(Event::TargetBuilt(label.clone()));
+                }
+
+                self.build_queue.ack(&label);
+            }
         }
 
         Ok(())
