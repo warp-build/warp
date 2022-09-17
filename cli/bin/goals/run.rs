@@ -45,7 +45,7 @@ impl RunGoal {
         let label: Label = (&workspace.aliases)
             .get(&self.label)
             .cloned()
-            .unwrap_or_else(|| self.label.into());
+            .unwrap_or_else(|| Label::from_path(&workspace.paths.workspace_root, &self.label));
 
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
         debug!("Target: {}", &label.to_string());

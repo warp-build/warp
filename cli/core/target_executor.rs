@@ -68,6 +68,11 @@ impl TargetExecutor {
             .await
             .map_err(TargetExecutorError::StoreError)
         {
+            self.store
+                .promote_outputs(target)
+                .await
+                .map_err(TargetExecutorError::StoreError)?;
+
             return Ok(ValidationStatus::Cached);
         }
 
@@ -91,6 +96,11 @@ impl TargetExecutor {
             ValidationStatus::NoOutputs | ValidationStatus::Valid { .. } => {
                 self.store
                     .save(target)
+                    .await
+                    .map_err(TargetExecutorError::StoreError)?;
+
+                self.store
+                    .promote_outputs(target)
                     .await
                     .map_err(TargetExecutorError::StoreError)?;
             }

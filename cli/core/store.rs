@@ -10,6 +10,7 @@ pub type StoreKey = String;
 #[derive(Debug, Clone)]
 pub struct Store {
     workspace_prefix: String,
+    local_outputs_root: PathBuf,
     local_store: LocalStore,
     remote_store: RemoteStore,
 }
@@ -42,6 +43,7 @@ impl Store {
     #[tracing::instrument(name = "Store::new", skip(workspace))]
     pub fn new(workspace: &Workspace) -> Self {
         Store {
+            local_outputs_root: workspace.paths.local_outputs_root.clone(),
             local_store: LocalStore::new(workspace),
             remote_store: RemoteStore::new(workspace),
             workspace_prefix: workspace.paths.workspace_name.clone(),
@@ -79,7 +81,6 @@ impl Store {
         let local_path = self.local_store.absolute_path_for_key(&store_key).await?;
         let mut artifacts = node.outs.iter().cloned().collect::<Vec<PathBuf>>();
         artifacts.push(PathBuf::from("Manifest.toml"));
-        dbg!(&artifacts);
 
         self.local_store.write_manifest(&local_path, node).await?;
 
@@ -132,14 +133,10 @@ impl Store {
     }
 
     #[tracing::instrument(name = "Store::promote_outputs", skip(node))]
-    pub async fn promote_outputs(
-        &self,
-        node: &ExecutableTarget,
-        dst: &PathBuf,
-    ) -> Result<(), StoreError> {
+    pub async fn promote_outputs(&self, node: &ExecutableTarget) -> Result<(), StoreError> {
         let store_key = self.store_key(node);
         self.local_store
-            .promote_outputs(&store_key, node, dst)
+            .promote_outputs(&store_key, node, &self.local_outputs_root)
             .await
     }
 }

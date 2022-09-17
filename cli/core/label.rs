@@ -64,20 +64,25 @@ impl Label {
         Label::default()
     }
 
+    #[tracing::instrument(name = "Label::from_path")]
     pub fn from_path(workspace_root: &Path, path: &str) -> Label {
-        if let Ok(abs_path) = std::fs::canonicalize(PathBuf::from(&path)) {
+        let full_path = workspace_root.join(path);
+        if let Ok(abs_path) = std::fs::canonicalize(PathBuf::from(&full_path)) {
             if let Ok(rel_path) = abs_path.strip_prefix(workspace_root) {
-                return Label::new(rel_path.to_str().unwrap());
+                let stripped_path = rel_path.to_str().unwrap();
+                return Label::new(&stripped_path);
             }
         }
         Label::new(path)
     }
 
+    #[tracing::instrument(name = "Label::from_path_and_name")]
     pub fn from_path_and_name(path: &Path, name: &str) -> Label {
         Label::new(&format!("//{}:{}", path.to_str().unwrap(), name))
     }
 
     // TODO(@ostera): turn this into Result<Label, LabelError>
+    #[tracing::instrument(name = "Label::new")]
     pub fn new(name: &str) -> Label {
         if let Ok(url) = Url::parse(name) {
             let raw_url = name;
