@@ -52,10 +52,7 @@ impl ConfigExpander {
             values.insert(key.to_string(), expanded_value);
         }
 
-        values.insert(
-            "name".to_string(),
-            CfgValue::String(target.label.to_string()),
-        );
+        values.insert("name".to_string(), CfgValue::String(target.label.name()));
 
         Ok(values)
     }
