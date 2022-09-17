@@ -9,8 +9,8 @@ const impl = (ctx) => {
 
   const transitiveDeps = ctx.transitiveDeps();
 
-  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "elixir_library");
-  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == "mix_library");
+  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://pkgs.warp.build/rules/elixir_library");
+  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://pkgs.warp.build/rules/mix_library");
 
   const extraPaths = [
     ...mixLibraries
