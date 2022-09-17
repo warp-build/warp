@@ -13,7 +13,7 @@ const impl = ctx => {
   const MINIO = "minio";
   ctx.action().setPermissions({ file: MINIO, executable: true })
 
-  ctx.action().declareOutputs([]);
+  ctx.action().declareOutputs([MINIO]);
 
   ctx.provides({ MINIO });
 

@@ -41,9 +41,9 @@ make all install ${make_flags.join(" ")} || exit 1
 
 `});
 
-  ctx.action().declareOutputs([]);
-
   const root = `${prefix}/dist`;
+  ctx.action().declareOutputs([root]);
+
   const binRoot = `${prefix}/dist/bin`;
   ctx.provides({
     ERLC: File.join(binRoot, "erlc"),

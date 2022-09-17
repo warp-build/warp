@@ -16,7 +16,7 @@ const impl = ctx => {
   const DENO = "deno";
   ctx.action().setPermissions({ file: DENO, executable: true })
 
-  ctx.action().declareOutputs([]);
+  ctx.action().declareOutputs([DENO]);
 
   ctx.provides({ DENO });
 

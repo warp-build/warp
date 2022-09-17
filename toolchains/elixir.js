@@ -47,7 +47,7 @@ make
   ctx.action().setPermissions({ file: IEX, executable: true })
   ctx.action().setPermissions({ file: MIX, executable: true })
 
-  ctx.action().declareOutputs([]);
+  ctx.action().declareOutputs([`elixir-${version}`]);
 
   ctx.provides({ ELIXIR, ELIXIRC, IEX, MIX, ELIXIR_HOME: binRoot });
 };

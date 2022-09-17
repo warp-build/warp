@@ -23,7 +23,7 @@ make install -j10
 
 `});
 
-  ctx.action().declareOutputs([]);
+  ctx.action().declareOutputs([`${prefix}/dist`]);
 
   ctx.provides({
     OPENSSL_HOME: `${prefix}/dist`
