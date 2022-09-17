@@ -91,6 +91,10 @@ impl TargetExecutor {
         match &validation_result {
             ValidationStatus::NoOutputs | ValidationStatus::Valid { .. } => {
                 self.write_manifest(&store_path, target).await?;
+                self.store
+                    .save(target)
+                    .await
+                    .map_err(TargetExecutorError::StoreError)?;
             }
             _ => (),
         }

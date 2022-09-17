@@ -59,7 +59,7 @@ impl Store {
     }
 
     #[tracing::instrument(name = "Store::save")]
-    pub async fn save(&mut self, node: &ExecutableTarget) -> Result<(), StoreError> {
+    pub async fn save(&self, node: &ExecutableTarget) -> Result<(), StoreError> {
         let store_key = self.store_key(node);
 
         // NOTE(@ostera): see RFC0005

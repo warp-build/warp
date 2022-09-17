@@ -26,7 +26,7 @@ impl RemoteStore {
 
     #[tracing::instrument(name = "RemoteStore::save", skip(artifacts))]
     pub async fn save(
-        &mut self,
+        &self,
         key: &StoreKey,
         artifacts: &[PathBuf],
         sandbox_root: &PathBuf,
