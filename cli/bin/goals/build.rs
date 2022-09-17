@@ -49,7 +49,7 @@ impl BuildGoal {
         let label: Label = (&workspace.aliases)
             .get(&self.label)
             .cloned()
-            .unwrap_or_else(|| self.label.into());
+            .unwrap_or_else(|| Label::from_path(&workspace.paths.workspace_root, &self.label));
 
         let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
 

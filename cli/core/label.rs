@@ -64,6 +64,15 @@ impl Label {
         Label::default()
     }
 
+    pub fn from_path(workspace_root: &Path, path: &str) -> Label {
+        if let Ok(abs_path) = std::fs::canonicalize(PathBuf::from(&path)) {
+            if let Ok(rel_path) = abs_path.strip_prefix(workspace_root) {
+                return Label::new(rel_path.to_str().unwrap());
+            }
+        }
+        Label::new(path)
+    }
+
     pub fn from_path_and_name(path: &Path, name: &str) -> Label {
         Label::new(&format!("//{}:{}", path.to_str().unwrap(), name))
     }
