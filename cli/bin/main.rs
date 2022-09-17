@@ -140,10 +140,7 @@ impl Warp {
 
 #[derive(StructOpt, Debug, Clone)]
 enum Goal {
-    Alias(AliasGoal),
     Build(BuildGoal),
-    Clean(CleanGoal),
-    Info(InfoGoal),
     Init(InitGoal),
     Run(RunGoal),
     Setup(SetupGoal),
@@ -157,10 +154,7 @@ impl Goal {
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         match self {
-            Goal::Alias(x) => x.run(workspace, event_channel).await,
             Goal::Build(x) => x.run(workspace, event_channel).await,
-            Goal::Clean(x) => x.run(workspace, event_channel).await,
-            Goal::Info(x) => x.run(workspace, event_channel).await,
             Goal::Init(x) => x.run(workspace.current_user, event_channel).await,
             Goal::Run(x) => x.run(workspace, event_channel).await,
             Goal::Setup(x) => x.run(workspace.current_user, event_channel).await,
