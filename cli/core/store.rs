@@ -18,7 +18,7 @@ pub struct Store {
 #[derive(Debug, Clone)]
 pub enum StoreHitType {
     Miss(PathBuf),
-    Hit(PathBuf),
+    Hit(TargetManifest),
 }
 
 #[derive(Error, Debug)]
@@ -35,8 +35,11 @@ pub enum StoreError {
     #[error("When building {:?}, could not create Manifest file due to: {err:?}", target.label.to_string())]
     CouldNotCreateManifest {
         target: Box<ExecutableTarget>,
-        err: std::io::Error,
+        err: TargetManifestError,
     },
+
+    #[error(transparent)]
+    TargetManifestError(TargetManifestError),
 }
 
 impl Store {
@@ -78,7 +81,9 @@ impl Store {
         let mut artifacts = manifest.outs.clone();
         artifacts.push(PathBuf::from("Manifest.toml"));
 
-        self.local_store.write_manifest(&local_path, node).await?;
+        self.local_store
+            .write_manifest(&local_path, manifest, node)
+            .await?;
 
         let _ = self
             .remote_store

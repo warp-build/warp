@@ -26,7 +26,7 @@ pub enum BuildResultError {
 #[derive(Debug)]
 pub struct BuildResults {
     // The shared state of what targets have been built across workers.
-    pub computed_targets: Arc<DashMap<Label, ExecutableTarget>>,
+    pub computed_targets: Arc<DashMap<Label, (TargetManifest, ExecutableTarget)>>,
 
     pub expected_targets: Arc<DashMap<Label, ()>>,
 
@@ -64,9 +64,14 @@ impl BuildResults {
         self.missing_targets.insert(label, ());
     }
 
-    pub fn add_computed_target(&self, label: Label, target: ExecutableTarget) {
+    pub fn add_computed_target(
+        &self,
+        label: Label,
+        manifest: TargetManifest,
+        target: ExecutableTarget,
+    ) {
         self.missing_targets.remove(&label);
-        self.computed_targets.insert(label, target);
+        self.computed_targets.insert(label, (manifest, target));
     }
 
     pub fn add_dependencies(&self, label: Label, deps: &[Label]) -> Result<(), BuildResultError> {
@@ -101,7 +106,7 @@ impl BuildResults {
         Ok(())
     }
 
-    pub fn get_computed_target(&self, label: &Label) -> Option<ExecutableTarget> {
+    pub fn get_computed_target(&self, label: &Label) -> Option<(TargetManifest, ExecutableTarget)> {
         self.computed_targets.get(label).map(|n| n.clone())
     }
 
@@ -115,7 +120,7 @@ mod tests {
 
     use super::*;
 
-    async fn dummy_target(label: Label) -> ExecutableTarget {
+    async fn dummy_target(label: Label) -> TargetManifest {
         let rule = Rule::new(
             "test_rule".to_string(),
             "TestRule".to_string(),

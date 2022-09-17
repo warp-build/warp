@@ -30,19 +30,25 @@ impl LocalStore {
     pub async fn find_manifest(&self, key: &StoreKey) -> Result<StoreHitType, StoreError> {
         let cache_path = self.cache_root.join(&key).join("Manifest.toml");
         if fs::metadata(&cache_path).await.is_ok() {
-            return Ok(StoreHitType::Hit(cache_path));
+            let manifest = TargetManifest::from_file(&cache_path)
+                .await
+                .map_err(StoreError::TargetManifestError)?;
+
+            return Ok(StoreHitType::Hit(manifest));
         }
         Ok(StoreHitType::Miss(cache_path))
     }
 
+    #[tracing::instrument(name = "LocalStore::write_manifest")]
     pub async fn write_manifest(
         &self,
         store_path: &Path,
+        manifest: &TargetManifest,
         target: &ExecutableTarget,
     ) -> Result<(), StoreError> {
-        fs::File::create(store_path.join("Manifest.toml"))
+        manifest
+            .write(store_path)
             .await
-            .map(|_| ())
             .map_err(|err| StoreError::CouldNotCreateManifest {
                 target: Box::new(target.clone()),
                 err,

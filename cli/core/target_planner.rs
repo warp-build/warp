@@ -114,7 +114,7 @@ impl TargetPlanner {
         let mut missing_deps: FxHashSet<Label> = FxHashSet::default();
 
         for dep in deps {
-            if let Some(node) = self.build_results.get_computed_target(dep) {
+            if let Some((_manifest, node)) = self.build_results.get_computed_target(dep) {
                 collected_deps.insert(node.to_dependency());
 
                 if transitive {

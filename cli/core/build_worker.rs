@@ -198,11 +198,14 @@ impl BuildWorker {
                 self.coordinator.signal_shutdown();
             }
 
-            Ok(ValidationStatus::Invalid {
-                expected_and_present,
-                expected_but_missing,
-                unexpected_but_present,
-            }) => {
+            Ok((
+                _manifest,
+                ValidationStatus::Invalid {
+                    expected_and_present,
+                    expected_but_missing,
+                    unexpected_but_present,
+                },
+            )) => {
                 self.event_channel.send(Event::BuildError(
                     label.clone(),
                     BuildError::BuildWorkerError(BuildWorkerError::TargetFailedValidation {
@@ -216,20 +219,20 @@ impl BuildWorker {
                 self.coordinator.signal_shutdown();
             }
 
-            Ok(status @ (ValidationStatus::Cached | ValidationStatus::Valid { .. })) => {
+            Ok((manifest, _)) => {
                 self.target_planner
                     .update(&executable_target)
                     .await
                     .map_err(BuildWorkerError::TargetPlannerError)?;
 
-                self.build_results
-                    .add_computed_target(label.clone(), executable_target);
-
-                if let ValidationStatus::Cached = status {
+                if manifest.cached {
                     self.event_channel.send(Event::CacheHit(label.clone()));
                 } else {
                     self.event_channel.send(Event::TargetBuilt(label.clone()));
                 }
+
+                self.build_results
+                    .add_computed_target(label.clone(), manifest, executable_target);
 
                 self.build_queue.ack(&label);
             }

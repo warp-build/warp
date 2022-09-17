@@ -45,7 +45,7 @@ pub enum ValidationStatus {
     },
     Cached,
     Valid {
-        manifest: TargetManifest,
+        outputs: Vec<PathBuf>,
     },
 }
 
@@ -60,8 +60,8 @@ impl TargetExecutor {
     pub async fn execute(
         &self,
         target: &ExecutableTarget,
-    ) -> Result<ValidationStatus, TargetExecutorError> {
-        if let Ok(StoreHitType::Hit(_)) = self
+    ) -> Result<(TargetManifest, ValidationStatus), TargetExecutorError> {
+        if let Ok(StoreHitType::Hit(manifest)) = self
             .store
             .is_in_store(target)
             .await
@@ -72,7 +72,7 @@ impl TargetExecutor {
                 .await
                 .map_err(TargetExecutorError::StoreError)?;
 
-            return Ok(ValidationStatus::Cached);
+            return Ok((manifest, ValidationStatus::Cached));
         }
 
         self.store
@@ -91,22 +91,22 @@ impl TargetExecutor {
 
         let validation_result = self.validate_outputs(&store_path, target).await?;
 
-        match &validation_result {
-            ValidationStatus::Valid { manifest } => {
-                self.store
-                    .save(target, manifest)
-                    .await
-                    .map_err(TargetExecutorError::StoreError)?;
+        let manifest =
+            TargetManifest::from_validation_result(&validation_result, &store_path, target);
 
-                self.store
-                    .promote_outputs(target)
-                    .await
-                    .map_err(TargetExecutorError::StoreError)?;
-            }
-            _ => (),
+        if manifest.is_valid {
+            self.store
+                .save(target, &manifest)
+                .await
+                .map_err(TargetExecutorError::StoreError)?;
+
+            self.store
+                .promote_outputs(target)
+                .await
+                .map_err(TargetExecutorError::StoreError)?;
         }
 
-        Ok(validation_result)
+        Ok((manifest, validation_result))
     }
 
     async fn copy_files(
@@ -207,9 +207,7 @@ impl TargetExecutor {
 
         // NOTE(@ostera): no expected or actual outputs, so lets bail early!
         if expected_outputs.is_empty() || all_outputs.is_empty() {
-            return Ok(ValidationStatus::Valid {
-                manifest: TargetManifest { outs: vec![] },
-            });
+            return Ok(ValidationStatus::Valid { outputs: vec![] });
         }
 
         // All files found minus Inputs
@@ -229,9 +227,8 @@ impl TargetExecutor {
 
         // No diff means we have the outputs we expected!
         if no_difference {
-            let outs = expected_outputs.iter().cloned().collect();
             Ok(ValidationStatus::Valid {
-                manifest: TargetManifest { outs },
+                outputs: expected_outputs.iter().cloned().collect(),
             })
         } else {
             let expected_but_missing = expected_outputs

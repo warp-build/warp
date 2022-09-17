@@ -38,6 +38,7 @@ pub struct ExecutionResult {
     pub outs: FxHashSet<PathBuf>,
     pub srcs: FxHashSet<PathBuf>,
     pub run_script: Option<RunScript>,
+    pub provides: FxHashMap<String, PathBuf>,
 }
 
 pub struct ComputeTargetProgram;
@@ -545,6 +546,15 @@ impl RuleExecutor {
             .cloned()
             .collect();
 
+        let provides = self
+            .provides_map
+            .get(&target.label)
+            .map(|r| r.value().clone())
+            .unwrap_or_default()
+            .iter()
+            .map(|(k, v)| (k.clone(), PathBuf::from(v.clone())))
+            .collect::<FxHashMap<String, PathBuf>>();
+
         self.clear();
 
         Ok(ExecutionResult {
@@ -552,6 +562,7 @@ impl RuleExecutor {
             outs,
             srcs,
             run_script,
+            provides,
         })
     }
 }

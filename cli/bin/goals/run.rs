@@ -1,5 +1,7 @@
 use crate::reporter::*;
 use anyhow::*;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::process::*;
 use std::sync::Arc;
 use structopt::StructOpt;
@@ -39,6 +41,7 @@ build their dependencies and exit.
 impl RunGoal {
     pub async fn run(
         self,
+        cwd: &PathBuf,
         workspace: Workspace,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
@@ -69,43 +72,57 @@ impl RunGoal {
         )
         .await;
 
-        match result? {
-            None => Err(anyhow!("There was no target to run.")),
+        if let Some((manifest, target)) = result? {
+            for (name, path) in manifest.provides {
+                if name == label.name() {
+                    return self.run_cmd(cwd, label, path, HashMap::default());
+                }
 
-            Some(ExecutableTarget {
-                run_script: None, ..
-            }) => Err(anyhow!("Target {} has no outputs!", &label.to_string())),
+                if !self.args.is_empty() && name == self.args[0] {
+                    return self.run_cmd(cwd, label, path, HashMap::default());
+                }
+            }
 
-            Some(ExecutableTarget {
-                run_script: Some(RunScript { run_script, env }),
-                ..
-            }) => {
+            if let Some(RunScript { run_script, env }) = target.run_script {
                 let path = local_outputs_root.join(&run_script);
-                let mut cmd = Command::new(path);
-
-                let mut env = env;
-                let extra_paths = env.get("PATH").cloned().unwrap_or_else(|| "".to_string());
-                env.remove("PATH");
-                env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
-
-                cmd.envs(&env);
-
-                cmd.stdin(Stdio::inherit())
-                    .stderr(Stdio::inherit())
-                    .stdout(Stdio::inherit())
-                    .args(&self.args);
-
-                trace!("Spawning {:?}", &cmd);
-                let mut proc = cmd.spawn()?;
-
-                trace!("Waiting on {:?}", &cmd);
-                proc.wait()
-                    .map(|_| ())
-                    .context(format!("Error executing {}", &label.to_string()))?;
-
-                trace!("Exited with status: {}", cmd.status()?);
-                Ok(())
+                return self.run_cmd(cwd, label, path, env);
             }
         }
+
+        Err(anyhow!("There was no target to run."))
+    }
+
+    fn run_cmd(
+        &self,
+        cwd: &PathBuf,
+        label: Label,
+        bin: PathBuf,
+        mut env: HashMap<String, String>,
+    ) -> Result<(), Error> {
+        let mut cmd = Command::new(bin);
+
+        let extra_paths = env.get("PATH").cloned().unwrap_or_else(|| "".to_string());
+        env.remove("PATH");
+        env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
+
+        cmd.envs(&env);
+
+        cmd.current_dir(cwd)
+            .stdin(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .args(&self.args);
+
+        trace!("Spawning {:?}", &cmd);
+        let mut proc = cmd.spawn()?;
+
+        trace!("Waiting on {:?}", &cmd);
+        proc.wait()
+            .map(|_| ())
+            .context(format!("Error executing {}", &label.to_string()))?;
+
+        trace!("Exited with status: {}", cmd.status()?);
+
+        Ok(())
     }
 }

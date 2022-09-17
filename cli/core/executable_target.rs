@@ -25,6 +25,8 @@ pub struct ExecutableTarget {
 
     pub run_script: Option<RunScript>,
 
+    pub provides: FxHashMap<String, PathBuf>,
+
     pub srcs: FxHashSet<PathBuf>,
 
     pub transitive_deps: FxHashSet<Dependency>,
@@ -57,6 +59,7 @@ impl ExecutableTarget {
             run_script: exec_result.run_script,
             srcs: exec_result.srcs,
             transitive_deps: transitive_deps.iter().cloned().collect(),
+            provides: exec_result.provides,
         };
 
         this.ensure_outputs_are_safe()?;
@@ -67,7 +70,6 @@ impl ExecutableTarget {
 
     pub fn to_dependency(&self) -> Dependency {
         Dependency {
-            is_pinned: self.is_pinned(),
             rule_name: self.rule.name.clone(),
             label: self.label.clone(),
             hash: self.hash.clone(),
@@ -142,10 +144,6 @@ impl ExecutableTarget {
     pub fn is_portable(&self) -> bool {
         self.rule.portability == Portability::Portable
     }
-
-    pub fn is_pinned(&self) -> bool {
-        self.rule.pinned == Pinned::Pinned
-    }
 }
 
 #[cfg(test)]
@@ -193,7 +191,6 @@ mod tests {
         assert_eq!(d.hash, t.hash);
         assert_eq!(d.outs, t.outs.iter().cloned().collect::<Vec<PathBuf>>());
         assert_eq!(d.srcs, t.srcs.iter().cloned().collect::<Vec<PathBuf>>());
-        assert_eq!(d.is_pinned, t.is_pinned());
     }
 
     #[tokio::test]
@@ -239,6 +236,7 @@ mod tests {
                 outs: outs.clone(),
                 srcs: srcs.clone(),
                 run_script: run_script.clone(),
+                provides: FxHashMap::default(),
             },
         )
         .await
@@ -258,7 +256,6 @@ mod tests {
         let conflicting_output = PathBuf::from("conflicting-file");
 
         let deps = vec![Dependency {
-            is_pinned: false,
             rule_name: "rule-name".to_string(),
             label: Label::new("dep"),
             hash: "".to_string(),
@@ -280,6 +277,7 @@ mod tests {
                     .collect::<FxHashSet<PathBuf>>(),
                 srcs: FxHashSet::default(),
                 run_script: None,
+                provides: FxHashMap::default(),
             },
         )
         .await;

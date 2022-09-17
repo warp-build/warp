@@ -40,7 +40,7 @@ impl BuildExecutor {
         &self,
         target: Label,
         event_channel: Arc<EventChannel>,
-    ) -> Result<Option<ExecutableTarget>, BuildExecutorError> {
+    ) -> Result<Option<(TargetManifest, ExecutableTarget)>, BuildExecutorError> {
         let worker_limit = self.worker_limit;
         debug!("Starting build executor with {} workers...", &worker_limit);
 

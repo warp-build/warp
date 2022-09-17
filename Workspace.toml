@@ -17,8 +17,12 @@ ignore_patterns = [
 use_git_hooks = true
 
 [aliases]
-flyctl = "//warp.build/toolchains:flyctl"
-terraform = "//warp.build/toolchains:terraform"
+deno = "https://pkgs.warp.build/toolchains/deno"
+elixir = "https://pkgs.warp.build/toolchains/elixir"
+erlang = "https://pkgs.warp.build/toolchains/erlang"
+flyctl = "https://pkgs.warp.build/toolchains/flyctl"
+rescript = "https://pkgs.warp.build/toolchains/rescript"
+terraform = "https://pkgs.warp.build/toolchains/terraform"
 
 [toolchains.deno]
 sha1 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e"
