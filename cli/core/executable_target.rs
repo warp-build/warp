@@ -1,8 +1,6 @@
 use super::*;
 use fxhash::*;
-use seahash::SeaHasher;
 use std::fs::File;
-use std::hash::{Hash, Hasher};
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use thiserror::*;
@@ -79,9 +77,9 @@ impl ExecutableTarget {
     }
 
     async fn recompute_hash(&mut self, env: &ExecutionEnvironment) {
-        let mut s = SeaHasher::new();
+        let mut s = blake3::Hasher::new();
 
-        self.label.hash(&mut s);
+        s.update(self.label.to_string().as_bytes());
 
         let deps = self.deps.iter().map(|d| d.hash.as_str());
 
@@ -101,7 +99,7 @@ impl ExecutableTarget {
         seeds.sort_unstable();
 
         for seed in seeds {
-            seed.hash(&mut s);
+            s.update(seed.as_bytes());
         }
 
         for src in srcs {
@@ -112,15 +110,15 @@ impl ExecutableTarget {
                 if len == 0 {
                     break;
                 }
-                buffer[..len].hash(&mut s);
+                s.update(&buffer[..len]);
             }
         }
 
         if !self.is_portable() {
-            env.hash(&mut s);
+            s.update(env.host_triple.as_bytes());
         }
 
-        let hash = s.finish();
+        let hash = s.finalize();
         self.hash = hash.to_string();
     }
 

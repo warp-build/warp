@@ -6,7 +6,7 @@ pub enum ExecutionEnvironmentError {}
 
 #[derive(Debug, Clone)]
 pub struct ExecutionEnvironment {
-    host_triple: String,
+    pub host_triple: String,
 }
 
 impl ExecutionEnvironment {
@@ -20,12 +20,6 @@ impl ExecutionEnvironment {
 impl Default for ExecutionEnvironment {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl Hash for ExecutionEnvironment {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.host_triple.hash(state);
     }
 }
 
