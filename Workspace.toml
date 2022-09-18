@@ -42,8 +42,8 @@ sha1 = "2bb7456ccb19cf83b07506744fb540ce4d66b257"
 version = "25.0"
 
 [toolchains.flyctl]
-sha1 = "bbb83670002ed5dddbca7252e90ed9465853f7d5"
-version = "0.0.344"
+sha1 = "bae0f096ec524ca5a85ec401b58444108e097218"
+version = "0.0.393"
 
 [toolchains.rebar3]
 sha1 = "143d3473dae6ea8250452f7a29db73974be51b24"
