@@ -1,5 +1,4 @@
-use crypto::digest::Digest;
-use crypto::sha1::Sha1;
+use sha2::{Digest, Sha256};
 use std::path::Path;
 use std::path::PathBuf;
 use thiserror::*;
@@ -58,12 +57,12 @@ impl WorkspacePaths {
         current_user: String,
     ) -> Result<WorkspacePaths, WorkspacePathsError> {
         let workspace_name = {
-            let mut hasher = Sha1::new();
-            hasher.input_str(workspace_root.to_str().unwrap());
+            let mut hasher = Sha256::new();
+            hasher.update(workspace_root.to_str().unwrap());
             format!(
-                "{}-{}",
+                "{:x}-{}",
+                hasher.finalize(),
                 workspace_root.file_name().unwrap().to_str().unwrap(),
-                hasher.result_str()
             )
         };
 

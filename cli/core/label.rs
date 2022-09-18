@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use url::Url;
 
@@ -86,12 +87,12 @@ impl Label {
         if let Ok(url) = Url::parse(name) {
             let raw_url = name;
             // TODO(@ostera): actually validate that we have a path with at least one segment
-            let mut s = blake3::Hasher::new();
+            let mut s = Sha256::new();
             s.update(url[..url::Position::BeforePath].as_bytes());
             for path in url.path_segments().unwrap().rev().skip(1) {
                 s.update(path.as_bytes());
             }
-            let prefix_hash = s.finalize().to_string();
+            let prefix_hash = format!("{:x}", s.finalize());
 
             let name = url.path_segments().unwrap().last().unwrap().to_string();
             let host = url.host_str().unwrap().to_string();
@@ -204,11 +205,8 @@ impl Label {
     pub fn as_store_prefix(&self) -> String {
         match self {
             Label::Remote {
-                host,
-                prefix_hash,
-                name,
-                ..
-            } => format!("{}-{}/{}", host, prefix_hash, name),
+                host, prefix_hash, ..
+            } => format!("{}-{}", prefix_hash, host),
             _ => panic!("We can't turn a non-remote label into a cache prefix!"),
         }
     }

@@ -1,5 +1,6 @@
 use super::*;
 use fxhash::*;
+use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
@@ -77,7 +78,7 @@ impl ExecutableTarget {
     }
 
     async fn recompute_hash(&mut self, env: &ExecutionEnvironment) {
-        let mut s = blake3::Hasher::new();
+        let mut s = Sha256::new();
 
         s.update(self.label.to_string().as_bytes());
 
@@ -118,8 +119,7 @@ impl ExecutableTarget {
             s.update(env.host_triple.as_bytes());
         }
 
-        let hash = s.finalize();
-        self.hash = hash.to_string();
+        self.hash = format!("{:x}", s.finalize());
     }
 
     fn ensure_outputs_are_safe(&mut self) -> Result<(), ExecutableTargetError> {

@@ -120,6 +120,7 @@ impl RuleStore {
         let label = Label::new(name);
         self.global_rules_root
             .join(label.as_store_prefix())
+            .join(label.name())
             .with_extension("js")
     }
 

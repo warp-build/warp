@@ -55,7 +55,7 @@ impl Store {
 
     pub fn _store_key(&self, hash: &str, label: &Label) -> StoreKey {
         if label.is_remote() {
-            format!("{}-{}", label.as_store_prefix(), hash)
+            format!("{}/{}-{}", label.as_store_prefix(), hash, label.name())
         } else {
             format!("{}/{}", self.workspace_prefix, hash)
         }
