@@ -142,6 +142,7 @@ impl Warp {
 enum Goal {
     Build(BuildGoal),
     Init(InitGoal),
+    Info(InfoGoal),
     Run(RunGoal),
     Setup(SetupGoal),
 }
@@ -157,6 +158,7 @@ impl Goal {
         match self {
             Goal::Build(x) => x.run(workspace, event_channel).await,
             Goal::Init(x) => x.run(workspace.current_user, event_channel).await,
+            Goal::Info(x) => x.run(workspace, event_channel).await,
             Goal::Run(x) => x.run(cwd, workspace, event_channel).await,
             Goal::Setup(x) => x.run(workspace.current_user, event_channel).await,
         }

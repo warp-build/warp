@@ -49,7 +49,7 @@ impl TargetManifest {
         Self {
             cached: false,
 
-            is_valid: matches!(validation, ValidationStatus::Valid { .. }),
+            is_valid: matches!(&validation, ValidationStatus::Valid { .. }),
 
             hash: target.hash.clone(),
 
@@ -77,7 +77,11 @@ impl TargetManifest {
                 .map(|(name, p)| (name.clone(), store_path.join(p)))
                 .collect(),
 
-            outs: target.outs.iter().cloned().collect(),
+            outs: if let ValidationStatus::Valid { outputs } = validation {
+                outputs.clone()
+            } else {
+                target.outs.iter().cloned().collect()
+            },
 
             srcs: target.srcs.iter().cloned().collect(),
         }

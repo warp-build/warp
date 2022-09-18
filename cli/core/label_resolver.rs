@@ -15,7 +15,15 @@ pub enum LabelResolverError {
     #[error(transparent)]
     BuildfileError(BuildfileError),
 
-    #[error("Remote label {0:?} needs to be configured in the Workspace.toml")]
+    #[error(r#"Remote label {:?} needs to be configured in the Workspace.toml - you can do that by adding this:
+
+[toolchains.{}]
+sha1 = "fixme"
+version = "9.1.4"
+
+And try running the command again to see what the right `sha1` should be.
+
+        "#, .0.to_string(), .0.name())]
     RemoteLabelNeedsConfig(Label),
 
     #[error("Could not find target: {0:?}")]

@@ -149,11 +149,18 @@ impl BuildWorker {
 
     #[tracing::instrument(name = "BuildWorker::run_target", skip(self))]
     pub async fn run_target(&mut self, label: Label) -> Result<(), BuildWorkerError> {
-        let target = self
-            .label_resolver
-            .resolve(&label)
-            .await
-            .map_err(BuildWorkerError::LabelResolverError)?;
+        let target = match self.label_resolver.resolve(&label).await {
+            Err(err) => {
+                self.event_channel.send(Event::BuildError(
+                    label.clone(),
+                    BuildError::LabelResolverError(err),
+                ));
+                self.coordinator.signal_shutdown();
+                return Ok(());
+            }
+
+            Ok(target) => target,
+        };
 
         let executable_target = match self.target_planner.plan(&self.env, &target).await {
             Err(TargetPlannerError::MissingDependencies { deps, .. }) => {

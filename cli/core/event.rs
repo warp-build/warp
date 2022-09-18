@@ -15,6 +15,9 @@ pub enum BuildError {
 
     #[error(transparent)]
     TargetPlannerError(TargetPlannerError),
+
+    #[error(transparent)]
+    LabelResolverError(LabelResolverError),
 }
 
 #[derive(Debug)]

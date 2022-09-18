@@ -1,3 +1,5 @@
+use crate::reporter::*;
+use anyhow::*;
 use std::sync::Arc;
 use structopt::StructOpt;
 use warp_core::*;
@@ -17,78 +19,49 @@ and the name of the label to be built.
 Example: //my/library:shell
 ")]
     label: String,
+
+    #[structopt(
+        help = r"The amount of workers to use to execute any necessary build tasks.",
+        short = "w",
+        long = "max-workers"
+    )]
+    max_workers: Option<usize>,
 }
 
 impl InfoGoal {
     pub async fn run(
         self,
-        _workspace: Workspace,
-        _event_channel: Arc<EventChannel>,
+        workspace: Workspace,
+        event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        let _ = self.label;
-        /*
-            let label: Label = self.label.into();
-            debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
-            debug!("Target: {}", &label.to_string());
+        let label: Label = (&workspace.aliases)
+            .get(&self.label)
+            .cloned()
+            .unwrap_or_else(|| Label::from_path(&workspace.paths.workspace_root, &self.label));
 
-            let mut warp = LocalWorker::from_workspace(workspace);
+        if label.is_all() {
+            return Err(anyhow!(
+                "You can't run everything. Please specify a target like this: warp build //my/app"
+            ));
+        }
 
-            let name = if label.is_all() {
-                "workspace".to_string()
-            } else {
-                label.to_string()
-            };
+        let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
 
-            print!("🔨 Preparing {}...", &name);
-            std::io::stdout().flush().unwrap();
+        let warp = BuildExecutor::from_workspace(workspace, worker_limit);
 
-            warp.prepare(&label).await?;
+        let status_reporter = StatusReporter::new(event_channel.clone());
+        let (result, ()) = futures::future::join(
+            warp.build(label.clone(), event_channel.clone()),
+            status_reporter.run(label.clone()),
+        )
+        .await;
 
-            for node in &warp.compute_nodes().await? {
-                if *node.label == label {
-                    println!("");
-                    println!("Target info:");
-                    println!(" - Label: {}", name);
-                    println!(" - Rule: {}", node.rule.name());
-                    println!(" - Kind: {:?}", node.kind);
-                    println!(" - Hash: {}", node.hash);
-                    println!(" - Sources: ");
-                    for src in node.srcs() {
-                        println!("    - {}", src.to_str().unwrap());
-                    }
-                    println!(" - Outputs: ");
-                    let mut outs: Vec<PathBuf> = node
-                        .outs()
-                        .iter()
-                        .cloned()
-                        .collect::<HashSet<PathBuf>>()
-                        .iter()
-                        .cloned()
-                        .collect::<Vec<PathBuf>>();
-                    outs.sort();
-                    for out in outs {
-                        println!("    - {}", out.to_str().unwrap());
-                    }
-                    /*
-                    let find_node = |label| (&warp.dep_graph).find_node(&label).clone();
-                    println!(" - Dependencies: ");
-                    let mut deps: Vec<Dependency> = node
-                        .transitive_deps(&find_node)?
-                        .iter()
-                        .cloned()
-                        .collect::<HashSet<Dependency>>()
-                        .iter()
-                        .cloned()
-                        .collect::<Vec<Dependency>>();
-                    deps.sort_by_key(|d| d.label.to_string());
-                    for dep in deps {
-                        println!("    - {}", dep.label.to_string());
-                    }
-                    */
-                }
-            }
-        */
+        if let Some((manifest, target)) = result? {
+            dbg!(manifest);
+            dbg!(target);
+            return Ok(());
+        }
 
-        Ok(())
+        Err(anyhow!("There was no target to get info on."))
     }
 }
