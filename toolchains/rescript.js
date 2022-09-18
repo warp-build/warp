@@ -18,17 +18,17 @@ const impl = ctx => {
   ctx.action().extract({ src: output, dst: "." })
 
   const binRoot = `rescript-compiler-${version}/${host.os}`;
-  const BSC = File.join(binRoot, "bsc.exe");
-  const BSREFMT = File.join(binRoot, "refmt.exe");
-  const RESCRIPT = File.join(binRoot, "rescript.exe");
+  const bsc = File.join(binRoot, "bsc.exe");
+  const bsrefmt = File.join(binRoot, "refmt.exe");
+  const rescript = File.join(binRoot, "rescript.exe");
 
-  ctx.action().setPermissions({ file: BSC, executable: true })
-  ctx.action().setPermissions({ file: RESCRIPT, executable: true })
-  ctx.action().setPermissions({ file: BSREFMT, executable: true })
+  ctx.action().setPermissions({ file: bsc, executable: true })
+  ctx.action().setPermissions({ file: rescript, executable: true })
+  ctx.action().setPermissions({ file: bsrefmt, executable: true })
 
   ctx.action().declareOutputs([binRoot]);
 
-  ctx.provides({ BSC, BSREFMT, RESCRIPT });
+  ctx.provides({ bsc, bsrefmt, rescript });
 };
 
 export default Warp.Toolchain({

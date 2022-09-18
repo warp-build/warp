@@ -29,12 +29,12 @@ const impl = ctx => {
   ]
   ctx.action().declareOutputs(outputs);
 
-  const { RESCRIPT } = ReScriptToolchain.provides()
+  const { rescript } = ReScriptToolchain.provides()
   ctx.action().runShell({
     script: `#!/bin/bash
 
 cd ${cwd}
-${RESCRIPT} build
+${rescript} build
 
 `,
   })
