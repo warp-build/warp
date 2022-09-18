@@ -9,7 +9,7 @@ use tokio::io::AsyncWriteExt;
 
 const DEFAULT_RULE_URL: &str = "https://pkgs.warp.build/rules";
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct RuleStore {
     local_rules_root: PathBuf,
     global_rules_root: PathBuf,
@@ -19,8 +19,12 @@ pub struct RuleStore {
 
 #[derive(Error, Debug)]
 pub enum RuleStoreError {
-    #[error("Could not find rule named: {name:?}")]
-    CouldNotFindRule { name: String },
+    #[error("Could not find rule named {name:?} (normalized name: {normalized_name:?}) in: {loaded_rules:#?}")]
+    CouldNotFindRule {
+        name: String,
+        normalized_name: String,
+        loaded_rules: DashMap<String, PathBuf>,
+    },
 
     #[error("Could not read rule {name:?} at {path:?}, due to: {err:?}")]
     FileSystemError {
@@ -46,7 +50,7 @@ impl RuleStore {
     #[tracing::instrument(name = "RuleStore::get", skip(self))]
     pub async fn get(&self, name: &str) -> Result<(PathBuf, String), RuleStoreError> {
         // Optimization to avoid doing IO every time
-        if let Some(path) = self.loaded_rules.get(&name.to_string()) {
+        if let Some(path) = self.loaded_rules.get(name) {
             return Ok((path.clone(), name.to_string()));
         }
 
@@ -55,14 +59,16 @@ impl RuleStore {
             return Ok((path, name.to_string()));
         }
 
-        let name = self.normalize_name(name);
-        if let Some(path) = self.fetch(&name).await? {
-            self.save(&name, &path);
-            return Ok((path, name.to_string()));
+        let normalized_name = self.normalize_name(name);
+        if let Some(path) = self.fetch(&normalized_name).await? {
+            self.save(&normalized_name, &path);
+            return Ok((path, normalized_name.to_string()));
         }
 
         Err(RuleStoreError::CouldNotFindRule {
             name: name.to_string(),
+            normalized_name,
+            loaded_rules: self.loaded_rules.clone(),
         })
     }
 
@@ -126,7 +132,11 @@ impl RuleStore {
 
     #[tracing::instrument(name = "RuleStore::download", skip(self))]
     async fn download(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
-        let name = format!("{}.js", name);
+        let name = if name.ends_with(".js") {
+            name.to_string()
+        } else {
+            format!("{}.js", name)
+        };
 
         let response = self.client.get(&name).send().await.map_err(|err| {
             RuleStoreError::CouldNotDownload {

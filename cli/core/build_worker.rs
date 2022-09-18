@@ -51,7 +51,6 @@ pub struct BuildWorker {
 impl BuildWorker {
     pub fn new(
         role: Role,
-        workspace: &Workspace,
         target: Label,
         coordinator: Arc<BuildCoordinator>,
         event_channel: Arc<EventChannel>,
@@ -64,13 +63,9 @@ impl BuildWorker {
     ) -> Result<Self, BuildWorkerError> {
         let env = ExecutionEnvironment::new();
 
-        let target_planner = TargetPlanner::new(
-            workspace,
-            build_results.clone(),
-            store,
-            share_rule_executor_state,
-        )
-        .map_err(BuildWorkerError::TargetPlannerError)?;
+        let target_planner =
+            TargetPlanner::new(build_results.clone(), store, share_rule_executor_state)
+                .map_err(BuildWorkerError::TargetPlannerError)?;
 
         Ok(Self {
             build_queue,

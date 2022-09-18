@@ -11,7 +11,6 @@ use deno_core::ModuleSpecifier;
 use deno_core::ModuleType;
 use fxhash::FxHashMap;
 use fxhash::FxHashSet;
-use once_cell::sync::Lazy;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
@@ -24,11 +23,15 @@ use tracing::*;
 pub struct SharedRuleExecutorState {
     pub rule_map: Arc<DashMap<String, Rule>>,
     pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
+    pub rule_store: Arc<RuleStore>,
 }
 
 impl SharedRuleExecutorState {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(rule_store: Arc<RuleStore>) -> Self {
+        Self {
+            rule_store,
+            ..Self::default()
+        }
     }
 }
 
@@ -154,10 +157,9 @@ impl ComputeTargetProgram {
     }
 }
 
-pub struct NetModuleLoader;
-
-static NET_CLIENT: Lazy<reqwest::Client> =
-    Lazy::new(|| reqwest::Client::builder().gzip(false).build().unwrap());
+pub struct NetModuleLoader {
+    pub rule_store: Arc<RuleStore>,
+}
 
 /// NOTE(@ostera): this feature copied from `deno-simple-module-loader`:
 ///     https://github.com/andreubotella/deno-simple-module-loader)
@@ -182,31 +184,32 @@ impl ModuleLoader for NetModuleLoader {
         _maybe_referrer: Option<ModuleSpecifier>,
         _is_dyn_import: bool,
     ) -> Pin<Box<ModuleSourceFuture>> {
+        let rule_store = self.rule_store.clone();
         let module_specifier = module_specifier.clone();
-        let string_specifier = module_specifier.to_string();
-        async {
-            let bytes = match module_specifier.scheme() {
+        async move {
+            let scheme = module_specifier.scheme().to_string();
+            let string_specifier = module_specifier.to_string();
+            let bytes: Vec<u8> = match scheme.clone().as_str() {
                 "http" | "https" => {
-                    let response = NET_CLIENT.get(module_specifier).send().await?;
-                    response.bytes().await?
+                    let (path, _) = rule_store.get(&string_specifier).await?;
+                    fs::read(path).await?
                 }
                 "file" => {
                     let path = match module_specifier.to_file_path() {
                         Ok(path) => path,
                         Err(_) => bail!("Invalid file URL."),
                     };
-                    fs::read(path).await?.into()
+                    fs::read(path).await?
                 }
                 schema => bail!("Invalid schema {}", schema),
             };
 
             // Strip BOM
             let code = if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
-                bytes.slice(3..)
+                bytes.as_slice()[3..].to_vec()
             } else {
                 bytes
             }
-            .to_vec()
             .into_boxed_slice();
 
             Ok(ModuleSource {
@@ -342,7 +345,9 @@ impl RuleExecutor {
 
         let rt_options = deno_core::RuntimeOptions {
             startup_snapshot: Some(deno_core::Snapshot::Static(JS_SNAPSHOT)),
-            module_loader: Some(Rc::new(NetModuleLoader)),
+            module_loader: Some(Rc::new(NetModuleLoader {
+                rule_store: shared_state.rule_store.clone(),
+            })),
             extensions: vec![extension, deno_console::init()],
             ..Default::default()
         };

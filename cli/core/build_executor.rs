@@ -51,14 +51,14 @@ impl BuildExecutor {
             self.workspace.clone(),
         ));
         let store = Arc::new(Store::new(&self.workspace));
+        let rule_store = Arc::new(RuleStore::new(&self.workspace));
         let label_resolver = Arc::new(LabelResolver::new(&self.workspace));
         let target_executor = Arc::new(TargetExecutor::new(store.clone(), event_channel.clone()));
 
-        let share_rule_executor_state = Arc::new(SharedRuleExecutorState::new());
+        let share_rule_executor_state = Arc::new(SharedRuleExecutorState::new(rule_store.clone()));
 
         let mut worker = BuildWorker::new(
             Role::MainWorker,
-            &self.workspace,
             target.clone(),
             self.coordinator.clone(),
             event_channel.clone(),
@@ -76,7 +76,6 @@ impl BuildExecutor {
             let worker_pool = tokio_util::task::LocalPoolHandle::new(worker_limit);
             for worker_id in 1..worker_limit {
                 let sub_worker_span = trace_span!("BuildExecutor::sub_worker");
-                let workspace = self.workspace.clone();
                 let build_coordinator = self.coordinator.clone();
                 let build_queue = build_queue.clone();
                 let build_results = self.results.clone();
@@ -90,7 +89,6 @@ impl BuildExecutor {
                 let thread = worker_pool.spawn_pinned(move || async move {
                     let mut worker = BuildWorker::new(
                         Role::HelperWorker(worker_id),
-                        &workspace,
                         target,
                         build_coordinator,
                         event_channel,

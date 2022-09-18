@@ -5,7 +5,7 @@ use thiserror::*;
 
 pub struct TargetPlanner {
     build_results: Arc<BuildResults>,
-    rule_store: RuleStore,
+    rule_store: Arc<RuleStore>,
     rule_executor: RuleExecutor,
     store: Arc<Store>,
 }
@@ -26,9 +26,11 @@ pub enum TargetPlannerError {
 }
 
 impl TargetPlanner {
-    #[tracing::instrument(name = "TargetPlanner::new", skip(workspace, build_results))]
+    #[tracing::instrument(
+        name = "TargetPlanner::new",
+        skip(build_results, store, share_rule_executor_state)
+    )]
     pub fn new(
-        workspace: &Workspace,
         build_results: Arc<BuildResults>,
         store: Arc<Store>,
         share_rule_executor_state: Arc<SharedRuleExecutorState>,
@@ -36,7 +38,7 @@ impl TargetPlanner {
         Ok(Self {
             build_results,
             store,
-            rule_store: RuleStore::new(workspace),
+            rule_store: share_rule_executor_state.rule_store.clone(),
             rule_executor: RuleExecutor::new(share_rule_executor_state)
                 .map_err(TargetPlannerError::RuleExecutorError)?,
         })
