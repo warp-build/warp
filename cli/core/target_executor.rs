@@ -113,6 +113,14 @@ impl TargetExecutor {
             env.extend(toolchain.env.clone())
         }
 
+        for dep in &target.deps {
+            env.extend(dep.env.clone())
+        }
+
+        for dep in &target.transitive_deps {
+            env.extend(dep.env.clone())
+        }
+
         let store_path_str = store_path.to_str().unwrap();
         for (name, value) in &target.env {
             let value = value.replace("{{NODE_STORE_PATH}}", store_path_str);
@@ -129,6 +137,8 @@ impl TargetExecutor {
         let paths: FxHashSet<String> = target
             .toolchains
             .iter()
+            .chain(target.transitive_deps.iter())
+            .chain(target.deps.iter())
             .flat_map(|d| d.provides.values())
             .cloned()
             .chain(target_paths)

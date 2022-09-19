@@ -74,21 +74,23 @@ impl RunGoal {
         .await;
 
         if let Some((manifest, target)) = result? {
-            let provides_env = manifest.env_map();
+            let mut provides_env = manifest.env_map();
 
-            if let Some(path) = manifest.provides.get(&self.args[0]) {
-                debug!(
-                    "Found provided binary named {} at {:?}",
-                    &self.args[0], &path
-                );
-                return self.run_cmd(
-                    build_started,
-                    cwd,
-                    label,
-                    path.to_path_buf(),
-                    provides_env,
-                    &self.args[1..],
-                );
+            if !self.args.is_empty() {
+                if let Some(path) = manifest.provides.get(&self.args[0]) {
+                    debug!(
+                        "Found provided binary named {} at {:?}",
+                        &self.args[0], &path
+                    );
+                    return self.run_cmd(
+                        build_started,
+                        cwd,
+                        label,
+                        path.to_path_buf(),
+                        provides_env,
+                        &self.args[1..],
+                    );
+                }
             }
 
             if let Some(path) = manifest.provides.get(&label.name()) {
@@ -110,7 +112,8 @@ impl RunGoal {
             if let Some(RunScript { run_script, env }) = target.run_script {
                 let path = local_outputs_root.join(&run_script);
                 debug!("Running default run_script ({:?})", &path);
-                return self.run_cmd(build_started, cwd, label, path, env, &self.args);
+                provides_env.extend(env);
+                return self.run_cmd(build_started, cwd, label, path, provides_env, &self.args);
             }
 
             if !self.args.is_empty() {
