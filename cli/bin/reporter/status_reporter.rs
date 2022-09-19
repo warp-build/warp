@@ -29,11 +29,11 @@ impl StatusReporter {
         let mut current_targets: FxHashSet<Label> = FxHashSet::default();
 
         let mut action_count = 0;
-        let mut cache_hits = 0;
+        let mut cache_hits: FxHashSet<Label> = FxHashSet::default();
         let mut error_count = 0;
         let mut errored = false;
         let mut queued_targets = 0;
-        let mut target_count = 0;
+        let mut target_count: FxHashSet<Label> = FxHashSet::default();
 
         let mut build_started = std::time::Instant::now();
         loop {
@@ -54,6 +54,7 @@ impl StatusReporter {
                             .collect::<Vec<String>>();
                         pb.set_message(format!("Pending: {}", current_targets_names.join(", ")));
                     }
+
                     QueueingWorkspace => {
                         let line = format!(
                             "{:>12} {}",
@@ -62,7 +63,11 @@ impl StatusReporter {
                         );
                         pb.println(line);
                     }
-                    QueuedTargets(count) => queued_targets += count,
+
+                    QueuedTargets(count) => {
+                        queued_targets += count;
+                    }
+
                     ArchiveVerifying(label) => {
                         let line =
                             format!("{:>12} {}", yellow.apply_to("Verifying"), label.to_string(),);
@@ -70,6 +75,7 @@ impl StatusReporter {
                         pb.set_length(pb.length() + 1);
                         pb.inc(1)
                     }
+
                     ArchiveUnpacking(label) => {
                         let line =
                             format!("{:>12} {}", yellow.apply_to("Unpacking"), label.to_string(),);
@@ -77,7 +83,9 @@ impl StatusReporter {
                         pb.set_length(pb.length() + 1);
                         pb.inc(1)
                     }
+
                     ActionRunning { .. } => pb.inc(1),
+
                     ArchiveDownloading { label, .. } => {
                         let line = format!(
                             "{:>12} {}",
@@ -88,11 +96,13 @@ impl StatusReporter {
                         pb.set_length(pb.length() + 1);
                         pb.inc(1)
                     }
+
                     PreparingActions {
                         action_count: ac, ..
                     } => {
                         action_count += ac as u64;
                     }
+
                     CacheHit(label) => {
                         let line = format!(
                             "{:>12} {}",
@@ -107,8 +117,9 @@ impl StatusReporter {
                         pb.set_message(format!("Pending: {}", current_targets_names.join(", ")));
                         pb.println(line);
                         pb.inc(1);
-                        cache_hits += 1;
+                        cache_hits.insert(label);
                     }
+
                     TargetBuilt(label) => {
                         let line =
                             format!("{:>12} {}", green_bold.apply_to("Built"), label.to_string(),);
@@ -120,8 +131,9 @@ impl StatusReporter {
                         pb.set_message(format!("Pending: {}", current_targets_names.join(", ")));
                         pb.println(line);
                         pb.inc(1);
-                        target_count += 1;
+                        target_count.insert(label);
                     }
+
                     ErrorLoadingRule(name, err) => {
                         errored = true;
                         error_count += 1;
@@ -134,6 +146,7 @@ impl StatusReporter {
                         pb.println(line);
                         pb.println(format!("{}", err));
                     }
+
                     BadBuildfile(path, err) => {
                         errored = true;
                         error_count += 1;
@@ -146,6 +159,7 @@ impl StatusReporter {
                         pb.println(line);
                         pb.println(format!("{}", err));
                     }
+
                     WorkerError(err) => {
                         errored = true;
                         error_count += 1;
@@ -157,6 +171,7 @@ impl StatusReporter {
                         pb.println(line);
                         pb.println(format!("{}", err));
                     }
+
                     BuildError(label, err) => {
                         errored = true;
                         error_count += 1;
@@ -165,18 +180,21 @@ impl StatusReporter {
                         pb.println(line);
                         pb.println(format!("{}", err));
                     }
+
                     BuildStarted(t0) => {
                         build_started = t0;
                     }
-                    EmptyWorkspace(t1) | BuildCompleted(t1) => {
-                        if let EmptyWorkspace(_) = &event {
-                            pb.println(format!(
-                                "{:>12} {}",
-                                blue_dim.apply_to("Prepare"),
-                                "Nothing to do in an empty workspace."
-                            ));
-                        }
 
+                    EmptyWorkspace(_t1) => {
+                        let line = format!(
+                            "{:>12} nothing to be done in an empty workspace.",
+                            blue_dim.apply_to("Prepare"),
+                        );
+                        pb.println(line);
+                        return;
+                    }
+
+                    BuildCompleted(t1) if self.event_channel.is_empty() => {
                         let line = format!(
                             "{:>12} {} in {}ms ({} targets, {} cached, {} errors)",
                             if errored {
@@ -186,13 +204,15 @@ impl StatusReporter {
                             },
                             target.to_string(),
                             t1.saturating_duration_since(build_started).as_millis(),
-                            target_count,
-                            cache_hits,
+                            target_count.len(),
+                            cache_hits.len(),
                             error_count,
                         );
                         pb.println(line);
                         return;
                     }
+
+                    BuildCompleted(_) => self.event_channel.send(event),
                 }
             }
         }

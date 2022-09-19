@@ -11,6 +11,10 @@ impl EventChannel {
         EventChannel::default()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.bus.is_empty()
+    }
+
     pub fn send(&self, event: Event) {
         self.bus.push(event)
     }

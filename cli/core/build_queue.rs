@@ -2,7 +2,6 @@ use super::Event;
 use super::*;
 use dashmap::DashMap;
 use futures::StreamExt;
-use std::sync::atomic::*;
 use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
@@ -49,8 +48,8 @@ pub struct BuildQueue {
     /// An event channel where we can publish queue events.
     event_channel: Arc<EventChannel>,
 
-    /// The number of targets that have been successfully queued.
-    target_count: AtomicUsize,
+    /// The labels that have been successfully queued.
+    all_queued_labels: Arc<DashMap<Label, ()>>,
 }
 
 impl BuildQueue {
@@ -66,7 +65,7 @@ impl BuildQueue {
             wait_queue: Arc::new(crossbeam::deque::Injector::new()),
             in_queue_targets: Arc::new(DashMap::new()),
             busy_targets: Arc::new(DashMap::new()),
-            target_count: AtomicUsize::new(0),
+            all_queued_labels: Arc::new(DashMap::default()),
             event_channel,
             build_results,
             workspace,
@@ -126,7 +125,8 @@ impl BuildQueue {
         }
         self.build_results.add_expected_target(label.clone());
         self.in_queue_targets.insert(label.clone(), ());
-        self.inner_queue.push(label);
+        self.inner_queue.push(label.clone());
+        self.all_queued_labels.insert(label, ());
         Ok(())
     }
 
@@ -173,16 +173,14 @@ impl BuildQueue {
                 }
                 Ok(buildfile) => {
                     for target in buildfile.targets {
-                        self.queue(target.label.clone())?;
+                        self.queue(target.label)?;
                     }
                 }
             }
         }
-        let target_count = self.target_count.load(Ordering::Acquire);
-
+        let target_count = self.all_queued_labels.len();
         self.event_channel
-            .send(Event::QueuedTargets(target_count.try_into().unwrap()));
-        debug!("Queued {} targets...", target_count);
+            .send(Event::QueuedTargets(target_count as u64));
         Ok(target_count)
     }
 }
