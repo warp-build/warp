@@ -8,23 +8,40 @@ static DOT: &str = ".";
 
 static WILDCARD: &str = "//...";
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub enum Label {
     Wildcard,
     Relative {
         name: String,
         path: PathBuf,
+        hash: usize,
     },
     Absolute {
         name: String,
         path: PathBuf,
+        hash: usize,
     },
     Remote {
         url: String,
         host: String,
         prefix_hash: String,
         name: String,
+        hash: usize,
     },
+}
+
+impl Eq for Label {}
+
+impl PartialEq for Label {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash() == other.hash()
+    }
+}
+
+impl std::hash::Hash for Label {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.hash().hash(state);
+    }
 }
 
 impl From<&str> for Label {
@@ -43,12 +60,12 @@ impl ToString for Label {
     fn to_string(&self) -> String {
         match self {
             Label::Wildcard => WILDCARD.to_string(),
-            Label::Relative { name, path } => {
+            Label::Relative { name, path, .. } => {
                 let path = path.to_str().unwrap();
                 let path = if path == "." { "" } else { path };
                 format!("{}:{}", path, name)
             }
-            Label::Absolute { name, path } => format!("//{}:{}", path.to_str().unwrap(), name),
+            Label::Absolute { name, path, .. } => format!("//{}:{}", path.to_str().unwrap(), name),
             Label::Remote { url, .. } => url.clone(),
         }
     }
@@ -102,6 +119,7 @@ impl Label {
                 host,
                 name,
                 prefix_hash,
+                hash: fxhash::hash(&raw_url),
             };
         }
 
@@ -118,34 +136,33 @@ impl Label {
         if is_abs_name {
             if parts.len() == 1 {
                 let path = PathBuf::from(name.strip_prefix("//").unwrap());
-                return Label::Absolute {
-                    name: path.file_name().unwrap().to_str().unwrap().to_string(),
-                    path,
-                };
+                let name = path.file_name().unwrap().to_str().unwrap().to_string();
+                let hash = fxhash::hash(&format!("{}:{}", &path.to_str().unwrap(), &name));
+                return Label::Absolute { name, path, hash };
             }
-            return Label::Absolute {
-                path: PathBuf::from(parts[0].strip_prefix("//").unwrap()),
-                name: parts[1].to_string(),
-            };
+
+            let path = PathBuf::from(parts[0].strip_prefix("//").unwrap());
+            let name = parts[1].to_string();
+            let hash = fxhash::hash(&format!("{}:{}", &path.to_str().unwrap(), &name));
+            return Label::Absolute { path, name, hash };
         }
 
         // local target = relative to this build file
         if name.starts_with(COLON) {
-            Label::Relative {
-                path: PathBuf::from("."),
-                name: name.strip_prefix(COLON).unwrap().to_string(),
-            }
+            let path = PathBuf::from(".");
+            let name = name.strip_prefix(COLON).unwrap().to_string();
+            let hash = fxhash::hash(&format!("{}:{}", &path.to_str().unwrap(), &name));
+            Label::Relative { path, name, hash }
         } else if parts.len() == 1 {
             let path = PathBuf::from(name);
-            Label::Relative {
-                name: path.file_name().unwrap().to_str().unwrap().to_string(),
-                path,
-            }
+            let name = path.file_name().unwrap().to_str().unwrap().to_string();
+            let hash = fxhash::hash(&format!("{}:{}", &path.to_str().unwrap(), &name));
+            Label::Relative { name, path, hash }
         } else {
-            Label::Relative {
-                name: parts[1].to_string(),
-                path: PathBuf::from(parts[0]),
-            }
+            let name = parts[1].to_string();
+            let path = PathBuf::from(parts[0]);
+            let hash = fxhash::hash(&format!("{}:{}", &path.to_str().unwrap(), &name));
+            Label::Relative { name, path, hash }
         }
     }
 
@@ -177,6 +194,15 @@ impl Label {
         }
     }
 
+    fn hash(&self) -> usize {
+        match self {
+            Label::Wildcard => 0,
+            Label::Relative { hash, .. } => *hash,
+            Label::Absolute { hash, .. } => *hash,
+            Label::Remote { hash, .. } => *hash,
+        }
+    }
+
     pub fn is_all(&self) -> bool {
         matches!(self, Label::Wildcard)
     }
@@ -195,10 +221,12 @@ impl Label {
 
     pub fn canonicalize(&self, root: &Path) -> Label {
         match self {
-            Label::Relative { name, path } => Label::Absolute {
-                name: name.clone(),
-                path: root.join(path.strip_prefix(".").unwrap()),
-            },
+            Label::Relative { name, path, .. } => {
+                let name = name.clone();
+                let path = root.join(path.strip_prefix(".").unwrap());
+                let hash = fxhash::hash(&format!("{}:{}", &path.to_str().unwrap(), &name));
+                Label::Absolute { name, path, hash }
+            }
             _ => self.clone(),
         }
     }
