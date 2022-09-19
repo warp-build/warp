@@ -165,13 +165,27 @@ impl RuleStore {
     async fn stream_response(
         &self,
         response: reqwest::Response,
-        path: PathBuf,
+        mut path: PathBuf,
     ) -> Result<(), std::io::Error> {
         let mut byte_stream = response
             .bytes_stream()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
 
         fs::create_dir_all(&path.parent().unwrap()).await?;
+
+        // FIXME(@ostera): this is a horrible hack. When multiple threads are about to write
+        // down the same rule file, to avoid having to synchronize them, we append a random
+        // UUID to the file name. This means that the first time we pull in rules, some rules
+        // will be downloaded twice and will be saved in two different files like this:
+        //
+        // /warp/rules/<hash>-pkgs.warp.build/archive.js
+        // /warp/rules/<hash>-pkgs.warp.build/archive.a7b2edef-f67b-4642-ab0d-883ff43ba40a.js
+        //
+        // This is completely safe, but its ugly.
+        //
+        if fs::metadata(&path).await.is_ok() {
+            path = path.with_extension(format!("{}.js", uuid::Uuid::new_v4()));
+        }
         let mut outfile = fs::File::create(&path).await?;
         while let Some(chunk) = byte_stream.next().await {
             outfile.write_all_buf(&mut chunk?).await?;

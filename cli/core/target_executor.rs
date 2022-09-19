@@ -191,7 +191,7 @@ impl TargetExecutor {
                 .run(
                     target.label.clone(),
                     store_path,
-                    &env,
+                    env,
                     self.event_channel.clone(),
                 )
                 .await
