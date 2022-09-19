@@ -142,7 +142,10 @@ impl BuildQueue {
         Ok(())
     }
 
-    pub async fn queue_entire_workspace(&self, max_concurrency: usize) -> Result<(), QueueError> {
+    pub async fn queue_entire_workspace(
+        &self,
+        max_concurrency: usize,
+    ) -> Result<usize, QueueError> {
         debug!("Queueing all targets...");
         self.event_channel.send(Event::QueueingWorkspace);
 
@@ -176,10 +179,11 @@ impl BuildQueue {
             }
         }
         let target_count = self.target_count.load(Ordering::Acquire);
+
         self.event_channel
             .send(Event::QueuedTargets(target_count.try_into().unwrap()));
         debug!("Queued {} targets...", target_count);
-        Ok(())
+        Ok(target_count)
     }
 }
 

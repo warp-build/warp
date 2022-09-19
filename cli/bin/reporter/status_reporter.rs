@@ -168,7 +168,15 @@ impl StatusReporter {
                     BuildStarted(t0) => {
                         build_started = t0;
                     }
-                    BuildCompleted(t1) => {
+                    EmptyWorkspace(t1) | BuildCompleted(t1) => {
+                        if let EmptyWorkspace(_) = &event {
+                            pb.println(format!(
+                                "{:>12} {}",
+                                blue_dim.apply_to("Prepare"),
+                                "Nothing to do in an empty workspace."
+                            ));
+                        }
+
                         let line = format!(
                             "{:>12} {} in {}ms ({} targets, {} cached, {} errors)",
                             if errored {

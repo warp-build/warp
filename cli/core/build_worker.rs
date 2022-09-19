@@ -114,16 +114,24 @@ impl BuildWorker {
     pub async fn setup(&mut self, max_concurrency: usize) -> Result<(), BuildWorkerError> {
         if self.role == Role::MainWorker {
             if self.target.is_all() {
-                self.build_queue
+                let queued_count = self
+                    .build_queue
                     .queue_entire_workspace(max_concurrency)
                     .await
+                    .map_err(BuildWorkerError::QueueError)?;
+
+                if queued_count == 0 {
+                    self.event_channel
+                        .send(Event::EmptyWorkspace(std::time::Instant::now()));
+                    self.coordinator.signal_shutdown();
+                }
             } else {
-                self.build_queue.queue(self.target.clone())
+                self.build_queue
+                    .queue(self.target.clone())
+                    .map_err(BuildWorkerError::QueueError)?;
             }
-            .map_err(BuildWorkerError::QueueError)
-        } else {
-            Ok(())
         }
+        Ok(())
     }
 
     pub fn finish(&mut self) {

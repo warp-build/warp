@@ -38,4 +38,5 @@ pub enum Event {
     QueueingWorkspace,
     TargetBuilt(Label),
     WorkerError(BuildWorkerError),
+    EmptyWorkspace(std::time::Instant),
 }
