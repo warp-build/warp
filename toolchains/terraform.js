@@ -22,14 +22,14 @@ const impl = ctx => {
 
   ctx.action().extract({ src: output, dst: "." })
 
-  const TERRAFORM = "terraform"
+  const terraform = "terraform"
 
-  ctx.action().setPermissions({ file: TERRAFORM, executable: true })
+  ctx.action().setPermissions({ file: terraform, executable: true })
 
-  ctx.action().declareOutputs([TERRAFORM]);
-  ctx.action().declareRunScript(TERRAFORM);
+  ctx.action().declareOutputs([terraform]);
+  ctx.action().declareRunScript(terraform);
 
-  ctx.provides({ TERRAFORM });
+  ctx.provides({ terraform });
 };
 
 export default Warp.Toolchain({

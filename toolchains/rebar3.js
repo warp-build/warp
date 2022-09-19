@@ -3,14 +3,14 @@ import ErlangToolchain from "https://pkgs.warp.build/toolchains/erlang.js";
 const impl = (ctx) => {
   const { url, sha1 } = ctx.cfg();
 
-  const REBAR3 = "rebar3.exe"
+  const rebar3 = "rebar3.exe"
 
-  ctx.action().download({ url, sha1, output: REBAR3 })
-  ctx.action().setPermissions({ file: REBAR3, executable: true })
-  ctx.action().declareOutputs([REBAR3]);
-  ctx.action().declareRunScript(REBAR3);
+  ctx.action().download({ url, sha1, output: rebar3 })
+  ctx.action().setPermissions({ file: rebar3, executable: true })
+  ctx.action().declareOutputs([rebar3]);
+  ctx.action().declareRunScript(rebar3);
 
-  ctx.provides({ REBAR3 });
+  ctx.provides({ rebar3 });
 };
 
 export default Warp.Toolchain({
