@@ -12,6 +12,11 @@ const impl = (ctx) => {
   ctx.action().writeFile({dst: "version",  data: "1" });
 
   ctx.provides({ rebar3 });
+
+  ctx.setEnv({
+    REBAR3_VERSION: sha1
+  });
+
 };
 
 export default Warp.Toolchain({
