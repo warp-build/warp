@@ -66,13 +66,13 @@ const impl = ctx => {
     });
   });
 
-  const { ELIXIR, ELIXIRC } = ElixirToolchain.provides()
+  const { elixir, elixirc } = ElixirToolchain.provides()
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
 export PATH="${ElixirToolchain.provides().ELIXIR_HOME}:${ErlangToolchain.provides().ERL_ROOT}:$PATH"
 
-${ELIXIRC} \
+${elixirc} \
   ${extraPaths} \
   ${elixirc_opts.join(" ")} \
   -o ${prefix} \

@@ -13,12 +13,12 @@ const impl = (ctx) => {
   const outputs = [`${cwd}/${appTarball}`];
   ctx.action().declareOutputs(outputs);
 
-  const { MIX } = ElixirToolchain.provides();
+  const { mix } = ElixirToolchain.provides();
 
   const depsGet =
     skip_deps === "true"
       ? ""
-      : `${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")}`;
+      : `${mix} deps.get --only \$MIX_ENV ${deps_args.join(" ")}`;
 
   const transitiveDeps = ctx.transitiveDeps();
   const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://pkgs.warp.build/rules/elixir_library");
@@ -57,7 +57,7 @@ ${depsGet}
 mkdir -p deps/${name}
 cp mix.exs deps/${name}/mix.exs
 
-${MIX} compile --no-deps-check ${compile_args.join(" ")}
+${mix} compile --no-deps-check ${compile_args.join(" ")}
 tar cf ${appTarball} _build/prod/lib/${name} deps/${name}
 
 `,

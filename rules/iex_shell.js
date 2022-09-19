@@ -5,7 +5,7 @@ import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erla
 const impl = ctx => {
   const { label, name, srcs, deps, args, dot_iex, elixirc_opts} = ctx.cfg();
 
-  const { IEX } = ElixirToolchain.provides()
+  const { iex } = ElixirToolchain.provides()
 
   const transitiveDeps = ctx.transitiveDeps()
 
@@ -38,7 +38,7 @@ ${
   })).join("\n")
 }
 
-${IEX} \
+${iex} \
   ${args.join(" ")} \
   --dot-iex $(dirname "\${BASH_SOURCE[0]}")/${File.filename(dot_iex)} \
   ${extraPaths} -- $*

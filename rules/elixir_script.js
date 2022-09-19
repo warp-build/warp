@@ -5,7 +5,7 @@ import ErlangToolchain, { BEAM_EXT } from "https://pkgs.warp.build/toolchains/er
 const impl = (ctx) => {
   const { label, name, srcs, deps, main } = ctx.cfg();
 
-  const { ELIXIR } = ElixirToolchain.provides();
+  const { elixir } = ElixirToolchain.provides();
 
   const transitiveDeps = ctx.transitiveDeps();
 
@@ -65,7 +65,7 @@ ${mixLibraries
   })
   .join("\n")}
 
-${ELIXIR} \
+${elixir} \
   ${extraPaths} \
   $(dirname "\${BASH_SOURCE[0]}")/${File.filename(main)} $*
 

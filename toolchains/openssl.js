@@ -18,15 +18,28 @@ const impl = ctx => {
 cd ${prefix}
 
 ./config -no-tests --prefix=$(pwd)/dist
+
 make -j
-make install -j10
+
+make install -j
 
 `});
 
-  ctx.action().declareOutputs([`${prefix}/dist`]);
+  ctx.action().declareOutputs([
+    `${prefix}/dist/bin`,
+    `${prefix}/dist/lib`,
+    `${prefix}/dist/include`,
+    `${prefix}/dist/ssl`,
+  ]);
 
   ctx.provides({
-    OPENSSL_HOME: `${prefix}/dist`
+    openssl: `${prefix}/dist/bin/openssl`
+  });
+
+  ctx.setEnv({
+    OpenSSL_HOME: ctx.path(`${prefix}/dist`),
+    OpenSSL_INCLUDE: ctx.path(`${prefix}/dist/include`),
+    OpenSSL_LIB: ctx.path(`${prefix}/dist/lib`),
   });
 };
 

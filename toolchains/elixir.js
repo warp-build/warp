@@ -21,9 +21,6 @@ const impl = ctx => {
   if (kind === "source") {
     ctx.action().runShell({
       script: `#!/bin/bash -xe
-
-export PATH="${ErlangToolchain.provides().ERL_ROOT}:$PATH"
-
 cd elixir-${version}
 make
 
@@ -31,25 +28,28 @@ make
 # at this stage.
 ./bin/mix local.hex --force
 ./bin/mix local.rebar --force
-
 `
     })
   }
 
   const binRoot = `elixir-${version}/bin`;
-  const ELIXIR = File.join(binRoot, "elixir");
-  const ELIXIRC = File.join(binRoot, "elixirc");
-  const IEX = File.join(binRoot, "iex");
-  const MIX = File.join(binRoot, "mix");
+  const elixir = File.join(binRoot, "elixir");
+  const elixirc = File.join(binRoot, "elixirc");
+  const iex = File.join(binRoot, "iex");
+  const mix = File.join(binRoot, "mix");
 
-  ctx.action().setPermissions({ file: ELIXIR, executable: true })
-  ctx.action().setPermissions({ file: ELIXIRC, executable: true })
-  ctx.action().setPermissions({ file: IEX, executable: true })
-  ctx.action().setPermissions({ file: MIX, executable: true })
+  ctx.action().setPermissions({ file: elixir, executable: true })
+  ctx.action().setPermissions({ file: elixirc, executable: true })
+  ctx.action().setPermissions({ file: iex, executable: true })
+  ctx.action().setPermissions({ file: mix, executable: true })
 
   ctx.action().declareOutputs([`elixir-${version}`]);
 
-  ctx.provides({ ELIXIR, ELIXIRC, IEX, MIX, ELIXIR_HOME: binRoot });
+  ctx.provides({ elixir, elixir, elixirc, iex, mix });
+
+  ctx.setEnv({
+    ELIXIR_HOME: ctx.path(binRoot)
+  });
 };
 
 export default Warp.Toolchain({

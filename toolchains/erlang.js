@@ -34,7 +34,7 @@ ${
 export OTP_SMALL_BUILD OTP_TINY_BUILD
 
 ./configure ${configure_flags.join(" ")} \
-  --with-ssl=${OpenSSLToolchain.provides().OPENSSL_HOME} \
+  --with-ssl=$OpenSSL_HOME \
   --prefix=$(pwd)/dist || exit 1
 
 make all install ${make_flags.join(" ")} || exit 1
@@ -44,16 +44,20 @@ make all install ${make_flags.join(" ")} || exit 1
   const root = `${prefix}/dist`;
   ctx.action().declareOutputs([root]);
 
-  const binRoot = `${prefix}/dist/bin`;
+  const binRoot = `${root}/bin`;
   ctx.provides({
-    ERLC: File.join(binRoot, "erlc"),
-    ERL: File.join(binRoot, "erl"),
-    ESCRIPT: File.join(binRoot, "escript"),
-    CT_RUN: File.join(binRoot, "ct_run"),
-    DIALYZER: File.join(binRoot, "dialyzer"),
-    ERL_ROOT: binRoot,
-    INCLUDE_PATH: `${root}/lib/erlang/usr/include`,
-    LIB_PATH: `${root}/lib/erlang/usr/lib`,
+    erlc: File.join(binRoot, "erlc"),
+    erl: File.join(binRoot, "erl"),
+    escript: File.join(binRoot, "escript"),
+    ct_run: File.join(binRoot, "ct_run"),
+    dialyzer: File.join(binRoot, "dialyzer"),
+  });
+
+  const usrRoot = `${root}/lib/erlang/usr`;
+  ctx.setEnv({
+    ERL_ROOT: ctx.path(binRoot),
+    ERL_INCLUDE_PATH: ctx.path(`${usrRoot}/include`),
+    ERL_LIB_PATH: ctx.path(`${usrRoot}/lib`),
   });
 };
 
