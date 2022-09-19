@@ -3,7 +3,6 @@ const impl = ctx => {
 
   const { host } = ctx.env();
 
-  const output = "cmake.zip"
 
   let os = host.os;
   if (os == "darwin") { os = "macos"; }
@@ -15,9 +14,11 @@ const impl = ctx => {
   let ext = "tar.gz";
   if (os == "win32") { ext = "zip" };
 
+
   const cmake = `cmake-${version}-${os}-${arch}`;
   const url = `https://github.com/Kitware/CMake/releases/download/v${version}/${cmake}.${ext}`
 
+  const output = `cmake.${ext}`
   ctx.action().download({ url, sha1, output })
 
   ctx.action().extract({ src: output, dst: "." })
@@ -28,10 +29,10 @@ const impl = ctx => {
 
   if (os == "macos") {
     ctx.provides({
-      cmake: ctx.path(`${cmake}/CMake.app/Contents/bin/cmake`),
-      cpack: ctx.path(`${cmake}/CMake.app/Contents/bin/cpack`),
-      ctest: ctx.path(`${cmake}/CMake.app/Contents/bin/ctest`),
-      ccmake: ctx.path(`${cmake}/CMake.app/Contents/bin/ccmake`),
+      cmake: `${cmake}/CMake.app/Contents/bin/cmake`,
+      cpack: `${cmake}/CMake.app/Contents/bin/cpack`,
+      ctest: `${cmake}/CMake.app/Contents/bin/ctest`,
+      ccmake: `${cmake}/CMake.app/Contents/bin/ccmake`,
     });
   }
 };

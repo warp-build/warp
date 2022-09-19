@@ -4,12 +4,12 @@ import CMakeToolchain from "https://pkgs.warp.build/toolchains/cmake.js";
 const impl = (ctx) => {
   const { url, sha1 } = ctx.cfg();
 
-  const rebar3 = "rebar3.exe"
+  const rebar3 = "rebar3"
 
   ctx.action().download({ url, sha1, output: rebar3 })
   ctx.action().setPermissions({ file: rebar3, executable: true })
   ctx.action().declareOutputs([rebar3]);
-  ctx.action().declareRunScript(rebar3);
+  ctx.action().writeFile({dst: "version",  data: "1" });
 
   ctx.provides({ rebar3 });
 };
