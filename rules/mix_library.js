@@ -5,30 +5,25 @@ import ErlangToolchain, { BEAM_EXT } from "https://pkgs.warp.build/toolchains/er
 const RULE_NAME = "https://pkgs.warp.build/rules/mix_library"
 
 const impl = (ctx) => {
-  const { label, name, deps, srcs, skip_deps, deps_args, compile_args } =
-    ctx.cfg();
+  const { label, name, deps, srcs, skip_deps, deps_args, compile_args } = ctx.cfg();
   const cwd = Label.path(label);
 
   const appTarball = `${name}.app.tar`;
   const outputs = [`${cwd}/${appTarball}`];
   ctx.action().declareOutputs(outputs);
 
-  const { mix } = ElixirToolchain.provides();
-
   const depsGet =
     skip_deps === "true"
       ? ""
-      : `${mix} deps.get --only \$MIX_ENV ${deps_args.join(" ")}`;
+      : `${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")}`;
 
   const transitiveDeps = ctx.transitiveDeps();
   const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://pkgs.warp.build/rules/elixir_library");
   const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == RULE_NAME);
 
   ctx.action().runShell({
-    script: `#!/bin/bash -xe
-
-export PATH="${ElixirToolchain.provides().ELIXIR_HOME}:${ErlangToolchain.provides().ERL_ROOT}:$PATH"
-export MIX_ENV=prod
+    env: { MIX_ENV: "prod" },
+    script: `
 
 ${mixLibraries
   .flatMap((dep) =>
@@ -57,7 +52,7 @@ ${depsGet}
 mkdir -p deps/${name}
 cp mix.exs deps/${name}/mix.exs
 
-${mix} compile --no-deps-check ${compile_args.join(" ")}
+mix compile --no-deps-check ${compile_args.join(" ")}
 tar cf ${appTarball} _build/prod/lib/${name} deps/${name}
 
 `,

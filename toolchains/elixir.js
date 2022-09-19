@@ -20,7 +20,8 @@ const impl = ctx => {
 
   if (kind === "source") {
     ctx.action().runShell({
-      script: `#!/bin/bash -xe
+      script: `
+
 cd elixir-${version}
 make
 
@@ -28,6 +29,7 @@ make
 # at this stage.
 ./bin/mix local.hex --force
 ./bin/mix local.rebar --force
+
 `
     })
   }

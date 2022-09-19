@@ -19,7 +19,7 @@ const impl = ctx => {
   ctx.action().extract({ src: output, dst: "." })
 
   ctx.action().runShell({
-    script: `#!/bin/bash -xe
+    script: `
 
 cd ${prefix}
 
@@ -73,7 +73,7 @@ export default Warp.Toolchain({
     make_flags: [string()],
   },
   defaults: {
-    build_size: "tiny",
+    build_size: "full",
     configure_flags: [],
     make_flags: [],
   },

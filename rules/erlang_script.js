@@ -1,7 +1,6 @@
 import ErlangToolchain, { BEAM_EXT, HEADER_EXT } from "https://pkgs.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { ERLC, ESCRIPT } = ErlangToolchain.provides();
   const { label, name, main, apps } = ctx.cfg();
 
   const cwd = Label.path(label);
@@ -106,19 +105,16 @@ main(_argv) ->
    * go _into_ the folder.
    */
   ctx.action().runShell({
-    script: `#!/bin/bash -xe
+    script: `
 
-PATH="${ErlangToolchain.provides().ERL_ROOT}:$PATH" \
-  ${ESCRIPT} ${build}
+escript ${build}
 mv ${File.filename(run)} ${run}
 
 ` })
 
   ctx.action().declareOutputs([run]);
   ctx.action().setPermissions({file: run, executable: true});
-  ctx.action().declareRunScript(run, {
-    env: { PATH: ErlangToolchain.provides().ERL_ROOT }
-  });
+  ctx.action().declareRunScript(run);
 };
 
 export default Warp.Rule({

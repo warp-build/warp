@@ -66,13 +66,10 @@ const impl = ctx => {
     });
   });
 
-  const { elixir, elixirc } = ElixirToolchain.provides()
   ctx.action().runShell({
-    script: `#!/bin/bash -xe
+    script: `
 
-export PATH="${ElixirToolchain.provides().ELIXIR_HOME}:${ErlangToolchain.provides().ERL_ROOT}:$PATH"
-
-${elixirc} \
+elixirc \
   ${extraPaths} \
   ${elixirc_opts.join(" ")} \
   -o ${prefix} \
@@ -98,5 +95,5 @@ export default Warp.Rule({
     modules: [],
     elixirc_opts: [ "--warnings-as-errors" ],
   },
-  toolchains: [ElixirToolchain]
+  toolchains: [ElixirToolchain, ErlangToolchain]
 });
