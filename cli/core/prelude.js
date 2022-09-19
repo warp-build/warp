@@ -76,7 +76,11 @@ Warp.Targets.compute = target => {
       }
     }),
 
+    path: path => `{{NODE_STORE_PATH}}/${path}`,
+
     provides: provides => ffi("op_ctx_declare_provides", {label, provides}),
+
+    setEnv: (env = {}) => ffi("op_ctx_declare_env", {label, env}),
 
     action: () => ({
       copy: ({src, dst}) => ffi("op_ctx_actions_copy", {label, src, dst}),

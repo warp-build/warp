@@ -11,14 +11,21 @@ use thiserror::*;
 #[derive(Debug, Clone)]
 pub struct ExecutableTarget {
     pub label: Label,
+    pub hash: String,
+    pub rule: Rule,
 
     /// A vector of actions to be taken _in order_ to produce the target's outputs
     pub actions: Vec<Action>,
 
     /// The dependencies this target needs to have in place
-    pub deps: FxHashSet<Dependency>,
+    pub deps: Vec<TargetManifest>,
 
-    pub hash: String,
+    pub transitive_deps: Vec<TargetManifest>,
+
+    /// Dependencies that need to be present but not copied into the cache
+    pub toolchains: Vec<TargetManifest>,
+
+    pub srcs: FxHashSet<PathBuf>,
 
     pub outs: FxHashSet<PathBuf>,
 
@@ -26,11 +33,7 @@ pub struct ExecutableTarget {
 
     pub provides: FxHashMap<String, PathBuf>,
 
-    pub srcs: FxHashSet<PathBuf>,
-
-    pub transitive_deps: FxHashSet<Dependency>,
-
-    pub rule: Rule,
+    pub env: FxHashMap<String, String>,
 }
 
 #[derive(Error, Debug)]
@@ -44,37 +47,30 @@ impl ExecutableTarget {
         env: &ExecutionEnvironment,
         rule: &Rule,
         target: &Target,
-        deps: &[Dependency],
-        transitive_deps: &[Dependency],
+        deps: &[TargetManifest],
+        transitive_deps: &[TargetManifest],
+        toolchains: &[TargetManifest],
         exec_result: ExecutionResult,
     ) -> Result<Self, ExecutableTargetError> {
         let mut this = Self {
             actions: exec_result.actions,
-            deps: deps.iter().cloned().collect(),
+            deps: deps.to_vec(),
             hash: "".to_string(),
             label: target.label.clone(),
             outs: exec_result.outs,
             rule: rule.clone(),
             run_script: exec_result.run_script,
             srcs: exec_result.srcs,
-            transitive_deps: transitive_deps.iter().cloned().collect(),
+            transitive_deps: transitive_deps.to_vec(),
+            toolchains: toolchains.to_vec(),
             provides: exec_result.provides,
+            env: exec_result.env,
         };
 
         this.ensure_outputs_are_safe()?;
         this.recompute_hash(env).await;
 
         Ok(this)
-    }
-
-    pub fn to_dependency(&self) -> Dependency {
-        Dependency {
-            rule_name: self.rule.name.clone(),
-            label: self.label.clone(),
-            hash: self.hash.clone(),
-            outs: self.outs.iter().cloned().collect(),
-            srcs: self.srcs.iter().cloned().collect(),
-        }
     }
 
     async fn recompute_hash(&mut self, env: &ExecutionEnvironment) {
@@ -253,7 +249,7 @@ mod tests {
 
         let conflicting_output = PathBuf::from("conflicting-file");
 
-        let deps = vec![Dependency {
+        let deps = vec![TargetManifest {
             rule_name: "rule-name".to_string(),
             label: Label::new("dep"),
             hash: "".to_string(),

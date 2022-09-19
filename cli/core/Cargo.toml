@@ -50,9 +50,9 @@ structopt = "0.3"
 termcolor = "1.1"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
-tokio-stream = "0.1"
 tokio-tar = "0.3"
 tokio-util = { version = "0.7", features = ["rt", "compat"] }
+tokio-serde = "0.8"
 toml = { version = "0.5", features = ["preserve_order"] }
 tracing = { version = "0.1", features = ["log"] }
 tracing-opentelemetry = "0.17"

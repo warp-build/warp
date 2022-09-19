@@ -17,6 +17,7 @@ pub struct InnerState {
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
     pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
+    pub env_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
 }
 
 #[op]
@@ -116,6 +117,24 @@ pub fn op_ctx_actions_declare_outputs(
         }
     };
     output_map.insert(label, new_outs);
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DeclareEnv {
+    label: String,
+    env: FxHashMap<String, String>,
+}
+
+#[op]
+pub fn op_ctx_declare_env(state: &mut OpState, args: DeclareEnv) -> Result<(), AnyError> {
+    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let env_map = &inner_state.env_map;
+
+    let label = Label::new(&args.label);
+    env_map.insert(label, args.env);
+
     Ok(())
 }
 

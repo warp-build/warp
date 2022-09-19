@@ -2,6 +2,7 @@ use super::*;
 use futures::FutureExt;
 use fxhash::FxHashSet;
 use std::{
+    collections::BTreeMap,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -61,18 +62,13 @@ impl TargetExecutor {
         &self,
         target: &ExecutableTarget,
     ) -> Result<(TargetManifest, ValidationStatus), TargetExecutorError> {
-        if let Ok(StoreHitType::Hit(manifest)) = self
+        if let StoreHitType::Hit(manifest) = self
             .store
-            .is_in_store(target)
+            .is_stored(target)
             .await
-            .map_err(TargetExecutorError::StoreError)
+            .map_err(TargetExecutorError::StoreError)?
         {
-            self.store
-                .promote_outputs(target)
-                .await
-                .map_err(TargetExecutorError::StoreError)?;
-
-            return Ok((manifest, ValidationStatus::Cached));
+            return Ok((*manifest, ValidationStatus::Cached));
         }
 
         self.store
@@ -86,13 +82,15 @@ impl TargetExecutor {
             .await
             .map_err(TargetExecutorError::StoreError)?;
 
+        let env = self.shell_env(&store_path, target);
+
         self.copy_files(&store_path, target).await?;
-        self.execute_actions(&store_path, target).await?;
+        self.execute_actions(&store_path, &env, target).await?;
 
         let validation_result = self.validate_outputs(&store_path, target).await?;
 
         let manifest =
-            TargetManifest::from_validation_result(&validation_result, &store_path, target);
+            TargetManifest::from_validation_result(&validation_result, &store_path, env, target);
 
         if manifest.is_valid {
             self.store
@@ -101,12 +99,47 @@ impl TargetExecutor {
                 .map_err(TargetExecutorError::StoreError)?;
 
             self.store
-                .promote_outputs(target)
+                .promote_outputs(&manifest)
                 .await
                 .map_err(TargetExecutorError::StoreError)?;
         }
 
         Ok((manifest, validation_result))
+    }
+
+    fn shell_env(&self, store_path: &Path, target: &ExecutableTarget) -> BTreeMap<String, String> {
+        let mut env = BTreeMap::default();
+        for toolchain in &target.toolchains {
+            env.extend(toolchain.env.clone())
+        }
+
+        let store_path_str = store_path.to_str().unwrap();
+        for (name, value) in &target.env {
+            let value = value.replace("{{NODE_STORE_PATH}}", store_path_str);
+            env.insert(name.clone(), value);
+        }
+
+        let target_paths = target
+            .provides
+            .values()
+            .clone()
+            .into_iter()
+            .map(|p| store_path.join(p));
+
+        let paths: FxHashSet<String> = target
+            .toolchains
+            .iter()
+            .flat_map(|d| d.provides.values())
+            .cloned()
+            .chain(target_paths)
+            .map(|p| p.parent().unwrap().to_str().unwrap().to_string())
+            .collect();
+
+        let mut paths = paths.into_iter().collect::<Vec<String>>();
+        paths.reverse();
+
+        env.insert("PATH".to_string(), paths.join(":"));
+        env
     }
 
     async fn copy_files(
@@ -141,6 +174,7 @@ impl TargetExecutor {
     async fn execute_actions(
         &self,
         store_path: &PathBuf,
+        env: &BTreeMap<String, String>,
         target: &ExecutableTarget,
     ) -> Result<(), TargetExecutorError> {
         self.event_channel.send(Event::PreparingActions {
@@ -157,7 +191,7 @@ impl TargetExecutor {
                 .run(
                     target.label.clone(),
                     store_path,
-                    store_path,
+                    &env,
                     self.event_channel.clone(),
                 )
                 .await

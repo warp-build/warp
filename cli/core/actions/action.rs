@@ -2,6 +2,7 @@ use super::*;
 use crate::EventChannel;
 use crate::Label;
 use anyhow::*;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -65,18 +66,18 @@ impl Action {
     pub async fn run(
         &self,
         label: Label,
-        cache_root: &PathBuf,
-        sandbox_root: &PathBuf,
+        store_root: &PathBuf,
+        env: &BTreeMap<String, String>,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         match self {
-            Action::Exec(a) => a.run(sandbox_root).await,
-            Action::Copy(a) => a.run(sandbox_root).await,
-            Action::Download(a) => a.run(label, sandbox_root, event_channel).await,
-            Action::Extract(a) => a.run(label, sandbox_root, event_channel).await,
-            Action::WriteFile(a) => a.run(sandbox_root).await,
-            Action::RunShell(a) => a.run(cache_root, sandbox_root).await,
-            Action::SetPermissions(a) => a.run(sandbox_root).await,
+            Action::Exec(a) => a.run(store_root).await,
+            Action::Copy(a) => a.run(store_root).await,
+            Action::Download(a) => a.run(label, store_root, event_channel).await,
+            Action::Extract(a) => a.run(label, store_root, event_channel).await,
+            Action::WriteFile(a) => a.run(store_root).await,
+            Action::RunShell(a) => a.run(store_root, env).await,
+            Action::SetPermissions(a) => a.run(store_root).await,
         }
     }
 }

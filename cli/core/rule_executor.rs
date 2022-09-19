@@ -23,6 +23,7 @@ use tracing::*;
 pub struct SharedRuleExecutorState {
     pub rule_map: Arc<DashMap<String, Rule>>,
     pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
+    pub env_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
     pub rule_store: Arc<RuleStore>,
 }
 
@@ -42,6 +43,7 @@ pub struct ExecutionResult {
     pub srcs: FxHashSet<PathBuf>,
     pub run_script: Option<RunScript>,
     pub provides: FxHashMap<String, PathBuf>,
+    pub env: FxHashMap<String, String>,
 }
 
 pub struct ComputeTargetProgram;
@@ -50,8 +52,8 @@ impl ComputeTargetProgram {
     pub fn as_js_source(
         env: &ExecutionEnvironment,
         target: &Target,
-        deps: &[Dependency],
-        transitive_deps: &[Dependency],
+        deps: &[TargetManifest],
+        transitive_deps: &[TargetManifest],
         rule: &Rule,
         config: &RuleConfig,
     ) -> String {
@@ -275,7 +277,7 @@ pub enum RuleExecutorError {
     StoreError(StoreError),
 }
 
-/// The Rule Execution Environment abstracts away the communication between the Dependency Graph
+/// The Rule Execution Environment abstracts away the communication between the TargetManifest Graph
 /// and the BuildScript rules.
 ///
 /// It is responsible updating the RuleManager and the ToolchainManager, by detecting when new
@@ -289,6 +291,7 @@ pub struct RuleExecutor {
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
     pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
+    pub env_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
     pub run_script_map: Arc<DashMap<Label, RunScript>>,
 }
 
@@ -303,9 +306,11 @@ impl RuleExecutor {
         let extension: deno_core::Extension = {
             let action_map = action_map.clone();
             let output_map = output_map.clone();
-            let provides_map = shared_state.provides_map.clone();
-            let rule_map = shared_state.rule_map.clone();
             let run_script_map = run_script_map.clone();
+
+            let provides_map = shared_state.provides_map.clone();
+            let env_map = shared_state.env_map.clone();
+            let rule_map = shared_state.rule_map.clone();
 
             let inner_state = InnerState {
                 id: uuid::Uuid::new_v4(),
@@ -314,6 +319,7 @@ impl RuleExecutor {
                 provides_map,
                 rule_map,
                 run_script_map,
+                env_map,
             };
 
             Extension::builder()
@@ -325,6 +331,7 @@ impl RuleExecutor {
                     rule_exec_env_ffi::op_ctx_actions_run_shell::decl(),
                     rule_exec_env_ffi::op_ctx_actions_write_file::decl(),
                     rule_exec_env_ffi::op_ctx_declare_provides::decl(),
+                    rule_exec_env_ffi::op_ctx_declare_env::decl(),
                     rule_exec_env_ffi::op_ctx_download::decl(),
                     rule_exec_env_ffi::op_ctx_extract::decl(),
                     rule_exec_env_ffi::op_ctx_fetch_provides::decl(),
@@ -357,6 +364,7 @@ impl RuleExecutor {
             action_map,
             output_map,
             provides_map: shared_state.provides_map.clone(),
+            env_map: shared_state.env_map.clone(),
             rule_map: shared_state.rule_map.clone(),
             run_script_map,
             runtime,
@@ -504,8 +512,8 @@ impl RuleExecutor {
         env: &ExecutionEnvironment,
         rule: &Rule,
         target: &Target,
-        deps: &[Dependency],
-        transitive_deps: &[Dependency],
+        deps: &[TargetManifest],
+        transitive_deps: &[TargetManifest],
     ) -> Result<ExecutionResult, RuleExecutorError> {
         let config = ConfigExpander
             .expand(rule, target)
@@ -556,9 +564,17 @@ impl RuleExecutor {
             .get(&target.label)
             .map(|r| r.value().clone())
             .unwrap_or_default()
-            .iter()
-            .map(|(k, v)| (k.clone(), PathBuf::from(v.clone())))
+            .into_iter()
+            .map(|(k, v)| (k, PathBuf::from(v)))
             .collect::<FxHashMap<String, PathBuf>>();
+
+        let env = self
+            .env_map
+            .get(&target.label)
+            .map(|r| r.value().clone())
+            .unwrap_or_default()
+            .into_iter()
+            .collect::<FxHashMap<String, String>>();
 
         self.clear();
 
@@ -568,6 +584,7 @@ impl RuleExecutor {
             srcs,
             run_script,
             provides,
+            env,
         })
     }
 }

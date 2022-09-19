@@ -2741,6 +2741,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-serde"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "911a61637386b789af998ee23f50aa30d5fd7edcec8d6d3dedae5e5815205466"
+dependencies = [
+ "bytes 1.1.0",
+ "futures-core",
+ "futures-sink",
+ "pin-project",
+]
+
+[[package]]
 name = "tokio-stream"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3137,6 +3149,7 @@ dependencies = [
  "termcolor",
  "thiserror",
  "tokio 1.19.2",
+ "tokio-serde",
  "tokio-stream",
  "tokio-tar",
  "tokio-util",

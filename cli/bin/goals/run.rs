@@ -41,6 +41,7 @@ build their dependencies and exit.
 impl RunGoal {
     pub async fn run(
         self,
+        build_started: std::time::Instant,
         cwd: &PathBuf,
         workspace: Workspace,
         event_channel: Arc<EventChannel>,
@@ -73,19 +74,55 @@ impl RunGoal {
         .await;
 
         if let Some((manifest, target)) = result? {
-            for (name, path) in manifest.provides {
-                if name == label.name() {
-                    return self.run_cmd(cwd, label, path, HashMap::default());
-                }
+            let provides_env = manifest.env_map();
 
-                if !self.args.is_empty() && name == self.args[0] {
-                    return self.run_cmd(cwd, label, path, HashMap::default());
-                }
+            if let Some(path) = manifest.provides.get(&self.args[0]) {
+                debug!(
+                    "Found provided binary named {} at {:?}",
+                    &self.args[0], &path
+                );
+                return self.run_cmd(
+                    build_started,
+                    cwd,
+                    label,
+                    path.to_path_buf(),
+                    provides_env,
+                    &self.args[1..],
+                );
+            }
+
+            if let Some(path) = manifest.provides.get(&label.name()) {
+                debug!(
+                    "Found provided binary named {} at {:?}",
+                    label.name(),
+                    &path
+                );
+                return self.run_cmd(
+                    build_started,
+                    cwd,
+                    label,
+                    path.to_path_buf(),
+                    provides_env,
+                    &self.args,
+                );
             }
 
             if let Some(RunScript { run_script, env }) = target.run_script {
                 let path = local_outputs_root.join(&run_script);
-                return self.run_cmd(cwd, label, path, env);
+                debug!("Running default run_script ({:?})", &path);
+                return self.run_cmd(build_started, cwd, label, path, env, &self.args);
+            }
+
+            if !self.args.is_empty() {
+                debug!("Running command in environment");
+                return self.run_cmd(
+                    build_started,
+                    cwd,
+                    label,
+                    PathBuf::from(self.args[0].to_string()),
+                    provides_env,
+                    &self.args[1..],
+                );
             }
         }
 
@@ -94,10 +131,12 @@ impl RunGoal {
 
     fn run_cmd(
         &self,
+        build_started: std::time::Instant,
         cwd: &PathBuf,
         label: Label,
         bin: PathBuf,
         mut env: HashMap<String, String>,
+        args: &[String],
     ) -> Result<(), Error> {
         let mut cmd = Command::new(bin);
 
@@ -111,10 +150,14 @@ impl RunGoal {
             .stdin(Stdio::inherit())
             .stderr(Stdio::inherit())
             .stdout(Stdio::inherit())
-            .args(&self.args);
+            .args(args);
 
-        trace!("Spawning {:?}", &cmd);
-        let mut proc = cmd.spawn()?;
+        debug!("Spawning {:?}", &cmd);
+        let mut proc = cmd.spawn().unwrap();
+
+        let t1 = std::time::Instant::now();
+        let delta = t1.saturating_duration_since(build_started).as_millis();
+        debug!("Spawned program in {:?}ms", delta);
 
         trace!("Waiting on {:?}", &cmd);
         proc.wait()

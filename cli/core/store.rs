@@ -18,7 +18,7 @@ pub struct Store {
 #[derive(Debug, Clone)]
 pub enum StoreHitType {
     Miss(PathBuf),
-    Hit(TargetManifest),
+    Hit(Box<TargetManifest>),
 }
 
 #[derive(Error, Debug)]
@@ -40,6 +40,14 @@ pub enum StoreError {
 
     #[error(transparent)]
     TargetManifestError(TargetManifestError),
+
+    #[error("When promote outputs for {:?}, could not promote {src:?} into {dst:?} due to: {err:?}", label.to_string())]
+    PromoteOutputError {
+        label: Label,
+        src: PathBuf,
+        dst: PathBuf,
+        err: std::io::Error,
+    },
 }
 
 impl Store {
@@ -65,8 +73,8 @@ impl Store {
         self._store_key(&node.hash, &node.label)
     }
 
-    pub fn store_key_for_dep(&self, dep: &Dependency) -> StoreKey {
-        self._store_key(&dep.hash, &dep.label)
+    pub fn store_key_for_dep(&self, manifest: &TargetManifest) -> StoreKey {
+        self._store_key(&manifest.hash, &manifest.label)
     }
 
     #[tracing::instrument(name = "Store::save")]
@@ -96,7 +104,7 @@ impl Store {
     /// Determine if a given node has been stored already or not.
     ///
     #[tracing::instrument(name = "Store::is_stored", skip(node))]
-    pub async fn is_in_store(&self, node: &ExecutableTarget) -> Result<StoreHitType, StoreError> {
+    pub async fn is_stored(&self, node: &ExecutableTarget) -> Result<StoreHitType, StoreError> {
         let store_key = self.store_key(node);
 
         match self.local_store.find_manifest(&store_key).await? {
@@ -106,7 +114,12 @@ impl Store {
                     .remote_store
                     .try_fetch(&store_key, &expected_path)
                     .await;
-                self.local_store.find_manifest(&store_key).await
+
+                let result = self.local_store.find_manifest(&store_key).await;
+                if let Ok(StoreHitType::Hit(manifest)) = &result {
+                    self.promote_outputs(manifest).await?;
+                }
+                result
             }
             result => Ok(result),
         }
@@ -118,13 +131,13 @@ impl Store {
         self.local_store.clean(&store_key).await
     }
 
-    #[tracing::instrument(name = "Store::absolute_path_by_dep")]
-    pub async fn absolute_path_by_dep(&self, dep: &Dependency) -> Result<PathBuf, StoreError> {
+    #[tracing::instrument(name = "Store::absolute_path_by_dep", skip(dep))]
+    pub async fn absolute_path_by_dep(&self, dep: &TargetManifest) -> Result<PathBuf, StoreError> {
         let store_key = self.store_key_for_dep(dep);
         self.local_store.absolute_path_for_key(&store_key).await
     }
 
-    #[tracing::instrument(name = "Store::absolute_path_by_node")]
+    #[tracing::instrument(name = "Store::absolute_path_by_node", skip(node))]
     pub async fn absolute_path_by_node(
         &self,
         node: &ExecutableTarget,
@@ -133,11 +146,11 @@ impl Store {
         self.local_store.absolute_path_for_key(&store_key).await
     }
 
-    #[tracing::instrument(name = "Store::promote_outputs", skip(node))]
-    pub async fn promote_outputs(&self, node: &ExecutableTarget) -> Result<(), StoreError> {
-        let store_key = self.store_key(node);
+    #[tracing::instrument(name = "Store::promote_outputs", skip(manifest))]
+    pub async fn promote_outputs(&self, manifest: &TargetManifest) -> Result<(), StoreError> {
+        let store_key = self.store_key_for_dep(manifest);
         self.local_store
-            .promote_outputs(&store_key, node, &self.local_outputs_root)
+            .promote_outputs(&store_key, manifest, &self.local_outputs_root)
             .await
     }
 }

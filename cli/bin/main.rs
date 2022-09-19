@@ -129,7 +129,7 @@ impl Warp {
             .cmd
             .take()
             .unwrap_or_else(|| Goal::Build(BuildGoal::all()))
-            .run(&cwd, workspace, event_channel)
+            .run(t0, &cwd, workspace, event_channel)
             .await;
 
         std::env::set_current_dir(&cwd)?;
@@ -151,6 +151,7 @@ impl Goal {
     #[tracing::instrument(name = "Goal::run", skip(self, workspace))]
     async fn run(
         self,
+        build_started: std::time::Instant,
         cwd: &PathBuf,
         workspace: Workspace,
         event_channel: Arc<EventChannel>,
@@ -159,7 +160,7 @@ impl Goal {
             Goal::Build(x) => x.run(workspace, event_channel).await,
             Goal::Init(x) => x.run(workspace.current_user, event_channel).await,
             Goal::Info(x) => x.run(workspace, event_channel).await,
-            Goal::Run(x) => x.run(cwd, workspace, event_channel).await,
+            Goal::Run(x) => x.run(build_started, cwd, workspace, event_channel).await,
             Goal::Setup(x) => x.run(workspace.current_user, event_channel).await,
         }
     }
