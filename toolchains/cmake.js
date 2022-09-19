@@ -22,11 +22,16 @@ const impl = ctx => {
 
   ctx.action().extract({ src: output, dst: "." })
 
-  ctx.action().declareOutputs([cmake]);
+  ctx.action().declareOutputs([
+    `${cmake}/CMake.app/Contents/bin`,
+  ]);
 
   if (os == "macos") {
     ctx.provides({
-      cmake: ctx.path(`${cmake}/CMake.app/Contents/bin/cmake`)
+      cmake: ctx.path(`${cmake}/CMake.app/Contents/bin/cmake`),
+      cpack: ctx.path(`${cmake}/CMake.app/Contents/bin/cpack`),
+      ctest: ctx.path(`${cmake}/CMake.app/Contents/bin/ctest`),
+      ccmake: ctx.path(`${cmake}/CMake.app/Contents/bin/ccmake`),
     });
   }
 };
