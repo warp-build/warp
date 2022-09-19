@@ -22,8 +22,6 @@ const impl = ctx => {
 
   ctx.action().extract({ src: output, dst: "." })
 
-  ctx.action().setPermissions({ file: terraform, executable: true })
-
   ctx.action().declareOutputs([cmake]);
 
   if (os == "macos") {
