@@ -70,7 +70,7 @@ impl TargetPlanner {
             .await
             .map_err(TargetPlannerError::RuleExecutorError)?;
 
-        self.find_toolchains(target, &rule)?;
+        let toolchains = self.find_toolchains(target, &rule)?;
 
         let deps = self.find_deps(target)?;
 
@@ -82,28 +82,54 @@ impl TargetPlanner {
             .await
             .map_err(TargetPlannerError::RuleExecutorError)?;
 
-        ExecutableTarget::new(env, &rule, target, &deps, &transitive_deps, exec_result)
-            .await
-            .map_err(TargetPlannerError::ExecutableTargetError)
+        ExecutableTarget::new(
+            env,
+            &rule,
+            target,
+            &deps,
+            &transitive_deps,
+            &toolchains,
+            exec_result,
+        )
+        .await
+        .map_err(TargetPlannerError::ExecutableTargetError)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_toolchains", skip(self))]
-    pub fn find_toolchains(&self, target: &Target, rule: &Rule) -> Result<(), TargetPlannerError> {
-        self._deps(&target.label, &rule.toolchains, true)
-            .map(|_| ())
+    pub fn find_toolchains(
+        &self,
+        target: &Target,
+        rule: &Rule,
+    ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
+        self._manifests(&target.label, &rule.toolchains, true)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_deps", skip(self))]
-    pub fn find_deps(&self, target: &Target) -> Result<Vec<Dependency>, TargetPlannerError> {
-        self._deps(&target.label, &target.deps, false)
+    pub fn find_deps(&self, target: &Target) -> Result<Vec<TargetManifest>, TargetPlannerError> {
+        self._manifests(&target.label, &target.deps, false)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_transitive_deps", skip(self))]
     pub fn find_transitive_deps(
         &self,
         target: &Target,
-    ) -> Result<Vec<Dependency>, TargetPlannerError> {
-        self._deps(&target.label, &target.deps, true)
+    ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
+        self._manifests(&target.label, &target.deps, true)
+    }
+
+    pub fn _manifests(
+        &self,
+        label: &Label,
+        deps: &[Label],
+        transitive: bool,
+    ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
+        let mut manifests = FxHashSet::default();
+
+        for label in self._deps(label, deps, transitive)? {
+            manifests.insert(self.build_results.get_manifest(&label).unwrap());
+        }
+
+        Ok(manifests.into_iter().collect())
     }
 
     pub fn _deps(
@@ -111,29 +137,22 @@ impl TargetPlanner {
         label: &Label,
         deps: &[Label],
         transitive: bool,
-    ) -> Result<Vec<Dependency>, TargetPlannerError> {
-        let mut collected_deps: FxHashSet<Dependency> = FxHashSet::default();
-        let mut missing_deps: FxHashSet<Label> = FxHashSet::default();
+    ) -> Result<Vec<Label>, TargetPlannerError> {
+        let mut collected_deps: Vec<Label> = vec![];
+        let mut missing_deps: Vec<Label> = vec![];
 
         for dep in deps {
-            if let Some((_manifest, node)) = self.build_results.get_computed_target(dep) {
-                collected_deps.insert(node.to_dependency());
+            if self.build_results.has_manifest(dep) {
+                collected_deps.push(dep.clone());
 
                 if transitive {
-                    let node_deps = node
-                        .deps
-                        .iter()
-                        .map(|d| d.label.clone())
-                        .collect::<Vec<Label>>();
-
-                    let node_deps = node_deps.as_slice();
-
-                    for dep in self._deps(&node.label, node_deps, transitive)? {
-                        collected_deps.insert(dep);
+                    let node_deps = self.build_results.get_target_deps(dep);
+                    for dep in self._deps(dep, &node_deps, transitive)? {
+                        collected_deps.push(dep);
                     }
                 }
             } else {
-                missing_deps.insert(dep.clone());
+                missing_deps.push(dep.clone());
             }
         }
 
@@ -142,11 +161,10 @@ impl TargetPlanner {
             // first, so the dependencies of our dependencies.
             Err(TargetPlannerError::MissingDependencies {
                 label: label.clone(),
-                deps: missing_deps.iter().cloned().collect::<Vec<Label>>(),
+                deps: missing_deps,
             })
         } else {
-            let deps = collected_deps.iter().cloned().collect::<Vec<Dependency>>();
-            Ok(deps)
+            Ok(collected_deps)
         }
     }
 }

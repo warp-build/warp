@@ -135,7 +135,7 @@ impl BuildQueue {
             .add_dependencies(label.clone(), deps)
             .map_err(QueueError::DependencyCycle)?;
 
-        for dep in deps.iter().rev() {
+        for dep in deps {
             self.queue(dep.clone())?;
         }
 

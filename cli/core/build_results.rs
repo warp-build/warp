@@ -107,7 +107,32 @@ impl BuildResults {
     }
 
     pub fn get_computed_target(&self, label: &Label) -> Option<(TargetManifest, ExecutableTarget)> {
-        self.computed_targets.get(label).map(|n| n.clone())
+        self.computed_targets.get(label).map(|v| v.clone())
+    }
+
+    pub fn has_manifest(&self, label: &Label) -> bool {
+        self.computed_targets.contains_key(label)
+    }
+
+    pub fn get_manifest(&self, label: &Label) -> Option<TargetManifest> {
+        if let Some(r) = self.computed_targets.get(label) {
+            let (manifest, _node) = r.value();
+            Some(manifest.clone())
+        } else {
+            None
+        }
+    }
+
+    pub fn get_target_deps(&self, label: &Label) -> Vec<Label> {
+        if let Some(r) = self.computed_targets.get(label) {
+            let (_manifest, node) = r.value();
+            node.deps
+                .iter()
+                .map(|d| d.label.clone())
+                .collect::<Vec<Label>>()
+        } else {
+            vec![]
+        }
     }
 
     pub fn is_target_built(&self, label: &Label) -> bool {
