@@ -1,3 +1,4 @@
+use serde::{de::Visitor, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use url::Url;
@@ -209,6 +210,47 @@ impl Label {
             } => format!("{}-{}", prefix_hash, host),
             _ => panic!("We can't turn a non-remote label into a cache prefix!"),
         }
+    }
+}
+
+struct LabelVisitor;
+impl<'de> Visitor<'de> for LabelVisitor {
+    type Value = Label;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a string following the label syntax: :a, ./a, //a, https://hello/a")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Label::new(v))
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Label::new(&v))
+    }
+}
+
+impl<'de> Deserialize<'de> for Label {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_string(LabelVisitor)
+    }
+}
+
+impl Serialize for Label {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 
