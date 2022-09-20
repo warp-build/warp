@@ -27,10 +27,10 @@ release.win: release
 .PHONY: release
 release:
 	cargo build --release --target aarch64-apple-darwin
-	cargo strip
+	cargo strip --target aarch64-apple-darwin
 	tar czf warp-aarch64-apple-darwin.tar.gz -C ./target/aarch64-apple-darwin/release/ $(WARP_EXE)
 	cargo build --release --target x86_64-apple-darwin
-	cargo strip
+	cargo strip --target x86_64-apple-darwin
 	tar czf warp-x86_64-apple-darwin.tar.gz -C ./target/x86_64-apple-darwin/release/ $(WARP_EXE)
 
 .PHONY: install
