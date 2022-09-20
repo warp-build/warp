@@ -6,11 +6,9 @@ const impl = (ctx) => {
   const { label, name, deps, srcs } = ctx.cfg();
   const cwd = Label.path(label);
 
-  const appTarball = `${name}.app.tar`;
-  const outputs = [`${cwd}/${appTarball}`];
-  ctx.action().declareOutputs(outputs);
-
-  const ERL_ENV = ErlangToolchain.provides();
+  ctx.action().declareOutputs([
+    `${cwd}/_build/default/lib/${name}`
+  ]);
 
   ctx.action().runShell({
     script: `
@@ -28,8 +26,6 @@ if [ \${status:-0} -gt 1 ]; then
   echo "Rebar exited with status $status"
   exit $status
 fi
-
-tar cf ${appTarball} _build/default/lib/${name}
 
 `,
   });
