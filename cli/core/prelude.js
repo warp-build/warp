@@ -59,6 +59,7 @@ Warp.Targets.compute = target => {
     }));
 
   config.label = label;
+  config.cwd = () => Label.path(label);
 
   const ctx = {
     cfg: () => config,
