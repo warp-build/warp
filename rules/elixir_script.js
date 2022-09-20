@@ -5,8 +5,6 @@ import ErlangToolchain, { BEAM_EXT } from "https://pkgs.warp.build/toolchains/er
 const impl = (ctx) => {
   const { label, name, srcs, deps, main } = ctx.cfg();
 
-  const { ELIXIR } = ElixirToolchain.provides();
-
   const transitiveDeps = ctx.transitiveDeps();
 
   const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://pkgs.warp.build/rules/elixir_library");
@@ -47,8 +45,6 @@ const impl = (ctx) => {
     dst: run,
     data: `#!/bin/bash -e
 
-export PATH="${ElixirToolchain.provides().ELIXIR_HOME}:${ErlangToolchain.provides().ERL_ROOT}:$PATH"
-
 ${mixLibraries
   .flatMap((dep) => {
     return dep.outs.flatMap((out) => {
@@ -65,7 +61,7 @@ ${mixLibraries
   })
   .join("\n")}
 
-${ELIXIR} \
+elixir \
   ${extraPaths} \
   $(dirname "\${BASH_SOURCE[0]}")/${File.filename(main)} $*
 
