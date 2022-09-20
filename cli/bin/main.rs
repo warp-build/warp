@@ -141,10 +141,11 @@ impl Warp {
 #[derive(StructOpt, Debug, Clone)]
 enum Goal {
     Build(BuildGoal),
-    Init(InitGoal),
     Info(InfoGoal),
+    Init(InitGoal),
     Run(RunGoal),
     Setup(SetupGoal),
+    Test(TestGoal),
 }
 
 impl Goal {
@@ -158,10 +159,11 @@ impl Goal {
     ) -> Result<(), anyhow::Error> {
         match self {
             Goal::Build(x) => x.run(workspace, event_channel).await,
-            Goal::Init(x) => x.run(workspace.current_user, event_channel).await,
             Goal::Info(x) => x.run(workspace, event_channel).await,
+            Goal::Init(x) => x.run(workspace.current_user, event_channel).await,
             Goal::Run(x) => x.run(build_started, cwd, workspace, event_channel).await,
             Goal::Setup(x) => x.run(workspace.current_user, event_channel).await,
+            Goal::Test(x) => x.run(build_started, cwd, workspace, event_channel).await,
         }
     }
 }

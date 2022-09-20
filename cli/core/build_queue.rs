@@ -145,6 +145,7 @@ impl BuildQueue {
     pub async fn queue_entire_workspace(
         &self,
         max_concurrency: usize,
+        target_filter: TargetFilter,
     ) -> Result<usize, QueueError> {
         debug!("Queueing all targets...");
         self.event_channel.send(Event::QueueingWorkspace);
@@ -173,7 +174,9 @@ impl BuildQueue {
                 }
                 Ok(buildfile) => {
                     for target in buildfile.targets {
-                        self.queue(target.label)?;
+                        if target_filter.passes(&target) {
+                            self.queue(target.label)?;
+                        }
                     }
                 }
             }

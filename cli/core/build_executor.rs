@@ -1,3 +1,4 @@
+use super::Event;
 use super::*;
 use std::sync::Arc;
 use thiserror::*;
@@ -7,6 +8,24 @@ use tracing::*;
 pub enum BuildExecutorError {
     #[error(transparent)]
     WorkerError(build_worker::BuildWorkerError),
+
+    #[error(transparent)]
+    QueueError(build_queue::QueueError),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum TargetFilter {
+    OnlyTests,
+    Everything,
+}
+
+impl TargetFilter {
+    pub fn passes(&self, target: &Target) -> bool {
+        match self {
+            TargetFilter::OnlyTests => target.rule_name.ends_with("_test"),
+            TargetFilter::Everything => true,
+        }
+    }
 }
 
 /// A BuildExecutor orchestrates a local build starting from the target and
@@ -40,6 +59,7 @@ impl BuildExecutor {
         &self,
         target: Label,
         event_channel: Arc<EventChannel>,
+        target_filter: TargetFilter,
     ) -> Result<Option<(TargetManifest, ExecutableTarget)>, BuildExecutorError> {
         let worker_limit = self.worker_limit;
         debug!("Starting build executor with {} workers...", &worker_limit);
@@ -102,7 +122,7 @@ impl BuildExecutor {
                     .map_err(BuildExecutorError::WorkerError)?;
 
                     worker
-                        .setup_and_run(worker_limit)
+                        .setup_and_run()
                         .instrument(sub_worker_span)
                         .await
                         .map_err(BuildExecutorError::WorkerError)
@@ -111,10 +131,26 @@ impl BuildExecutor {
             }
         }
 
+        if target.is_all() {
+            let queued_count = build_queue
+                .queue_entire_workspace(worker_limit, target_filter)
+                .await
+                .map_err(BuildExecutorError::QueueError)?;
+
+            if queued_count == 0 {
+                event_channel.send(Event::EmptyWorkspace(std::time::Instant::now()));
+                self.coordinator.signal_shutdown();
+            }
+        } else {
+            build_queue
+                .queue(target.clone())
+                .map_err(BuildExecutorError::QueueError)?;
+        }
+
         let _span = trace_span!("BuildExecutor::main_worker").entered();
         futures::future::join(futures::future::join_all(worker_tasks), async {
             worker
-                .setup_and_run(worker_limit)
+                .setup_and_run()
                 .await
                 .map_err(BuildExecutorError::WorkerError)
         })
