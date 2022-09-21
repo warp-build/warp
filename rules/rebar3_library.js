@@ -1,6 +1,6 @@
-import CMakeToolchain from "https://pkgs.warp.build/toolchains/cmake.js";
 import ErlangToolchain, { BEAM_EXT } from "https://pkgs.warp.build/toolchains/erlang.js";
 import Rebar3Toolchain from "https://pkgs.warp.build/toolchains/rebar3.js";
+import CMakeToolchain from "https://pkgs.warp.build/toolchains/cmake.js";
 
 const impl = (ctx) => {
   const { label, name, deps, srcs } = ctx.cfg();
