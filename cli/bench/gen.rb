@@ -41,6 +41,6 @@ workspace_name = "test_project"
 workspace workspace_name
 
 500.times do |i|
-  deps = (0..(i-1)/5).map do |j| "\"//lib_#{j}:lib\"" end
+  deps = (0..(i-1)/5).map do |j| "\"//bench/test_project/lib_#{j}:lib\"" end
   erlang_library "#{workspace_name}/lib_#{i}", "lib_#{i}", deps
 end
