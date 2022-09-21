@@ -8,11 +8,9 @@ const impl = ctx => {
     .filter(path => path.endsWith(BEAM_EXT))
     .map(File.parent)
     .unique()
-    .flatMap(dir => ["-pa", dir])
+    .flatMap(dir => ["-pa", ctx.path(dir)])
 
   ctx.action().runShell({ script: `
-
-ls -la ./tools/erlang/lift/semver/*
 
 ct_run \
   -dir ${cwd()} \
@@ -22,6 +20,7 @@ ct_run \
     ${extraLibPaths.join(" ")}
 
   `});
+
   ctx.action().declareOutputs([]);
 };
 
