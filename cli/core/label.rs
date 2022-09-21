@@ -186,7 +186,14 @@ impl Label {
         match self {
             Label::Wildcard => PathBuf::from(DOT),
             Label::Relative { path, .. } => path.to_path_buf(),
-            Label::Absolute { path, .. } => path.to_path_buf(),
+            Label::Absolute { path, .. } => {
+                let path = path.to_path_buf();
+                if path.to_str().unwrap() == "" {
+                    PathBuf::from(DOT)
+                } else {
+                    path
+                }
+            }
             Label::Remote { .. } => panic!(
                 "Tried to get a local path out of a remote label: {:?}",
                 self
