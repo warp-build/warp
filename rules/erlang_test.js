@@ -16,7 +16,7 @@ ct_run \
   -dir ${cwd()} \
   -suite ${name} \
   -erl_args \
-    -sname ${name} \
+    -sname ${name}-$(uuidgen) \
     ${extraLibPaths.join(" ")}
 
   `});
