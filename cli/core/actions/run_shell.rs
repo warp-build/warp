@@ -46,11 +46,15 @@ impl RunShellAction {
             default_env.insert(name.clone(), value);
         }
 
+        let script = self
+            .script
+            .replace("{{NODE_STORE_PATH}}", store_root.to_str().unwrap());
+
         cmd.current_dir(store_root)
             .env_clear()
             .envs(default_env)
             .stdout(Stdio::piped())
-            .args(&["-c", self.script.as_str()]);
+            .args(&["-c", &script]);
 
         trace!("Running script: {:#?} {}", &self.env, &self.script);
 
