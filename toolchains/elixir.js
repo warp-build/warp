@@ -18,17 +18,24 @@ const impl = ctx => {
 
   ctx.action().extract({ src: output, dst: "." })
 
+  let elixir_path = `elixir-${version}`
+  let MIX_ARCHIVES = `${elixir_path}/.mix/archives`;
+
   if (kind === "source") {
     ctx.action().runShell({
+      env: {
+        MIX_ARCHIVES,
+      },
       script: `
 
-cd elixir-${version}
-make
+mkdir -p ${MIX_ARCHIVES}
+
+make -C ${elixir_path}
 
 # NOTE(@ostera): to avoid separately handling this, we will force-install hex
 # at this stage.
-./bin/mix local.hex --force
-./bin/mix local.rebar --force
+${elixir_path}/bin/mix local.hex --force
+${elixir_path}/bin/mix local.rebar --force
 
 `
     })
@@ -45,12 +52,13 @@ make
   ctx.action().setPermissions({ file: iex, executable: true })
   ctx.action().setPermissions({ file: mix, executable: true })
 
-  ctx.action().declareOutputs([`elixir-${version}`]);
+  ctx.action().declareOutputs([elixir_path]);
 
   ctx.provides({ elixir, elixir, elixirc, iex, mix });
 
   ctx.setEnv({
-    ELIXIR_HOME: ctx.path(binRoot)
+    ELIXIR_HOME: ctx.path(binRoot),
+    MIX_ARCHIVES: ctx.path(MIX_ARCHIVES),
   });
 };
 
