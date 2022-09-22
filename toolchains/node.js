@@ -30,6 +30,8 @@ const impl = (ctx) => {
     node: `${node_path}/bin/node`,
     corepack: `${node_path}/bin/corepack`,
   });
+
+  ctx.action().writeFile({ dst: "version", data: "1" });
 };
 
 export default Warp.Toolchain({
