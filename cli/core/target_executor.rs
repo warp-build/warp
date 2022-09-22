@@ -146,9 +146,6 @@ impl TargetExecutor {
             .collect();
 
         let mut paths = paths.into_iter().collect::<Vec<String>>();
-        if let Some(last_path) = env.get("PATH") {
-            paths.push(last_path.to_string());
-        }
         paths.reverse();
 
         env.insert("PATH".to_string(), paths.join(":"));
