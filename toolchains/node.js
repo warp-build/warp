@@ -25,10 +25,10 @@ const impl = (ctx) => {
     ]);
 
   ctx.provides({
-    npm: ctx.path(`${node_path}/bin/npm`),
-    npx: ctx.path(`${node_path}/bin/npx`),
-    node: ctx.path(`${node_path}/bin/node`),
-    corepack: ctx.path(`${node_path}/bin/corepack`),
+    npm: `${node_path}/bin/npm`,
+    npx: `${node_path}/bin/npx`,
+    node: `${node_path}/bin/node`,
+    corepack: `${node_path}/bin/corepack`,
   });
 };
 
