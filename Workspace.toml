@@ -20,15 +20,20 @@ use_git_hooks = true
 deno = "https://pkgs.warp.build/toolchains/deno"
 elixir = "https://pkgs.warp.build/toolchains/elixir"
 erlang = "https://pkgs.warp.build/toolchains/erlang"
+firefly = "https://pkgs.warp.build/toolchains/firefly"
 flyctl = "https://pkgs.warp.build/toolchains/flyctl"
+node = "https://pkgs.warp.build/toolchains/node"
 rescript = "https://pkgs.warp.build/toolchains/rescript"
 terraform = "https://pkgs.warp.build/toolchains/terraform"
-firefly = "https://pkgs.warp.build/toolchains/firefly"
 
 [toolchains.firefly]
 sha1 = "4f1795afef0944216f4be88798bae1523ecb8c5e"
 version = "0.1.0"
 release_date = "nightly-2020-09-02"
+
+[toolchains.node]
+sha1 = "7c730d659dc508ad0338dee702974250752394f7"
+version = "18.9.0"
 
 [toolchains.deno]
 sha1 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e"
