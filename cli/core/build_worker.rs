@@ -228,9 +228,11 @@ impl BuildWorker {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
 
-    async fn target(label: Label) -> ExecutableTarget {
+    async fn make_target(label: Label) -> ExecutableTarget {
         let rule = Rule::new(
             "test_rule".to_string(),
             "TestRule".to_string(),
@@ -249,10 +251,20 @@ mod tests {
             &target,
             &[],
             &[],
+            &[],
             ExecutionResult::default(),
         )
         .await
         .unwrap()
+    }
+
+    async fn make_manifest(target: &ExecutableTarget) -> TargetManifest {
+        TargetManifest::from_validation_result(
+            &ValidationStatus::Cached,
+            &PathBuf::from("."),
+            BTreeMap::default(),
+            target,
+        )
     }
 
     fn worker_with_results(
@@ -272,8 +284,9 @@ mod tests {
         let lr = Arc::new(LabelResolver::new(&w));
         let s = Arc::new(Store::new(&w));
         let te = Arc::new(TargetExecutor::new(s.clone(), ec.clone()));
-        let sres = Arc::new(SharedRuleExecutorState::new());
-        BuildWorker::new(r, &w, l, bc, ec, bq, br, lr, te, s, sres).unwrap()
+        let rs = Arc::new(RuleStore::new(&w));
+        let sres = Arc::new(SharedRuleExecutorState::new(rs.clone()));
+        BuildWorker::new(r, l, bc, ec, bq, br, lr, te, s, sres).unwrap()
     }
 
     #[tokio::test]
@@ -290,7 +303,9 @@ mod tests {
         assert!(!help_worker.should_stop());
 
         br.add_expected_target(l.clone());
-        br.add_computed_target(l.clone(), target(l).await);
+        let target = make_target(l.clone()).await;
+        let manifest = make_manifest(&target).await;
+        br.add_computed_target(l.clone(), manifest, target);
 
         assert!(!help_worker.should_stop());
         assert!(main_worker.should_stop());

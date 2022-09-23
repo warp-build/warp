@@ -190,9 +190,11 @@ impl BuildQueue {
 
 #[cfg(test)]
 mod tests {
+    use std::{collections::BTreeMap, path::PathBuf};
+
     use super::*;
 
-    async fn dummy_target(label: Label) -> ExecutableTarget {
+    async fn make_target(label: Label) -> ExecutableTarget {
         let rule = Rule::new(
             "test_rule".to_string(),
             "TestRule".to_string(),
@@ -211,10 +213,20 @@ mod tests {
             &target,
             &[],
             &[],
+            &[],
             ExecutionResult::default(),
         )
         .await
         .unwrap()
+    }
+
+    async fn make_manifest(target: &ExecutableTarget) -> TargetManifest {
+        TargetManifest::from_validation_result(
+            &ValidationStatus::Cached,
+            &PathBuf::from("."),
+            BTreeMap::default(),
+            target,
+        )
     }
 
     #[test]
@@ -274,10 +286,9 @@ mod tests {
 
         assert!(q.is_empty());
         // we load up a target that is already built
-        br.add_computed_target(
-            final_target.clone(),
-            dummy_target(final_target.clone()).await,
-        );
+        let target = make_target(final_target.clone()).await;
+        let manifest = make_manifest(&target).await;
+        br.add_computed_target(final_target.clone(), manifest, target);
         q.queue(final_target).unwrap();
 
         // our queue should still be empty
@@ -303,10 +314,9 @@ mod tests {
         assert!(!q.is_empty());
 
         // then it gets built
-        br.add_computed_target(
-            final_target.clone(),
-            dummy_target(final_target.clone()).await,
-        );
+        let target = make_target(final_target.clone()).await;
+        let manifest = make_manifest(&target).await;
+        br.add_computed_target(final_target.clone(), manifest, target);
         // so every future queue entry for that target gets discarded
         assert!(q.next().is_none());
         // and we'll have an empty queue

@@ -142,7 +142,7 @@ impl ExecutableTarget {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, HashMap};
 
     use super::*;
 
@@ -169,22 +169,11 @@ mod tests {
             &target,
             &[],
             &[],
+            &[],
             ExecutionResult::default(),
         )
         .await
         .unwrap()
-    }
-
-    #[tokio::test]
-    async fn can_be_turned_into_a_dependency() {
-        let t = target(Label::new("test")).await;
-        let d = t.to_dependency();
-
-        assert_eq!(d.rule_name, t.rule.name);
-        assert_eq!(d.label, t.label);
-        assert_eq!(d.hash, t.hash);
-        assert_eq!(d.outs, t.outs.iter().cloned().collect::<Vec<PathBuf>>());
-        assert_eq!(d.srcs, t.srcs.iter().cloned().collect::<Vec<PathBuf>>());
     }
 
     #[tokio::test]
@@ -196,6 +185,7 @@ mod tests {
             &ExecutionEnvironment::new(),
             &rule,
             &Target::new(l.clone(), &rule.name, RuleConfig::default()),
+            &[],
             &[],
             &[],
             ExecutionResult::default(),
@@ -225,12 +215,14 @@ mod tests {
             &Target::new(l, &rule.name, RuleConfig::default()),
             &[],
             &[],
+            &[],
             ExecutionResult {
                 actions: actions.clone(),
                 outs: outs.clone(),
                 srcs: srcs.clone(),
                 run_script: run_script.clone(),
                 provides: FxHashMap::default(),
+                env: FxHashMap::default(),
             },
         )
         .await
@@ -255,6 +247,13 @@ mod tests {
             hash: "".to_string(),
             outs: vec![conflicting_output.clone()],
             srcs: vec![],
+            cached: false,
+            is_valid: true,
+            provides: BTreeMap::default(),
+            deps: BTreeMap::default(),
+            transitive_deps: BTreeMap::default(),
+            toolchains: BTreeMap::default(),
+            env: BTreeMap::default(),
         }];
 
         let result = ExecutableTarget::new(
@@ -262,6 +261,7 @@ mod tests {
             &rule,
             &Target::new(l, &rule.name, RuleConfig::default()),
             &deps,
+            &[],
             &[],
             ExecutionResult {
                 actions: vec![],
@@ -272,6 +272,7 @@ mod tests {
                 srcs: FxHashSet::default(),
                 run_script: None,
                 provides: FxHashMap::default(),
+                env: FxHashMap::default(),
             },
         )
         .await;

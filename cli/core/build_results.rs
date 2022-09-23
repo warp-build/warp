@@ -143,9 +143,11 @@ impl BuildResults {
 #[cfg(test)]
 mod tests {
 
+    use std::{collections::BTreeMap, path::PathBuf};
+
     use super::*;
 
-    async fn dummy_target(label: Label) -> TargetManifest {
+    async fn make_target(label: Label) -> ExecutableTarget {
         let rule = Rule::new(
             "test_rule".to_string(),
             "TestRule".to_string(),
@@ -164,10 +166,20 @@ mod tests {
             &target,
             &[],
             &[],
+            &[],
             ExecutionResult::default(),
         )
         .await
         .unwrap()
+    }
+
+    async fn make_manifest(target: &ExecutableTarget) -> TargetManifest {
+        TargetManifest::from_validation_result(
+            &ValidationStatus::Cached,
+            &PathBuf::from("."),
+            BTreeMap::default(),
+            target,
+        )
     }
 
     #[test]
@@ -185,12 +197,14 @@ mod tests {
         assert!(!br.has_all_expected_targets());
 
         let bad_label = Label::new("//test/another-label");
-        let target = dummy_target(bad_label.clone()).await;
-        br.add_computed_target(bad_label.clone(), target);
+        let target = make_target(bad_label.clone()).await;
+        let manifest = make_manifest(&target).await;
+        br.add_computed_target(bad_label.clone(), manifest, target);
         assert!(!br.has_all_expected_targets());
 
-        let target = dummy_target(label.clone()).await;
-        br.add_computed_target(label.clone(), target);
+        let target = make_target(label.clone()).await;
+        let manifest = make_manifest(&target).await;
+        br.add_computed_target(label.clone(), manifest, target);
         assert!(br.has_all_expected_targets());
 
         let new_label = Label::new("//test/1");
@@ -206,8 +220,9 @@ mod tests {
 
         assert!(!br.is_target_built(&label));
 
-        let target = dummy_target(label.clone()).await;
-        br.add_computed_target(label.clone(), target);
+        let target = make_target(label.clone()).await;
+        let manifest = make_manifest(&target).await;
+        br.add_computed_target(label.clone(), manifest, target);
         assert!(br.is_target_built(&label));
     }
 
@@ -219,8 +234,9 @@ mod tests {
 
         assert!(br.get_computed_target(&label).is_none());
 
-        let target = dummy_target(label.clone()).await;
-        br.add_computed_target(label.clone(), target);
+        let target = make_target(label.clone()).await;
+        let manifest = make_manifest(&target).await;
+        br.add_computed_target(label.clone(), manifest, target);
         assert!(br.get_computed_target(&label).is_some());
     }
 
