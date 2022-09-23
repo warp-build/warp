@@ -87,7 +87,7 @@ name = "test-workspace"
 
         fs::create_dir_all(path.parent().unwrap()).await.unwrap();
         let mut file = fs::File::create(path).await.unwrap();
-        file.write(buildfile.as_bytes()).await.unwrap();
+        let _ = file.write(buildfile.as_bytes()).await.unwrap();
     }
 
     async fn write_buildfile(path: PathBuf) {
