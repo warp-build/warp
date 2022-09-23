@@ -33,6 +33,7 @@ pub struct TargetManifest {
 
     pub deps: BTreeMap<String, String>,
     pub transitive_deps: BTreeMap<String, String>,
+    pub toolchains: BTreeMap<String, String>,
 
     pub env: BTreeMap<String, String>,
 }
@@ -84,6 +85,13 @@ impl TargetManifest {
 
             transitive_deps: target
                 .transitive_deps
+                .iter()
+                .cloned()
+                .map(|d| (d.label.to_string(), d.hash))
+                .collect(),
+
+            toolchains: target
+                .toolchains
                 .iter()
                 .cloned()
                 .map(|d| (d.label.to_string(), d.hash))
