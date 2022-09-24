@@ -36,14 +36,30 @@ impl SharedRuleExecutorState {
     }
 }
 
-#[derive(Default)]
 pub struct ExecutionResult {
     pub actions: Vec<Action>,
-    pub outs: FxHashSet<PathBuf>,
-    pub srcs: FxHashSet<PathBuf>,
-    pub run_script: Option<RunScript>,
-    pub provides: FxHashMap<String, PathBuf>,
+    pub target_plan_ended_at: chrono::DateTime<chrono::Utc>,
+    pub target_plan_started_at: chrono::DateTime<chrono::Utc>,
     pub env: FxHashMap<String, String>,
+    pub outs: FxHashSet<PathBuf>,
+    pub provides: FxHashMap<String, PathBuf>,
+    pub run_script: Option<RunScript>,
+    pub srcs: FxHashSet<PathBuf>,
+}
+
+impl Default for ExecutionResult {
+    fn default() -> Self {
+        Self {
+            actions: Default::default(),
+            target_plan_ended_at: chrono::Utc::now(),
+            target_plan_started_at: chrono::Utc::now(),
+            env: Default::default(),
+            outs: Default::default(),
+            provides: Default::default(),
+            run_script: Default::default(),
+            srcs: Default::default(),
+        }
+    }
 }
 
 pub struct ComputeTargetProgram;
@@ -509,6 +525,7 @@ impl RuleExecutor {
     )]
     pub async fn execute(
         &mut self,
+        target_plan_started_at: chrono::DateTime<chrono::Utc>,
         env: &ExecutionEnvironment,
         rule: &Rule,
         target: &Target,
@@ -578,7 +595,11 @@ impl RuleExecutor {
 
         self.clear();
 
+        let target_plan_ended_at = chrono::Utc::now();
+
         Ok(ExecutionResult {
+            target_plan_started_at,
+            target_plan_ended_at,
             actions,
             outs,
             srcs,

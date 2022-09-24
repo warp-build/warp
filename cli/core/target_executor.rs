@@ -62,6 +62,8 @@ impl TargetExecutor {
         &self,
         target: &ExecutableTarget,
     ) -> Result<(TargetManifest, ValidationStatus), TargetExecutorError> {
+        let build_started_at = chrono::Utc::now();
+
         if let StoreHitType::Hit(manifest) = self
             .store
             .is_stored(target)
@@ -89,17 +91,22 @@ impl TargetExecutor {
 
         let validation_result = self.validate_outputs(&store_path, target).await?;
 
-        let manifest =
-            TargetManifest::from_validation_result(&validation_result, &store_path, env, target);
+        let manifest = TargetManifest::from_validation_result(
+            build_started_at,
+            &validation_result,
+            &store_path,
+            env,
+            target,
+        );
 
         if manifest.is_valid {
             self.store
-                .save(target, &manifest)
+                .promote_outputs(&manifest)
                 .await
                 .map_err(TargetExecutorError::StoreError)?;
 
             self.store
-                .promote_outputs(&manifest)
+                .save(target, &manifest)
                 .await
                 .map_err(TargetExecutorError::StoreError)?;
         }

@@ -10,6 +10,9 @@ use thiserror::*;
 ///
 #[derive(Debug, Clone)]
 pub struct ExecutableTarget {
+    pub target_plan_started_at: chrono::DateTime<chrono::Utc>,
+    pub target_plan_ended_at: chrono::DateTime<chrono::Utc>,
+
     pub label: Label,
     pub hash: String,
     pub rule: Rule,
@@ -53,6 +56,8 @@ impl ExecutableTarget {
         exec_result: ExecutionResult,
     ) -> Result<Self, ExecutableTargetError> {
         let mut this = Self {
+            target_plan_ended_at: exec_result.target_plan_ended_at,
+            target_plan_started_at: exec_result.target_plan_started_at,
             actions: exec_result.actions,
             deps: deps.to_vec(),
             hash: "".to_string(),

@@ -58,6 +58,8 @@ impl TargetPlanner {
         env: &ExecutionEnvironment,
         target: &Target,
     ) -> Result<ExecutableTarget, TargetPlannerError> {
+        let target_plan_started_at = chrono::Utc::now();
+
         let (rule_file, rule_name) = self
             .rule_store
             .get(&target.rule_name)
@@ -78,7 +80,14 @@ impl TargetPlanner {
 
         let exec_result = self
             .rule_executor
-            .execute(env, &rule, target, &deps, &transitive_deps)
+            .execute(
+                target_plan_started_at,
+                env,
+                &rule,
+                target,
+                &deps,
+                &transitive_deps,
+            )
             .await
             .map_err(TargetPlannerError::RuleExecutorError)?;
 

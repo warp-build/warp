@@ -16,6 +16,8 @@ pub enum TargetError {
 ///
 #[derive(Debug, Clone)]
 pub struct Target {
+    pub build_started_at: chrono::DateTime<chrono::Utc>,
+
     /// The name of this target.
     pub label: Label,
 
@@ -39,6 +41,7 @@ impl Target {
             .collect();
 
         Target {
+            build_started_at: chrono::Utc::now(),
             deps,
             config,
             label,
