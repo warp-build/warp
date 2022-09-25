@@ -17,7 +17,7 @@ ignore_patterns = [
 use_git_hooks = true
 
 [remote_workspaces]
-erlang = { url = "https://tools.warp.build", ref = "" }
+erlang = { url = "https://tools.warp.build", sha1 = "" }
 custom = { github = "username/repo", ref = "" }
 
 [aliases]

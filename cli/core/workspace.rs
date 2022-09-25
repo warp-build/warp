@@ -1,25 +1,14 @@
 use super::*;
 use anyhow::*;
 use fxhash::*;
-use std::path::PathBuf;
+use std::{
+    convert::{TryFrom, TryInto},
+    path::PathBuf,
+};
 use thiserror::*;
 use url::Url;
 
 pub const DEFAULT_IGNORE: [&str; 2] = ["warp-outputs", ".git"];
-
-#[derive(Clone, Debug)]
-pub enum RemoteWorkspace {
-    GithubWorkspace {
-        username: String,
-        repository: String,
-        git_ref: String,
-    },
-
-    UrlWorkspace {
-        url: url::Url,
-        git_ref: String,
-    },
-}
 
 #[derive(Error, Debug)]
 pub enum WorkspaceError {
@@ -154,13 +143,11 @@ impl WorkspaceBuilder {
         }
         self.toolchain_configs(toolchains);
 
-        /*
         let mut remote_workspaces: FxHashMap<String, RemoteWorkspace> = FxHashMap::default();
         for (name, config) in file.remote_workspaces {
             remote_workspaces.insert(name.clone(), config.try_into()?);
         }
         self.remote_workspaces(remote_workspaces);
-        */
 
         Ok(self)
     }

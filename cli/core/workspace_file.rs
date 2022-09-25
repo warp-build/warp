@@ -11,6 +11,22 @@ use tracing::*;
 pub const WORKSPACE: &str = "Workspace.toml";
 
 #[derive(Error, Debug)]
+pub enum RemoteWorkspaceFileError {
+    #[error(
+        r#"The configuration for a remote workspace needs to have either:
+
+1. A `url` and a `sha1` field, or
+2. A `github` and a `ref` field
+
+Instead we found: {0:?}"#
+    )]
+    BadConfig(RemoteWorkspaceFile),
+
+    #[error(r#"Key 'github' in remote workspace configuration must have form 'username/repo', instead we found: {0}"#)]
+    MalformedGithubString(String),
+}
+
+#[derive(Error, Debug)]
 pub enum WorkspaceFileError {
     #[error("Could not parse Workspace file: {0:?}")]
     ParseError(toml::de::Error),
@@ -20,6 +36,9 @@ pub enum WorkspaceFileError {
 
     #[error(transparent)]
     IOError(std::io::Error),
+
+    #[error(transparent)]
+    RemoteWorkspaceError(RemoteWorkspaceFileError),
 
     #[error("Could not find workspace a file walking upwards your file system. Are you sure we're in the right place?")]
     WorkspaceFileNotFound,
@@ -71,15 +90,18 @@ impl WorkspaceConfig {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub struct RemoteWorkspace {
+pub struct RemoteWorkspaceFile {
     #[serde(default)]
     pub url: Option<url::Url>,
+
+    #[serde(default)]
+    pub sha1: Option<String>,
 
     #[serde(default)]
     pub github: Option<String>,
 
     #[serde(alias = "ref")]
-    pub git_ref: String,
+    pub git_ref: Option<String>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -105,7 +127,7 @@ pub struct WorkspaceFile {
 
     #[builder(default)]
     #[serde(default)]
-    pub remote_workspaces: BTreeMap<String, RemoteWorkspace>,
+    pub remote_workspaces: BTreeMap<String, RemoteWorkspaceFile>,
 }
 
 impl WorkspaceFile {
@@ -179,6 +201,12 @@ impl TryFrom<&Workspace> for WorkspaceFile {
                 w.aliases
                     .iter()
                     .map(|(k, v)| (k.clone(), v.to_string()))
+                    .collect(),
+            )
+            .remote_workspaces(
+                w.remote_workspaces
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone().into()))
                     .collect(),
             )
             .build()
