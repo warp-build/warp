@@ -7,6 +7,20 @@ use url::Url;
 
 pub const DEFAULT_IGNORE: [&str; 2] = ["warp-outputs", ".git"];
 
+#[derive(Clone, Debug)]
+pub enum RemoteWorkspace {
+    GithubWorkspace {
+        username: String,
+        repository: String,
+        git_ref: String,
+    },
+
+    UrlWorkspace {
+        url: url::Url,
+        git_ref: String,
+    },
+}
+
 #[derive(Error, Debug)]
 pub enum WorkspaceError {
     #[error("Attempted to build a Workspace while missing fields: {0:?}")]
@@ -63,6 +77,10 @@ pub struct Workspace {
     #[builder(default)]
     /// The archives defined in the workspace declaration file
     pub toolchain_configs: FxHashMap<String, RuleConfig>,
+
+    #[builder(default)]
+    /// The remote workspaces
+    pub remote_workspaces: FxHashMap<String, RemoteWorkspace>,
 
     #[builder(default)]
     /// A list of rules that have been downloaded
@@ -135,6 +153,14 @@ impl WorkspaceBuilder {
             toolchains.insert(name.clone(), config.try_into()?);
         }
         self.toolchain_configs(toolchains);
+
+        /*
+        let mut remote_workspaces: FxHashMap<String, RemoteWorkspace> = FxHashMap::default();
+        for (name, config) in file.remote_workspaces {
+            remote_workspaces.insert(name.clone(), config.try_into()?);
+        }
+        self.remote_workspaces(remote_workspaces);
+        */
 
         Ok(self)
     }

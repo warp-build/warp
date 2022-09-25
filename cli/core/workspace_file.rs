@@ -70,6 +70,18 @@ impl WorkspaceConfig {
     }
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct RemoteWorkspace {
+    #[serde(default)]
+    pub url: Option<url::Url>,
+
+    #[serde(default)]
+    pub github: Option<String>,
+
+    #[serde(alias = "ref")]
+    pub git_ref: String,
+}
+
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct FlexibleRuleConfig(pub BTreeMap<String, toml::Value>);
 
@@ -90,6 +102,10 @@ pub struct WorkspaceFile {
     #[builder(default)]
     #[serde(default)]
     pub toolchains: BTreeMap<String, FlexibleRuleConfig>,
+
+    #[builder(default)]
+    #[serde(default)]
+    pub remote_workspaces: BTreeMap<String, RemoteWorkspace>,
 }
 
 impl WorkspaceFile {

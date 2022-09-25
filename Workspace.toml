@@ -16,6 +16,10 @@ ignore_patterns = [
 ]
 use_git_hooks = true
 
+[remote_workspaces]
+erlang = { url = "https://tools.warp.build", ref = "" }
+custom = { github = "username/repo", ref = "" }
+
 [aliases]
 deno = "https://pkgs.warp.build/toolchains/deno"
 elixir = "https://pkgs.warp.build/toolchains/elixir"
