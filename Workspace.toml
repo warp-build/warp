@@ -29,6 +29,7 @@ flyctl = "https://pkgs.warp.build/toolchains/flyctl"
 node = "https://pkgs.warp.build/toolchains/node"
 rescript = "https://pkgs.warp.build/toolchains/rescript"
 terraform = "https://pkgs.warp.build/toolchains/terraform"
+python = "https://pkgs.warp.build/toolchains/python"
 
 [toolchains.firefly]
 sha1 = "4f1795afef0944216f4be88798bae1523ecb8c5e"
@@ -40,7 +41,8 @@ sha1 = "7c730d659dc508ad0338dee702974250752394f7"
 version = "18.9.0"
 
 [toolchains.deno]
-sha1 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e"
+sha1_aarch64 = "be39f6d13c2fc45f79ebfb770a67b31d298c4e2e"
+sha1_x86_64 = "ebb5f08faffef2ad3b22f6faefe9dc9d3940fa40"
 version = "1.22.2"
 
 [toolchains.elixir]
@@ -57,7 +59,8 @@ sha1 = "2bb7456ccb19cf83b07506744fb540ce4d66b257"
 version = "25.0"
 
 [toolchains.flyctl]
-sha1 = "bae0f096ec524ca5a85ec401b58444108e097218"
+sha1_aarch64 = "bae0f096ec524ca5a85ec401b58444108e097218"
+sha1_x86_64 = "9f7a64ae5426e0101d492726416589acd0c110ab"
 version = "0.0.393"
 
 [toolchains.rebar3]
@@ -71,3 +74,7 @@ version = "9.1.4"
 sha1_aarch64 = "14e5c4ec076c44e25593a3af95df656f649e2f33"
 sha1_x86_64 = "4f91ac340f9722c5e11827e9b8b5aaf48ecc4b0e"
 version = "1.2.4"
+
+[toolchains.python]
+sha1 = "eb46fce3d3b86320699a505a6dc69ce586b8f66a"
+version = "3.10.7"
