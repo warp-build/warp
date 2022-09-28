@@ -3,7 +3,13 @@ export const TS_EXT = ".ts";
 
 const impl = ctx => {
   const { host } = ctx.env();
-  const { version, sha1 } = ctx.cfg();
+  const { version, sha1_aarch64, sha1_x86_64 } = ctx.cfg();
+
+  let arch = host.arch
+  let sha1 = sha1_aarch64
+  if (arch === "x86_64") {
+    sha1 = sha1_x86_64
+  }
 
   const url = `https://github.com/denoland/deno/releases/download/v${version}/deno-${host.triple}.zip`
 
@@ -28,6 +34,7 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha1: string(),
+    sha1_aarch64: string(),
+    sha1_x86_64: string()
   }
 });
