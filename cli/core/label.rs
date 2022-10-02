@@ -25,6 +25,7 @@ pub enum Label {
         url: String,
         host: String,
         prefix_hash: String,
+        path: String,
         name: String,
         hash: usize,
     },
@@ -114,11 +115,14 @@ impl Label {
 
             let name = url.path_segments().unwrap().last().unwrap().to_string();
             let host = url.host_str().unwrap().to_string();
+            let path = url.path().to_string();
+
             return Label::Remote {
                 url: raw_url.to_string(),
                 host,
                 name,
                 prefix_hash,
+                path,
                 hash: fxhash::hash(&raw_url),
             };
         }
@@ -194,10 +198,7 @@ impl Label {
                     path
                 }
             }
-            Label::Remote { .. } => panic!(
-                "Tried to get a local path out of a remote label: {:?}",
-                self
-            ),
+            Label::Remote { path, .. } => PathBuf::from(format!(".{}", path)),
         }
     }
 
@@ -224,6 +225,16 @@ impl Label {
 
     pub fn is_remote(&self) -> bool {
         matches!(self, Label::Remote { .. })
+    }
+
+    pub fn reparent(&self, root: &Path) -> Label {
+        let new_path = root.join(self.path());
+        let label_str = if new_path.is_absolute() {
+            format!("/{}", new_path.to_str().unwrap())
+        } else {
+            format!("{}", new_path.to_str().unwrap())
+        };
+        Self::new(&label_str)
     }
 
     pub fn canonicalize(&self, root: &Path) -> Label {
