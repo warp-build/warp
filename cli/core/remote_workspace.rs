@@ -1,50 +1,80 @@
 use super::*;
 
 #[derive(Clone, Debug)]
-pub enum RemoteWorkspace {
+pub enum RemoteWorkspaceConfig {
     GithubWorkspace {
         username: String,
         repository: String,
         git_ref: String,
+        url: url::Url,
+        prefix: String,
     },
 
     UrlWorkspace {
         url: url::Url,
         sha1: String,
+        prefix: String,
     },
 }
 
-impl From<RemoteWorkspace> for RemoteWorkspaceFile {
-    fn from(t: RemoteWorkspace) -> Self {
+impl RemoteWorkspaceConfig {
+    pub fn hash(&self) -> &str {
+        match self {
+            RemoteWorkspaceConfig::UrlWorkspace { sha1, .. } => sha1,
+            RemoteWorkspaceConfig::GithubWorkspace { git_ref, .. } => git_ref,
+        }
+    }
+
+    pub fn prefix(&self) -> &str {
+        match self {
+            RemoteWorkspaceConfig::UrlWorkspace { prefix, .. } => prefix,
+            RemoteWorkspaceConfig::GithubWorkspace { prefix, .. } => prefix,
+        }
+    }
+
+    pub fn url(&self) -> &url::Url {
+        match self {
+            RemoteWorkspaceConfig::UrlWorkspace { url, .. } => url,
+            RemoteWorkspaceConfig::GithubWorkspace { url, .. } => url,
+        }
+    }
+}
+
+impl From<RemoteWorkspaceConfig> for RemoteWorkspaceFile {
+    fn from(t: RemoteWorkspaceConfig) -> Self {
         match t {
-            RemoteWorkspace::GithubWorkspace {
+            RemoteWorkspaceConfig::GithubWorkspace {
                 username,
                 repository,
                 git_ref,
+                ..
             } => Self {
                 github: Some(format!("{}/{}", username, repository)),
                 git_ref: Some(git_ref),
                 ..Self::default()
             },
-            RemoteWorkspace::UrlWorkspace { url, sha1 } => Self {
-                url: Some(url),
-                sha1: Some(sha1),
+            RemoteWorkspaceConfig::UrlWorkspace { url, sha1, prefix } => Self {
+                archive_url: Some(url),
+                archive_sha1: Some(sha1),
+                archive_prefix: Some(prefix),
                 ..Self::default()
             },
         }
     }
 }
 
-impl TryFrom<RemoteWorkspaceFile> for RemoteWorkspace {
+impl TryFrom<RemoteWorkspaceFile> for RemoteWorkspaceConfig {
     type Error = WorkspaceFileError;
 
     fn try_from(value: RemoteWorkspaceFile) -> Result<Self, Self::Error> {
-        if value.url.is_some() && value.sha1.is_some() {
+        if value.archive_url.is_some() && value.archive_sha1.is_some() {
             return Ok(Self::UrlWorkspace {
-                url: value.url.unwrap(),
-                sha1: value.sha1.unwrap(),
+                url: value.archive_url.unwrap(),
+                sha1: value.archive_sha1.unwrap(),
+                prefix: value.archive_prefix.unwrap_or_default(),
             });
         }
+
         if value.github.is_some() && value.git_ref.is_some() {
             let parts: Vec<String> = value
                 .github
@@ -62,14 +92,24 @@ impl TryFrom<RemoteWorkspaceFile> for RemoteWorkspace {
 
             let username = parts[0].clone();
             let repository = parts[1].clone();
+            let git_ref = value.git_ref.unwrap();
+            let url = url::Url::parse(&format!(
+                "https://github.com/{}/{}/archive/{}.zip",
+                username, repository, git_ref
+            ))
+            .unwrap();
+
             return Ok(Self::GithubWorkspace {
+                prefix: format!("{}-{}", &repository, &git_ref),
                 username,
                 repository,
-                git_ref: value.git_ref.unwrap(),
+                git_ref,
+                url,
             });
         }
-        return Err(WorkspaceFileError::RemoteWorkspaceError(
+
+        Err(WorkspaceFileError::RemoteWorkspaceError(
             RemoteWorkspaceFileError::BadConfig(value),
-        ));
+        ))
     }
 }

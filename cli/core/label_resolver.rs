@@ -1,4 +1,5 @@
 use super::*;
+use dashmap::DashMap;
 use fxhash::*;
 use std::path::PathBuf;
 use thiserror::*;
@@ -8,6 +9,8 @@ use tracing::*;
 pub struct LabelResolver {
     workspace_root: PathBuf,
     toolchain_configs: FxHashMap<String, RuleConfig>,
+    remote_workspace_resolver: RemoteWorkspaceResolver,
+    resolved_labels: DashMap<Label, Target>,
 }
 
 #[derive(Error, Debug)]
@@ -28,6 +31,9 @@ And try running the command again to see what the right `sha1` should be.
 
     #[error("Could not find target: {0:?}")]
     TargetNotFound(Label),
+
+    #[error(transparent)]
+    RemoteWorkspaceResolverError(RemoteWorkspaceResolverError),
 }
 
 impl LabelResolver {
@@ -35,35 +41,80 @@ impl LabelResolver {
         Self {
             toolchain_configs: workspace.toolchain_configs.clone(),
             workspace_root: workspace.paths.workspace_root.clone(),
+            remote_workspace_resolver: RemoteWorkspaceResolver::new(workspace),
+            resolved_labels: DashMap::default(),
         }
     }
 
     #[tracing::instrument(name = "LabelResolver::resolve", skip(self))]
     pub async fn resolve(&self, label: &Label) -> Result<Target, LabelResolverError> {
-        if label.is_remote() {
-            return self.resolve_remote(label);
+        if let Some(target) = self.resolved_labels.get(label) {
+            return Ok(target.value().clone());
         }
 
+        if label.is_remote() {
+            if let Some(target) = self.find_as_toolchain(label).await? {
+                self.save(label.clone(), target.clone());
+                return Ok(target);
+            }
+
+            if let Some(target) = self.find_in_remote_workspaces(label).await? {
+                self.save(label.clone(), target.clone());
+                return Ok(target);
+            }
+        } else if let Some(target) = self.find_in_local_workspace(label).await? {
+            self.save(label.clone(), target.clone());
+            return Ok(target);
+        }
+
+        Err(LabelResolverError::TargetNotFound(label.clone()))
+    }
+
+    #[tracing::instrument(name = "LabelResolver::save", skip(self))]
+    fn save(&self, label: Label, target: Target) {
+        self.resolved_labels.insert(label, target);
+    }
+
+    #[tracing::instrument(name = "LabelResolver::find_in_local_workspace", skip(self))]
+    async fn find_in_local_workspace(
+        &self,
+        label: &Label,
+    ) -> Result<Option<Target>, LabelResolverError> {
         let buildfile = Buildfile::from_label(&self.workspace_root, label)
             .await
             .map_err(LabelResolverError::BuildfileError)?;
 
-        buildfile
+        let target = buildfile
             .targets
             .iter()
             .find(|t| t.label.name() == *label.name())
-            .ok_or_else(|| LabelResolverError::TargetNotFound(label.clone()))
-            .cloned()
+            .cloned();
+
+        Ok(target)
+    }
+
+    #[tracing::instrument(name = "LabelResolver::find_as_toolchain", skip(self))]
+    async fn find_as_toolchain(&self, label: &Label) -> Result<Option<Target>, LabelResolverError> {
+        if let Some(config) = self.toolchain_configs.get(&label.name()) {
+            let target = Target::new(label.clone(), label.url().as_ref(), config.clone());
+            Ok(Some(target))
+        } else {
+            Ok(None)
+        }
     }
 
     #[tracing::instrument(name = "LabelResolver::resolve_remote", skip(self))]
-    pub fn resolve_remote(&self, label: &Label) -> Result<Target, LabelResolverError> {
-        if let Some(config) = self.toolchain_configs.get(&label.name()) {
-            let target = Target::new(label.clone(), label.url().as_ref(), config.clone());
-            Ok(target)
-        } else {
-            Err(LabelResolverError::RemoteLabelNeedsConfig(label.clone()))
-        }
+    async fn find_in_remote_workspaces(
+        &self,
+        label: &Label,
+    ) -> Result<Option<Target>, LabelResolverError> {
+        let target = self
+            .remote_workspace_resolver
+            .get(label)
+            .await
+            .map_err(LabelResolverError::RemoteWorkspaceResolverError)?;
+
+        Ok(target)
     }
 }
 

@@ -1,10 +1,8 @@
 use super::*;
 use anyhow::*;
 use fxhash::*;
-use std::{
-    convert::{TryFrom, TryInto},
-    path::PathBuf,
-};
+use std::convert::TryInto;
+use std::path::PathBuf;
 use thiserror::*;
 use url::Url;
 
@@ -69,7 +67,7 @@ pub struct Workspace {
 
     #[builder(default)]
     /// The remote workspaces
-    pub remote_workspaces: FxHashMap<String, RemoteWorkspace>,
+    pub remote_workspace_configs: FxHashMap<String, RemoteWorkspaceConfig>,
 
     #[builder(default)]
     /// A list of rules that have been downloaded
@@ -143,11 +141,11 @@ impl WorkspaceBuilder {
         }
         self.toolchain_configs(toolchains);
 
-        let mut remote_workspaces: FxHashMap<String, RemoteWorkspace> = FxHashMap::default();
+        let mut remote_workspaces: FxHashMap<String, RemoteWorkspaceConfig> = FxHashMap::default();
         for (name, config) in file.remote_workspaces {
             remote_workspaces.insert(name.clone(), config.try_into()?);
         }
-        self.remote_workspaces(remote_workspaces);
+        self.remote_workspace_configs(remote_workspaces);
 
         Ok(self)
     }

@@ -25,6 +25,9 @@ pub struct WorkspacePaths {
     pub workspace_name: String,
 
     /// The location of the global cache
+    pub global_workspaces_path: PathBuf,
+
+    /// The location of the global cache
     pub global_cache_root: PathBuf,
 
     /// The location of global rules
@@ -72,6 +75,8 @@ impl WorkspacePaths {
 
         let global_rules_root = warp_home.join("rules");
 
+        let global_workspaces_path = warp_home.join("workspaces");
+
         let global_cache_root = warp_home.join("store");
 
         let local_cache_root = global_cache_root.join(&workspace_name);
@@ -85,6 +90,7 @@ impl WorkspacePaths {
         for path in &[
             &global_rules_root,
             &global_cache_root,
+            &global_workspaces_path,
             &local_warp_root,
             &local_rules_root,
             &local_toolchains_root,
@@ -102,13 +108,14 @@ impl WorkspacePaths {
 
         let paths = WorkspacePaths {
             current_user,
-            workspace_name,
             global_cache_root,
             global_rules_root,
+            global_workspaces_path,
+            local_cache_root,
             local_outputs_root,
             local_rules_root,
-            local_cache_root,
             local_toolchains_root,
+            workspace_name,
             workspace_output_link,
             workspace_root: workspace_root.to_path_buf(),
         };

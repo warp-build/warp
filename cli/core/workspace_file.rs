@@ -91,11 +91,14 @@ impl WorkspaceConfig {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RemoteWorkspaceFile {
-    #[serde(default)]
-    pub url: Option<url::Url>,
+    #[serde(default, alias = "url")]
+    pub archive_url: Option<url::Url>,
 
-    #[serde(default)]
-    pub sha1: Option<String>,
+    #[serde(default, alias = "sha1")]
+    pub archive_sha1: Option<String>,
+
+    #[serde(default, alias = "prefix")]
+    pub archive_prefix: Option<String>,
 
     #[serde(default)]
     pub github: Option<String>,
@@ -204,7 +207,7 @@ impl TryFrom<&Workspace> for WorkspaceFile {
                     .collect(),
             )
             .remote_workspaces(
-                w.remote_workspaces
+                w.remote_workspace_configs
                     .iter()
                     .map(|(k, v)| (k.clone(), v.clone().into()))
                     .collect(),
