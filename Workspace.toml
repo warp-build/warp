@@ -1,0 +1,10 @@
+[workspace]
+name = "tools.warp.build"
+ignore_patterns = []
+use_git_hooks = true
+
+[aliases]
+
+[toolchains]
+
+[remote_workspaces]
