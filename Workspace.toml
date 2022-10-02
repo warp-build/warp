@@ -4,7 +4,12 @@ ignore_patterns = []
 use_git_hooks = true
 
 [aliases]
+erlang = "https://pkgs.warp.build/toolchains/erlang"
 
-[toolchains]
+[toolchains.openssl]
+sha1 = "73118336c58ece2e3b87f1f933f8ba446e2bdc26"
+version = "OpenSSL_1_1_1q"
 
-[remote_workspaces]
+[toolchains.erlang]
+sha1 = "2bb7456ccb19cf83b07506744fb540ce4d66b257"
+version = "25.0"

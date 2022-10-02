@@ -1,0 +1,3 @@
+[[erlang_script]]
+name = "lifter"
+main = "main.erl"
