@@ -36,6 +36,7 @@ or
 
 #[derive(Debug)]
 pub struct RemoteWorkspaceResolver {
+    root_workspace: Workspace,
     remote_workspace_configs: FxHashMap<String, RemoteWorkspaceConfig>,
     global_workspaces_path: PathBuf,
     archive_manager: ArchiveManager,
@@ -45,6 +46,7 @@ impl RemoteWorkspaceResolver {
     #[tracing::instrument(name = "RemoteWorkspaceResolver::new", skip(workspace))]
     pub fn new(workspace: &Workspace) -> Self {
         Self {
+            root_workspace: workspace.clone(),
             remote_workspace_configs: workspace.remote_workspace_configs.clone(),
             global_workspaces_path: workspace.paths.global_workspaces_path.clone(),
             archive_manager: ArchiveManager::new(workspace),
@@ -67,10 +69,43 @@ impl RemoteWorkspaceResolver {
             let label_path = format!(".{}", label.url().path());
             let workspace_path = self._store_path(config);
 
-            // here we know where we are exactly
+            let relative_label_path = workspace_path.join(label_path);
 
-            panic!("oh god no: {:?} ", workspace_path.join(label_path));
-            return Ok(None);
+            let (root, workspace_file) = WorkspaceFile::find_upwards(&relative_label_path)
+                .await
+                .unwrap();
+
+            let current_user = self.root_workspace.current_user.clone();
+            let paths = WorkspacePaths::new(&root, None, current_user.clone()).unwrap();
+
+            let _workspace = Workspace::builder()
+                .current_user(current_user)
+                .paths(paths)
+                .from_file(workspace_file)
+                .await
+                .unwrap()
+                .build()
+                .unwrap();
+            // here we know where we are exactly
+            //
+
+            // NOTE(@ostera): save workspace for later
+            // self.workspaces.insert(host, workspace);
+
+            let label = label.reparent(&root);
+
+            let buildfile = Buildfile::from_label(&root, &label)
+                .await
+                .map_err(LabelResolverError::BuildfileError)
+                .unwrap();
+
+            let target = buildfile
+                .targets
+                .iter()
+                .find(|t| t.label.name() == *label.name())
+                .cloned();
+
+            return Ok(target);
         }
 
         Err(RemoteWorkspaceResolverError::MissingConfig(
