@@ -3132,6 +3132,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "structopt",
+ "tempfile",
  "termcolor",
  "thiserror",
  "tokio 1.21.2",

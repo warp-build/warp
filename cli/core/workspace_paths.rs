@@ -27,6 +27,9 @@ pub struct WorkspacePaths {
     /// The location of the global cache
     pub global_workspaces_path: PathBuf,
 
+    /// The location of all the downloadable archives
+    pub global_archives_root: PathBuf,
+
     /// The location of the global cache
     pub global_cache_root: PathBuf,
 
@@ -73,28 +76,29 @@ impl WorkspacePaths {
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("/warp"));
 
-        let global_rules_root = warp_home.join("rules");
-
-        let global_workspaces_path = warp_home.join("workspaces");
-
+        let global_archives_root = warp_home.join("archives");
         let global_cache_root = warp_home.join("store");
+        let global_rules_root = warp_home.join("rules");
+        let global_workspaces_path = warp_home.join("workspaces");
 
         let local_cache_root = global_cache_root.join(&workspace_name);
         let local_outputs_root = warp_home.join("outputs").join(&workspace_name);
 
         let workspace_output_link = workspace_root.join("warp-outputs");
+
         let local_warp_root = workspace_root.join(".warp");
         let local_rules_root = local_warp_root.join("rules");
         let local_toolchains_root = local_warp_root.join("toolchains");
 
         for path in &[
-            &global_rules_root,
+            &global_archives_root,
             &global_cache_root,
+            &global_rules_root,
             &global_workspaces_path,
-            &local_warp_root,
+            &local_outputs_root,
             &local_rules_root,
             &local_toolchains_root,
-            &local_outputs_root,
+            &local_warp_root,
         ] {
             std::fs::create_dir_all(&path).map_err(|err| {
                 WorkspacePathsError::CouldNotCreateDir {
@@ -108,6 +112,7 @@ impl WorkspacePaths {
 
         let paths = WorkspacePaths {
             current_user,
+            global_archives_root,
             global_cache_root,
             global_rules_root,
             global_workspaces_path,

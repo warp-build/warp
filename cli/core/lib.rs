@@ -1,5 +1,6 @@
 pub mod actions;
 pub mod api;
+pub mod archive_manager;
 pub mod build_coordinator;
 pub mod build_executor;
 pub mod build_queue;
@@ -36,6 +37,7 @@ pub mod workspace_scanner;
 
 pub use actions::*;
 pub use api::*;
+pub use archive_manager::*;
 pub use build_coordinator::*;
 pub use build_executor::*;
 pub use build_queue::*;

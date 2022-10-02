@@ -148,6 +148,7 @@ impl BuildExecutor {
         }
 
         let _span = trace_span!("BuildExecutor::main_worker").entered();
+
         futures::future::join(futures::future::join_all(worker_tasks), async {
             worker
                 .setup_and_run()

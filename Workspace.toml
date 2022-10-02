@@ -17,7 +17,7 @@ ignore_patterns = [
 use_git_hooks = true
 
 [remote_workspaces]
-# "pkgs.warp.build" = { url = "https://github.com/warp-build/pkgs.warp.build/archive/refs/heads/main.zip", sha1 = "", prefix = "pkgs.warp.build-main" }
+"tools.warp.build" = { url = "https://github.com/warp-build/tools.warp.build/archive/refs/heads/main.zip", sha1 = "", prefix = "tools.warp.build-main" }
 # "custom.tools.warp.build" = { github = "username/repo", ref = "" }
 
 [aliases]
