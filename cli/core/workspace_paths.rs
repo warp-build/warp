@@ -25,6 +25,9 @@ pub struct WorkspacePaths {
     pub workspace_name: String,
 
     /// The location of the global cache
+    pub warp_home: PathBuf,
+
+    /// The location of the global cache
     pub global_workspaces_path: PathBuf,
 
     /// The location of all the downloadable archives
@@ -111,6 +114,7 @@ impl WorkspacePaths {
         WorkspacePaths::setup_links(&local_outputs_root, &workspace_output_link)?;
 
         let paths = WorkspacePaths {
+            warp_home,
             current_user,
             global_archives_root,
             global_cache_root,
