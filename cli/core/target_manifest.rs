@@ -34,6 +34,19 @@ pub struct BuildStamps {
     pub build_elapsed_time: chrono::Duration,
 }
 
+impl Default for BuildStamps {
+    fn default() -> Self {
+        Self {
+            plan_started_at: Default::default(),
+            plan_ended_at: Default::default(),
+            plan_elapsed_time: chrono::Duration::zero(),
+            build_started_at: Default::default(),
+            build_completed_at: Default::default(),
+            build_elapsed_time: chrono::Duration::zero(),
+        }
+    }
+}
+
 // NOTE(@ostera): DO NOT REORDER FIELDS. TOML doesn't support arbitrary values _after_
 // a table has been defined. This means that after the first composite value (BuildStamps,
 // BTreeMap, etc), you can't have simple values (String, bool, Vec).

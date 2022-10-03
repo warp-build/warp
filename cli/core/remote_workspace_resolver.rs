@@ -88,6 +88,7 @@ impl RemoteWorkspaceResolver {
                 .unwrap();
             // here we know where we are exactly
             //
+            dbg!(_workspace);
 
             // NOTE(@ostera): save workspace for later
             // self.workspaces.insert(host, workspace);

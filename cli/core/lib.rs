@@ -13,6 +13,7 @@ pub mod executable_target;
 pub mod execution_environment;
 pub mod file_scanner;
 pub mod label;
+pub mod label2;
 pub mod label_resolver;
 pub mod local_store;
 pub mod remote_store;

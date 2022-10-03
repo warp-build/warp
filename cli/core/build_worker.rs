@@ -260,6 +260,7 @@ mod tests {
 
     async fn make_manifest(target: &ExecutableTarget) -> TargetManifest {
         TargetManifest::from_validation_result(
+            chrono::Utc::now(),
             &ValidationStatus::Cached,
             &PathBuf::from("."),
             BTreeMap::default(),

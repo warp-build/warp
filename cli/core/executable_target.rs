@@ -222,6 +222,8 @@ mod tests {
             &[],
             &[],
             ExecutionResult {
+                target_plan_ended_at: chrono::Utc::now(),
+                target_plan_started_at: chrono::Utc::now(),
                 actions: actions.clone(),
                 outs: outs.clone(),
                 srcs: srcs.clone(),
@@ -259,6 +261,7 @@ mod tests {
             transitive_deps: BTreeMap::default(),
             toolchains: BTreeMap::default(),
             env: BTreeMap::default(),
+            buildstamps: BuildStamps::default(),
         }];
 
         let result = ExecutableTarget::new(
@@ -269,6 +272,8 @@ mod tests {
             &[],
             &[],
             ExecutionResult {
+                target_plan_ended_at: chrono::Utc::now(),
+                target_plan_started_at: chrono::Utc::now(),
                 actions: vec![],
                 outs: vec![conflicting_output.clone()]
                     .iter()
