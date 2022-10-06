@@ -1,3 +1,8 @@
+[[erlang_library]]
+name = "lib"
+srcs = ["main.erl"]
+
 [[erlang_script]]
 name = "lifter"
 main = "main.erl"
+deps = [":lib"]
