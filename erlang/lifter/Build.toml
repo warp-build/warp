@@ -3,6 +3,6 @@ name = "lib"
 deps = ["./semver:verl"]
 
 [[erlang_script]]
-name = "lift"
+name = "lifter"
 main = "warp_lifter.erl"
 deps = [":lib"]
