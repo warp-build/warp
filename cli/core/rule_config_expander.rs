@@ -95,11 +95,16 @@ impl ConfigExpander {
             let mut files = vec![];
             for entry in entries {
                 let entry = entry.map_err(ConfigExpanderError::GlobError)?;
+                // let entry = entry.strip_prefix(label.path()).unwrap().to_path_buf();
                 files.push(CfgValue::File(entry));
             }
             Ok(CfgValue::List(files))
         } else {
-            Ok(CfgValue::File(PathBuf::from(path)))
+            let path = PathBuf::from(path);
+            // .strip_prefix(label.path())
+            // .unwrap()
+            // .to_path_buf();
+            Ok(CfgValue::File(path))
         }
     }
 

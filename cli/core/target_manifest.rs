@@ -53,7 +53,9 @@ impl Default for BuildStamps {
 //
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TargetManifest {
+    #[serde(with = "label2::stringy_serde")]
     pub label: Label,
+
     pub rule_name: String,
     pub hash: String,
     pub cached: bool,

@@ -21,13 +21,13 @@ pub struct InnerState {
 }
 
 #[op]
-pub fn op_label_path(str: String) -> Result<String, AnyError> {
-    Ok(Label::new(&str).path().to_str().unwrap().to_string())
+pub fn op_label_path(label: Label) -> Result<String, AnyError> {
+    Ok(label.path().to_str().unwrap().to_string())
 }
 
 #[op]
-pub fn op_label_name(str: String) -> Result<String, AnyError> {
-    Ok(Label::new(&str).name())
+pub fn op_label_name(label: Label) -> Result<String, AnyError> {
+    Ok(label.name())
 }
 
 #[op]
@@ -61,7 +61,7 @@ pub fn op_file_with_extension(args: FileWithExtension) -> Result<String, AnyErro
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DeclareRunScript {
-    label: String,
+    label: Label,
     run_script: String,
     env: HashMap<String, String>,
 }
@@ -74,7 +74,7 @@ pub fn op_ctx_actions_declare_run_script(
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let run_script_map = &inner_state.run_script_map;
 
-    let label = Label::new(&args.label);
+    let label = args.label;
     let run_script = match run_script_map.get(&label) {
         None => PathBuf::from(args.run_script),
         Some(_entry) => panic!("RunScript already declared for: {:?}", &label),
@@ -92,7 +92,7 @@ pub fn op_ctx_actions_declare_run_script(
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DeclareOutputs {
-    label: String,
+    label: Label,
     outs: Vec<String>,
 }
 
@@ -104,7 +104,7 @@ pub fn op_ctx_actions_declare_outputs(
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let output_map = &inner_state.output_map;
 
-    let label = Label::new(&args.label);
+    let label = args.label;
     let outs: Vec<PathBuf> = args.outs.iter().map(PathBuf::from).collect();
     let new_outs = match output_map.get(&label) {
         None => outs,
@@ -123,7 +123,7 @@ pub fn op_ctx_actions_declare_outputs(
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DeclareEnv {
-    label: String,
+    label: Label,
     env: FxHashMap<String, String>,
 }
 
@@ -132,7 +132,7 @@ pub fn op_ctx_declare_env(state: &mut OpState, args: DeclareEnv) -> Result<(), A
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let env_map = &inner_state.env_map;
 
-    let label = Label::new(&args.label);
+    let label = args.label;
     env_map.insert(label, args.env);
 
     Ok(())
@@ -141,7 +141,7 @@ pub fn op_ctx_declare_env(state: &mut OpState, args: DeclareEnv) -> Result<(), A
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DeclareProvides {
-    label: String,
+    label: Label,
     provides: FxHashMap<String, String>,
 }
 
@@ -150,8 +150,7 @@ pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Re
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let provides_map = &inner_state.provides_map;
 
-    let label = Label::new(&args.label);
-    provides_map.insert(label, args.provides);
+    provides_map.insert(args.label, args.provides);
 
     Ok(())
 }
@@ -170,7 +169,7 @@ pub fn op_ctx_fetch_provides(
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let provides_map = &inner_state.provides_map;
 
-    let label = Label::new(&args.label);
+    let label = Label::builder().from_string(&args.label).unwrap();
     let provides = match provides_map.get(&label) {
         None => {
             panic!("Undefined provides for label: {:?}", &label)
@@ -184,7 +183,7 @@ pub fn op_ctx_fetch_provides(
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SetPermissions {
-    label: String,
+    label: Label,
     file: PathBuf,
     executable: bool,
 }
@@ -194,7 +193,7 @@ pub fn op_ctx_set_permissions(state: &mut OpState, args: SetPermissions) -> Resu
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let action_map = &inner_state.action_map;
 
-    let label = Label::new(&args.label);
+    let label = args.label;
     let action = Action::set_permissions(args.file, args.executable);
     let new_actions = if let Some(entry) = action_map.get(&label) {
         let last_actions = entry.value();
@@ -214,7 +213,7 @@ pub fn op_ctx_set_permissions(state: &mut OpState, args: SetPermissions) -> Resu
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Extract {
-    label: String,
+    label: Label,
     src: PathBuf,
     dst: PathBuf,
 }
@@ -224,7 +223,7 @@ pub fn op_ctx_extract(state: &mut OpState, args: Extract) -> Result<(), AnyError
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let action_map = &inner_state.action_map;
 
-    let label = Label::new(&args.label);
+    let label = args.label;
     let action = Action::extract(args.src, args.dst);
     let new_actions = if let Some(entry) = action_map.get(&label) {
         let last_actions = entry.value();
@@ -244,7 +243,7 @@ pub fn op_ctx_extract(state: &mut OpState, args: Extract) -> Result<(), AnyError
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Download {
-    label: String,
+    label: Label,
     url: String,
     sha1: String,
     output: PathBuf,
@@ -255,7 +254,7 @@ pub fn op_ctx_download(state: &mut OpState, args: Download) -> Result<(), AnyErr
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let action_map = &inner_state.action_map;
 
-    let label = Label::new(&args.label);
+    let label = args.label;
     let action = Action::download(args.url, args.sha1, args.output);
     let new_actions = if let Some(entry) = action_map.get(&label) {
         let last_actions = entry.value();
@@ -275,7 +274,7 @@ pub fn op_ctx_download(state: &mut OpState, args: Download) -> Result<(), AnyErr
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RunShell {
-    label: String,
+    label: Label,
     script: String,
     env: std::collections::HashMap<String, String>,
     needs_tty: bool,
@@ -286,7 +285,7 @@ pub fn op_ctx_actions_run_shell(state: &mut OpState, args: RunShell) -> Result<(
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let action_map = &inner_state.action_map;
 
-    let label = Label::new(&args.label);
+    let label = args.label;
     let action = Action::run_shell(args.script, args.env, args.needs_tty);
     let new_actions = if let Some(entry) = action_map.get(&label) {
         let last_actions = entry.value();
@@ -306,7 +305,7 @@ pub fn op_ctx_actions_run_shell(state: &mut OpState, args: RunShell) -> Result<(
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WriteFile {
-    label: String,
+    label: Label,
     data: String,
     dst: String,
 }
@@ -316,7 +315,7 @@ pub fn op_ctx_actions_write_file(state: &mut OpState, args: WriteFile) -> Result
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let action_map = &inner_state.action_map;
 
-    let label = Label::new(&args.label);
+    let label = args.label;
     let action = Action::write_file(args.data, PathBuf::from(args.dst));
     let new_actions = if let Some(entry) = action_map.get(&label) {
         let last_actions = entry.value();
@@ -336,7 +335,7 @@ pub fn op_ctx_actions_write_file(state: &mut OpState, args: WriteFile) -> Result
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CopyFile {
-    label: String,
+    label: Label,
     src: String,
     dst: String,
 }
@@ -346,7 +345,7 @@ pub fn op_ctx_actions_copy(state: &mut OpState, args: CopyFile) -> Result<(), An
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let action_map = &inner_state.action_map;
 
-    let label = Label::new(&args.label);
+    let label = args.label;
     let action = Action::copy(PathBuf::from(args.src), PathBuf::from(args.dst));
     let new_actions = if let Some(entry) = action_map.get(&label) {
         let last_actions = entry.value();
@@ -365,7 +364,7 @@ pub fn op_ctx_actions_copy(state: &mut OpState, args: CopyFile) -> Result<(), An
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Exec {
-    label: String,
+    label: Label,
     env: std::collections::HashMap<String, String>,
     cmd: String,
     args: Vec<String>,
@@ -378,7 +377,7 @@ pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyErr
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let action_map = &inner_state.action_map;
 
-    let label = Label::new(&args.label);
+    let label = args.label;
     let cwd: Option<PathBuf> = args.cwd.map(PathBuf::from);
     let action = Action::exec(
         PathBuf::from(args.cmd),

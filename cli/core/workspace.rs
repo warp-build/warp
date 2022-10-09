@@ -131,7 +131,7 @@ impl WorkspaceBuilder {
 
         let mut aliases: FxHashMap<String, Label> = FxHashMap::default();
         for (name, label) in file.aliases.clone() {
-            aliases.insert(format!("@{}", name), label.into());
+            aliases.insert(format!("@{}", name), Label::new(&label));
         }
         self.aliases(aliases);
 

@@ -176,7 +176,7 @@ Warp.Toolchain = spec => {
   spec.toolchains = spec.toolchains || []
   spec.toolchains = spec.toolchains.map( toolchain => toolchain.name );
 
-  spec.provides = () => ffi("op_ctx_fetch_provides", {label: name}),
+  spec.provides = () => ffi("op_ctx_fetch_provides", {label: name});
   spec.runnable = false;
 
   spec.pinned = true;

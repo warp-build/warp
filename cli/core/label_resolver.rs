@@ -7,7 +7,6 @@ use tracing::*;
 
 #[derive(Debug)]
 pub struct LabelResolver {
-    workspace_root: PathBuf,
     toolchain_configs: FxHashMap<String, RuleConfig>,
     remote_workspace_resolver: RemoteWorkspaceResolver,
     resolved_labels: DashMap<Label, Target>,
@@ -40,7 +39,6 @@ impl LabelResolver {
     pub fn new(workspace: &Workspace) -> Self {
         Self {
             toolchain_configs: workspace.toolchain_configs.clone(),
-            workspace_root: workspace.paths.workspace_root.clone(),
             remote_workspace_resolver: RemoteWorkspaceResolver::new(workspace),
             resolved_labels: DashMap::default(),
         }
@@ -80,7 +78,7 @@ impl LabelResolver {
         &self,
         label: &Label,
     ) -> Result<Option<Target>, LabelResolverError> {
-        let buildfile = Buildfile::from_label(&self.workspace_root, label)
+        let buildfile = Buildfile::from_label(label)
             .await
             .map_err(LabelResolverError::BuildfileError)?;
 
@@ -180,8 +178,6 @@ name = "pkg"
             .unwrap()
             .build()
             .unwrap();
-
-        dbg!(&workspace);
 
         LabelResolver::new(&workspace)
     }

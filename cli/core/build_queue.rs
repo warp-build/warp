@@ -157,25 +157,46 @@ impl BuildQueue {
             .await
             .map_err(QueueError::WorkspaceScannerError)?;
 
-        while let Some(path) = buildfiles.next().await {
-            let path = path.map_err(QueueError::FileScannerError)?;
+        while let Some(buildfile_path) = buildfiles.next().await {
+            let package_path = buildfile_path
+                .map_err(QueueError::FileScannerError)?
+                .parent()
+                .unwrap()
+                .strip_prefix(&self.workspace.paths.workspace_root)
+                .unwrap()
+                .to_path_buf();
+
+            let label = Label::builder()
+                .with_workspace(&self.workspace)
+                .from_path(package_path.clone())
+                .unwrap();
+
+            let buildfile = Buildfile::from_label(&label).await;
+
+            /*
             let relative_path = path
                 .parent()
                 .unwrap()
                 .strip_prefix(&self.workspace.paths.workspace_root)
-                .unwrap();
+                .unwrap()
+                .to_path_buf();
 
-            let buildfile = Buildfile::from_file(&path, relative_path).await;
+            let buildfile =
+                Buildfile::from_file(&self.workspace.paths.workspace_root, &path, &relative_path)
+                    .await;
+            */
 
             match buildfile {
                 Err(err) => {
-                    self.event_channel.send(Event::BadBuildfile(path, err));
+                    self.event_channel
+                        .send(Event::BadBuildfile(package_path, err));
                     continue;
                 }
                 Ok(buildfile) => {
                     for target in buildfile.targets {
                         if target_filter.passes(&target) {
-                            self.queue(target.label)?;
+                            let label = target.label.change_workspace(&self.workspace);
+                            self.queue(label)?;
                         }
                     }
                 }

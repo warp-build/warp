@@ -23,7 +23,6 @@
 // pub use toolchain::*;
 // pub use workspace::*;
 
-pub mod alias;
 pub mod build;
 pub mod clean;
 pub mod info;
@@ -32,7 +31,6 @@ pub mod run;
 pub mod setup;
 pub mod test;
 
-pub use alias::*;
 pub use build::*;
 pub use clean::*;
 pub use info::*;

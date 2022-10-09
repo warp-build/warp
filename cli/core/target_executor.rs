@@ -182,6 +182,20 @@ impl TargetExecutor {
         // Copy sources
         for src in &target.srcs {
             let dst = store_path.join(&src);
+            if src.eq(&dst) {
+                panic!(
+                    r#"We almost copied a file onto itself!
+
+SRC = {:?}
+DST = {:?}
+STORE_PATH = {:?}
+
+TARGET = {:#?}
+
+"#,
+                    src, dst, store_path, target
+                );
+            }
             self.copy_file(&target.label, src, &dst).await?;
         }
 
@@ -324,7 +338,7 @@ impl TargetExecutor {
                 .map(|_| ())?;
         };
 
-        fs::copy(&src, &dst)
+        fs::copy(&label.workspace().join(src), &dst)
             .await
             .map_err(|_| TargetExecutorError::CouldNotCopy {
                 label: label.clone(),

@@ -150,13 +150,15 @@ impl ComputeTargetProgram {
                 .collect(),
         );
 
+        let label: serde_json::Value = serde_json::to_value(target.label.clone()).unwrap();
+
         let env: serde_json::Value = env.clone().into();
 
-        r#"
+        let program_template = r#"
 
 (() => {
     Warp.Targets.compute({
-      label: "{LABEL_NAME}",
+      label: {LABEL},
       rule: "{RULE_NAME}",
       cfg: {CONFIG},
       deps: {DEPS},
@@ -165,13 +167,15 @@ impl ComputeTargetProgram {
     });
 })();
 
-        "#
-        .replace("{LABEL_NAME}", &target.label.to_string())
-        .replace("{RULE_NAME}", &rule.name)
-        .replace("{CONFIG}", &config.to_string())
-        .replace("{DEPS}", &deps.to_string())
-        .replace("{TRANSITIVE_DEPS}", &transitive_deps.to_string())
-        .replace("{ENVIRONMENT}", &env.to_string())
+        "#;
+
+        program_template
+            .replace("{LABEL}", &label.to_string())
+            .replace("{RULE_NAME}", &rule.name)
+            .replace("{CONFIG}", &config.to_string())
+            .replace("{DEPS}", &deps.to_string())
+            .replace("{TRANSITIVE_DEPS}", &transitive_deps.to_string())
+            .replace("{ENVIRONMENT}", &env.to_string())
     }
 }
 
@@ -180,7 +184,7 @@ pub struct NetModuleLoader {
 }
 
 /// NOTE(@ostera): this feature copied from `deno-simple-module-loader`:
-///     https://github.com/andreubotella/deno-simple-module-loader)
+///     https://github.com/andreubotella/deno-simple-module-loader
 impl ModuleLoader for NetModuleLoader {
     #[tracing::instrument(name = "NetModuleLoader::resolve", skip(self))]
     fn resolve(
@@ -248,8 +252,11 @@ pub enum RuleExecutorError {
     #[error(transparent)]
     ExecutableTargetError(ExecutableTargetError),
 
-    #[error("Could not find declared outputs for target {label:?}")]
-    MissingDeclaredOutputs { label: Label },
+    #[error("Could not find declared outputs for target {label:?} in outputs: {outputs:#?}")]
+    MissingDeclaredOutputs {
+        label: Label,
+        outputs: DashMap<Label, Vec<PathBuf>>,
+    },
 
     #[error(transparent)]
     DenoExecutionError(anyhow::Error),
@@ -561,6 +568,7 @@ impl RuleExecutor {
             .get(&target.label)
             .ok_or(RuleExecutorError::MissingDeclaredOutputs {
                 label: target.label.clone(),
+                outputs: (*self.output_map).clone(),
             })?
             .iter()
             .cloned()

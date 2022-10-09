@@ -69,7 +69,7 @@ impl RemoteWorkspaceResolver {
             let label_path = format!(".{}", label.url().path());
             let workspace_path = self._store_path(config);
 
-            let relative_label_path = workspace_path.join(label_path);
+            let relative_label_path = workspace_path.join(&label_path);
 
             let (root, workspace_file) = WorkspaceFile::find_upwards(&relative_label_path)
                 .await
@@ -78,7 +78,7 @@ impl RemoteWorkspaceResolver {
             let current_user = self.root_workspace.current_user.clone();
             let paths = WorkspacePaths::new(&root, None, current_user.clone()).unwrap();
 
-            let _workspace = Workspace::builder()
+            let workspace = Workspace::builder()
                 .current_user(current_user)
                 .paths(paths)
                 .from_file(workspace_file)
@@ -86,16 +86,21 @@ impl RemoteWorkspaceResolver {
                 .unwrap()
                 .build()
                 .unwrap();
-            // here we know where we are exactly
-            //
-            dbg!(_workspace);
 
             // NOTE(@ostera): save workspace for later
             // self.workspaces.insert(host, workspace);
 
-            let label = label.reparent(&root);
+            let label = if label.is_relative() {
+                Label::builder()
+                    .name(label.name())
+                    .with_workspace(&workspace)
+                    .from_path(label.path())
+                    .unwrap()
+            } else {
+                label.change_workspace(&workspace)
+            };
 
-            let buildfile = Buildfile::from_label(&root, &label)
+            let buildfile = Buildfile::from_label(&label)
                 .await
                 .map_err(LabelResolverError::BuildfileError)
                 .unwrap();
@@ -104,7 +109,7 @@ impl RemoteWorkspaceResolver {
                 .targets
                 .iter()
                 .find(|t| t.label.name() == *label.name())
-                .cloned();
+                .map(|t| t.change_workspace(&workspace));
 
             return Ok(target);
         }

@@ -43,32 +43,37 @@ pub enum BuildfileError {
 
 impl Buildfile {
     #[tracing::instrument(name = "Buildfile::from_label")]
-    pub async fn from_label(
-        workspace_root: &PathBuf,
-        label: &Label,
-    ) -> Result<Buildfile, BuildfileError> {
-        let full_path = workspace_root.join(label.path()).join(BUILDFILE);
-        Self::from_file(&full_path, &label.path()).await
+    pub async fn from_label(label: &Label) -> Result<Buildfile, BuildfileError> {
+        let full_path = label.workspace().join(label.path()).join(BUILDFILE);
+        Self::from_file(&label.workspace(), &full_path, &label.path()).await
     }
 
     #[tracing::instrument(name = "Buildfile::from_file")]
-    pub async fn from_file(file: &PathBuf, relative: &Path) -> Result<Buildfile, BuildfileError> {
+    pub async fn from_file(
+        workspace_root: &PathBuf,
+        buildfile: &PathBuf,
+        path_relative_to_workspace: &PathBuf,
+    ) -> Result<Buildfile, BuildfileError> {
         let string =
-            fs::read_to_string(&file)
+            fs::read_to_string(&buildfile)
                 .await
                 .map_err(|err| BuildfileError::FileReadError {
                     err,
-                    file: file.clone(),
+                    file: buildfile.clone(),
                 })?;
 
         let contents = string
             .parse::<toml::Value>()
             .map_err(BuildfileError::TomlError)?;
 
-        Self::from_toml(relative, &contents).await
+        Self::from_toml(workspace_root, path_relative_to_workspace, &contents).await
     }
 
-    pub async fn from_toml(path: &Path, toml: &toml::Value) -> Result<Buildfile, BuildfileError> {
+    pub async fn from_toml(
+        workspace_root: &Path,
+        path_relative_to_workspace: &Path,
+        toml: &toml::Value,
+    ) -> Result<Buildfile, BuildfileError> {
         let contents = toml
             .as_table()
             .ok_or_else(|| BuildfileError::BuildfileMustBeTable(toml.clone()))?;
@@ -91,7 +96,11 @@ impl Buildfile {
                             err,
                         })?;
 
-                let label = Label::from_path_and_name(path, &name);
+                let label = Label::builder()
+                    .workspace(workspace_root.to_str().unwrap().to_string())
+                    .name(name)
+                    .from_path(path_relative_to_workspace.to_path_buf())
+                    .unwrap();
 
                 let target = Target::new(label, rule_name, config);
 
@@ -100,7 +109,9 @@ impl Buildfile {
         }
 
         Ok(Self {
-            file: path.to_path_buf(),
+            file: workspace_root
+                .join(path_relative_to_workspace)
+                .to_path_buf(),
             targets,
         })
     }

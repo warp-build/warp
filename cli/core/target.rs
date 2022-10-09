@@ -32,21 +32,54 @@ pub struct Target {
 }
 
 impl Target {
-    pub fn new(label: Label, rule_name: &str, config: RuleConfig) -> Target {
-        let deps: Vec<Label> = config
+    pub fn new(label: Label, rule_name: &str, config: RuleConfig) -> Self {
+        let deps = config
             .get_label_list("deps")
             .unwrap_or_default()
-            .iter()
-            .map(|dep| dep.canonicalize(&label.path()))
+            .into_iter()
+            .map(|dep| {
+                if dep.is_relative() {
+                    Label::builder()
+                        .name(dep.name())
+                        .workspace(label.workspace().to_str().unwrap().to_string())
+                        .from_path(label.path().join(dep.path()))
+                        .unwrap()
+                } else {
+                    dep
+                }
+            })
             .collect();
 
-        Target {
+        Self {
             build_started_at: chrono::Utc::now(),
             deps,
             config,
             label,
             rule_name: rule_name.to_string(),
         }
+    }
+
+    pub fn change_workspace(&self, workspace: &Workspace) -> Self {
+        let mut new_self = self.clone();
+        new_self.label = self.label.change_workspace(workspace);
+        new_self.deps = vec![];
+
+        for dep in &self.deps {
+            let dep = if dep.is_relative() {
+                Label::builder()
+                    .name(dep.name())
+                    .with_workspace(workspace)
+                    .from_path(new_self.label.path().join(dep.path()))
+                    .unwrap()
+            } else {
+                dep.change_workspace(workspace)
+            };
+            new_self.deps.push(dep);
+        }
+
+        dbg!(&new_self);
+
+        new_self
     }
 }
 

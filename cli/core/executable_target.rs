@@ -105,6 +105,7 @@ impl ExecutableTarget {
         }
 
         for src in srcs {
+            let src = self.label.workspace().join(src);
             let f = File::open(&src).unwrap_or_else(|_| panic!("Unable to open: {:?}", &src));
             let mut buffer = [0; 2048];
             let mut reader = BufReader::new(f);
@@ -272,8 +273,6 @@ mod tests {
             &[],
             &[],
             ExecutionResult {
-                target_plan_ended_at: chrono::Utc::now(),
-                target_plan_started_at: chrono::Utc::now(),
                 actions: vec![],
                 outs: vec![conflicting_output.clone()]
                     .iter()

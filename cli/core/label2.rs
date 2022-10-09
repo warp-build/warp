@@ -1,7 +1,8 @@
 use super::*;
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::de::Visitor;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use thiserror::*;
 use url::Url;
 
@@ -9,7 +10,7 @@ static COLON: char = ':';
 static DOT: char = '.';
 static WILDCARD: &str = "//...";
 
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum InnerLabel {
     Wildcard,
     Local {
@@ -29,9 +30,9 @@ impl Default for InnerLabel {
     }
 }
 
-#[derive(Default, Builder, Clone, Debug, PartialOrd, Ord)]
-#[builder(build_fn(error = "Label2BuilderError"))]
-pub struct Label2 {
+#[derive(Default, Builder, Clone, Debug, PartialOrd, Ord, Serialize, Deserialize)]
+#[builder(build_fn(error = "LabelBuilderError"))]
+pub struct Label {
     #[builder(default)]
     workspace: String,
 
@@ -40,13 +41,10 @@ pub struct Label2 {
 
     #[builder(default)]
     name: String,
-
-    #[builder(default)]
-    hash: usize,
 }
 
 #[derive(Error, Debug)]
-pub enum Label2BuilderError {
+pub enum LabelBuilderError {
     #[error(transparent)]
     WorkerError(build_worker::BuildWorkerError),
 
@@ -54,7 +52,7 @@ pub enum Label2BuilderError {
     QueueError(build_queue::QueueError),
 }
 
-impl Label2Builder {
+impl LabelBuilder {
     pub fn with_workspace(&mut self, workspace: &Workspace) -> &mut Self {
         self.workspace(workspace.paths.workspace_root.to_str().unwrap().to_string());
         self
@@ -65,7 +63,7 @@ impl Label2Builder {
     /// When doing so, the path of the URL will become the Path that we will use to find things
     /// within the remote workspace.
     ///
-    pub fn from_url(&mut self, url: &Url) -> Result<Label2, Label2BuilderError> {
+    pub fn from_url(&mut self, url: &Url) -> Result<Label, LabelBuilderError> {
         let raw_url = url.to_string();
 
         // TODO(@ostera): actually validate that we have a path with at least one segment
@@ -81,7 +79,6 @@ impl Label2Builder {
         let path = url.path().to_string();
 
         self.name(name);
-        self.hash(fxhash::hash(&raw_url));
         self.inner_label(InnerLabel::Remote {
             url: raw_url,
             host,
@@ -97,14 +94,10 @@ impl Label2Builder {
     /// When doing this, the final stem of a path will become the name of the target
     /// if no name is set yet.
     ///
-    pub fn from_path(&mut self, path: PathBuf) -> Result<Label2, Label2BuilderError> {
-        let path = PathBuf::from(self.workspace.as_ref().unwrap()).join(path);
-
+    pub fn from_path(&mut self, path: PathBuf) -> Result<Label, LabelBuilderError> {
         if self.name.is_none() {
             let name = path.file_name().unwrap().to_str().unwrap().to_string();
-            let hash = fxhash::hash(&format!("{}:{}", &path.to_str().unwrap(), &name));
             self.name(name);
-            self.hash(hash);
         }
 
         self.inner_label(InnerLabel::Local { path });
@@ -118,14 +111,13 @@ impl Label2Builder {
     /// 2. handle wildcard labels
     /// 3. deal with override target names (`a:b` notation)
     ///
-    pub fn from_string(&mut self, str: &str) -> Result<Label2, Label2BuilderError> {
+    pub fn from_string(&mut self, str: &str) -> Result<Label, LabelBuilderError> {
         if let Ok(url) = Url::parse(str) {
             return self.from_url(&url);
         }
 
         if str.eq(WILDCARD) {
             self.name("".to_string());
-            self.hash(0);
             self.inner_label(InnerLabel::Wildcard);
             return self.build();
         }
@@ -150,22 +142,36 @@ impl Label2Builder {
         };
         self.name(name);
 
-        let path = path.replace("./", "");
+        let path = if path.starts_with("//") {
+            path.replace("//", "./")
+        } else {
+            path.replace("./", "")
+        };
         self.from_path(PathBuf::from(path))
     }
 }
 
-impl Label2 {
-    pub fn builder() -> Label2Builder {
-        Label2Builder::default()
+impl Label {
+    pub fn builder() -> LabelBuilder {
+        LabelBuilder::default()
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn new(str: &str) -> Label {
+        Self::builder().from_string(str).unwrap()
+    }
+
+    pub fn name(&self) -> String {
+        self.name.to_string()
     }
 
     pub fn hash(&self) -> usize {
-        self.hash
+        match &self.inner_label {
+            InnerLabel::Wildcard => 0,
+            InnerLabel::Local { path } => {
+                fxhash::hash(&format!("{}:{}", &path.to_str().unwrap(), &self.name))
+            }
+            InnerLabel::Remote { url, .. } => fxhash::hash(&url),
+        }
     }
 
     pub fn url(&self) -> Url {
@@ -175,10 +181,20 @@ impl Label2 {
         }
     }
 
+    pub fn workspace(&self) -> PathBuf {
+        PathBuf::from(&self.workspace)
+    }
+
     pub fn path(&self) -> PathBuf {
         match &self.inner_label {
             InnerLabel::Wildcard => PathBuf::from(DOT.to_string()),
-            InnerLabel::Local { path, .. } => path.to_path_buf(),
+            InnerLabel::Local { path, .. } => {
+                if path.to_str().unwrap().is_empty() {
+                    PathBuf::from(DOT.to_string())
+                } else {
+                    path.to_path_buf()
+                }
+            }
             InnerLabel::Remote { path, .. } => PathBuf::from(format!(".{}", path)),
         }
     }
@@ -195,7 +211,15 @@ impl Label2 {
         matches!(self.inner_label, InnerLabel::Remote { .. })
     }
 
-    pub fn reparent(&self, workspace: &Workspace) -> Self {
+    pub fn is_relative(&self) -> bool {
+        match &self.inner_label {
+            InnerLabel::Local { path } if path.starts_with("//") => false,
+            InnerLabel::Local { path } if path.is_relative() || path.starts_with("./") => true,
+            _ => false,
+        }
+    }
+
+    pub fn change_workspace(&self, workspace: &Workspace) -> Self {
         let mut new_label = self.clone();
         new_label.workspace = workspace.paths.workspace_root.to_str().unwrap().to_string();
         new_label
@@ -211,21 +235,21 @@ impl Label2 {
     }
 }
 
-impl Eq for Label2 {}
+impl Eq for Label {}
 
-impl PartialEq for Label2 {
+impl PartialEq for Label {
     fn eq(&self, other: &Self) -> bool {
         self.hash() == other.hash()
     }
 }
 
-impl std::hash::Hash for Label2 {
+impl std::hash::Hash for Label {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.hash().hash(state);
     }
 }
 
-impl ToString for Label2 {
+impl ToString for Label {
     fn to_string(&self) -> String {
         match &self.inner_label {
             InnerLabel::Wildcard => WILDCARD.to_string(),
@@ -243,44 +267,45 @@ impl ToString for Label2 {
     }
 }
 
-struct Label2Visitor;
-impl<'de> Visitor<'de> for Label2Visitor {
-    type Value = Label2;
+pub mod stringy_serde {
+    use super::*;
 
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a string following the label syntax: :a, ./a, //a, https://hello/a")
+    struct LabelVisitor;
+    impl<'de> Visitor<'de> for LabelVisitor {
+        type Value = Label;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter
+                .write_str("a string following the label syntax: :a, ./a, //a, https://hello/a")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(Self::Value::builder().from_string(v).unwrap())
+        }
+
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(Self::Value::builder().from_string(&v).unwrap())
+        }
     }
 
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Self::Value::builder().from_string(v).unwrap())
-    }
-
-    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Self::Value::builder().from_string(&v).unwrap())
-    }
-}
-
-impl<'de> Deserialize<'de> for Label2 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Label, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_string(Label2Visitor)
+        deserializer.deserialize_string(LabelVisitor)
     }
-}
 
-impl Serialize for Label2 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    pub fn serialize<S>(label: &Label, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.to_string())
+        serializer.serialize_str(&label.to_string())
     }
 }
 
@@ -301,7 +326,7 @@ mod tests {
     #[test]
     fn parses_wildcard_path() {
         let path = "//...";
-        let l1 = Label2::builder()
+        let l1 = Label::builder()
             .with_workspace(&Workspace::default())
             .from_string(path)
             .unwrap();
@@ -314,7 +339,7 @@ mod tests {
     #[test]
     fn parses_local_paths() {
         let path = ":hello";
-        let l1 = Label2::builder()
+        let l1 = Label::builder()
             .with_workspace(&Workspace::default())
             .from_string(path)
             .unwrap();
@@ -327,7 +352,7 @@ mod tests {
     #[test]
     fn parses_relative_paths_with_implicit_target() {
         let path = "./hello";
-        let l1 = Label2::builder()
+        let l1 = Label::builder()
             .with_workspace(&Workspace::default())
             .from_string(path)
             .unwrap();
@@ -337,7 +362,7 @@ mod tests {
         assert!(!l1.is_all());
 
         let path = "./hello";
-        let l1 = Label2::builder()
+        let l1 = Label::builder()
             .with_workspace(&make_workspace("/test/workspace"))
             .from_string(path)
             .unwrap();
@@ -350,7 +375,7 @@ mod tests {
     #[test]
     fn parses_relative_paths_with_explicit_target() {
         let path = "./hello:world";
-        let l1 = Label2::builder()
+        let l1 = Label::builder()
             .with_workspace(&Workspace::default())
             .from_string(path)
             .unwrap();
@@ -363,7 +388,7 @@ mod tests {
     #[test]
     fn parses_absolute_paths() {
         let path = "//hello/world:bin";
-        let l1 = Label2::builder()
+        let l1 = Label::builder()
             .with_workspace(&Workspace::default())
             .from_string(path)
             .unwrap();
@@ -373,7 +398,7 @@ mod tests {
         assert!(!l1.is_all());
 
         let path = "//hello/world:bin";
-        let l1 = Label2::builder()
+        let l1 = Label::builder()
             .with_workspace(&make_workspace("/test/workspace"))
             .from_string(path)
             .unwrap();
@@ -386,7 +411,7 @@ mod tests {
     #[test]
     fn parses_remote_label() {
         let path = "https://pkgs.warp.build/toolchains/openssl";
-        let l1 = Label2::builder()
+        let l1 = Label::builder()
             .with_workspace(&Workspace::default())
             .from_string(path)
             .unwrap();
@@ -400,7 +425,7 @@ mod tests {
     #[test]
     fn can_turn_into_store_prefix() {
         let path = "https://pkgs.warp.build/toolchains/openssl";
-        let l1 = Label2::builder()
+        let l1 = Label::builder()
             .with_workspace(&Workspace::default())
             .from_string(path)
             .unwrap();
