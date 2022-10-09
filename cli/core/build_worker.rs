@@ -129,7 +129,7 @@ impl BuildWorker {
         let target = match self.label_resolver.resolve(&label).await {
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
-                    label.clone(),
+                    label,
                     BuildError::LabelResolverError(err),
                 ));
                 self.coordinator.signal_shutdown();
@@ -142,22 +142,28 @@ impl BuildWorker {
         let executable_target = match self.target_planner.plan(&self.env, &target).await {
             Err(TargetPlannerError::MissingDependencies { deps, .. }) => {
                 if let Err(QueueError::DependencyCycle(err)) =
-                    self.build_queue.queue_deps(&label, &deps)
+                    self.build_queue.queue_deps(&target.label, &deps)
                 {
                     self.event_channel.send(Event::BuildError(
-                        label.clone(),
+                        target.label.clone(),
                         BuildError::BuildResultError(err),
                     ));
                     self.coordinator.signal_shutdown();
                 }
 
-                self.build_queue.nack(label.clone());
+                info!("Requeueing: {:#?}", target.label.clone());
+
+                if target.label != label {
+                    self.build_queue.swap(&label, &target.label);
+                }
+                self.build_queue.nack(target.label.clone());
+
                 return Ok(());
             }
 
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
-                    label.clone(),
+                    target.label.clone(),
                     BuildError::TargetPlannerError(err),
                 ));
                 self.coordinator.signal_shutdown();
@@ -168,14 +174,14 @@ impl BuildWorker {
         };
 
         self.event_channel.send(Event::BuildingTarget {
-            label: label.clone(),
+            label: target.label.clone(),
             rule_mnemonic: executable_target.rule.mnemonic.to_string(),
         });
 
         match self.target_executor.execute(&executable_target).await {
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
-                    label.clone(),
+                    executable_target.label.clone(),
                     BuildError::TargetExecutorError(err),
                 ));
 
@@ -191,9 +197,9 @@ impl BuildWorker {
                 },
             )) => {
                 self.event_channel.send(Event::BuildError(
-                    label.clone(),
+                    executable_target.label.clone(),
                     BuildError::BuildWorkerError(BuildWorkerError::TargetFailedValidation {
-                        label: label.clone(),
+                        label: executable_target.label.clone(),
                         expected_but_missing,
                         unexpected_but_present,
                         expected_and_present,
@@ -210,14 +216,19 @@ impl BuildWorker {
                     .map_err(BuildWorkerError::TargetPlannerError)?;
 
                 if manifest.cached {
-                    self.event_channel.send(Event::CacheHit(label.clone()));
+                    self.event_channel
+                        .send(Event::CacheHit(executable_target.label.clone()));
                 } else {
-                    self.event_channel.send(Event::TargetBuilt(label.clone()));
+                    self.event_channel
+                        .send(Event::TargetBuilt(executable_target.label.clone()));
                 }
 
-                self.build_results
-                    .add_computed_target(label.clone(), manifest, executable_target);
-
+                let label = executable_target.label.clone();
+                self.build_results.add_computed_target(
+                    executable_target.label.clone(),
+                    manifest,
+                    executable_target,
+                );
                 self.build_queue.ack(&label);
             }
         }

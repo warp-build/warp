@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use thiserror::*;
+use tracing::*;
 use url::Url;
 
 static COLON: char = ':';
@@ -267,10 +268,21 @@ impl Label {
         )
     }
 
+    #[tracing::instrument(name = "Label::change_workspace", skip(workspace))]
     pub fn change_workspace(&self, workspace: &Workspace) -> Self {
-        let mut new_label = self.clone();
-        new_label.workspace = workspace.paths.workspace_root.to_str().unwrap().to_string();
-        new_label
+        match &self.inner_label {
+            InnerLabel::Wildcard => Label::default(),
+            InnerLabel::Local { path, .. } => Self::builder()
+                .name(self.name())
+                .with_workspace(workspace)
+                .from_path(path.to_path_buf())
+                .unwrap(),
+            InnerLabel::Remote { url, .. } => Self::builder()
+                .name(self.name())
+                .with_workspace(workspace)
+                .from_url(&Url::parse(url).unwrap())
+                .unwrap(),
+        }
     }
 
     pub fn as_store_prefix(&self) -> String {

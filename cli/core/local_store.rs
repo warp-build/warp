@@ -28,7 +28,7 @@ impl LocalStore {
     /// hash of the files to determine if the cache is corrupted.
     #[tracing::instrument(name = "LocalStore::find_manifest")]
     pub async fn find_manifest(&self, key: &StoreKey) -> Result<StoreHitType, StoreError> {
-        let cache_path = self.cache_root.join(&key).join("Manifest.toml");
+        let cache_path = self.cache_root.join(&key).join(MANIFEST_FILE);
         if fs::metadata(&cache_path).await.is_ok() {
             return match TargetManifest::from_file(&cache_path).await {
                 Ok(manifest) => Ok(StoreHitType::Hit(Box::new(manifest))),

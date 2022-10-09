@@ -2,6 +2,7 @@ use super::*;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use thiserror::*;
+use tracing::*;
 
 #[derive(Error, Debug)]
 pub enum TargetError {
@@ -38,21 +39,23 @@ impl Target {
             .unwrap_or_default()
             .into_iter()
             .map(|dep| {
-                if dep.is_local() {
-                    let path = if dep.is_relative() {
-                        label.path().join(dep.path())
+                let path = if dep.is_relative() {
+                    // NOTE(@ostera): if we found a label that is defined in the same buildfile
+                    // then its path is the same path as the current label
+                    if dep.path().to_str().unwrap().is_empty() {
+                        label.path()
                     } else {
-                        dep.path()
-                    };
-
-                    Label::builder()
-                        .name(dep.name())
-                        .workspace(label.workspace().to_str().unwrap().to_string())
-                        .from_path(path)
-                        .unwrap()
+                        label.path().join(dep.path())
+                    }
                 } else {
-                    dep
-                }
+                    dep.path()
+                };
+
+                Label::builder()
+                    .name(dep.name())
+                    .workspace(label.workspace().to_str().unwrap().to_string())
+                    .from_path(path)
+                    .unwrap()
             })
             .collect();
 
@@ -65,21 +68,15 @@ impl Target {
         }
     }
 
+    #[tracing::instrument(name = "Target::change_workspace", skip(workspace))]
     pub fn change_workspace(&self, workspace: &Workspace) -> Self {
+        debug!("changing target workspace: {:?}", &self);
         let mut new_self = self.clone();
         new_self.label = self.label.change_workspace(workspace);
         new_self.deps = vec![];
 
         for dep in &self.deps {
-            let dep = if dep.is_relative() {
-                Label::builder()
-                    .name(dep.name())
-                    .with_workspace(workspace)
-                    .from_path(dep.path())
-                    .unwrap()
-            } else {
-                dep.change_workspace(workspace)
-            };
+            let dep = dep.change_workspace(workspace);
             new_self.deps.push(dep);
         }
 

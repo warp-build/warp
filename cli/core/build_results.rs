@@ -32,6 +32,8 @@ pub struct BuildResults {
 
     pub missing_targets: Arc<DashMap<Label, ()>>,
 
+    pub renamed_targets: Arc<DashMap<Label, Label>>,
+
     pub build_graph: Arc<DashMap<Label, Vec<Label>>>,
 }
 
@@ -40,6 +42,7 @@ impl BuildResults {
     pub fn new() -> BuildResults {
         BuildResults {
             computed_targets: Arc::new(DashMap::new()),
+            renamed_targets: Arc::new(DashMap::new()),
             expected_targets: Arc::new(DashMap::new()),
             missing_targets: Arc::new(DashMap::new()),
             build_graph: Arc::new(DashMap::new()),
@@ -59,9 +62,20 @@ impl BuildResults {
         self.missing_targets.is_empty()
     }
 
+    pub fn rename_expected_target(&self, src: Label, dst: Label) {
+        self.renamed_targets.insert(src.clone(), dst.clone());
+        self.add_expected_target(dst);
+        self.remove_expected_target(&src);
+    }
+
     pub fn add_expected_target(&self, label: Label) {
         self.expected_targets.insert(label.clone(), ());
         self.missing_targets.insert(label, ());
+    }
+
+    pub fn remove_expected_target(&self, label: &Label) {
+        self.expected_targets.remove(label);
+        self.missing_targets.remove(label);
     }
 
     pub fn add_computed_target(
@@ -107,7 +121,12 @@ impl BuildResults {
     }
 
     pub fn get_computed_target(&self, label: &Label) -> Option<(TargetManifest, ExecutableTarget)> {
-        self.computed_targets.get(label).map(|v| v.clone())
+        let label = if let Some(r) = self.renamed_targets.get(label) {
+            r.value().clone()
+        } else {
+            label.clone()
+        };
+        self.computed_targets.get(&label).map(|v| v.clone())
     }
 
     pub fn has_manifest(&self, label: &Label) -> bool {

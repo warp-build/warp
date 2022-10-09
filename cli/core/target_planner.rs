@@ -44,7 +44,7 @@ impl TargetPlanner {
         })
     }
 
-    #[tracing::instrument(name = "TargetPlanner::update", skip(self))]
+    #[tracing::instrument(name = "TargetPlanner::update", skip(self, target))]
     pub async fn update(&mut self, target: &ExecutableTarget) -> Result<(), TargetPlannerError> {
         self.rule_executor
             .update_provide_map(target, &self.store)

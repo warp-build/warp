@@ -98,10 +98,19 @@ impl BuildQueue {
         Some(label)
     }
 
+    #[tracing::instrument(name = "BuildQueue::ack", skip(self))]
     pub fn ack(&self, label: &Label) {
         self.busy_targets.remove(label);
     }
 
+    #[tracing::instrument(name = "BuildQueue::swap", skip(self))]
+    pub fn swap(&self, src: &Label, dst: &Label) {
+        self.build_results
+            .rename_expected_target(src.clone(), dst.clone());
+        self.ack(src);
+    }
+
+    #[tracing::instrument(name = "BuildQueue::nack", skip(self))]
     pub fn nack(&self, label: Label) {
         self.busy_targets.remove(&label);
         self.wait_queue.push(label);
@@ -114,6 +123,7 @@ impl BuildQueue {
 
     #[tracing::instrument(name = "BuildQueue::queue", skip(self))]
     pub fn queue(&self, label: Label) -> Result<(), QueueError> {
+        info!("Queued {:#?}", &label);
         if label.is_all() {
             return Err(QueueError::CannotQueueTargetAll);
         }

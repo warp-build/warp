@@ -65,9 +65,8 @@ impl InfoGoal {
         )
         .await;
 
-        if let Some((manifest, target)) = result? {
-            dbg!(manifest);
-            dbg!(target);
+        if let Some((manifest, _target)) = result? {
+            println!("{}", serde_json::to_value(manifest).unwrap());
             return Ok(());
         }
 

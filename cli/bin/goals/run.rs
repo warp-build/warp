@@ -57,7 +57,7 @@ impl RunGoal {
             });
 
         debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
-        debug!("Target: {}", &label.to_string());
+        debug!("Target: {:#?}", &label);
 
         if label.is_all() {
             print!(

@@ -6,13 +6,15 @@ use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 
+pub const MANIFEST_FILE: &str = "Manifest.json";
+
 #[derive(Error, Debug)]
 pub enum TargetManifestError {
     #[error("Could not parse Manifest file: {0:?}")]
-    ParseError(toml::de::Error),
+    ParseError(serde_json::Error),
 
     #[error("Could not print Manifest file: {0:#?}")]
-    PrintError(toml::ser::Error),
+    PrintError(serde_json::Error),
 
     #[error(transparent)]
     IOError(std::io::Error),
@@ -53,7 +55,6 @@ impl Default for BuildStamps {
 //
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TargetManifest {
-    #[serde(with = "label2::stringy_serde")]
     pub label: Label,
 
     pub rule_name: String,
@@ -169,7 +170,7 @@ impl TargetManifest {
             .map_err(TargetManifestError::IOError)?;
 
         let target_manifest_file: TargetManifestFile =
-            toml::from_slice(&bytes).map_err(TargetManifestError::ParseError)?;
+            serde_json::from_slice(&bytes).map_err(TargetManifestError::ParseError)?;
 
         Ok(target_manifest_file.manifest)
     }
@@ -179,10 +180,10 @@ impl TargetManifest {
         let mut manifest = self.clone();
         manifest.cached = true;
 
-        let toml = toml::to_string_pretty(&TargetManifestFile { manifest })
+        let json = serde_json::to_string_pretty(&TargetManifestFile { manifest })
             .map_err(TargetManifestError::PrintError)?;
 
-        fs::write(&root.join("Manifest.toml"), toml)
+        fs::write(&root.join(MANIFEST_FILE), json)
             .await
             .map_err(TargetManifestError::IOError)
     }
@@ -257,6 +258,13 @@ mod serde_duration {
             E: serde::de::Error,
         {
             Ok(Duration::milliseconds(v))
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(Duration::milliseconds(v.try_into().unwrap()))
         }
     }
 
