@@ -22,7 +22,7 @@ pub enum BuildWorkerError {
     #[error(transparent)]
     TargetPlannerError(TargetPlannerError),
 
-    #[error("Node {} expected the following but missing outputs: {:?}\n\ninstead it found the following unexpected outputs: {:?}", label.to_string(), expected_but_missing, unexpected_but_present)]
+    #[error("Node {} expected the following but missing outputs: {:?}\n\nInstead it found the following unexpected outputs: {:?}", label.to_string(), expected_but_missing, unexpected_but_present)]
     TargetFailedValidation {
         label: Label,
         expected_but_missing: Vec<PathBuf>,

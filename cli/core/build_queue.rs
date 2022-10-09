@@ -158,17 +158,11 @@ impl BuildQueue {
             .map_err(QueueError::WorkspaceScannerError)?;
 
         while let Some(buildfile_path) = buildfiles.next().await {
-            let package_path = buildfile_path
-                .map_err(QueueError::FileScannerError)?
-                .parent()
-                .unwrap()
-                .strip_prefix(&self.workspace.paths.workspace_root)
-                .unwrap()
-                .to_path_buf();
+            let buildfile_path = buildfile_path.map_err(QueueError::FileScannerError)?;
 
             let label = Label::builder()
                 .with_workspace(&self.workspace)
-                .from_path(package_path.clone())
+                .from_path(buildfile_path.clone())
                 .unwrap();
 
             let buildfile = Buildfile::from_label(&label).await;
@@ -189,7 +183,7 @@ impl BuildQueue {
             match buildfile {
                 Err(err) => {
                     self.event_channel
-                        .send(Event::BadBuildfile(package_path, err));
+                        .send(Event::BadBuildfile(buildfile_path, err));
                     continue;
                 }
                 Ok(buildfile) => {

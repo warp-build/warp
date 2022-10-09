@@ -38,11 +38,17 @@ impl Target {
             .unwrap_or_default()
             .into_iter()
             .map(|dep| {
-                if dep.is_relative() {
+                if dep.is_local() {
+                    let path = if dep.is_relative() {
+                        label.path().join(dep.path())
+                    } else {
+                        dep.path()
+                    };
+
                     Label::builder()
                         .name(dep.name())
                         .workspace(label.workspace().to_str().unwrap().to_string())
-                        .from_path(label.path().join(dep.path()))
+                        .from_path(path)
                         .unwrap()
                 } else {
                     dep
@@ -69,15 +75,13 @@ impl Target {
                 Label::builder()
                     .name(dep.name())
                     .with_workspace(workspace)
-                    .from_path(new_self.label.path().join(dep.path()))
+                    .from_path(dep.path())
                     .unwrap()
             } else {
                 dep.change_workspace(workspace)
             };
             new_self.deps.push(dep);
         }
-
-        dbg!(&new_self);
 
         new_self
     }

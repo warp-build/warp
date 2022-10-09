@@ -109,9 +109,7 @@ impl Buildfile {
         }
 
         Ok(Self {
-            file: workspace_root
-                .join(path_relative_to_workspace)
-                .to_path_buf(),
+            file: workspace_root.join(path_relative_to_workspace),
             targets,
         })
     }

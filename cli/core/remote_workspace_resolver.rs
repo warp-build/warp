@@ -90,15 +90,7 @@ impl RemoteWorkspaceResolver {
             // NOTE(@ostera): save workspace for later
             // self.workspaces.insert(host, workspace);
 
-            let label = if label.is_relative() {
-                Label::builder()
-                    .name(label.name())
-                    .with_workspace(&workspace)
-                    .from_path(label.path())
-                    .unwrap()
-            } else {
-                label.change_workspace(&workspace)
-            };
+            let label = label.change_workspace(&workspace);
 
             let buildfile = Buildfile::from_label(&label)
                 .await

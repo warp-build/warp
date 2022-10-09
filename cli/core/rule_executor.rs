@@ -85,7 +85,7 @@ impl ComputeTargetProgram {
                     );
                     map.insert(
                         "label".to_string(),
-                        serde_json::Value::String(dep.label.to_string()),
+                        serde_json::to_value(dep.label.clone()).unwrap(),
                     );
                     map.insert(
                         "srcs".to_string(),
@@ -125,7 +125,7 @@ impl ComputeTargetProgram {
                     );
                     map.insert(
                         "label".to_string(),
-                        serde_json::Value::String(dep.label.to_string()),
+                        serde_json::to_value(dep.label.clone()).unwrap(),
                     );
                     map.insert(
                         "srcs".to_string(),

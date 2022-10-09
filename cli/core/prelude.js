@@ -10,6 +10,9 @@ Array.prototype.unique = function() {
 
 const ffi = (name, args) => Deno.core.opSync(name, args);
 const panic = x => {
+  if (typeof x === "object") {
+    x = JSON.stringify(x, null, 2)
+  }
   throw new Error(x);
 };
 

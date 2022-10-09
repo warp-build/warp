@@ -247,7 +247,7 @@ TARGET = {:#?}
             .await
             .iter()
             .flat_map(|path| path.strip_prefix(&store_path))
-            .map(|path| path.to_path_buf())
+            .map(|path| PathBuf::from(".").join(path))
             .collect();
 
         // NOTE(@ostera): if a directory has been specified as an output, we'll just expand it

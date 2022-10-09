@@ -11,9 +11,16 @@ static DOT: char = '.';
 static WILDCARD: &str = "//...";
 
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum LocalLabelKind {
+    Relative,
+    Absolute,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum InnerLabel {
     Wildcard,
     Local {
+        kind: LocalLabelKind,
         path: PathBuf,
     },
     Remote {
@@ -53,6 +60,7 @@ pub enum LabelBuilderError {
 }
 
 impl LabelBuilder {
+    #[tracing::instrument(name = "LabelBuilder::with_workspace")]
     pub fn with_workspace(&mut self, workspace: &Workspace) -> &mut Self {
         self.workspace(workspace.paths.workspace_root.to_str().unwrap().to_string());
         self
@@ -63,6 +71,7 @@ impl LabelBuilder {
     /// When doing so, the path of the URL will become the Path that we will use to find things
     /// within the remote workspace.
     ///
+    #[tracing::instrument(name = "LabelBuilder::from_url")]
     pub fn from_url(&mut self, url: &Url) -> Result<Label, LabelBuilderError> {
         let raw_url = url.to_string();
 
@@ -76,7 +85,7 @@ impl LabelBuilder {
 
         let name = url.path_segments().unwrap().last().unwrap().to_string();
         let host = url.host_str().unwrap().to_string();
-        let path = url.path().to_string();
+        let path = format!(".{}", url.path());
 
         self.name(name);
         self.inner_label(InnerLabel::Remote {
@@ -94,13 +103,16 @@ impl LabelBuilder {
     /// When doing this, the final stem of a path will become the name of the target
     /// if no name is set yet.
     ///
+    #[tracing::instrument(name = "LabelBuilder::from_path")]
     pub fn from_path(&mut self, path: PathBuf) -> Result<Label, LabelBuilderError> {
+        let (kind, path) = self._clean_path(path);
+
         if self.name.is_none() {
             let name = path.file_name().unwrap().to_str().unwrap().to_string();
             self.name(name);
         }
 
-        self.inner_label(InnerLabel::Local { path });
+        self.inner_label(InnerLabel::Local { path, kind });
 
         self.build()
     }
@@ -111,6 +123,7 @@ impl LabelBuilder {
     /// 2. handle wildcard labels
     /// 3. deal with override target names (`a:b` notation)
     ///
+    #[tracing::instrument(name = "LabelBuilder::from_string")]
     pub fn from_string(&mut self, str: &str) -> Result<Label, LabelBuilderError> {
         if let Ok(url) = Url::parse(str) {
             return self.from_url(&url);
@@ -142,16 +155,55 @@ impl LabelBuilder {
         };
         self.name(name);
 
-        let path = if path.starts_with("//") {
-            path.replace("//", "./")
-        } else {
-            path.replace("./", "")
-        };
+        let path = path.replace("//", "/");
+
         self.from_path(PathBuf::from(path))
+    }
+
+    fn _clean_path(&self, path: PathBuf) -> (LocalLabelKind, PathBuf) {
+        let path = if path.ends_with(BUILDFILE) {
+            path.parent().unwrap().to_path_buf()
+        } else {
+            path
+        };
+
+        let path = PathBuf::from(path.to_str().unwrap().replace("/./", "/"));
+
+        let mut stripped = false;
+        let path = if path.is_absolute() {
+            stripped = true;
+            path.strip_prefix(&self.workspace.clone().unwrap_or_default())
+                .unwrap()
+                .to_path_buf()
+        } else {
+            path
+        };
+
+        if path.starts_with("/") {
+            (
+                LocalLabelKind::Absolute,
+                PathBuf::from(path.to_str().unwrap().replacen('/', "", 1)),
+            )
+        } else if stripped {
+            (LocalLabelKind::Absolute, path)
+        } else {
+            (LocalLabelKind::Relative, path)
+        }
+    }
+}
+
+impl std::fmt::Debug for LabelBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LabelBuilder")
+            .field("workspace", &self.workspace)
+            .field("inner_label", &self.inner_label)
+            .field("name", &self.name)
+            .finish()
     }
 }
 
 impl Label {
+    #[tracing::instrument(name = "Label::builder")]
     pub fn builder() -> LabelBuilder {
         LabelBuilder::default()
     }
@@ -167,7 +219,7 @@ impl Label {
     pub fn hash(&self) -> usize {
         match &self.inner_label {
             InnerLabel::Wildcard => 0,
-            InnerLabel::Local { path } => {
+            InnerLabel::Local { path, .. } => {
                 fxhash::hash(&format!("{}:{}", &path.to_str().unwrap(), &self.name))
             }
             InnerLabel::Remote { url, .. } => fxhash::hash(&url),
@@ -188,14 +240,8 @@ impl Label {
     pub fn path(&self) -> PathBuf {
         match &self.inner_label {
             InnerLabel::Wildcard => PathBuf::from(DOT.to_string()),
-            InnerLabel::Local { path, .. } => {
-                if path.to_str().unwrap().is_empty() {
-                    PathBuf::from(DOT.to_string())
-                } else {
-                    path.to_path_buf()
-                }
-            }
-            InnerLabel::Remote { path, .. } => PathBuf::from(format!(".{}", path)),
+            InnerLabel::Local { path, .. } => path.to_path_buf(),
+            InnerLabel::Remote { path, .. } => PathBuf::from(path.to_string()),
         }
     }
 
@@ -212,11 +258,13 @@ impl Label {
     }
 
     pub fn is_relative(&self) -> bool {
-        match &self.inner_label {
-            InnerLabel::Local { path } if path.starts_with("//") => false,
-            InnerLabel::Local { path } if path.is_relative() || path.starts_with("./") => true,
-            _ => false,
-        }
+        matches!(
+            &self.inner_label,
+            InnerLabel::Local {
+                kind: LocalLabelKind::Relative,
+                ..
+            }
+        )
     }
 
     pub fn change_workspace(&self, workspace: &Workspace) -> Self {
@@ -253,14 +301,10 @@ impl ToString for Label {
     fn to_string(&self) -> String {
         match &self.inner_label {
             InnerLabel::Wildcard => WILDCARD.to_string(),
-            InnerLabel::Local { path } => {
+            InnerLabel::Local { path, .. } => {
                 let path = path.to_str().unwrap();
                 let path = if path == "." { "" } else { path };
-                if path.starts_with("//") {
-                    format!("{}:{}", path, self.name)
-                } else {
-                    format!("//{}:{}", path, self.name)
-                }
+                format!("//{}:{}", path.replace("./", ""), self.name)
             }
             InnerLabel::Remote { url, .. } => url.to_string(),
         }
