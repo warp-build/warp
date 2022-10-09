@@ -25,7 +25,7 @@ pub struct WorkspacePaths {
     pub workspace_name: String,
 
     /// The location of the global cache
-    pub warp_home: PathBuf,
+    pub warp_root: PathBuf,
 
     /// The location of the global cache
     pub global_workspaces_path: PathBuf,
@@ -75,17 +75,17 @@ impl WorkspacePaths {
             )
         };
 
-        let warp_home = home
+        let warp_root = home
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("/warp"));
 
-        let global_archives_root = warp_home.join("archives");
-        let global_cache_root = warp_home.join("store");
-        let global_rules_root = warp_home.join("rules");
-        let global_workspaces_path = warp_home.join("workspaces");
+        let global_archives_root = warp_root.join("archives");
+        let global_cache_root = warp_root.join("store");
+        let global_rules_root = warp_root.join("rules");
+        let global_workspaces_path = warp_root.join("workspaces");
 
         let local_cache_root = global_cache_root.join(&workspace_name);
-        let local_outputs_root = warp_home.join("outputs").join(&workspace_name);
+        let local_outputs_root = warp_root.join("outputs").join(&workspace_name);
 
         let workspace_output_link = workspace_root.join("warp-outputs");
 
@@ -94,6 +94,7 @@ impl WorkspacePaths {
         let local_toolchains_root = local_warp_root.join("toolchains");
 
         for path in &[
+            &warp_root.join("home"),
             &global_archives_root,
             &global_cache_root,
             &global_rules_root,
@@ -114,7 +115,7 @@ impl WorkspacePaths {
         WorkspacePaths::setup_links(&local_outputs_root, &workspace_output_link)?;
 
         let paths = WorkspacePaths {
-            warp_home,
+            warp_root,
             current_user,
             global_archives_root,
             global_cache_root,
