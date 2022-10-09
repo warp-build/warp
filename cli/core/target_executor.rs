@@ -247,7 +247,7 @@ TARGET = {:#?}
             .await
             .iter()
             .flat_map(|path| path.strip_prefix(&store_path))
-            .map(|path| PathBuf::from(".").join(path))
+            .map(|path| path.to_path_buf())
             .collect();
 
         // NOTE(@ostera): if a directory has been specified as an output, we'll just expand it
@@ -262,10 +262,18 @@ TARGET = {:#?}
             let abs_out = store_path.join(out);
             if abs_out.is_dir() {
                 for path in self.scan_files(&abs_out).await {
-                    let path = path.strip_prefix(&store_path).unwrap().to_path_buf();
+                    let path = path
+                        .strip_prefix(&store_path.join("."))
+                        .unwrap()
+                        .to_path_buf();
                     expected_outputs.insert(path);
                 }
             } else {
+                let out = if out.starts_with(".") {
+                    out.strip_prefix(".").unwrap()
+                } else {
+                    out
+                };
                 expected_outputs.insert(out.to_path_buf());
             }
         }

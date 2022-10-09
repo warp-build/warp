@@ -62,7 +62,7 @@ impl InitGoal {
         workspace_file.write(&workspace_root).await?;
 
         println!(
-            r#"We are ready, sir!
+            r#"We are ready, captain!
 
 Here's a few commands for you to try:
 
