@@ -1,8 +1,8 @@
 [[erlang_library]]
 name = "lib"
-srcs = ["main.erl"]
+deps = ["./semver:verl"]
 
 [[erlang_script]]
-name = "lifter"
-main = "main.erl"
+name = "lift"
+main = "warp_lifter.erl"
 deps = [":lib"]
