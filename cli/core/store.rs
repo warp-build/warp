@@ -87,7 +87,7 @@ impl Store {
 
         let local_path = self.local_store.absolute_path_for_key(&store_key).await?;
         let mut artifacts = manifest.outs.clone();
-        artifacts.push(PathBuf::from("Manifest.toml"));
+        artifacts.push(PathBuf::from(MANIFEST_FILE));
 
         self.local_store
             .write_manifest(&local_path, manifest, node)
