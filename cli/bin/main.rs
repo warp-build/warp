@@ -97,6 +97,8 @@ impl Warp {
 
     #[tracing::instrument(name = "Warp::start")]
     async fn start(&mut self, t0: std::time::Instant) -> Result<(), anyhow::Error> {
+        // NOTE(@ostera): save the current directory, to return to it when we're done building
+        let cwd = fs::canonicalize(PathBuf::from(&".")).await.unwrap();
         let current_user = self.user.clone().unwrap_or_else(whoami::username);
         let warp_home = self.warp_home.clone();
 
@@ -104,13 +106,13 @@ impl Warp {
         event_channel.send(Event::BuildStarted(t0));
 
         match &self.cmd {
-            Some(Goal::Init(x)) => return x.run(current_user.clone(), event_channel).await,
+            Some(Goal::Init(x)) => {
+                return x.run(t0, &cwd, Workspace::default(), event_channel).await
+            }
             Some(Goal::Setup(x)) => return x.run(current_user.clone(), event_channel).await,
             _ => (),
         };
 
-        // NOTE(@ostera): save the current directory, to return to it when we're done building
-        let cwd = fs::canonicalize(PathBuf::from(&".")).await.unwrap();
         let (root, workspace_file) = WorkspaceFile::find_upwards(&cwd).await?;
 
         std::env::set_current_dir(&root)?;
@@ -160,7 +162,7 @@ impl Goal {
         match self {
             Goal::Build(x) => x.run(workspace, event_channel).await,
             Goal::Info(x) => x.run(workspace, event_channel).await,
-            Goal::Init(x) => x.run(workspace.current_user, event_channel).await,
+            Goal::Init(x) => x.run(build_started, cwd, workspace, event_channel).await,
             Goal::Run(x) => x.run(build_started, cwd, workspace, event_channel).await,
             Goal::Setup(x) => x.run(workspace.current_user, event_channel).await,
             Goal::Test(x) => x.run(build_started, cwd, workspace, event_channel).await,

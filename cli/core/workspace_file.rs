@@ -103,7 +103,7 @@ pub struct RemoteWorkspaceFile {
     #[serde(default)]
     pub github: Option<String>,
 
-    #[serde(alias = "ref")]
+    #[serde(default)]
     pub git_ref: Option<String>,
 }
 
@@ -181,7 +181,7 @@ impl WorkspaceFile {
 
     #[tracing::instrument(name = "WorkspaceFile::write")]
     pub async fn write(&self, root: &Path) -> Result<(), WorkspaceFileError> {
-        let toml = toml::to_string(&self).map_err(WorkspaceFileError::PrintError)?;
+        let toml = toml::to_string_pretty(&self).map_err(WorkspaceFileError::PrintError)?;
         fs::write(&root.join(WORKSPACE), toml)
             .await
             .map_err(WorkspaceFileError::IOError)
