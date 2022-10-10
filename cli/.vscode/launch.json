@@ -19,8 +19,8 @@
                     "kind": "bin"
                 }
             },
-            "args": ["run", "-w0", "https://tools.warp.build/erlang/lifter"],
-            "cwd": "/Users/ostera/repos/github.com/warp-build/beta/verl"
+            "args": [],
+            "cwd": "${workspaceFolder}"
         },
         {
             "type": "lldb",
