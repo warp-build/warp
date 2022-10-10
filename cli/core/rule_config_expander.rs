@@ -83,7 +83,7 @@ impl ConfigExpander {
 
     #[tracing::instrument(name = "ConfigExpander::expand_glob", skip(self))]
     pub fn expand_glob(&self, label: &Label, path: &str) -> Result<CfgValue, ConfigExpanderError> {
-        let path = label.path().join(path);
+        let path = label.workspace().join(label.path()).join(path);
         let path = path.to_str().unwrap();
         if path.contains('*') {
             let entries =
@@ -95,15 +95,15 @@ impl ConfigExpander {
             let mut files = vec![];
             for entry in entries {
                 let entry = entry.map_err(ConfigExpanderError::GlobError)?;
-                // let entry = entry.strip_prefix(label.path()).unwrap().to_path_buf();
+                let entry = entry.strip_prefix(label.workspace()).unwrap().to_path_buf();
                 files.push(CfgValue::File(entry));
             }
             Ok(CfgValue::List(files))
         } else {
-            let path = PathBuf::from(path);
-            // .strip_prefix(label.path())
-            // .unwrap()
-            // .to_path_buf();
+            let path = PathBuf::from(path)
+                .strip_prefix(label.workspace())
+                .unwrap()
+                .to_path_buf();
             Ok(CfgValue::File(path))
         }
     }
