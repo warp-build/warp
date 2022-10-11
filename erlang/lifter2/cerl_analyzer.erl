@@ -55,7 +55,7 @@ includes(Mod, Attrs) ->
 	Includes1 = [{cerl:concrete(L1), cerl:concrete(L2)} || {L1, L2} <- Attrs,
 																												 cerl:is_literal(L1), cerl:is_literal(L2),
 																												 cerl:concrete(L1) =:= 'include_lib' ],
-	sets:to_list(sets:from_list([{Mod, Kind, AST} || {Kind, AST} <- Includes0 ++ Includes1], [{version, 2}])).
+	uniq([{Mod, Kind, AST} || {Kind, AST} <- Includes0 ++ Includes1]).
 
 type_exports(Mod, Attrs) ->
 	ExpTypes1 = [cerl:concrete(L2) || {L1, L2} <- Attrs,
@@ -63,12 +63,12 @@ type_exports(Mod, Attrs) ->
 																		cerl:is_literal(L2),
 																		cerl:concrete(L1) =:= 'export_type'],
 	ExpTypes2 = lists:flatten(ExpTypes1),
-	sets:to_list(sets:from_list([mfa(Mod, F, A) || {F, A} <- ExpTypes2], [{version, 2}])).
+	uniq([mfa(Mod, F, A) || {F, A} <- ExpTypes2]).
 
 exports(Mod, Tree) ->
 	Exports1 = cerl:module_exports(Tree),
 	Exports2 = [cerl:var_name(V) || V <- Exports1],
-	[ mfa(Mod, F, A) || {F, A} <- Exports2, F =/= module_info ].
+	uniq([ mfa(Mod, F, A) || {F, A} <- Exports2, F =/= module_info ]).
 
 local_calls(_Mod, _Tree) ->
 	% Local-module calls
@@ -87,7 +87,7 @@ fold_external(Mod, {Var, Function}, Acc) ->
 	case FunName of
 		module_info -> Acc;
 		_ ->
-			Edges = cerl_trees:fold(fun extract_call/2, [], Function),
+			Edges = uniq(cerl_trees:fold(fun extract_call/2, [], Function)),
 			MFA = mfa(Mod, FunName, Arity),
 			[ #{ mfa => MFA, calls => Edges } |Acc]
 	end.
@@ -101,3 +101,7 @@ extract_call(call, Tree, Acc) ->
 extract_call(_, _, Acc) -> Acc.
 
 mfa(M, F, A) -> #{ m => M, f => F, a => A }.
+
+uniq([]) -> [];
+uniq([X]) -> [X];
+uniq(Xs) -> sets:to_list(sets:from_list(Xs, [{version, 2}])).
