@@ -3,6 +3,7 @@
 -mode(compile).
 -export([main/1]).
 
+-include("lifter.hrl").
 -include_lib("kernel/include/logger.hrl").
 
 main(Args) ->
