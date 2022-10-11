@@ -28,10 +28,14 @@
 -spec analyze(path:t()) -> result:t(mod_desc(), err()).
 analyze(Path) ->
 	% Compile Sources into AST
-	case compile:noenv_file(Path, [to_core, binary, return_errors]) of
+	case compile:noenv_file(Path, compile_opts()) of
 		{ok, Mod, Core} -> {ok, do_analyze(Path, Mod, Core)};
 		{error, Reason} -> {error, {compilation_error, Reason}}
 	end.
+
+compile_opts() ->
+	[no_copt, to_core, binary, return_errors, no_inline, strict_record_tests,
+	 strict_record_updates, dialyzer, no_spawn_compiler_process].
 
 do_analyze(Path, Mod, Core) ->
 	Tree = cerl:from_records(Core),
@@ -49,13 +53,10 @@ do_analyze(Path, Mod, Core) ->
 	 }.
 
 includes(Mod, Attrs) ->
-	Includes0 = [{cerl:concrete(L1), cerl:concrete(L2)} || {L1, L2} <- Attrs,
-																												 cerl:is_literal(L1), cerl:is_literal(L2),
-																												 cerl:concrete(L1) =:= 'include' ],
-	Includes1 = [{cerl:concrete(L1), cerl:concrete(L2)} || {L1, L2} <- Attrs,
-																												 cerl:is_literal(L1), cerl:is_literal(L2),
-																												 cerl:concrete(L1) =:= 'include_lib' ],
-	uniq([{Mod, Kind, AST} || {Kind, AST} <- Includes0 ++ Includes1]).
+	Includes = [cerl:concrete(L2) || {L1, L2} <- Attrs,
+																	 cerl:is_literal(L1), cerl:is_literal(L2),
+																	 cerl:concrete(L1) =:= file ],
+	uniq([ Path || {Path, _LOC} <- lists:flatten(Includes) ]).
 
 type_exports(Mod, Attrs) ->
 	ExpTypes1 = [cerl:concrete(L2) || {L1, L2} <- Attrs,
