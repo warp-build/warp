@@ -1,0 +1,9 @@
+[[erlang_library]]
+name = "lib"
+deps = ["//erlang/base", "//erlang/base/jsone"]
+
+[[erlang_script]]
+name = "lifter2"
+main = "main.erl"
+deps = [":lib"]
+apps = ["kernel", "jsone"]
