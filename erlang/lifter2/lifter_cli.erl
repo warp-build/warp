@@ -3,9 +3,6 @@
 -export([analyze_files/2]).
 
 analyze_files(_WorkspaceRoot, Files) ->
-  Results = lists:foldl(fun (FileName, Acc) -> 
-                          {ok, Analysis} = cerl_analyzer:analyze(FileName),
-                          maps:put(binary:list_to_bin(FileName), Analysis, Acc)
-                      end, #{}, Files),
+  {ok, Results} = cerl_analyzer:analyze([ binary:list_to_bin(Path) || Path <- Files ]),
   io:format("~s", [ jsone:encode(Results, [{indent, 2}, {space, 1}]) ]),
   ok.

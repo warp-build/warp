@@ -1,4 +1,8 @@
 [[erlang_test]]
 name = "cerl_analyzer_SUITE"
 test = "cerl_analyzer_SUITE.erl"
-deps = ["//erlang/lifter2:lib", "./fixtures"]
+deps = [
+  "./fixtures",
+  "./fixtures/includes",
+  "//erlang/lifter2:lib",
+]
