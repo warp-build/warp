@@ -30,7 +30,11 @@
 -spec analyze([path:t()]) -> [mod_desc()].
 analyze(Paths) ->
   #{ sources := Sources, headers := Headers } = tag_files(Paths),
-  Opts = #{ compiler_opts => [{i, uniq([ binary:bin_to_list(filename:dirname(H)) || H <- Headers ])}] },
+
+  HeaderDirs = [ binary:bin_to_list(filename:dirname(H)) || H <- Headers ],
+  IncludeDirs = ["apps"] ++ uniq(HeaderDirs),
+  Opts = #{ compiler_opts => [{i, IncludeDirs}] },
+
   Results = lists:foldl(fun (Source, Acc) -> 
                             {ok, Analysis} = analyze(Source, Opts),
                             maps:put(Source, Analysis, Acc)
@@ -128,7 +132,6 @@ tag_files([], Srcs, Hdrs, Others) -> #{ sources => Srcs, headers => Hdrs, others
 tag_files([<<"">>|Files], Srcs, Hdrs, Others) -> tag_files(Files, Srcs, Hdrs, Others);
 tag_files([<<".">>|Files], Srcs, Hdrs, Others) -> tag_files(Files, Srcs, Hdrs, Others);
 tag_files([File|Files], Srcs, Hdrs, Others) ->
-  io:format("tagging file: ~p\n", [File]),
   case (catch filename:extension(File)) of
     <<".erl">> -> tag_files(Files, [File|Srcs], Hdrs, Others);
     <<".hrl">> -> tag_files(Files, Srcs, [File|Hdrs], Others);
