@@ -56,7 +56,7 @@ includes(Mod, Attrs) ->
 	Includes = [cerl:concrete(L2) || {L1, L2} <- Attrs,
 																	 cerl:is_literal(L1), cerl:is_literal(L2),
 																	 cerl:concrete(L1) =:= file ],
-	uniq([ Path || {Path, _LOC} <- lists:flatten(Includes) ]).
+	uniq([ binary:list_to_bin(Path) || {Path, _LOC} <- lists:flatten(Includes) ]).
 
 type_exports(Mod, Attrs) ->
 	ExpTypes1 = [cerl:concrete(L2) || {L1, L2} <- Attrs,
