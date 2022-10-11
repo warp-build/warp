@@ -35,6 +35,7 @@ handles_real_life_example(_Config) ->
 								#{a := 1,f := lte_test, m := verl_SUITE},
 								#{a := 1, f := parse_requirement_test, m := verl_SUITE},
 								#{a := 1,f := parse_test, m := verl_SUITE}] , Exports),
+
 	?assertMatch(
 		 [#{calls :=
 				[#{a := 1,f := error,m := erlang},
@@ -130,5 +131,7 @@ handles_real_life_example(_Config) ->
 				#{a := 0,f := all,
 					m := verl_SUITE}}]
 		 , ExtCalls),
+
   ?assertMatch([], TypeExports),
+
   ?assertMatch([], Includes).
