@@ -1,4 +1,4 @@
 [[files]]
 name = "fixtures"
-srcs = ["*"]
+srcs = ["*.erl"]
 
