@@ -5,3 +5,5 @@
 
 -opaque t(Err) :: ok | {err, Err}.
 -opaque t(Ok, Err) :: {ok, Ok} | {err, Err}.
+
+ok(X) -> {ok, X}.
