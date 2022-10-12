@@ -9,6 +9,16 @@ deps = [
 ]
 
 [[erlang_test]]
+name = "handles_real_life_example_from_emqx_with_parse_transforms"
+test = "cerl_analyzer_SUITE.erl"
+cases = ["handles_real_life_example_from_emqx_with_parse_transforms"]
+deps = [
+  "./fixtures",
+  "./fixtures/includes",
+  "//erlang/lifter2:lib",
+]
+
+[[erlang_test]]
 name = "fails_on_missing_parse_transform"
 test = "cerl_analyzer_SUITE.erl"
 cases = ["fails_on_missing_parse_transform"]
