@@ -12,8 +12,26 @@ const impl = (ctx) => {
     .unique();
 
   const transitiveBeams = transitiveDeps
-    .filter(path => path.endsWith(BEAM_EXT))
+    .filter(path => path.endsWith(BEAM_EXT) || path.endsWith(".app") || path.endsWith(".app.src"))
     .unique();
+
+  const transitiveApps = ctx.transitiveDeps()
+    .flatMap(dep => {
+      let app = dep.outs.find(path => path.endsWith(".app"));
+      if (app) {
+        return [{
+          name: File.filename(app).replace(".app", ""),
+          ebin: File.parent(app),
+        }];
+      }
+      return [];
+    })
+    .unique();
+
+  ctx.action().runShell({ script: `mkdir -p ${cwd}/ebin` });
+  transitiveApps.forEach((app) => {
+    ctx.action().runShell({ script: `cp -R ${app.ebin} ${cwd}/ebin/${app.name}`})
+  });
 
   const build = `${cwd}/${name}_escript_builder.erl`;
   const run = `${main}script`;
@@ -42,26 +60,48 @@ main(_argv) ->
     }
   ],
 
+  DepApps = maps:from_list([
+    ${
+      transitiveApps
+      .map(({name}) => `{<<"${name}">>, <<"${cwd}/ebin/${name}/${name}.app">>}`)
+      .join(",\n    ")
+    }
+  ]),
+
   AppNames = [
     ${apps.map(dep => `<<"${dep}">>`).join(",\n    ")}
   ],
 
   Apps = lists:flatmap(fun (AppName) ->
     AppFile = binary:bin_to_list(<<AppName/binary, ".app">>),
-    AppPath = case code:where_is_file(AppFile) of
-                non_existing -> erlang:throw(<<"Missing application: ", AppName/binary>>);
-                Path -> binary:list_to_bin(Path)
+    {AppRoot, EbinPath, PrivPath} = case code:where_is_file(AppFile) of
+                non_existing -> 
+                  case maps:get(AppName, DepApps, non_existing) of
+                    non_existing -> erlang:throw(<<"Missing application: ", AppName/binary>>);
+                    AppPath ->
+                      AppRoot0 = filename:dirname(filename:dirname(AppPath)),
+                      EbinPath0 = binary:bin_to_list(<<AppRoot0/binary, "/", AppName/binary, "/*{app,beam}">>),
+                      PrivPath0 = binary:bin_to_list(<<AppRoot0/binary, "/", AppName/binary, "/priv/**/*">>),
+                      {AppRoot0, EbinPath0, PrivPath0}
+                  end;
+                Path ->
+                  AppPath = binary:list_to_bin(Path),
+                  AppRoot0 = filename:dirname(filename:dirname(AppPath)),
+                  EbinPath0 = binary:bin_to_list(<<AppRoot0/binary, "/ebin/*{app,beam}">>),
+                  PrivPath0 = binary:bin_to_list(<<AppRoot0/binary, "/priv/**/*">>),
+                  {AppRoot0, EbinPath0, PrivPath0}
               end,
 
-    AppRoot = filename:dirname(filename:dirname(AppPath)),
-    EbinPath = binary:bin_to_list(<<AppRoot/binary, "/ebin/*{app,beam}">>),
-    PrivPath = binary:bin_to_list(<<AppRoot/binary, "/priv/**/*">>),
+    io:format("~p\n", [AppRoot]),
+    io:format("~p\n", [EbinPath]),
+    io:format("~p\n", [PrivPath]),
 
     Files = filelib:wildcard(EbinPath) ++ filelib:wildcard(PrivPath),
 
     lists:map(fun (File) ->
+      io:format("~p\n", [File]),
       {ok, Data} = file:read_file(File),
-      {filename:basename(File), Data}
+      {File, Data}
     end, Files)
   end, AppNames),
 
@@ -92,6 +132,7 @@ main(_argv) ->
   Cfg = [
     shebang,
     comment,
+    {emu_args, "-pa ebin/jiffy"},
     {archive, Files, []}
   ],
 
@@ -107,7 +148,7 @@ main(_argv) ->
   ctx.action().runShell({
     script: `
 
-escript ${build}
+escript ${build} || exit 1
 mv ${File.filename(run)} ${run}
 
 ` })
