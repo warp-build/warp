@@ -3,6 +3,8 @@
 %%
 -module(cerl_analyzer).
 
+-include_lib("kernel/include/logger.hrl").
+
 -export([analyze/1]).
 -export_type([mod_desc/0]).
 -export_type([err/0]).
@@ -23,6 +25,8 @@
 
 -type opts() :: #{ compiler_opts => [atom()] }.
 
+outdir() -> "/tmp/_warp_erlang_lifter_tmp/run" ++ erlang:integer_to_list(erlang:monotonic_time()).
+
 %%--------------------------------------------------------------------------------------------------
 %% API
 %%--------------------------------------------------------------------------------------------------
@@ -33,29 +37,72 @@ analyze(Paths) ->
 
   HeaderDirs = [ {i, binary:bin_to_list(filename:dirname(H))} || H <- Headers ],
   IncludeDirs = uniq(HeaderDirs),
-  Opts = #{ compiler_opts => IncludeDirs },
 
-  Results = lists:foldl(fun (Source, Acc) -> 
-                            {ok, Analysis} = analyze(Source, Opts),
-                            maps:put(Source, Analysis, Acc)
-                        end, #{}, Sources),
+  % NOTE(@ostera): before we analyze the sources, we will create a temporary output directory
+  % where we will save all the .beam files as we compile them, so they become available for other
+  % modules that need them.
+  %
+  % This is important to make parse_transforms work correctly.
+  %
+  OutDir = outdir(),
+  ok = filelib:ensure_path(OutDir),
+  true = code:add_path(OutDir),
+
+  Opts = #{ compiler_opts => [{OutDir} | IncludeDirs] },
+  Results = lists:foldl(fun (Source, Acc) ->
+                            maps:put(Source, analyze(Source, Opts), Acc) end, #{}, Sources),
+
+  ok = file:del_dir(OutDir),
+
   {ok, Results}.
 
 
 -spec analyze(path:t(), opts()) -> result:t(mod_desc(), err()).
-analyze(Path, #{ compiler_opts := CompileOpts }) when is_binary(Path) ->
+analyze(Path, #{ compiler_opts := CompileOpts }=Opts) when is_binary(Path) ->
+  ParseTrans = find_required_transforms(Path),
+
   % Compile Sources into AST
-  case do_compile(Path, CompileOpts) of
-    {ok, Mod, Core} -> {ok, do_analyze(Path, Mod, Core)};
-    {error, Reason} -> {error, {compilation_error, Reason}}
+  case do_compile(Path, CompileOpts ++ ParseTrans) of
+    {ok, Mod, Core} ->
+      do_analyze(Path, Mod, Core);
+    {error, Reasons, Other} ->
+      #{ path => Path,
+         error => clean_compile_error(Reasons, Other) }
   end.
 
+find_required_transforms(Path) -> 
+  {ok, Data} = file:read_file(Path),
+  {ok, Forms} = erl_ast:parse(Data),
+  lists:filtermap(
+    fun
+      ({attribute, _, compile, {parse_transform, Mod}}) -> {true, {parse_transform, Mod}};
+      (_) -> false
+    end,
+    Forms
+   ).
+  
+
 do_compile(Path, CompileOpts) ->
-  compile:noenv_file(binary:bin_to_list(Path), CompileOpts ++ default_compile_opts()).
+  % FIXME(@ostera): split this so we compile only once, and then manually write the file.
+  File = binary:bin_to_list(Path),
+  Opts = CompileOpts ++ default_compile_opts(),
+  compile:noenv_file(File, Opts),
+  compile:noenv_file(File, [binary, to_core] ++ Opts).
 
 default_compile_opts() ->
-  [no_copt, to_core, binary, return_errors, no_inline, strict_record_tests,
-   strict_record_updates, no_spawn_compiler_process].
+  [no_copt, return_errors, no_inline, strict_record_tests,
+   strict_record_updates, no_spawn_compiler_process ].
+
+clean_compile_error([{Path, [{none, compile, {undef_parse_transform, Mod}}]}], _Other) ->
+  #{ kind => missing_parse_transform,
+     path => binary:list_to_bin(Path),
+     transform_name => Mod
+   };
+
+clean_compile_error(Reasons, Other) ->
+  #{ kind => compilation_error,
+     reasons => Reasons,
+     other => Other }.
 
 do_analyze(Path, Mod, Core) ->
   Tree = cerl:from_records(Core),

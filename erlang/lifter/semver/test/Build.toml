@@ -3,7 +3,6 @@ deps = ["//erlang/lifter/semver:verl"]
 name = "verl_SUITE"
 test = "verl_SUITE.erl"
 
-
 [[erlang_test]]
 deps = ["//erlang/lifter/semver:verl"]
 name = "verl_parser_SUITE"
