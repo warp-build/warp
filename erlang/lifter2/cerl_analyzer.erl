@@ -4,6 +4,7 @@
 -module(cerl_analyzer).
 
 -include_lib("kernel/include/logger.hrl").
+-include_lib("compiler/src/core_parse.hrl").
 
 -export([analyze/1]).
 -export_type([mod_desc/0]).
@@ -162,11 +163,17 @@ fold_external(Mod, {Var, Function}, Acc) ->
 
 extract_call(Tree, Acc) -> extract_call(cerl:type(Tree), Tree, Acc).
 extract_call(call, Tree, Acc) ->
-  M = cerl:atom_val(cerl:call_module(Tree)),
-  F = cerl:atom_val(cerl:call_name(Tree)),
+  M = cerl:call_module(Tree),
+  F = cerl:call_name(Tree),
   A = length(cerl:call_args(Tree)),
-  [mfa(M, F, A)|Acc];
+	maybe_extract_call(M, F, A, Acc);
 extract_call(_, _, Acc) -> Acc.
+
+maybe_extract_call(#c_literal{} = Mod, #c_literal{} = FnName, A, Acc) ->
+  M = cerl:atom_val(Mod),
+  F = cerl:atom_val(FnName),
+  [mfa(M, F, A)|Acc];
+maybe_extract_call(_, _, _, Acc) -> Acc.
 
 mfa(M, F, A) -> {M, F, A}.
 

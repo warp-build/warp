@@ -1,4 +1,14 @@
 [[erlang_test]]
+name = "skips_dynamic_calls"
+test = "cerl_analyzer_SUITE.erl"
+cases = ["skips_dynamic_calls"]
+deps = [
+  "./fixtures",
+  "./fixtures/includes",
+  "//erlang/lifter2:lib",
+]
+
+[[erlang_test]]
 name = "handles_parse_transforms"
 test = "cerl_analyzer_SUITE.erl"
 cases = ["handles_parse_transforms"]
