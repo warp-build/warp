@@ -26,7 +26,10 @@
     restart/1
 ]).
 
--include_lib("emqx/include/bpapi.hrl").
+% NOTE(@ostera): since we don't have a full emqx app, this particular path isn't going to be available.
+%
+% -include_lib("emqx/include/bpapi.hrl").
+-include("bpapi.hrl").
 
 introduced_in() ->
     "5.0.0".

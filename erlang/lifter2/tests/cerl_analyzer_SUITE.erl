@@ -14,7 +14,7 @@ all() ->
    handles_real_life_example_from_emqx,
    handles_real_life_example_from_emqx_with_parse_transforms,
    handles_real_life_example_from_verl,
-	 skips_dynamic_calls
+   skips_dynamic_calls
   ].
 
 
@@ -236,7 +236,8 @@ handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
         <<"../erlang/lifter2/tests/fixtures/includes/emqx.hrl">>,
         <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/ms_transform.hrl">>],
        local_calls := [],name := emqx_bpapi,
-       path := <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.erl">>,
+       path :=
+       <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.erl">>,
        type_exports :=
        [{emqx_bpapi,api,0},
         {emqx_bpapi,api_version,0},
@@ -249,55 +250,102 @@ handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
        [{emqx_bpapi_trans,format_error,1},
         {emqx_bpapi_trans,parse_transform,2}],
        external_calls :=
-       [#{calls := [], mfa := {emqx_bpapi_trans,log,2}},
+       [#{calls := [],
+          mfa := {emqx_bpapi_trans,log,2}},
         #{calls :=
           [{erlang,atom_to_list,1},
            {erlang,list_to_atom,1},
            {erlang,list_to_integer,1},
            {re,run,3}],
-          mfa := {emqx_bpapi_trans,api_and_version,1}},
-        #{calls := [], mfa := {emqx_bpapi_trans,push_target,2}},
-        #{calls := [], mfa := {emqx_bpapi_trans,push_err,3}},
-        #{calls := [], mfa := {emqx_bpapi_trans,invalid_fun,4}},
-        #{calls := [], mfa := {emqx_bpapi_trans,list_to_args,1}},
-        #{calls := [], mfa := {emqx_bpapi_trans,call_or_cast,1}},
-        #{calls := [{erlang,'=:=',2},{erlang,error,1}], mfa := {emqx_bpapi_trans,extract_mfa,2}},
-        #{calls := [], mfa := {emqx_bpapi_trans,extract_target_call,2}},
-        #{calls := [{lists,map,2}], mfa := {emqx_bpapi_trans,extract_outer_args,1}},
-        #{calls := [], mfa := {emqx_bpapi_trans,analyze_exprs,6}},
-        #{calls := [{erlang,'=:=',2}], mfa := {emqx_bpapi_trans,analyze_fun,5}},
-        #{calls := [], mfa := {emqx_bpapi_trans,is_attribute,1}},
-        #{calls := [], mfa := {emqx_bpapi_trans,mk_export,0}},
-        #{calls := [{erlang,error,1}, {typerefl_quote,const,2}], mfa := {emqx_bpapi_trans,mk_meta_fun,1}},
-        #{calls := [{erlang,'++',2},{lists,splitwith,2}], mfa := {emqx_bpapi_trans,finalize,2}},
-        #{calls := [], mfa := {emqx_bpapi_trans,check,1}},
+          mfa :=
+          {emqx_bpapi_trans,api_and_version,1}},
+        #{calls := [],
+          mfa := {emqx_bpapi_trans,push_target,2}},
+        #{calls := [],
+          mfa := {emqx_bpapi_trans,push_err,3}},
+        #{calls := [],
+          mfa := {emqx_bpapi_trans,invalid_fun,4}},
+        #{calls := [],
+          mfa := {emqx_bpapi_trans,list_to_args,1}},
+        #{calls := [],
+          mfa := {emqx_bpapi_trans,call_or_cast,1}},
+        #{calls :=
+          [{erlang,'=:=',2},{erlang,error,1}],
+          mfa := {emqx_bpapi_trans,extract_mfa,2}},
+        #{calls := [],
+          mfa :=
+          {emqx_bpapi_trans,extract_target_call,2}},
+        #{calls := [{lists,map,2}],
+          mfa :=
+          {emqx_bpapi_trans,extract_outer_args,1}},
+        #{calls := [],
+          mfa := {emqx_bpapi_trans,analyze_exprs,6}},
+        #{calls := [{erlang,'=:=',2}],
+          mfa := {emqx_bpapi_trans,analyze_fun,5}},
+        #{calls := [],
+          mfa := {emqx_bpapi_trans,is_attribute,1}},
+        #{calls := [],
+          mfa := {emqx_bpapi_trans,mk_export,0}},
+        #{calls := [{erlang,error,1}],
+          mfa := {emqx_bpapi_trans,mk_meta_fun,1}},
+        #{calls :=
+          [{erlang,error,1},
+           {erlang,is_atom,1},
+           {erlang,is_float,1},
+           {erlang,is_integer,1},
+           {erlang,is_map,1},
+           {erlang,is_tuple,1},
+           {erlang,tuple_to_list,1},
+           {io_lib,deep_char_list,1},
+           {lists,flatten,1},
+           {maps,to_list,1}],
+          mfa :=
+          {emqx_bpapi_trans,typerefl_quote__const,
+           2}},
+        #{calls :=
+          [{erlang,'++',2},{lists,splitwith,2}],
+          mfa := {emqx_bpapi_trans,finalize,2}},
+        #{calls := [],
+          mfa := {emqx_bpapi_trans,check,1}},
         #{calls := [],mfa := {emqx_bpapi_trans,go,2}},
-        #{calls := [{erlang,error,1},{lists,foldl,3}], mfa := {emqx_bpapi_trans,parse_transform,2}},
-        #{calls := [{io_lib,format,2}], mfa := {emqx_bpapi_trans,format_error,1}}],
-       includes := [<<"../erlang/lifter2/tests/fixtures/emqx_bpapi_trans.erl">>],
-       local_calls := [],
-			 name := emqx_bpapi_trans,
-       path := <<"../erlang/lifter2/tests/fixtures/emqx_bpapi_trans.erl">>,
-       type_exports := []
-     },
-     <<"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl">> :=
-     #{error :=
-       #{kind := compilation_error,
-         other :=
-         [{"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl",
-           [{{19,2},
-             erl_lint,
-             {undefined_behaviour_func,
-              {bpapi_meta,0},
-              emqx_bpapi}}]}],
-         reasons :=
-         [{"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl",
-           [{{29,14},
-             epp,
-             {include,lib,
-              "emqx/include/bpapi.hrl"}}]}]},
+        #{calls := [{erlang,error,1},{lists,foldl,3}],
+          mfa :=
+          {emqx_bpapi_trans,parse_transform,2}},
+        #{calls := [{io_lib,format,2}],
+          mfa := {emqx_bpapi_trans,format_error,1}}],
+       includes :=
+       [<<"../erlang/lifter2/tests/fixtures/emqx_bpapi_trans.erl">>],
+       local_calls := [],name := emqx_bpapi_trans,
        path :=
-       <<"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl">>}}}
+       <<"../erlang/lifter2/tests/fixtures/emqx_bpapi_trans.erl">>,
+       type_exports := []},
+     <<"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl">> :=
+     #{exports :=
+       [{emqx_statsd_proto_v1,bpapi_meta,0},
+        {emqx_statsd_proto_v1,introduced_in,0},
+        {emqx_statsd_proto_v1,restart,1},
+        {emqx_statsd_proto_v1,start,1},
+        {emqx_statsd_proto_v1,stop,1}],
+       external_calls :=
+       [#{calls := [{rpc,multicall,5}],
+          mfa := {emqx_statsd_proto_v1,restart,1}},
+        #{calls := [{rpc,multicall,5}],
+          mfa := {emqx_statsd_proto_v1,stop,1}},
+        #{calls := [{rpc,multicall,5}],
+          mfa := {emqx_statsd_proto_v1,start,1}},
+        #{calls := [],
+          mfa :=
+          {emqx_statsd_proto_v1,introduced_in,0}},
+        #{calls := [],
+          mfa :=
+          {emqx_statsd_proto_v1,bpapi_meta,0}}],
+       includes :=
+       [<<"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl">>,
+        <<"../erlang/lifter2/tests/fixtures/includes/bpapi.hrl">>],
+       local_calls := [],name := emqx_statsd_proto_v1,
+       path :=
+       <<"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl">>,
+       type_exports := []}}}
   = cerl_analyzer:analyze([
                            <<"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl">>,
                            <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.hrl">>,
