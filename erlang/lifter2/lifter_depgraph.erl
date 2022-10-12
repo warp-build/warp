@@ -25,8 +25,14 @@ add_dep(T=#{ graph := G }, Mod, Dep) ->
 
 -spec topo_sort(t()) -> result:t([atom()], {found_cycles, term()}).
 topo_sort(#{ graph := G }) ->
-  Topo = digraph_utils:topsort(G),
-  {ok, lists:reverse(Topo)}.
+  Cycles = digraph_utils:cyclic_strong_components(G),
+  case Cycles of
+    [] -> 
+      Topo = digraph_utils:topsort(G),
+      {ok, lists:reverse(Topo)};
+    Reason ->
+      {error, {found_cycles, Reason}}
+  end.
 
 -spec from_mods(map()) -> t().
 from_mods(Mods) when is_map(Mods) ->
