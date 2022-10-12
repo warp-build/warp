@@ -1,7 +1,7 @@
 import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
-  const { name, deps, test, cwd } = ctx.cfg();
+  const { name, deps, test, cases, cwd } = ctx.cfg();
 
   const transitiveDeps = ctx.transitiveDeps().flatMap(dep => dep.outs);
   const extraLibPaths = transitiveDeps
@@ -14,7 +14,8 @@ const impl = ctx => {
 
 ct_run \
   -dir ${cwd()} \
-  -suite ${name} \
+  -suite ${test.replace(ERL_EXT, "")} \
+  ${(cases.length > 0) ? `-case ${cases.join(" ")}` : ""} \
   -erl_args \
     -sname ${name}-$(uuidgen) \
     ${extraLibPaths.join(" ")}
@@ -31,10 +32,12 @@ export default Warp.Rule({
   cfg: {
     name: label(),
     test: file(),
+    cases: [string()],
     deps: [label()],
   },
   defaults: {
     deps: [],
+    cases: [],
   },
   toolchains: [ErlangToolchain]
 });
