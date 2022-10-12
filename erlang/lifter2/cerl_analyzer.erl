@@ -32,7 +32,7 @@ analyze(Paths) ->
   #{ sources := Sources, headers := Headers } = tag_files(Paths),
 
   HeaderDirs = [ binary:bin_to_list(filename:dirname(H)) || H <- Headers ],
-  IncludeDirs = ["apps"] ++ uniq(HeaderDirs),
+  IncludeDirs = uniq(HeaderDirs),
   Opts = #{ compiler_opts => [{i, IncludeDirs}] },
 
   Results = lists:foldl(fun (Source, Acc) -> 
