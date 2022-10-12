@@ -26,11 +26,14 @@ pub enum TargetExecutorError {
         dst_parent: PathBuf,
     },
 
-    #[error("When building {label:?}, could not copy {src:?} into sandbox at {dst:?}")]
+    #[error(
+        "When building {label:?}, could not copy {src:?} into sandbox at {dst:?} due to: {err:?}"
+    )]
     CouldNotCopy {
         label: Label,
         src: PathBuf,
         dst: PathBuf,
+        err: std::io::Error,
     },
 
     #[error(transparent)]
@@ -346,14 +349,18 @@ TARGET = {:#?}
                 .map(|_| ())?;
         };
 
-        fs::copy(&label.workspace().join(src), &dst)
-            .await
-            .map_err(|_| TargetExecutorError::CouldNotCopy {
-                label: label.clone(),
-                src: src.clone(),
-                dst: dst.clone(),
-            })
-            .map(|_| ())?;
+        match fs::copy(&label.workspace().join(src), &dst).await {
+            Ok(_) => (),
+            Err(err) if err.kind() == std::io::ErrorKind::InvalidInput => (),
+            Err(err) => {
+                return Err(TargetExecutorError::CouldNotCopy {
+                    label: label.clone(),
+                    src: src.clone(),
+                    dst: dst.clone(),
+                    err,
+                })
+            }
+        };
 
         Ok(())
     }
