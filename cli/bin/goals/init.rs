@@ -178,11 +178,7 @@ impl InitGoal {
 
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
-            warp.build(
-                label.clone(),
-                event_channel.clone(),
-                TargetFilter::Everything,
-            ),
+            warp.build(label.clone(), event_channel.clone(), BuildOpts::default()),
             status_reporter.run(label.clone()),
         )
         .await;

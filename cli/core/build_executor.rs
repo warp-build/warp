@@ -13,21 +13,6 @@ pub enum BuildExecutorError {
     QueueError(build_queue::QueueError),
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum TargetFilter {
-    OnlyTests,
-    Everything,
-}
-
-impl TargetFilter {
-    pub fn passes(&self, target: &Target) -> bool {
-        match self {
-            TargetFilter::OnlyTests => target.rule_name.ends_with("_test"),
-            TargetFilter::Everything => true,
-        }
-    }
-}
-
 /// A BuildExecutor orchestrates a local build starting from the target and
 /// building dependencies as needed.
 ///
@@ -59,7 +44,7 @@ impl BuildExecutor {
         &self,
         target: Label,
         event_channel: Arc<EventChannel>,
-        target_filter: TargetFilter,
+        build_opts: BuildOpts,
     ) -> Result<Option<(TargetManifest, ExecutableTarget)>, BuildExecutorError> {
         let worker_limit = self.worker_limit;
         debug!("Starting build executor with {} workers...", &worker_limit);
@@ -88,6 +73,7 @@ impl BuildExecutor {
             target_executor.clone(),
             store.clone(),
             share_rule_executor_state.clone(),
+            build_opts.clone(),
         )
         .map_err(BuildExecutorError::WorkerError)?;
 
@@ -104,6 +90,7 @@ impl BuildExecutor {
                 let target_executor = target_executor.clone();
                 let target = target.clone();
                 let store = store.clone();
+                let build_opts = build_opts.clone();
                 let share_rule_executor_state = share_rule_executor_state.clone();
 
                 let thread = worker_pool.spawn_pinned(move || async move {
@@ -118,6 +105,7 @@ impl BuildExecutor {
                         target_executor,
                         store,
                         share_rule_executor_state,
+                        build_opts,
                     )
                     .map_err(BuildExecutorError::WorkerError)?;
 
@@ -133,7 +121,7 @@ impl BuildExecutor {
 
         if target.is_all() {
             let queued_count = build_queue
-                .queue_entire_workspace(worker_limit, target_filter)
+                .queue_entire_workspace(worker_limit, build_opts.target_filter)
                 .await
                 .map_err(BuildExecutorError::QueueError)?;
 

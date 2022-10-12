@@ -35,6 +35,7 @@ pub struct BuildWorker {
     pub role: Role,
     pub coordinator: Arc<BuildCoordinator>,
     pub event_channel: Arc<EventChannel>,
+    pub build_opts: BuildOpts,
 
     /// The queue from which workers pull work.
     pub target: Label,
@@ -60,6 +61,7 @@ impl BuildWorker {
         target_executor: Arc<TargetExecutor>,
         store: Arc<Store>,
         share_rule_executor_state: Arc<SharedRuleExecutorState>,
+        build_opts: BuildOpts,
     ) -> Result<Self, BuildWorkerError> {
         let env = ExecutionEnvironment::new();
 
@@ -78,6 +80,7 @@ impl BuildWorker {
             target,
             target_executor,
             target_planner,
+            build_opts,
         })
     }
 

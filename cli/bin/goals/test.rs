@@ -61,7 +61,10 @@ impl TestGoal {
             warp.build(
                 label.clone(),
                 event_channel.clone(),
-                TargetFilter::OnlyTests,
+                BuildOpts {
+                    target_filter: TargetFilter::OnlyTests,
+                    ..Default::default()
+                },
             ),
             status_reporter.run(label.clone()),
         )
