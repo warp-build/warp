@@ -1,3 +1,4 @@
+use super::Event;
 use super::*;
 use futures::FutureExt;
 use fxhash::FxHashSet;
@@ -8,6 +9,7 @@ use std::{
 };
 use thiserror::*;
 use tokio::fs;
+use tracing::*;
 
 pub struct TargetExecutor {
     event_channel: Arc<EventChannel>,
@@ -64,6 +66,7 @@ impl TargetExecutor {
     pub async fn execute(
         &self,
         target: &ExecutableTarget,
+        build_opts: &BuildOpts,
     ) -> Result<(TargetManifest, ValidationStatus), TargetExecutorError> {
         let build_started_at = chrono::Utc::now();
 
@@ -73,6 +76,13 @@ impl TargetExecutor {
             .await
             .map_err(TargetExecutorError::StoreError)?
         {
+            if build_opts.force_output_promotion {
+                info!("FORCED PROMOTION!");
+                self.store
+                    .promote_outputs(&manifest)
+                    .await
+                    .map_err(TargetExecutorError::StoreError)?;
+            }
             return Ok((*manifest, ValidationStatus::Cached));
         }
 

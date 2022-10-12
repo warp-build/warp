@@ -181,7 +181,11 @@ impl BuildWorker {
             rule_mnemonic: executable_target.rule.mnemonic.to_string(),
         });
 
-        match self.target_executor.execute(&executable_target).await {
+        match self
+            .target_executor
+            .execute(&executable_target, &self.build_opts)
+            .await
+        {
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
                     executable_target.label.clone(),
