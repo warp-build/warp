@@ -160,4 +160,8 @@ impl BuildExecutor {
 
         Ok(self.results.get_computed_target(&target))
     }
+
+    pub fn manifests(&self) -> Vec<TargetManifest> {
+        self.results.get_all_manifests()
+    }
 }

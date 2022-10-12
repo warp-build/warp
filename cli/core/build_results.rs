@@ -49,6 +49,13 @@ impl BuildResults {
         }
     }
 
+    pub fn get_all_manifests(&self) -> Vec<TargetManifest> {
+        self.computed_targets
+            .iter()
+            .map(|e| e.value().0.clone())
+            .collect()
+    }
+
     // NOTE(@ostera): there's plenty better ways of computing this, one would be to keep 2 maps for
     // expected targets, and remove entries from it as entries are added to the computed targets.
     // That way that map represents the current state of the build results, and we can just check

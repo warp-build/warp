@@ -147,6 +147,7 @@ enum Goal {
     Init(InitGoal),
     Run(RunGoal),
     Setup(SetupGoal),
+    Shell(ShellGoal),
     Test(TestGoal),
 }
 
@@ -165,6 +166,7 @@ impl Goal {
             Goal::Init(x) => x.run(build_started, cwd, workspace, event_channel).await,
             Goal::Run(x) => x.run(build_started, cwd, workspace, event_channel).await,
             Goal::Setup(x) => x.run(workspace.current_user, event_channel).await,
+            Goal::Shell(x) => x.run(build_started, cwd, workspace, event_channel).await,
             Goal::Test(x) => x.run(build_started, cwd, workspace, event_channel).await,
         }
     }
