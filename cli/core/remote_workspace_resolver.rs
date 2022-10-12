@@ -139,12 +139,21 @@ impl RemoteWorkspaceResolver {
             return Ok(());
         }
 
+        let url = config.url();
+        let expected_hash = config.hash().to_string();
+
+        let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
+
+        // FIXME(@ostera): should we really trust github.com here and skip the hash check?
+        let prefix = &self.global_workspaces_path;
+        let (final_dir, expected_hash) = if url.host_str().unwrap().contains("github.com") {
+            (prefix.join(scheme_and_host).join(expected_hash), None)
+        } else {
+            (prefix.join(scheme_and_host), Some(expected_hash))
+        };
+
         self.archive_manager
-            .download_and_extract(
-                config.url(),
-                &self.global_workspaces_path,
-                Some(config.hash().to_string()),
-            )
+            .download_and_extract(url, &final_dir, expected_hash)
             .await
             .map_err(RemoteWorkspaceResolverError::ArchiveManagerError)?;
 

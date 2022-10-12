@@ -37,8 +37,21 @@ pub enum ArchiveManagerError {
     #[error("Could not download {url:?} due to: {err:?}")]
     CouldNotDownload { url: Url, err: reqwest::Error },
 
+    #[error("Failed download {url:?} with status: {err:?}")]
+    DownloadFailed { url: Url, err: reqwest::StatusCode },
+
     #[error("Could not stream download of {url:?} due to: {err:?}")]
     StreamingError { url: Url, err: std::io::Error },
+
+    #[error(
+        "Could not copy archive originating at {url:?} from {src:?} to {src:?}, due to: {err:?}"
+    )]
+    CopyError {
+        url: Url,
+        src: PathBuf,
+        dst: PathBuf,
+        err: std::io::Error,
+    },
 
     #[error(
         "Could not extract archive originating at {url:?} from {src:?} to {src:?}, due to: {err:?}"
@@ -66,6 +79,13 @@ impl ArchiveManager {
         }
     }
 
+    pub fn from_paths(workspace_paths: &WorkspacePaths) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            global_archives_root: workspace_paths.global_archives_root.clone(),
+        }
+    }
+
     fn _archive_path(&self, url: &Url, hash: &str) -> PathBuf {
         let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
         self.global_archives_root
@@ -74,13 +94,8 @@ impl ArchiveManager {
             .with_extension("zip")
     }
 
-    #[tracing::instrument(name = "ArchiveManager::download_and_extract", skip(self))]
-    pub async fn download_and_extract(
-        &self,
-        url: &Url,
-        prefix: &PathBuf,
-        expected_hash: Option<String>,
-    ) -> Result<Option<Archive>, ArchiveManagerError> {
+    #[tracing::instrument(name = "ArchiveManager::download", skip(self))]
+    pub async fn download(&self, url: &Url) -> Result<(PathBuf, String), ArchiveManagerError> {
         let response = self.client.get(url.clone()).send().await.map_err(|err| {
             ArchiveManagerError::CouldNotDownload {
                 url: url.clone(),
@@ -89,47 +104,90 @@ impl ArchiveManager {
         })?;
 
         if response.status().is_success() {
-            let (downloaded_file, actual_hash) = self
-                .stream_response(url, response)
-                .await
-                .map_err(|err| ArchiveManagerError::StreamingError {
+            self.stream_response(url, response).await.map_err(|err| {
+                ArchiveManagerError::StreamingError {
                     url: url.clone(),
                     err,
-                })?;
-
-            let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
-
-            // FIXME(@ostera): should we really trust github.com here and skip the hash check?
-            let final_dir = if url.host_str().unwrap().contains("github.com") {
-                prefix.join(scheme_and_host).join(expected_hash.unwrap())
-            } else {
-                self.check_hash(url, expected_hash, &actual_hash)?;
-                prefix.join(scheme_and_host).join(&actual_hash)
-            };
-
-            self.extract(url, &downloaded_file, &final_dir).await?;
-
-            Ok(Some(Archive {
-                url: url.clone(),
-                path: final_dir.clone(),
-                hash: actual_hash.clone(),
-            }))
+                }
+            })
         } else {
-            Ok(None)
+            Err(ArchiveManagerError::DownloadFailed {
+                url: url.clone(),
+                err: response.status().clone(),
+            })
         }
+    }
+
+    #[tracing::instrument(name = "ArchiveManager::download_and_extract", skip(self))]
+    pub async fn download_and_move(
+        &self,
+        url: &Url,
+        prefix: &PathBuf,
+        expected_hash: Option<String>,
+    ) -> Result<Archive, ArchiveManagerError> {
+        let (downloaded_file, actual_hash) = self.download(&url).await?;
+
+        self.check_hash(url, &expected_hash, &actual_hash)?;
+
+        let final_dir = if expected_hash.is_some() {
+            prefix.join(&actual_hash)
+        } else {
+            prefix.to_path_buf()
+        };
+
+        fs::copy(&downloaded_file, &final_dir)
+            .await
+            .map_err(|err| ArchiveManagerError::CopyError {
+                url: url.clone(),
+                src: downloaded_file,
+                dst: final_dir.clone(),
+                err,
+            })?;
+
+        Ok(Archive {
+            url: url.clone(),
+            path: final_dir.clone(),
+            hash: actual_hash.clone(),
+        })
+    }
+
+    #[tracing::instrument(name = "ArchiveManager::download_and_extract", skip(self))]
+    pub async fn download_and_extract(
+        &self,
+        url: &Url,
+        prefix: &PathBuf,
+        expected_hash: Option<String>,
+    ) -> Result<Archive, ArchiveManagerError> {
+        let (downloaded_file, actual_hash) = self.download(&url).await?;
+
+        self.check_hash(url, &expected_hash, &actual_hash)?;
+
+        let final_dir = if expected_hash.is_some() {
+            prefix.join(&actual_hash)
+        } else {
+            prefix.to_path_buf()
+        };
+
+        self.extract(url, &downloaded_file, &final_dir).await?;
+
+        Ok(Archive {
+            url: url.clone(),
+            path: final_dir.clone(),
+            hash: actual_hash.clone(),
+        })
     }
 
     fn check_hash(
         &self,
         url: &Url,
-        expected_hash: Option<String>,
+        expected_hash: &Option<String>,
         actual_hash: &str,
     ) -> Result<(), ArchiveManagerError> {
         if let Some(expected) = expected_hash {
             if expected != actual_hash {
                 return Err(ArchiveManagerError::HashMismatch {
                     url: url.clone(),
-                    expected,
+                    expected: expected.clone(),
                     actual: actual_hash.to_string(),
                 });
             }
