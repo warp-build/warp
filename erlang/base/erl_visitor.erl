@@ -18,6 +18,11 @@ walk(Node={clause, _Ln, _Args, _Guards, Exprs}, Acc, Fn) ->
     Fn(Node, Acc),
     Exprs);
 
+walk(Node={'match', _Ln, Expr1, Expr2}, Acc, Fn) ->
+  Acc1 = Fn(Node, Acc),
+  Acc2 = walk(Expr1, Acc1, Fn),
+  walk(Expr2, Acc2, Fn);
+
 walk(Node={'case', _Ln, Expr, Args}, Acc, Fn) ->
   Acc1 = Fn(Node, Acc),
   Acc2 = walk(Expr, Acc1, Fn),

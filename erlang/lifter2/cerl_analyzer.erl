@@ -26,7 +26,10 @@
 
 -type opts() :: #{ compiler_opts => [atom()] }.
 
-outdir() -> "/tmp/_warp_erlang_lifter_tmp/run" ++ erlang:integer_to_list(erlang:monotonic_time()).
+outdir() ->
+  "/tmp/_warp_erlang_lifter_tmp/run"
+  ++ erlang:integer_to_list(erlang:system_time())
+  ++ erlang:integer_to_list(erlang:monotonic_time()).
 
 %%--------------------------------------------------------------------------------------------------
 %% API
@@ -49,18 +52,21 @@ analyze(Paths) ->
   ok = filelib:ensure_path(OutDir),
   true = code:add_path(OutDir),
 
-  Opts = #{ compiler_opts => [{OutDir} | IncludeDirs] },
+  Opts = #{
+           compiler_opts => [{outdir, OutDir} | IncludeDirs],
+           include_paths => IncludeDirs
+          },
   Results = lists:foldl(fun (Source, Acc) ->
                             maps:put(Source, analyze(Source, Opts), Acc) end, #{}, Sources),
 
-  ok = file:del_dir(OutDir),
+  _ = file:del_dir(OutDir),
 
   {ok, Results}.
 
 
 -spec analyze(path:t(), opts()) -> result:t(mod_desc(), err()).
-analyze(Path, #{ compiler_opts := CompileOpts }=Opts) when is_binary(Path) ->
-  ParseTrans = find_required_transforms(Path),
+analyze(Path, #{ compiler_opts := CompileOpts, include_paths := IncludeDirs }) when is_binary(Path) ->
+  ParseTrans = find_required_transforms(Path, IncludeDirs),
 
   % Compile Sources into AST
   case do_compile(Path, CompileOpts ++ ParseTrans) of
@@ -71,9 +77,8 @@ analyze(Path, #{ compiler_opts := CompileOpts }=Opts) when is_binary(Path) ->
          error => clean_compile_error(Reasons, Other) }
   end.
 
-find_required_transforms(Path) -> 
-  {ok, Data} = file:read_file(Path),
-  {ok, Forms} = erl_ast:parse(Data),
+find_required_transforms(Path, IncludeDirs) -> 
+  {ok, Forms} = erl_ast:parse_file(Path, IncludeDirs),
   lists:filtermap(
     fun
       ({attribute, _, compile, {parse_transform, Mod}}) -> {true, {parse_transform, Mod}};
@@ -120,7 +125,7 @@ do_analyze(Path, Mod, Core) ->
     % attrs => Attrs
    }.
 
-includes(Mod, Attrs) ->
+includes(_Mod, Attrs) ->
   Includes = [cerl:concrete(L2) || {L1, L2} <- Attrs,
                                    cerl:is_literal(L1), cerl:is_literal(L2),
                                    cerl:concrete(L1) =:= file ],

@@ -13,7 +13,8 @@ file_to_module(Path) ->
   ModName = filename:basename(Path, erl_ext()),
   case BaseName =:= ModName of
     true -> {error, path_is_not_a_module};
-    false -> {ok, erlang:list_to_atom(ModName)}
+    false when is_list(ModName) -> {ok, erlang:list_to_atom(ModName)};
+    false when is_binary(ModName) -> {ok, erlang:binary_to_atom(ModName, utf8)}
   end.
 
 files_to_modules(Srcs) ->
@@ -1286,18 +1287,18 @@ modules() ->
 %===============================================================================
 
 rebar3_modules() -> [
-              rebar_api,
-              rebar_app_info,
-              rebar_config,
-              rebar_dir,
-              rebar_file_utils,
-              rebar_hex_repos,
-              rebar_hooks,
-              rebar_log,
-              rebar_opts,
-              rebar_prv_cover,
-              rebar_resource_v2,
-              rebar_state,
-              rebar_string,
-              rebar_utils
-             ].
+                     rebar_api,
+                     rebar_app_info,
+                     rebar_config,
+                     rebar_dir,
+                     rebar_file_utils,
+                     rebar_hex_repos,
+                     rebar_hooks,
+                     rebar_log,
+                     rebar_opts,
+                     rebar_prv_cover,
+                     rebar_resource_v2,
+                     rebar_state,
+                     rebar_string,
+                     rebar_utils
+                    ].
