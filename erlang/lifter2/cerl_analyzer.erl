@@ -121,7 +121,7 @@ extract_call(call, Tree, Acc) ->
   [mfa(M, F, A)|Acc];
 extract_call(_, _, Acc) -> Acc.
 
-mfa(M, F, A) -> #{ m => M, f => F, a => A }.
+mfa(M, F, A) -> {M, F, A}.
 
 uniq([]) -> [];
 uniq([X]) -> [X];
