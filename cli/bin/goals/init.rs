@@ -83,6 +83,19 @@ impl InitGoal {
                 let mut map = BTreeMap::new();
 
                 map.insert(
+                    "cmake".to_string(),
+                    FlexibleRuleConfig({
+                        let mut map = BTreeMap::new();
+                        map.insert(
+                            "sha1".to_string(),
+                            "19b1473e6ded2d234256b6aac90eb22616c5ab5e".into(),
+                        );
+                        map.insert("version".to_string(), "3.24.2".into());
+                        map
+                    }),
+                );
+
+                map.insert(
                     "erlang".to_string(),
                     FlexibleRuleConfig({
                         let mut map = BTreeMap::new();
@@ -91,6 +104,18 @@ impl InitGoal {
                             "2bb7456ccb19cf83b07506744fb540ce4d66b257".into(),
                         );
                         map.insert("version".to_string(), "25.0".into());
+                        map
+                    }),
+                );
+
+                map.insert(
+                    "rebar3".to_string(),
+                    FlexibleRuleConfig({
+                        let mut map = BTreeMap::new();
+                        map.insert(
+                            "sha1".to_string(),
+                            "143d3473dae6ea8250452f7a29db73974be51b24".into(),
+                        );
                         map
                     }),
                 );
@@ -117,7 +142,7 @@ impl InitGoal {
                     "tools.warp.build".to_string(),
                     RemoteWorkspaceFile {
                         github: Some("warp-build/tools.warp.build".to_string()),
-                        git_ref: Some("d375d2380acea9ab8713afdb9ec1875140b479ed".to_string()),
+                        git_ref: Some("3ab02bcfce544b80f350dd3f49a9fcd35aec1491".to_string()),
                         ..RemoteWorkspaceFile::default()
                     },
                 );
