@@ -41,7 +41,7 @@ from_mods(Mods) when is_map(Mods) ->
   DepGraph = new(),
 
   lists:foreach(
-    fun ({Mod, #{ mods := Deps }}) ->
+    fun ({Mod, #{ mods := Mods, includes := Includes }}) ->
         add_mod(DepGraph, Mod),
         ?LOG_DEBUG("add_mod(~p)\n", [Mod]),
         lists:foreach(fun 
@@ -50,7 +50,7 @@ from_mods(Mods) when is_map(Mods) ->
                         (Dep) ->
                           ?LOG_DEBUG("add_dep(~p, ~p)\n", [Mod, Dep]),
                           add_dep(DepGraph, Mod, Dep)
-                      end, Deps)
+                      end, Mods ++ Includes)
     end, Entries),
 
   {ok, DepGraph}.

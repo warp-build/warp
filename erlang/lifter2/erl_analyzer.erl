@@ -40,6 +40,9 @@ includes(Ast) ->
     Ast,
     _Acc = [],
     fun
+      (_Ast={error, {_Loc1, epp, {include, lib, File}}}, Acc) ->
+        [binary:list_to_bin(File) | Acc];
+
       (_Ast={attribute, _Loc1, include, File}, Acc) ->
         [binary:list_to_bin(File) | Acc];
 
