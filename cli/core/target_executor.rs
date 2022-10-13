@@ -77,12 +77,12 @@ impl TargetExecutor {
             .map_err(TargetExecutorError::StoreError)?
         {
             if build_opts.force_output_promotion {
-                info!("FORCED PROMOTION!");
                 self.store
                     .promote_outputs(&manifest)
                     .await
                     .map_err(TargetExecutorError::StoreError)?;
             }
+
             return Ok((*manifest, ValidationStatus::Cached));
         }
 

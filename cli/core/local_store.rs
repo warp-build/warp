@@ -1,8 +1,63 @@
 use super::*;
 use fxhash::*;
+use serde_derive::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use thiserror::*;
 use tokio::fs;
+use tokio::io::AsyncReadExt;
 use tracing::*;
+
+pub const BUILDSTAMP: &str = "output.json";
+
+#[derive(Error, Debug)]
+pub enum OutputManifestError {
+    #[error("Could not parse Manifest file: {0:?}")]
+    ParseError(serde_json::Error),
+
+    #[error("Could not print Manifest file: {0:#?}")]
+    PrintError(serde_json::Error),
+
+    #[error(transparent)]
+    IOError(std::io::Error),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OutputManifest {
+    pub label: Label,
+    pub outs: Vec<PathBuf>,
+}
+
+impl OutputManifest {
+    #[tracing::instrument(name = "OutputManifest::find")]
+    pub async fn find(label: &Label, path: &PathBuf) -> Result<Self, OutputManifestError> {
+        let mut file = fs::File::open(OutputManifest::_file(label, path))
+            .await
+            .map_err(OutputManifestError::IOError)?;
+
+        let mut bytes = vec![];
+        file.read_to_end(&mut bytes)
+            .await
+            .map_err(OutputManifestError::IOError)?;
+
+        serde_json::from_slice(&bytes).map_err(OutputManifestError::ParseError)
+    }
+
+    #[tracing::instrument(name = "OutputManifest::write")]
+    pub async fn write(&self, root: &PathBuf) -> Result<(), OutputManifestError> {
+        let json = serde_json::to_string_pretty(&self).map_err(OutputManifestError::PrintError)?;
+
+        let file = OutputManifest::_file(&self.label, root);
+
+        fs::write(file, json)
+            .await
+            .map_err(OutputManifestError::IOError)
+    }
+
+    fn _file(label: &Label, root: &PathBuf) -> PathBuf {
+        root.join(&label.hash().to_string())
+            .with_extension(BUILDSTAMP)
+    }
+}
 
 /// The LocalStore implements an in-memory and persisted cache for build nodes
 /// based on their hashes.
@@ -61,6 +116,12 @@ impl LocalStore {
         manifest: &TargetManifest,
         dst: &PathBuf,
     ) -> Result<(), StoreError> {
+        // if let Ok(output_manifest) = OutputManifest::find(&manifest.label, dst).await {
+        //     if output_manifest.label.hash().to_string().eq(&manifest.hash) {
+        //         return Ok(());
+        //     }
+        // }
+
         trace!("Promoting outputs for {}", manifest.label.to_string());
         let hash_path = self.cache_root.join(key);
 
@@ -69,7 +130,8 @@ impl LocalStore {
             outs.insert(hash_path.join(&out), dst.join(&out).to_path_buf());
         }
 
-        for (src, dst) in outs {
+        for (src, dst) in &outs {
+            // NOTE(@ostera): if the file doesn't exist, we just move on
             let _ = fs::remove_file(&dst).await;
 
             match fs::create_dir_all(&dst.parent().unwrap()).await {
@@ -86,19 +148,45 @@ impl LocalStore {
 
             match result {
                 Ok(_) => Ok(()),
-                Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
                 Err(err) => {
                     return Err(StoreError::PromoteOutputError {
                         label: manifest.label.clone(),
-                        src,
-                        dst,
+                        src: src.to_path_buf(),
+                        dst: dst.to_path_buf(),
                         err,
                     })
                 }
             }?;
         }
 
+        let output_manifest = OutputManifest {
+            label: manifest.label.clone(),
+            outs: outs.into_iter().map(|(_src, dst)| dst).collect(),
+        };
+
+        output_manifest
+            .write(dst)
+            .await
+            .map_err(StoreError::OutputManifestError)?;
+
         Ok(())
+    }
+
+    #[tracing::instrument(name = "LocalStore::needs_promotion", skip(manifest, dst))]
+    async fn needs_promotion(
+        &self,
+        manifest: &TargetManifest,
+        dst: &PathBuf,
+    ) -> Result<bool, StoreError> {
+        let buildstamp = dst.join(format!("{}.{}", manifest.label.hash(), BUILDSTAMP));
+
+        if fs::metadata(&buildstamp).await.is_ok() {
+            let hash = fs::read_to_string(buildstamp)
+                .await
+                .map_err(StoreError::IOError)?;
+            return Ok(hash != manifest.hash);
+        }
+        Ok(true)
     }
 
     #[tracing::instrument(name = "LocalStore::absolute_path_for_key")]

@@ -41,6 +41,9 @@ pub enum StoreError {
     #[error(transparent)]
     TargetManifestError(TargetManifestError),
 
+    #[error(transparent)]
+    OutputManifestError(OutputManifestError),
+
     #[error("When promote outputs for {:?}, could not promote {src:?} into {dst:?} due to: {err:?}", label.to_string())]
     PromoteOutputError {
         label: Label,
