@@ -56,7 +56,7 @@ analyze(Paths) ->
            compiler_opts => [{outdir, OutDir} | IncludeDirs],
            include_paths => IncludeDirs
           },
-  Results0 = parallel_lists:map(fun (Source) -> {Source, analyze(Source, Opts)} end, Sources),
+  Results0 = lists:map(fun (Source) -> {Source, analyze(Source, Opts)} end, Sources),
   Results = maps:from_list(Results0), 
 
   _ = file:del_dir(OutDir),
@@ -66,6 +66,7 @@ analyze(Paths) ->
 
 -spec analyze(path:t(), opts()) -> result:t(mod_desc(), err()).
 analyze(Path, #{ compiler_opts := CompileOpts, include_paths := IncludeDirs }) when is_binary(Path) ->
+  ?LOG_INFO("Analyzing: ~s", [Path]),
   ParseTrans = find_required_transforms(Path, IncludeDirs),
 
   % Compile Sources into AST

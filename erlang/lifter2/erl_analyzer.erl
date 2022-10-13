@@ -2,6 +2,8 @@
 
 -export([analyze/1]).
 
+-include_lib("kernel/include/logger.hrl").
+
 analyze(Files) ->
   IncludePaths = include_paths(Files),
   ModMap = mod_map(Files),
@@ -10,6 +12,7 @@ analyze(Files) ->
   {ok, Result}.
 
 do_analyze(Path, IncludePaths, ModMap) ->
+  ?LOG_INFO("Analyzing: ~s", [Path]),
   {ok, Ast} = erl_ast:parse_file(Path, IncludePaths),
 
   {Mods, MissingMods} = mods(ModMap, Ast),

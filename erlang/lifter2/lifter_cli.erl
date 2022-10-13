@@ -1,5 +1,7 @@
 -module(lifter_cli).
 
+-include_lib("kernel/include/logger.hrl").
+
 -export([analyze_files/2]).
 -export([sort_deps/1]).
 -export([missing_deps/1]).
@@ -21,9 +23,11 @@ missing_deps(Files) ->
 sort_deps(Files) ->
   {ok, Mods} = erl_analyzer:analyze([ binary:list_to_bin(Path) || Path <- Files ]),
   {ok, DepGraph} = lifter_depgraph:from_mods(Mods),
-  {ok, Sort} = lifter_depgraph:topo_sort(DepGraph),
-  io:format("~s\n", [?JSON(Sort)]),
-  ok.
+  case lifter_depgraph:topo_sort(DepGraph) of
+    {ok, Sort} -> io:format("~s\n", [?JSON(Sort)]);
+    {error, {found_cycles, Cycles}} ->
+      io:format("~s\n", [?JSON(#{ dependency_cycles => Cycles })])
+  end.
 
 
 analyze_files(_WorkspaceRoot, Files) ->

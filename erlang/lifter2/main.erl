@@ -10,24 +10,23 @@ main(Args) ->
   ok = setup(),
 
   {ok, WorkspaceRoot} = file:get_cwd(),
+  ?LOG_INFO("Running lifter on ~s", [WorkspaceRoot]),
 
-  Result = case Args of
-             ["help"] -> show_help();
-             ["analyze-file", File] -> lifter_cli:analyze_files(WorkspaceRoot, [File]);
-             ["analyze-files" | Files] -> lifter_cli:analyze_files(WorkspaceRoot, Files);
-             ["sort-deps" | Files] -> lifter_cli:sort_deps(Files);
-             ["missing-deps" | Files] -> lifter_cli:missing_deps(Files);
-             _ -> show_help()
-           end,
-
-  case Result of
-    ok -> ok;
-    {error, Reason} -> ?LOG_ERROR("Uh-oh! Something went wrong:\n\n~p\n", [Reason])
+  case Args of
+    ["help"] -> show_help();
+    ["analyze-file", File] -> lifter_cli:analyze_files(WorkspaceRoot, [File]);
+    ["analyze-files" | Files] -> lifter_cli:analyze_files(WorkspaceRoot, Files);
+    ["sort-deps" | Files] -> lifter_cli:sort_deps(Files);
+    ["missing-deps" | Files] -> lifter_cli:missing_deps(Files);
+    _ -> show_help()
   end.
 
 setup() ->
   logger:set_primary_config(#{ level => all }),
   logger:set_handler_config(default, formatter, {logger_formatter, #{}}),
+  [HandlerId] = logger:get_handler_ids(),
+  logger:remove_handler(HandlerId),
+  logger:add_handler(default_h, logger_std_h, #{ config => #{ type => standard_error }}),
   ok.
 
 show_help() ->
