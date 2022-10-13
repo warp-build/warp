@@ -24,11 +24,12 @@ pub enum OutputManifestError {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OutputManifest {
     pub label: Label,
+    pub hash: String,
     pub outs: Vec<PathBuf>,
 }
 
 impl OutputManifest {
-    #[tracing::instrument(name = "OutputManifest::find")]
+    #[tracing::instrument(name = "OutputManifest::find", skip(path))]
     pub async fn find(label: &Label, path: &PathBuf) -> Result<Self, OutputManifestError> {
         let mut file = fs::File::open(OutputManifest::_file(label, path))
             .await
@@ -42,7 +43,7 @@ impl OutputManifest {
         serde_json::from_slice(&bytes).map_err(OutputManifestError::ParseError)
     }
 
-    #[tracing::instrument(name = "OutputManifest::write")]
+    #[tracing::instrument(name = "OutputManifest::write", skip(self))]
     pub async fn write(&self, root: &PathBuf) -> Result<(), OutputManifestError> {
         let json = serde_json::to_string_pretty(&self).map_err(OutputManifestError::PrintError)?;
 
@@ -116,11 +117,14 @@ impl LocalStore {
         manifest: &TargetManifest,
         dst: &PathBuf,
     ) -> Result<(), StoreError> {
-        // if let Ok(output_manifest) = OutputManifest::find(&manifest.label, dst).await {
-        //     if output_manifest.label.hash().to_string().eq(&manifest.hash) {
-        //         return Ok(());
-        //     }
-        // }
+        if let Ok(output_manifest) = OutputManifest::find(&manifest.label, dst).await {
+            if output_manifest.hash == manifest.hash {
+                return Ok(());
+            }
+            for out in output_manifest.outs {
+                let _ = fs::remove_file(&dst.join(out)).await;
+            }
+        }
 
         trace!("Promoting outputs for {}", manifest.label.to_string());
         let hash_path = self.cache_root.join(key);
@@ -160,6 +164,7 @@ impl LocalStore {
         }
 
         let output_manifest = OutputManifest {
+            hash: manifest.hash.clone(),
             label: manifest.label.clone(),
             outs: outs.into_iter().map(|(_src, dst)| dst).collect(),
         };
