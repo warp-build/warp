@@ -11,8 +11,8 @@ missing_deps(Files) ->
   Analysis = maps:to_list(Analysis0),
 
   Missing = #{
-              modules => lists:flatten([ Mod || {_, #{ missing_modules := Mod }} <- Analysis ]),
-              headers => lists:flatten([ Inc || {_, #{ missing_includes := Inc }} <- Analysis ])
+              modules => uniq([ Mod || {_, #{ missing_modules := Mod }} <- Analysis ]),
+              headers => uniq([ Inc || {_, #{ missing_includes := Inc }} <- Analysis ])
             },
 
   io:format("~s\n", [?JSON(Missing)]),
@@ -48,3 +48,8 @@ analyze_files(_WorkspaceRoot, Files) ->
 
   io:format("~s\n", [ Json ]),
   ok.
+
+
+uniq([]) -> [];
+uniq([X]) -> [X];
+uniq(Xs) -> sets:to_list(sets:from_list(lists:flatten(Xs), [{version, 2}])).
