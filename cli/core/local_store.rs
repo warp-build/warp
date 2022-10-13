@@ -1,64 +1,8 @@
 use super::*;
 use fxhash::*;
-use serde_derive::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use thiserror::*;
 use tokio::fs;
-use tokio::io::AsyncReadExt;
 use tracing::*;
-
-pub const BUILDSTAMP: &str = "output.json";
-
-#[derive(Error, Debug)]
-pub enum OutputManifestError {
-    #[error("Could not parse Manifest file: {0:?}")]
-    ParseError(serde_json::Error),
-
-    #[error("Could not print Manifest file: {0:#?}")]
-    PrintError(serde_json::Error),
-
-    #[error(transparent)]
-    IOError(std::io::Error),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct OutputManifest {
-    pub label: Label,
-    pub hash: String,
-    pub outs: Vec<PathBuf>,
-}
-
-impl OutputManifest {
-    #[tracing::instrument(name = "OutputManifest::find", skip(path))]
-    pub async fn find(label: &Label, path: &PathBuf) -> Result<Self, OutputManifestError> {
-        let mut file = fs::File::open(OutputManifest::_file(label, path))
-            .await
-            .map_err(OutputManifestError::IOError)?;
-
-        let mut bytes = vec![];
-        file.read_to_end(&mut bytes)
-            .await
-            .map_err(OutputManifestError::IOError)?;
-
-        serde_json::from_slice(&bytes).map_err(OutputManifestError::ParseError)
-    }
-
-    #[tracing::instrument(name = "OutputManifest::write", skip(self))]
-    pub async fn write(&self, root: &PathBuf) -> Result<(), OutputManifestError> {
-        let json = serde_json::to_string_pretty(&self).map_err(OutputManifestError::PrintError)?;
-
-        let file = OutputManifest::_file(&self.label, root);
-
-        fs::write(file, json)
-            .await
-            .map_err(OutputManifestError::IOError)
-    }
-
-    fn _file(label: &Label, root: &PathBuf) -> PathBuf {
-        root.join(&label.hash().to_string())
-            .with_extension(BUILDSTAMP)
-    }
-}
 
 /// The LocalStore implements an in-memory and persisted cache for build nodes
 /// based on their hashes.
@@ -117,10 +61,13 @@ impl LocalStore {
         manifest: &TargetManifest,
         dst: &PathBuf,
     ) -> Result<(), StoreError> {
-        if let Ok(output_manifest) = OutputManifest::find(&manifest.label, dst).await {
+        if let Ok(output_manifest) = OutputManifestHash::find(&manifest.label, dst).await {
             if output_manifest.hash == manifest.hash {
                 return Ok(());
             }
+            // NOTE(@ostera): only if the hashes are different and we need to clean up do we
+            // actually read the entire manifest.
+            let output_manifest = OutputManifest::find(&manifest.label, dst).await.unwrap();
             for out in output_manifest.outs {
                 let _ = fs::remove_file(&dst.join(out)).await;
             }
