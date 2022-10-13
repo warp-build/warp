@@ -52,4 +52,4 @@ analyze_files(_WorkspaceRoot, Files) ->
 
 uniq([]) -> [];
 uniq([X]) -> [X];
-uniq(Xs) -> sets:to_list(sets:from_list(lists:flatten(Xs), [{version, 2}])).
+uniq(Xs) -> lists:sort(sets:to_list(sets:from_list(lists:flatten(Xs), [{version, 2}]))).
