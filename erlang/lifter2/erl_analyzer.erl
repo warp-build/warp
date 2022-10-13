@@ -12,11 +12,16 @@ analyze(Files) ->
 do_analyze(Path, IncludePaths, ModMap) ->
   {ok, Ast} = erl_ast:parse_file(Path, IncludePaths),
 
-  Mods = mods(ModMap, Ast),
+  {Mods, MissingMods} = mods(ModMap, Ast),
 
-  Includes = includes(Ast),
+  {Includes, MissingIncludes} = includes(Ast),
 
-  {Path, #{ mods => Mods, includes => Includes }}.
+  {Path, #{
+           modules => Mods,
+           includes => Includes,
+           missing_includes => MissingIncludes,
+           missing_modules => MissingMods
+          }}.
 
 mods(ModMap, Ast) ->
   AllMods = skip_std(uniq(erl_visitor:walk(
@@ -29,29 +34,51 @@ mods(ModMap, Ast) ->
       (_Ast={call, _Loc1, {remote, _Loc2, {atom, _Loc3, Mod}, _Fun}, _Args}, Acc) ->
         [Mod | Acc];
 
+      (_Ast={remote_type, _Loc1, [{atom, _Loc3, Mod}, _Fun, _Args]}, Acc) ->
+        [Mod | Acc];
+
       (_Ast, Acc) ->
         Acc
     end))),
-  uniq([ maps:get(Mod, ModMap, Mod) || Mod <- AllMods ]).
+
+  {Mods, Missing} = lists:foldl(fun (Mod, {Mods, Missing}) ->
+                             case maps:get(Mod, ModMap, missing) of
+                               missing -> {Mods, [Mod|Missing]};
+                               Path -> {[Path|Mods], Missing}
+                             end
+                         end, {_Mods = [], _Missing = []}, AllMods),
+
+  {uniq(Mods), uniq(Missing)}.
 
 
 includes(Ast) ->
-  uniq(erl_visitor:walk(
+  {Includes, Missing} = erl_visitor:walk(
     Ast,
-    _Acc = [],
+    {_Includes = [], _Missing = []},
     fun
-      (_Ast={error, {_Loc1, epp, {include, lib, File}}}, Acc) ->
-        [binary:list_to_bin(File) | Acc];
+      (_Ast={error, {_Loc1, epp, {include, file, File}}}, {Includes, Missing}) ->
+        {Includes, [binary:list_to_bin(File) | Missing]};
 
-      (_Ast={attribute, _Loc1, include, File}, Acc) ->
-        [binary:list_to_bin(File) | Acc];
+      (_Ast={error, {_Loc1, epp, {include, lib, File}}}, {Includes, Missing}) ->
+        {Includes, [binary:list_to_bin(File) | Missing]};
 
-      (_Ast={attribute, _Loc1, include_lib, File}, Acc) ->
-        [binary:list_to_bin(File) | Acc];
+      (_Ast={attribute, _Loc1, file, {File, _Loc2}}, {Includes, Missing} = Acc) ->
+        case filename:extension(File) of
+          ".hrl" -> {[binary:list_to_bin(File) | Includes], Missing};
+          _ -> Acc
+        end;
+
+      (_Ast={attribute, _Loc1, include, File}, {Includes, Missing}) ->
+        {[binary:list_to_bin(File) | Includes], Missing};
+
+      (_Ast={attribute, _Loc1, include_lib, File}, {Includes, Missing}) ->
+        {[binary:list_to_bin(File) | Includes], Missing};
 
       (_Ast, Acc) ->
         Acc
-    end)).
+    end),
+
+  {uniq(Includes), uniq(Missing)}.
 
 skip_std(Mods) ->
   lists:filtermap(fun

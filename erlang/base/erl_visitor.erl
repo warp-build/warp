@@ -37,4 +37,27 @@ walk(Node={call, _Ln, _Name, Args}, Acc, Fn) ->
     Fn(Node, Acc),
     Args);
 
+
+walk(Node={'attribute', _Ln, 'record', {_Name, Args}}, Acc, Fn) ->
+  lists:foldl(
+    fun (Arg, ArgAcc) -> walk(Arg, ArgAcc, Fn) end,
+    Fn(Node, Acc),
+    Args);
+
+walk(Node={'typed_record_field', _Name, Type}, Acc, Fn) ->
+  Acc1 = Fn(Node, Acc),
+  walk(Type, Acc1, Fn);
+
+walk(Node={'type', _Ln, _Kind, Def}, Acc, Fn) when is_list(Def) ->
+  lists:foldl(
+    fun (Arg, ArgAcc) -> walk(Arg, ArgAcc, Fn) end,
+    Fn(Node, Acc),
+    Def);
+
+walk(Node={'remote_type', _Name, [_Mod, _Type, Args]}, Acc, Fn) ->
+  lists:foldl(
+    fun (Arg, ArgAcc) -> walk(Arg, ArgAcc, Fn) end,
+    Fn(Node, Acc),
+    Args);
+
 walk(Node, Acc, Fn) -> Fn(Node, Acc).

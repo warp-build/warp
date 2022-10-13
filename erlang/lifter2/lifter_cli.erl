@@ -2,8 +2,21 @@
 
 -export([analyze_files/2]).
 -export([sort_deps/1]).
+-export([missing_deps/1]).
 
 -define(JSON(X), jsone:encode(X, [{indent, 2}, {space, 1}])).
+
+missing_deps(Files) ->
+  {ok, Analysis0} = erl_analyzer:analyze([ binary:list_to_bin(Path) || Path <- Files ]),
+  Analysis = maps:to_list(Analysis0),
+
+  Missing = #{
+              modules => lists:flatten([ Mod || {_, #{ missing_modules := Mod }} <- Analysis ]),
+              headers => lists:flatten([ Inc || {_, #{ missing_includes := Inc }} <- Analysis ])
+            },
+
+  io:format("~s\n", [?JSON(Missing)]),
+  ok.
 
 sort_deps(Files) ->
   {ok, Mods} = erl_analyzer:analyze([ binary:list_to_bin(Path) || Path <- Files ]),

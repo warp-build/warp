@@ -30,8 +30,7 @@ is_user_module(Mod) -> not lists:member(Mod, modules()).
 
 
 modules() ->
-  erlang:loaded()
-  ++ rebar3_modules()
+  rebar3_modules()
   ++ [
       alarm_handler,
       application,
