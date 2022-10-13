@@ -56,8 +56,8 @@ analyze(Paths) ->
            compiler_opts => [{outdir, OutDir} | IncludeDirs],
            include_paths => IncludeDirs
           },
-  Results = lists:foldl(fun (Source, Acc) ->
-                            maps:put(Source, analyze(Source, Opts), Acc) end, #{}, Sources),
+  Results0 = parallel_lists:map(fun (Source) -> {Source, analyze(Source, Opts)} end, Sources),
+  Results = maps:from_list(Results0), 
 
   _ = file:del_dir(OutDir),
 
