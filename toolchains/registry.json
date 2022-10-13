@@ -3,36 +3,32 @@
     "1.13": {
       "sha1": "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa",
       "kind": "source",
-      "deps": [
-        {
-          "erlang": "25.0"
-        }
-      ]
+      "deps": [ { "erlang": "25.0" } ]
     }
   },
   "openssl": {
-    "sha1": "73118336c58ece2e3b87f1f933f8ba446e2bdc26",
-    "version": "OpenSSL_1_1_1q"
+    "1.1.1q": {
+      "sha1": "73118336c58ece2e3b87f1f933f8ba446e2bdc26",
+      "version": "OpenSSL_1_1_1q"
+    }
   },
   "erlang": {
-    "sha1": "2bb7456ccb19cf83b07506744fb540ce4d66b257",
-    "version": "25.0",
-    "deps": [
-      {
-        "openssl": "OpenSSL_1_1_1q"
-      }
-    ]
+    "25.0": {
+      "sha1": "2bb7456ccb19cf83b07506744fb540ce4d66b257",
+      "version": "25.0",
+      "deps": [ { "openssl": "OpenSSL_1_1_1q" } ]
+    }
   },
   "cmake": {
-    "sha1": "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
-    "version": "3.24.2"
+    "3.24.2": {
+      "sha1": "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
+      "version": "3.24.2"
+    }
   },
   "rebar3": {
-    "sha1": "143d3473dae6ea8250452f7a29db73974be51b24",
-    "deps": [
-      {
-        "cmake": "3.24.2"
-      }
-    ]
+    "latest": {
+      "sha1": "143d3473dae6ea8250452f7a29db73974be51b24",
+      "deps": [ { "cmake": "3.24.2" } ]
+    }
   }
 }
