@@ -93,7 +93,6 @@ impl Toolchains {
         match chosen_toolchain_config.get(version) {
             Some(toml::Value::Table(version_config)) => match version_config.get("deps") {
                 Some(toml::Value::Array(deps)) => {
-                    dbg!(&deps);
                     for dep in deps {
                         self.add_dep_to_config(dep, config)
                     }
@@ -153,7 +152,6 @@ impl ToolchainsRegistry {
         &self,
         chosen_toolchains: Vec<String>,
     ) -> BTreeMap<String, FlexibleRuleConfig> {
-        dbg!(&chosen_toolchains);
         let mut toolchains_config: BTreeMap<String, FlexibleRuleConfig> = BTreeMap::new();
         for toolchain in self.available_toolchains.toolchains.keys() {
             if chosen_toolchains.contains(&toolchain) {
