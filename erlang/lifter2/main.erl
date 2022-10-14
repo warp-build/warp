@@ -8,18 +8,14 @@
 
 main(Args) ->
   ok = setup(),
-
-  {ok, WorkspaceRoot} = file:get_cwd(),
-  ?LOG_INFO("Running lifter on ~s", [WorkspaceRoot]),
-
   case Args of
-    [] -> lifter_cli:lift(WorkspaceRoot);
+    [] -> lifter_cli:lift(".");
     ["lift", Root] -> lifter_cli:lift(Root);
     ["help"] -> show_help();
-    ["find-rebar-deps"] -> lifter_cli:find_rebar_dependencies(WorkspaceRoot);
+    ["find-rebar-deps"] -> lifter_cli:find_rebar_dependencies(".");
     ["find-rebar-deps" | Root] -> lifter_cli:find_rebar_dependencies(Root);
-    ["analyze-file", File] -> lifter_cli:analyze_files(WorkspaceRoot, [File]);
-    ["analyze-files" | Files] -> lifter_cli:analyze_files(WorkspaceRoot, Files);
+    ["analyze-file", File] -> lifter_cli:analyze_files(".", [File]);
+    ["analyze-files" | Files] -> lifter_cli:analyze_files(".", Files);
     ["sort-deps" | Files] -> lifter_cli:sort_deps(Files);
     ["missing-deps" | Files] -> lifter_cli:missing_deps(Files);
     _ -> show_help()
@@ -34,7 +30,7 @@ setup() ->
   ok.
 
 show_help() ->
-  io:format("~s", [<<"
+  io:format("~s\n", [<<"
 
 Usage:
 
@@ -46,5 +42,5 @@ Usage:
 * lifter missing-deps a.erl b.erl c.erl
 * lifter find-rebar-deps [./path/to/dir = $cwd]
 
-  ">>]),
-  ok.
+">>]),
+	erlang:halt().
