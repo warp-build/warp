@@ -38,7 +38,6 @@ pub struct BuildWorker {
     pub build_opts: BuildOpts,
 
     /// The queue from which workers pull work.
-    pub target: Label,
     pub build_queue: Arc<BuildQueue>,
     pub build_results: Arc<BuildResults>,
     pub label_resolver: Arc<LabelResolver>,
@@ -52,7 +51,6 @@ pub struct BuildWorker {
 impl BuildWorker {
     pub fn new(
         role: Role,
-        target: Label,
         coordinator: Arc<BuildCoordinator>,
         event_channel: Arc<EventChannel>,
         build_queue: Arc<BuildQueue>,
@@ -77,7 +75,6 @@ impl BuildWorker {
             event_channel,
             label_resolver,
             role,
-            target,
             target_executor,
             target_planner,
             build_opts,

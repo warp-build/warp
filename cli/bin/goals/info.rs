@@ -56,12 +56,16 @@ impl InfoGoal {
 
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
-            warp.build(label.clone(), event_channel.clone(), BuildOpts::default()),
-            status_reporter.run(label.clone()),
+            warp.build(
+                &[label.clone()],
+                event_channel.clone(),
+                BuildOpts::default(),
+            ),
+            status_reporter.run(&[label.clone()]),
         )
         .await;
 
-        if let Some((manifest, _target)) = result? {
+        if let Some((manifest, _target)) = result?.get(0) {
             println!("{}", serde_json::to_value(manifest).unwrap());
             return Ok(());
         }

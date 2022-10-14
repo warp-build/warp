@@ -12,7 +12,7 @@ impl StatusReporter {
     pub fn new(event_channel: Arc<EventChannel>) -> StatusReporter {
         StatusReporter { event_channel }
     }
-    pub async fn run(self, target: Label) {
+    pub async fn run(self, targets: &[Label]) {
         let green_bold = console::Style::new().green().bold();
         let blue_dim = console::Style::new().blue().dim();
         let yellow = console::Style::new().yellow();
@@ -195,19 +195,44 @@ impl StatusReporter {
                     }
 
                     BuildCompleted(t1) if self.event_channel.is_empty() => {
-                        let line = format!(
-                            "{:>12} {} in {}ms ({} targets, {} cached, {} errors)",
-                            if errored {
-                                red_bold.apply_to("Finished with errors")
-                            } else {
-                                green_bold.apply_to("Finished")
-                            },
-                            target.to_string(),
-                            t1.saturating_duration_since(build_started).as_millis(),
-                            target_count.len(),
-                            cache_hits.len(),
-                            error_count,
-                        );
+                        let line = if targets.is_empty() {
+                            format!(
+                                "{:>12} in {}ms ({} targets, {} cached, {} errors)",
+                                green_bold.apply_to("Nothing done"),
+                                t1.saturating_duration_since(build_started).as_millis(),
+                                target_count.len(),
+                                cache_hits.len(),
+                                error_count,
+                            )
+                        } else if targets.len() == 1 {
+                            format!(
+                                "{:>12} {} in {}ms ({} targets, {} cached, {} errors)",
+                                if errored {
+                                    red_bold.apply_to("Finished with errors")
+                                } else {
+                                    green_bold.apply_to("Finished")
+                                },
+                                targets[0].to_string(),
+                                t1.saturating_duration_since(build_started).as_millis(),
+                                target_count.len(),
+                                cache_hits.len(),
+                                error_count,
+                            )
+                        } else {
+                            format!(
+                                "{:>12} multiple goals in {}ms ({} targets, {} cached, {} errors): \n  ->{}",
+                                if errored {
+                                    red_bold.apply_to("Finished with errors")
+                                } else {
+                                    green_bold.apply_to("Finished")
+                                },
+                                t1.saturating_duration_since(build_started).as_millis(),
+                                target_count.len(),
+                                cache_hits.len(),
+                                error_count,
+                                targets.iter().map(|l| l.to_string()).collect::<Vec<String>>().join("\n  ->"),
+                            )
+                        };
                         pb.println(line);
                         return;
                     }

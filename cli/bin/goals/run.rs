@@ -73,12 +73,16 @@ impl RunGoal {
 
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
-            warp.build(label.clone(), event_channel.clone(), BuildOpts::default()),
-            status_reporter.run(label.clone()),
+            warp.build(
+                &[label.clone()],
+                event_channel.clone(),
+                BuildOpts::default(),
+            ),
+            status_reporter.run(&[label.clone()]),
         )
         .await;
 
-        if let Some((manifest, target)) = result? {
+        if let Some((manifest, target)) = result?.get(0) {
             let mut provides_env = manifest.env_map();
 
             if !self.args.is_empty() {
@@ -114,10 +118,10 @@ impl RunGoal {
                 );
             }
 
-            if let Some(RunScript { run_script, env }) = target.run_script {
+            if let Some(RunScript { run_script, env }) = &target.run_script {
                 let path = local_outputs_root.join(&run_script);
                 debug!("Running default run_script ({:?})", &path);
-                provides_env.extend(env);
+                provides_env.extend(env.clone());
                 return self.run_cmd(build_started, cwd, label, path, provides_env, &self.args);
             }
 

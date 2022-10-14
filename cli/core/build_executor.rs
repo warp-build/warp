@@ -42,15 +42,19 @@ impl BuildExecutor {
     #[tracing::instrument(name = "BuildExecutor::build", skip(self))]
     pub async fn build(
         &self,
-        target: Label,
+        targets: &[Label],
         event_channel: Arc<EventChannel>,
         build_opts: BuildOpts,
-    ) -> Result<Option<(TargetManifest, ExecutableTarget)>, BuildExecutorError> {
+    ) -> Result<Vec<(TargetManifest, ExecutableTarget)>, BuildExecutorError> {
+        if targets.is_empty() {
+            event_channel.send(Event::BuildCompleted(std::time::Instant::now()));
+            return Ok(vec![]);
+        }
+
         let worker_limit = self.worker_limit;
         debug!("Starting build executor with {} workers...", &worker_limit);
 
         let build_queue = Arc::new(BuildQueue::new(
-            target.clone(),
             self.results.clone(),
             event_channel.clone(),
             self.workspace.clone(),
@@ -64,7 +68,6 @@ impl BuildExecutor {
 
         let mut worker = BuildWorker::new(
             Role::MainWorker,
-            target.clone(),
             self.coordinator.clone(),
             event_channel.clone(),
             build_queue.clone(),
@@ -88,7 +91,6 @@ impl BuildExecutor {
                 let event_channel = event_channel.clone();
                 let label_resolver = label_resolver.clone();
                 let target_executor = target_executor.clone();
-                let target = target.clone();
                 let store = store.clone();
                 let build_opts = build_opts;
                 let share_rule_executor_state = share_rule_executor_state.clone();
@@ -96,7 +98,6 @@ impl BuildExecutor {
                 let thread = worker_pool.spawn_pinned(move || async move {
                     let mut worker = BuildWorker::new(
                         Role::HelperWorker(worker_id),
-                        target,
                         build_coordinator,
                         event_channel,
                         build_queue,
@@ -119,7 +120,7 @@ impl BuildExecutor {
             }
         }
 
-        if target.is_all() {
+        if targets.iter().find(|t| t.is_all()).is_some() {
             let queued_count = build_queue
                 .queue_entire_workspace(worker_limit, build_opts.target_filter)
                 .await
@@ -130,9 +131,11 @@ impl BuildExecutor {
                 self.coordinator.signal_shutdown();
             }
         } else {
-            build_queue
-                .queue(target.clone())
-                .map_err(BuildExecutorError::QueueError)?;
+            for target in targets {
+                build_queue
+                    .queue(target.clone())
+                    .map_err(BuildExecutorError::QueueError)?;
+            }
         }
 
         let _span = trace_span!("BuildExecutor::main_worker").entered();
@@ -146,7 +149,13 @@ impl BuildExecutor {
         .await
         .1?;
 
-        Ok(self.results.get_computed_target(&target))
+        let mut results = vec![];
+        for target in targets {
+            if let Some(result) = self.results.get_computed_target(&target) {
+                results.push(result)
+            }
+        }
+        Ok(results)
     }
 
     pub fn manifests(&self) -> Vec<TargetManifest> {

@@ -55,7 +55,6 @@ pub struct BuildQueue {
 impl BuildQueue {
     #[tracing::instrument(name = "BuildQueue::new", skip(event_channel, build_results))]
     pub fn new(
-        target: Label,
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
         workspace: Workspace,

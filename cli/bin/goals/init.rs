@@ -121,7 +121,7 @@ impl InitGoal {
                     "tools.warp.build".to_string(),
                     RemoteWorkspaceFile {
                         github: Some("warp-build/tools.warp.build".to_string()),
-                        git_ref: Some("d375d2380acea9ab8713afdb9ec1875140b479ed".to_string()),
+                        git_ref: Some("main".to_string()),
                         ..RemoteWorkspaceFile::default()
                     },
                 );
@@ -140,24 +140,21 @@ impl InitGoal {
             .unwrap()
             .build()?;
 
-        let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
-
-        let local_outputs_root = workspace.paths.local_outputs_root.clone();
-
         let lifters =
             toolchains_registry.get_lifters_from_chosen_toolchains(&chosen_toolchains, &workspace);
 
-        let warp = BuildExecutor::from_workspace(workspace, worker_limit);
+        if !lifters.is_empty() {
+            let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
+            let local_outputs_root = workspace.paths.local_outputs_root.clone();
+            let warp = BuildExecutor::from_workspace(workspace, worker_limit);
 
-        for label in lifters {
             let status_reporter = StatusReporter::new(event_channel.clone());
-            let (result, ()) = futures::future::join(
-                warp.build(label.clone(), event_channel.clone(), BuildOpts::default()),
-                status_reporter.run(label.clone()),
+            let (lifters, ()) = futures::future::join(
+                warp.build(&lifters, event_channel.clone(), BuildOpts::default()),
+                status_reporter.run(&lifters),
             )
             .await;
-
-            if let Some((manifest, target)) = result? {
+            for (manifest, target) in lifters? {
                 let mut provides_env = manifest.env_map();
 
                 if let Some(RunScript { run_script, env }) = target.run_script {
@@ -165,20 +162,14 @@ impl InitGoal {
                     debug!("Running default run_script ({:?})", &path);
                     provides_env.extend(env);
 
-                    for cmd in [
-                        "create-manifest",
-                        "create-3rdparty-buildfiles",
-                        "create-buildfiles",
-                    ] {
-                        self.run_cmd(
-                            build_started,
-                            cwd,
-                            label.clone(),
-                            path.clone(),
-                            provides_env.clone(),
-                            &[cmd.to_string()],
-                        )?;
-                    }
+                    self.run_cmd(
+                        build_started,
+                        cwd,
+                        manifest.label.clone(),
+                        path.clone(),
+                        provides_env.clone(),
+                        &[],
+                    )?;
                 }
             }
         }
