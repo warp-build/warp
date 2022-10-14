@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -36,6 +38,28 @@ impl RemoteWorkspaceConfig {
         match self {
             RemoteWorkspaceConfig::UrlWorkspace { url, .. } => url,
             RemoteWorkspaceConfig::GithubWorkspace { url, .. } => url,
+        }
+    }
+
+    pub fn is_github(&self) -> bool {
+        matches!(&self, RemoteWorkspaceConfig::GithubWorkspace { .. })
+    }
+
+    pub fn path(&self) -> PathBuf {
+        let url = self.url();
+        let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
+        match &self {
+            RemoteWorkspaceConfig::GithubWorkspace { url, git_ref, .. } => {
+                let org_and_repo: String = url
+                    .path_segments()
+                    .unwrap()
+                    .take(2)
+                    .collect::<Vec<&str>>()
+                    .join("/");
+                // NOTE(@ostera): path should be https/github.com/<org>/<repo>/<hash>
+                scheme_and_host.join(org_and_repo).join(git_ref)
+            }
+            RemoteWorkspaceConfig::UrlWorkspace { .. } => scheme_and_host,
         }
     }
 }

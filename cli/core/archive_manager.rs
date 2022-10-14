@@ -130,7 +130,7 @@ impl ArchiveManager {
         expected_hash: Option<String>,
         file_ext: &str,
     ) -> Result<Archive, ArchiveManagerError> {
-        let (downloaded_file, actual_hash) = self.download(&url, file_ext).await?;
+        let (downloaded_file, actual_hash) = self.download(url, file_ext).await?;
 
         self.check_hash(url, &expected_hash, &actual_hash)?;
 
@@ -162,8 +162,9 @@ impl ArchiveManager {
         url: &Url,
         prefix: &PathBuf,
         expected_hash: Option<String>,
+        strip_prefix: Option<String>,
     ) -> Result<Archive, ArchiveManagerError> {
-        let (downloaded_file, actual_hash) = self.download(&url, "zip").await?;
+        let (downloaded_file, actual_hash) = self.download(url, "zip").await?;
 
         self.check_hash(url, &expected_hash, &actual_hash)?;
 
@@ -173,7 +174,8 @@ impl ArchiveManager {
             prefix.to_path_buf()
         };
 
-        self.extract(url, &downloaded_file, &final_dir).await?;
+        self.extract(url, &downloaded_file, &final_dir, strip_prefix)
+            .await?;
 
         Ok(Archive {
             url: url.clone(),
@@ -238,8 +240,9 @@ impl ArchiveManager {
         url: &Url,
         src: &PathBuf,
         dst: &PathBuf,
+        strip_prefix: Option<String>,
     ) -> Result<(), ArchiveManagerError> {
-        self.run_extraction(src, dst)
+        self.run_extraction(src, dst, strip_prefix)
             .await
             .map_err(|err| ArchiveManagerError::ExtractionError {
                 url: url.clone(),
@@ -249,7 +252,12 @@ impl ArchiveManager {
             })
     }
 
-    async fn run_extraction(&self, archive: &PathBuf, dst: &PathBuf) -> Result<(), anyhow::Error> {
+    async fn run_extraction(
+        &self,
+        archive: &PathBuf,
+        dst: &PathBuf,
+        strip_prefix: Option<String>,
+    ) -> Result<(), anyhow::Error> {
         let mut file = fs::File::open(&archive).await?;
         match async_zip::read::seek::ZipFileReader::new(&mut file).await {
             Ok(mut zip) => {
@@ -261,6 +269,11 @@ impl ArchiveManager {
                     }
 
                     let file_path = PathBuf::from(reader.entry().name());
+                    let file_path = if let Some(ref prefix) = strip_prefix {
+                        file_path.strip_prefix(prefix).unwrap().to_path_buf()
+                    } else {
+                        file_path
+                    };
                     let path = dst.join(&file_path);
                     fs::create_dir_all(path.parent().unwrap()).await?;
 
@@ -273,7 +286,29 @@ impl ArchiveManager {
                 let decompress_stream =
                     GzipDecoder::new(futures::io::BufReader::new(file.compat()));
                 let tar = async_tar::Archive::new(decompress_stream);
-                tar.unpack(dst).await?;
+
+                if let Some(ref prefix) = strip_prefix {
+                    let tmpdir = tempfile::tempdir()?;
+                    tar.unpack(tmpdir.path()).await?;
+
+                    let mut files = Box::pin(
+                        FileScanner::new()
+                            .starting_from(&tmpdir.path().to_path_buf())
+                            .await?
+                            .stream_files()
+                            .await,
+                    );
+
+                    while let Some(src_path) = files.next().await {
+                        let src_path = src_path?;
+                        let path = src_path.strip_prefix(tmpdir.path())?.strip_prefix(prefix)?;
+                        let dst_path = dst.join(path);
+                        fs::create_dir_all(dst_path.parent().unwrap()).await?;
+                        fs::copy(src_path, dst_path).await?;
+                    }
+                } else {
+                    tar.unpack(dst).await?;
+                }
             }
         }
         Ok(())

@@ -111,17 +111,8 @@ impl RemoteWorkspaceResolver {
         ))
     }
 
-    fn _archive_path(&self, config: &RemoteWorkspaceConfig) -> PathBuf {
-        let url = config.url();
-        let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
-
-        self.global_workspaces_path
-            .join(scheme_and_host)
-            .join(config.hash())
-    }
-
     fn _store_path(&self, config: &RemoteWorkspaceConfig) -> PathBuf {
-        self._archive_path(config).join(config.prefix())
+        self.global_workspaces_path.join(config.path())
     }
 
     fn _warp_lock_path(&self, config: &RemoteWorkspaceConfig) -> PathBuf {
@@ -140,20 +131,19 @@ impl RemoteWorkspaceResolver {
         }
 
         let url = config.url();
-        let expected_hash = config.hash().to_string();
 
-        let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
+        let final_dir = self._store_path(&config);
 
-        // FIXME(@ostera): should we really trust github.com here and skip the hash check?
-        let prefix = &self.global_workspaces_path;
-        let (final_dir, expected_hash) = if url.host_str().unwrap().contains("github.com") {
-            (prefix.join(scheme_and_host).join(expected_hash), None)
+        let expected_hash = if config.is_github() {
+            None
         } else {
-            (prefix.join(scheme_and_host), Some(expected_hash))
+            Some(config.hash().to_string())
         };
 
+        let strip_prefix = Some(config.prefix().to_string());
+
         self.archive_manager
-            .download_and_extract(url, &final_dir, expected_hash)
+            .download_and_extract(url, &final_dir, expected_hash, strip_prefix)
             .await
             .map_err(RemoteWorkspaceResolverError::ArchiveManagerError)?;
 
