@@ -28,14 +28,14 @@ lift(WorkspaceRoot0) ->
 
   % 3. build dep lookup table from module/include to dep
   ExternalTable = lists:foldl(
-            fun (Dep = #{ name := Name, files := Files, root := Prefix } , Acc) ->
+            fun (Dep = #{ url := Url, name := Name, files := Files, root := Prefix } , Acc) ->
                 AllFiles = lists:flatten(maps:values(Files)),
                 #{ headers := Headers, sources := Sources } = source_tagger:tag(AllFiles),
 
                 SrcEntries = lists:flatmap(
                                fun (Src) ->
                                    {ok, ModName} = erl_stdlib:file_to_module(Src),
-                                   [{ModName, Name}]
+                                   [{ModName, Url}]
                                end, Sources),
 
                 HdrEntries = lists:flatmap(
@@ -44,9 +44,9 @@ lift(WorkspaceRoot0) ->
                                    RelInclude = path:strip_prefix(Prefix, Hdr),
                                    LibInclude = path:join(Name, RelInclude),
                                    [
-                                    {Include, Name},
-                                    {RelInclude, Name},
-                                    {LibInclude, Name}
+                                    {Include, Url},
+                                    {RelInclude, Url},
+                                    {LibInclude, Url}
                                    ]
                                end, Headers),
 
@@ -84,45 +84,13 @@ lift(WorkspaceRoot0) ->
 
   FinalTable = maps:merge(maps:merge(ExternalTable, SourceTable), HeaderTable),
 
-  {ok, Analysis} = source_analyzer:analyze(AllFiles, FinalTable, []),
-  ?PRINT_JSON(Analysis),
-  
-  timer:sleep(200),
-  erlang:halt(),
+  {ok, Signatures} = source_analyzer:analyze(AllFiles, FinalTable, []),
 
-  Missing = #{
-              modules => uniq([ Mod || {_, #{ missing_modules := Mod }} <- Analysis ]),
-              headers => uniq([ Inc || {_, #{ missing_includes := Inc }} <- Analysis ])
-            },
-
-  % 4. check that all modules/includes missing from the source analysis are accounted by 3)
-  % 5. create buildfiles with a target per file
-
-  case Missing of
-    #{ modules := [], headers := [] } ->
-      {ok, Sort} = lifter_depgraph:sort_files(AllFiles),
-      {ok, Results} = cerl_analyzer:analyze(Sort),
-
-      {Oks, Errs} = lists:partition(fun
-                                    ({_, #{error := _ }}) -> false;
-                                    ({_, _}) -> true
-                                   end, maps:to_list(Results)),
-
-      StringyErrs = lists:map(
-                      fun ({_, #{ error := Err, path := Path }}) ->
-                          {Path, #{ path => Path, error =>
-                                    binary:list_to_bin(lists:flatten(io_lib:format("~p", [Err]))) }}
-                      end,
-                      Errs),
-
-      ?PRINT_JSON(#{
-                     oks => maps:from_list(Oks),
-                     errs => maps:from_list(StringyErrs)
-                    });
-
-    _ ->
-      ?PRINT_JSON(Missing)
-  end.
+  ?LOG_INFO("Writing Warp signature files..."),
+  lists:foreach(fun ({Path, WarpSig}) ->
+                    ?LOG_INFO("- ~s\n", [Path]),
+                    ok = file:write_file(Path, ?JSON(WarpSig))
+                end, maps:to_list(Signatures)).
 
 %===================================================================================================
 % @doc Creates the 3rdparty/rebar.manifest file that includes all the

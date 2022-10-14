@@ -27,10 +27,12 @@ do_analyze(File, ModMap, IncludePaths) ->
   IncludeDeps = skip_std(uniq(IncludeDeps0)),
 
   Result = #{ 
+      rule => <<"erlang_library">>,
+      srcs => [File],
       deps => ModDeps ++ IncludeDeps
    },
 
-  {File, Result}.
+  {path:add_extension(File, "wsig"), Result}.
 
 skip_std(Mods) ->
   lists:filtermap(fun

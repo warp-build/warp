@@ -42,6 +42,7 @@ do_read_rebar_project(RebarConfig, Acc) ->
 
   FinalProject = [
                   {name, ProjectName},
+                  {url, hexpm:pkg_to_url(ProjectName)},
                   {root, ProjectRoot},
                   {files, get_sources(ProjectRoot)},
                   {deps, get_deps(ProjMap)},
@@ -68,6 +69,7 @@ do_read_erlmk_project(ErlangMkConfig, Acc) ->
 
   FinalProject = [
                   {name, ProjectName},
+                  {url, hexpm:pkg_to_url(ProjectName)},
                   {root, ProjectRoot},
                   {files, get_sources(ProjectRoot)},
                   {deps, get_deps(ProjMap)},
