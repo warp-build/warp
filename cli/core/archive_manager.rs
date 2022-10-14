@@ -86,16 +86,20 @@ impl ArchiveManager {
         }
     }
 
-    fn _archive_path(&self, url: &Url, hash: &str) -> PathBuf {
+    fn _archive_path(&self, url: &Url, hash: &str, file_ext: &str) -> PathBuf {
         let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
         self.global_archives_root
             .join(scheme_and_host)
             .join(hash)
-            .with_extension("zip")
+            .with_extension(file_ext)
     }
 
     #[tracing::instrument(name = "ArchiveManager::download", skip(self))]
-    pub async fn download(&self, url: &Url) -> Result<(PathBuf, String), ArchiveManagerError> {
+    pub async fn download(
+        &self,
+        url: &Url,
+        file_ext: &str,
+    ) -> Result<(PathBuf, String), ArchiveManagerError> {
         let response = self.client.get(url.clone()).send().await.map_err(|err| {
             ArchiveManagerError::CouldNotDownload {
                 url: url.clone(),
@@ -104,12 +108,12 @@ impl ArchiveManager {
         })?;
 
         if response.status().is_success() {
-            self.stream_response(url, response).await.map_err(|err| {
-                ArchiveManagerError::StreamingError {
+            self.stream_response(url, response, file_ext)
+                .await
+                .map_err(|err| ArchiveManagerError::StreamingError {
                     url: url.clone(),
                     err,
-                }
-            })
+                })
         } else {
             Err(ArchiveManagerError::DownloadFailed {
                 url: url.clone(),
@@ -124,8 +128,9 @@ impl ArchiveManager {
         url: &Url,
         prefix: &PathBuf,
         expected_hash: Option<String>,
+        file_ext: &str,
     ) -> Result<Archive, ArchiveManagerError> {
-        let (downloaded_file, actual_hash) = self.download(&url).await?;
+        let (downloaded_file, actual_hash) = self.download(&url, file_ext).await?;
 
         self.check_hash(url, &expected_hash, &actual_hash)?;
 
@@ -158,7 +163,7 @@ impl ArchiveManager {
         prefix: &PathBuf,
         expected_hash: Option<String>,
     ) -> Result<Archive, ArchiveManagerError> {
-        let (downloaded_file, actual_hash) = self.download(&url).await?;
+        let (downloaded_file, actual_hash) = self.download(&url, "zip").await?;
 
         self.check_hash(url, &expected_hash, &actual_hash)?;
 
@@ -200,6 +205,7 @@ impl ArchiveManager {
         &self,
         url: &Url,
         response: reqwest::Response,
+        file_ext: &str,
     ) -> Result<(PathBuf, String), std::io::Error> {
         let mut byte_stream = response
             .bytes_stream()
@@ -220,7 +226,7 @@ impl ArchiveManager {
 
         let hash = format!("{:x}", s.finalize());
 
-        let path = self._archive_path(url, &hash);
+        let path = self._archive_path(url, &hash, file_ext);
         fs::create_dir_all(&path.parent().unwrap()).await?;
         tempfile.persist(&path)?;
 
