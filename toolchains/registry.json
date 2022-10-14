@@ -3,6 +3,7 @@
     "1.13": {
       "sha1": "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa",
       "kind": "source",
+      "version": "1.13",
       "deps": [{ "erlang": "25.0" }]
     }
   },
