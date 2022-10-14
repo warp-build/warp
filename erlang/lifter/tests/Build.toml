@@ -4,7 +4,7 @@ test = "lifter_rebar3_SUITE.erl"
 cases = ["finds_projects"]
 deps = [
   "./fixtures:rebar3",
-  "//erlang/lifter2/lib",
+  "//erlang/lifter/lib",
 ]
 
 [[erlang_test]]
@@ -13,7 +13,7 @@ test = "lifter_rebar3_SUITE.erl"
 cases = ["returns_an_empty_list_for_no_projects"]
 deps = [
   "./fixtures:rebar3",
-  "//erlang/lifter2/lib",
+  "//erlang/lifter/lib",
 ]
 
 [[erlang_test]]
@@ -23,7 +23,7 @@ cases = ["skips_dynamic_calls"]
 deps = [
   "./fixtures",
   "./fixtures/includes",
-  "//erlang/lifter2/lib",
+  "//erlang/lifter/lib",
 ]
 
 [[erlang_test]]
@@ -33,7 +33,7 @@ cases = ["handles_parse_transforms"]
 deps = [
   "./fixtures",
   "./fixtures/includes",
-  "//erlang/lifter2/lib",
+  "//erlang/lifter/lib",
 ]
 
 [[erlang_test]]
@@ -43,7 +43,7 @@ cases = ["handles_real_life_example_from_emqx_with_parse_transforms"]
 deps = [
   "./fixtures",
   "./fixtures/includes",
-  "//erlang/lifter2/lib",
+  "//erlang/lifter/lib",
 ]
 
 [[erlang_test]]
@@ -53,7 +53,7 @@ cases = ["fails_on_missing_parse_transform"]
 deps = [
   "./fixtures",
   "./fixtures/includes",
-  "//erlang/lifter2/lib",
+  "//erlang/lifter/lib",
 ]
 
 [[erlang_test]]
@@ -63,7 +63,7 @@ cases = ["handles_real_life_example_from_emqx"]
 deps = [
   "./fixtures",
   "./fixtures/includes",
-  "//erlang/lifter2/lib",
+  "//erlang/lifter/lib",
 ]
 
 [[erlang_test]]
@@ -73,5 +73,5 @@ cases = ["handles_real_life_example_from_verl"]
 deps = [
   "./fixtures",
   "./fixtures/includes",
-  "//erlang/lifter2/lib",
+  "//erlang/lifter/lib",
 ]

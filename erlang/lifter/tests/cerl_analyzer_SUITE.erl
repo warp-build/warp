@@ -19,25 +19,25 @@ all() ->
 
 
 skips_dynamic_calls(_Config) ->
-  {ok, #{ <<"../erlang/lifter2/tests/fixtures/dynamic_calls.erl">> :=
+  {ok, #{ <<"../erlang/lifter/tests/fixtures/dynamic_calls.erl">> :=
           #{
             name := dynamic_calls,
-            path := <<"../erlang/lifter2/tests/fixtures/dynamic_calls.erl">>,
+            path := <<"../erlang/lifter/tests/fixtures/dynamic_calls.erl">>,
             external_calls := ExtCalls
-           }}} = cerl_analyzer:analyze([<<"../erlang/lifter2/tests/fixtures/dynamic_calls.erl">>]),
+           }}} = cerl_analyzer:analyze([<<"../erlang/lifter/tests/fixtures/dynamic_calls.erl">>]),
 
   ?assertMatch([#{calls := [], mfa := {dynamic_calls,foo,1}} ], ExtCalls).
 
 handles_real_life_example_from_verl(_Config) ->
-  {ok, #{ <<"../erlang/lifter2/tests/fixtures/verl_SUITE.erl">> :=
+  {ok, #{ <<"../erlang/lifter/tests/fixtures/verl_SUITE.erl">> :=
           #{
             name := verl_SUITE,
-            path := <<"../erlang/lifter2/tests/fixtures/verl_SUITE.erl">>,
+            path := <<"../erlang/lifter/tests/fixtures/verl_SUITE.erl">>,
             exports := Exports,
             external_calls := ExtCalls,
             type_exports := TypeExports,
             includes := Includes
-           }}} = cerl_analyzer:analyze([<<"../erlang/lifter2/tests/fixtures/verl_SUITE.erl">>]),
+           }}} = cerl_analyzer:analyze([<<"../erlang/lifter/tests/fixtures/verl_SUITE.erl">>]),
 
   ?assertMatch([{verl_SUITE,all,0},
                 {verl_SUITE,between_test,1},
@@ -109,23 +109,23 @@ handles_real_life_example_from_verl(_Config) ->
   ?assertMatch([], TypeExports),
 
   ?assertMatch(
-     [<<"../erlang/lifter2/tests/fixtures/verl_SUITE.erl">>,
+     [<<"../erlang/lifter/tests/fixtures/verl_SUITE.erl">>,
       <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/common_test-1.23/include/ct.hrl">>,
       <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/assert.hrl">>]
      , Includes).
 
 handles_real_life_example_from_emqx(_Config) ->
-  {ok, #{ <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.erl">> :=
+  {ok, #{ <<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">> :=
           #{
             name := emqx_bpapi,
-            path := <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.erl">>,
+            path := <<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
             exports := Exports,
             external_calls := ExtCalls,
             type_exports := TypeExports,
             includes := Includes
            }}} = cerl_analyzer:analyze([
-                                        <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.erl">>,
-                                        <<"../erlang/lifter2/tests/fixtures/includes/emqx.hrl">>
+                                        <<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
+                                        <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>
                                        ]),
 
   ?assertMatch([{emqx_bpapi,announce,1},
@@ -181,15 +181,15 @@ handles_real_life_example_from_emqx(_Config) ->
 
   ?assertMatch(
      [
-      <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.erl">>,
-      <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.hrl">>,
-      <<"../erlang/lifter2/tests/fixtures/includes/emqx.hrl">>,
+      <<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
+      <<"../erlang/lifter/tests/fixtures/emqx_bpapi.hrl">>,
+      <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>,
       <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/ms_transform.hrl">>]
      , Includes).
 
 handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
   {ok,
-   #{<<"../erlang/lifter2/tests/fixtures/emqx_bpapi.erl">> :=
+   #{<<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">> :=
      #{exports :=
        [{emqx_bpapi,announce,1},
         {emqx_bpapi,announce_fun,1},
@@ -231,13 +231,13 @@ handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
            {mria,wait_for_tables,1}],
           mfa := {emqx_bpapi,start,0}}],
        includes :=
-       [<<"../erlang/lifter2/tests/fixtures/emqx_bpapi.erl">>,
-        <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.hrl">>,
-        <<"../erlang/lifter2/tests/fixtures/includes/emqx.hrl">>,
+       [<<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
+        <<"../erlang/lifter/tests/fixtures/emqx_bpapi.hrl">>,
+        <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>,
         <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/ms_transform.hrl">>],
        local_calls := [],name := emqx_bpapi,
        path :=
-       <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.erl">>,
+       <<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
        type_exports :=
        [{emqx_bpapi,api,0},
         {emqx_bpapi,api_version,0},
@@ -245,7 +245,7 @@ handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
         {emqx_bpapi,call,0},
         {emqx_bpapi,rpc,0},
         {emqx_bpapi,var_name,0}]},
-     <<"../erlang/lifter2/tests/fixtures/emqx_bpapi_trans.erl">> :=
+     <<"../erlang/lifter/tests/fixtures/emqx_bpapi_trans.erl">> :=
      #{exports :=
        [{emqx_bpapi_trans,format_error,1},
         {emqx_bpapi_trans,parse_transform,2}],
@@ -314,12 +314,12 @@ handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
         #{calls := [{io_lib,format,2}],
           mfa := {emqx_bpapi_trans,format_error,1}}],
        includes :=
-       [<<"../erlang/lifter2/tests/fixtures/emqx_bpapi_trans.erl">>],
+       [<<"../erlang/lifter/tests/fixtures/emqx_bpapi_trans.erl">>],
        local_calls := [],name := emqx_bpapi_trans,
        path :=
-       <<"../erlang/lifter2/tests/fixtures/emqx_bpapi_trans.erl">>,
+       <<"../erlang/lifter/tests/fixtures/emqx_bpapi_trans.erl">>,
        type_exports := []},
-     <<"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl">> :=
+     <<"../erlang/lifter/tests/fixtures/emqx_statsd_proto_v1.erl">> :=
      #{exports :=
        [{emqx_statsd_proto_v1,bpapi_meta,0},
         {emqx_statsd_proto_v1,introduced_in,0},
@@ -340,47 +340,47 @@ handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
           mfa :=
           {emqx_statsd_proto_v1,bpapi_meta,0}}],
        includes :=
-       [<<"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl">>,
-        <<"../erlang/lifter2/tests/fixtures/includes/bpapi.hrl">>],
+       [<<"../erlang/lifter/tests/fixtures/emqx_statsd_proto_v1.erl">>,
+        <<"../erlang/lifter/tests/fixtures/includes/bpapi.hrl">>],
        local_calls := [],name := emqx_statsd_proto_v1,
        path :=
-       <<"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl">>,
+       <<"../erlang/lifter/tests/fixtures/emqx_statsd_proto_v1.erl">>,
        type_exports := []}}}
   = cerl_analyzer:analyze([
-                           <<"../erlang/lifter2/tests/fixtures/emqx_statsd_proto_v1.erl">>,
-                           <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.hrl">>,
-                           <<"../erlang/lifter2/tests/fixtures/emqx_bpapi.erl">>,
-                           <<"../erlang/lifter2/tests/fixtures/emqx_bpapi_trans.erl">>,
-                           <<"../erlang/lifter2/tests/fixtures/includes/bpapi.hrl">>,
-                           <<"../erlang/lifter2/tests/fixtures/includes/emqx.hrl">>
+                           <<"../erlang/lifter/tests/fixtures/emqx_statsd_proto_v1.erl">>,
+                           <<"../erlang/lifter/tests/fixtures/emqx_bpapi.hrl">>,
+                           <<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
+                           <<"../erlang/lifter/tests/fixtures/emqx_bpapi_trans.erl">>,
+                           <<"../erlang/lifter/tests/fixtures/includes/bpapi.hrl">>,
+                           <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>
                           ]).
 
 fails_on_missing_parse_transform(_Config) ->
-  {ok,#{<<"../erlang/lifter2/tests/fixtures/needs_parse_transform.erl">> :=
+  {ok,#{<<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">> :=
         #{error :=
           #{kind := missing_parse_transform,
-            path := <<"../erlang/lifter2/tests/fixtures/needs_parse_transform.erl">>,
+            path := <<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">>,
             transform_name := dummy_transform},
-          path := <<"../erlang/lifter2/tests/fixtures/needs_parse_transform.erl">>}}} = 
+          path := <<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">>}}} = 
   cerl_analyzer:analyze(
-    [ <<"../erlang/lifter2/tests/fixtures/needs_parse_transform.erl">> ]).
+    [ <<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">> ]).
 
 handles_parse_transforms(_Config) ->
-  {ok, #{ <<"../erlang/lifter2/tests/fixtures/dummy_transform.erl">> :=
+  {ok, #{ <<"../erlang/lifter/tests/fixtures/dummy_transform.erl">> :=
           #{
             name := dummy_transform,
-            path := <<"../erlang/lifter2/tests/fixtures/dummy_transform.erl">>
-           }}} = cerl_analyzer:analyze([<<"../erlang/lifter2/tests/fixtures/dummy_transform.erl">>]),
+            path := <<"../erlang/lifter/tests/fixtures/dummy_transform.erl">>
+           }}} = cerl_analyzer:analyze([<<"../erlang/lifter/tests/fixtures/dummy_transform.erl">>]),
 
-  {ok, #{ <<"../erlang/lifter2/tests/fixtures/needs_parse_transform.erl">> :=
+  {ok, #{ <<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">> :=
           #{
             name := needs_parse_transform,
-            path := <<"../erlang/lifter2/tests/fixtures/needs_parse_transform.erl">>,
+            path := <<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">>,
             exports := Exports,
             external_calls := ExtCalls,
             type_exports := TypeExports,
             includes := Includes
-           }}} = cerl_analyzer:analyze([<<"../erlang/lifter2/tests/fixtures/needs_parse_transform.erl">>]),
+           }}} = cerl_analyzer:analyze([<<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">>]),
 
   ?assertMatch([], Exports),
 
@@ -388,4 +388,4 @@ handles_parse_transforms(_Config) ->
 
   ?assertMatch([], TypeExports),
 
-  ?assertMatch([<<"../erlang/lifter2/tests/fixtures/needs_parse_transform.erl">>], Includes).
+  ?assertMatch([<<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">>], Includes).

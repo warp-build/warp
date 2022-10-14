@@ -15,11 +15,11 @@ all() ->
 
 
 returns_an_empty_list_for_no_projects(_Config) ->
-  {ok, #{}} = lifter_rebar3:find_all_rebar_projects(<<"../erlang/lifter2/tests/fixtures/bad_path">>).
+  {ok, #{}} = lifter_rebar3:find_all_rebar_projects(<<"../erlang/lifter/tests/fixtures/bad_path">>).
 
 finds_projects(_Config) ->
 	{ok,
-	 #{<<"../erlang/lifter2/tests/fixtures/rebar.config">> :=
+	 #{<<"../erlang/lifter/tests/fixtures/rebar.config">> :=
 		 #{deps :=
 			 #{cowboy :=
 				 {git,"https://github.com/emqx/cowboy",
@@ -85,7 +85,7 @@ finds_projects(_Config) ->
 					 extra_src_dirs :=
 					 #{<<"test">> := [recursive]}}},
 			 project_plugins := [erlfmt],
-			 root := <<"../erlang/lifter2/tests/fixtures">>,
+			 root := <<"../erlang/lifter/tests/fixtures">>,
 			 srcs :=
 			 #{includes := [],priv := [],srcs := [],
 				 tests := []},
@@ -93,4 +93,4 @@ finds_projects(_Config) ->
 			 [undefined_function_calls,undefined_functions,
 				locals_not_used,deprecated_function_calls,
 				warnings_as_errors,deprecated_functions]}}}
-	= lifter_rebar3:find_all_rebar_projects(<<"../erlang/lifter2/tests/fixtures">>).
+	= lifter_rebar3:find_all_rebar_projects(<<"../erlang/lifter/tests/fixtures">>).

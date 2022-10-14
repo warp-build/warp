@@ -1,9 +1,9 @@
 [[erlang_test]]
-deps = ["//erlang/lifter/semver:verl"]
+deps = ["//erlang/base/verl"]
 name = "verl_SUITE"
 test = "verl_SUITE.erl"
 
 [[erlang_test]]
-deps = ["//erlang/lifter/semver:verl"]
+deps = ["//erlang/base/verl"]
 name = "verl_parser_SUITE"
 test = "verl_parser_SUITE.erl"

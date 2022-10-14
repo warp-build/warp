@@ -1,8 +1,5 @@
-[[erlang_library]]
-name = "lib"
-deps = ["./semver:verl"]
-
 [[erlang_script]]
 name = "lifter"
-main = "warp_lifter.erl"
-deps = [":lib"]
+main = "main.erl"
+deps = ["./bin"]
+apps = ["kernel", "jsone"]

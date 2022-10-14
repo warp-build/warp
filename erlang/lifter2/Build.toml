@@ -1,5 +1,0 @@
-[[erlang_script]]
-name = "lifter2"
-main = "main.erl"
-deps = ["./bin"]
-apps = ["kernel", "jsone"]
