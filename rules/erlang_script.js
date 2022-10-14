@@ -48,9 +48,15 @@ const impl = (ctx) => {
     data: `
 -module(${name}_escript_builder).
 
+-include_lib("kernel/include/logger.hrl").
+
 -export([main/1]).
 
 main(_argv) ->
+  logger:set_primary_config(#{ level => all }),
+  logger:set_handler_config(default, formatter, {logger_formatter, #{}}),
+  ?LOG_INFO("Starting escript builder for: ${cwd}/${name}"),
+
   % The raw list of files.
   DepBeamFiles = [
     ${
@@ -92,20 +98,17 @@ main(_argv) ->
                   {AppRoot0, EbinPath0, PrivPath0}
               end,
 
-    io:format("~p\n", [AppRoot]),
-    io:format("~p\n", [EbinPath]),
-    io:format("~p\n", [PrivPath]),
+    ?LOG_INFO("Scanning for files in ~s\n", [AppRoot]),
 
     Files = filelib:wildcard(EbinPath) ++ filelib:wildcard(PrivPath),
 
     lists:map(fun (File) ->
-      io:format("~p\n", [File]),
       {ok, Data} = file:read_file(File),
       {File, Data}
     end, Files)
   end, AppNames),
 
-  % Read all the beam bytecode into {"hello.beam", <<bytecode>>} tuples.
+  ?LOG_INFO("Reading all the beam bytecode into {<<hello.beam>>, <<bytecode>>} tuples..."),
   DepBeams = lists:map(fun (BeamFile) ->
     {ok, Data} = file:read_file(BeamFile),
     {filename:basename(BeamFile), Data}
@@ -119,11 +122,15 @@ main(_argv) ->
     }
   ],
 
-  % The file names with their contents compiled to bytecode.
+  ?LOG_INFO("Compiling sources into .beam files..."),
   SrcBeams = lists:map(fun (SrcFile) ->
-    {ok, _, BeamCode} = compile:file(SrcFile, [binary, debug_info]),
-    BeamFile = filename:join([filename:basename(SrcFile, "https://pkgs.warp.build/rules/.erl"), ".beam"]),
-    {filename:basename(BeamFile), BeamCode}
+    case compile:file(SrcFile, [binary, debug_info, return_errors]) of
+      {ok, _, BeamCode} ->
+        BeamFile = filename:join([filename:basename(SrcFile, "https://pkgs.warp.build/rules/.erl"), ".beam"]),
+        {filename:basename(BeamFile), BeamCode};
+      {error, Reason} ->
+        ?LOG_ERROR("Something went wrong! ~p\n", Reason)
+      end
   end, SrcFiles),
 
   Files = Apps ++ SrcBeams ++ DepBeams,
