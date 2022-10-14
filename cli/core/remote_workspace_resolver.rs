@@ -1,4 +1,5 @@
 use super::*;
+use dashmap::DashMap;
 use fxhash::*;
 use std::{path::PathBuf, sync::Arc};
 use thiserror::*;
@@ -40,6 +41,8 @@ pub struct RemoteWorkspaceResolver {
     remote_workspace_configs: FxHashMap<String, RemoteWorkspaceConfig>,
     global_workspaces_path: PathBuf,
     archive_manager: ArchiveManager,
+    workspaces: DashMap<String, Workspace>,
+    targets: DashMap<Label, Target>,
     store: Arc<Store>,
 }
 
@@ -50,20 +53,63 @@ impl RemoteWorkspaceResolver {
             root_workspace: workspace.clone(),
             remote_workspace_configs: workspace.remote_workspace_configs.clone(),
             global_workspaces_path: workspace.paths.global_workspaces_path.clone(),
+            targets: DashMap::new(),
+            workspaces: DashMap::new(),
             archive_manager: ArchiveManager::new(workspace),
-            store: store.clone(),
+            store,
         }
     }
 
     #[tracing::instrument(name = "RemoteWorkspaceResolver::get", skip(self))]
     pub async fn get(&self, label: &Label) -> Result<Option<Target>, RemoteWorkspaceResolverError> {
+        if let Some(entry) = self.targets.get(label) {
+            let target = entry.value().clone();
+            return Ok(Some(target));
+        }
+
+        let workspace = self.find_workspace(label).await?;
+
+        let label = label.change_workspace(&workspace);
+
+        let buildfile = Buildfile::from_label(&label)
+            .await
+            .map_err(LabelResolverError::BuildfileError)
+            .unwrap();
+
+        let target = buildfile
+            .targets
+            .iter()
+            .find(|t| t.label.name() == *label.name())
+            .map(|t| t.change_workspace(&workspace));
+
+        if let Some(ref target) = target {
+            self.targets.insert(label.clone(), target.clone());
+        }
+
+        Ok(target)
+    }
+
+    fn _store_path(&self, config: &RemoteWorkspaceConfig) -> PathBuf {
+        self.global_workspaces_path.join(config.path())
+    }
+
+    fn _warp_lock_path(&self, config: &RemoteWorkspaceConfig) -> PathBuf {
+        self._store_path(config).join("Warp.lock")
+    }
+
+    #[tracing::instrument(name = "RemoteWorkspaceResolver::find_workspace", skip(self))]
+    async fn find_workspace(
+        &self,
+        label: &Label,
+    ) -> Result<Workspace, RemoteWorkspaceResolverError> {
         let host = label
             .url()
             .host()
             .ok_or_else(|| RemoteWorkspaceResolverError::UrlHadNoHost(label.url()))?
             .to_string();
-
-        if let Some(config) = self.remote_workspace_configs.get(&host) {
+        if let Some(workspace) = self.workspaces.get(&host) {
+            Ok(workspace.clone())
+        } else if let Some(config) = self.remote_workspace_configs.get(&host) {
             self.ensure_workspace(config).await?;
             // NOTE(@ostera): once we know that we have a workspace ready in this
             // folder, we can use the current label and _reparent it_ to use the
@@ -91,36 +137,14 @@ impl RemoteWorkspaceResolver {
 
             self.store.register_workspace(&workspace);
 
-            // NOTE(@ostera): save workspace for later
-            // self.workspaces.insert(host, workspace);
+            self.workspaces.insert(host.clone(), workspace.clone());
 
-            let label = label.change_workspace(&workspace);
-
-            let buildfile = Buildfile::from_label(&label)
-                .await
-                .map_err(LabelResolverError::BuildfileError)
-                .unwrap();
-
-            let target = buildfile
-                .targets
-                .iter()
-                .find(|t| t.label.name() == *label.name())
-                .map(|t| t.change_workspace(&workspace));
-
-            return Ok(target);
+            Ok(workspace)
+        } else {
+            Err(RemoteWorkspaceResolverError::MissingConfig(
+                host.to_string(),
+            ))
         }
-
-        Err(RemoteWorkspaceResolverError::MissingConfig(
-            host.to_string(),
-        ))
-    }
-
-    fn _store_path(&self, config: &RemoteWorkspaceConfig) -> PathBuf {
-        self.global_workspaces_path.join(config.path())
-    }
-
-    fn _warp_lock_path(&self, config: &RemoteWorkspaceConfig) -> PathBuf {
-        self._store_path(config).join("Warp.lock")
     }
 
     #[tracing::instrument(name = "RemoteWorkspaceResolver::ensure_workspace", skip(self))]
