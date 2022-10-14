@@ -84,7 +84,7 @@ impl Store {
             format!("{}/{}-{}", label.as_store_prefix(), hash, label.name())
         } else {
             self.workspace_prefixes
-                .get(&PathBuf::from(label.workspace()))
+                .get(&label.workspace())
                 .unwrap()
                 .join(hash)
                 .to_str()
