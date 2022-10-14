@@ -1,4 +1,5 @@
 import ErlangToolchain, { BEAM_EXT, HEADER_EXT } from "https://pkgs.warp.build/toolchains/erlang.js";
+import Rebar3Toolchain from "https://pkgs.warp.build/toolchains/rebar3.js";
 
 const impl = (ctx) => {
   const { label, name, main, apps } = ctx.cfg();
@@ -180,5 +181,5 @@ export default Warp.Rule({
     deps: [],
     apps: ["kernel"],
   },
-  toolchains: [ErlangToolchain],
+  toolchains: [ErlangToolchain, Rebar3Toolchain],
 });
