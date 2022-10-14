@@ -1,18 +1,55 @@
+%% @doc The `erl_analyzer` analyzes a file by preprocessing and parsing it into Erlang Syntax Forms,
+%% and then analyzing those forms.
+%%
 -module(erl_analyzer).
-
--export([analyze/1]).
 
 -include_lib("kernel/include/logger.hrl").
 
+-export([analyze/1]).
+-export([analyze/3]).
+
+-export([dependency_modules/1]).
+-export([dependency_includes/1]).
+
+-export_type([mod_desc/0]).
+-export_type([err/0]).
+
+-opaque mod_desc() :: #{
+                        modules => [],
+                        includes => [],
+                        missing_includes => [],
+                        missing_modules => []
+                       }.
+
+-type err() :: {parse_error, term()}.
+
+-type opts() :: #{ compiler_opts => [atom()] }.
+
+%%--------------------------------------------------------------------------------------------------
+%% API
+%%--------------------------------------------------------------------------------------------------
+
+-spec dependency_modules(mod_desc()) -> [atom() | binary()].
+dependency_modules(#{ modules := Mods, missing_modules := MissingMods }) -> uniq(Mods ++ MissingMods);
+dependency_modules(_) -> [].
+
+-spec dependency_includes(mod_desc()) -> [atom() | binary()].
+dependency_includes(#{ includes := Hrls, missing_includes := MissingHrls }) -> uniq(Hrls ++ MissingHrls);
+dependency_includes(_) -> [].
+
+
+-spec analyze([path:t()]) -> result:t(mod_desc(), term()).
 analyze(Files) ->
   IncludePaths = include_paths(Files),
   ModMap = mod_map(Files),
+  analyze(Files, ModMap, IncludePaths).
 
+analyze(Files, ModMap, IncludePaths) ->
   Result = maps:from_list(lists:map(fun (File) -> do_analyze(File, IncludePaths, ModMap) end, Files)),
   {ok, Result}.
 
 do_analyze(Path, IncludePaths, ModMap) ->
-  ?LOG_INFO("Analyzing: ~s", [Path]),
+  ?LOG_INFO("(Source) Analyzing: ~s", [Path]),
   {ok, Ast} = erl_ast:parse_file(Path, IncludePaths),
 
   {Mods, MissingMods} = mods(ModMap, Ast),
@@ -98,20 +135,9 @@ uniq([X]) -> [X];
 uniq(Xs) -> sets:to_list(sets:from_list(Xs, [{version, 2}])).
 
 mod_map(Paths) ->
-  #{ sources := Sources } = tag_files(Paths),
+  #{ sources := Sources } = source_tagger:tag(Paths),
   maps:from_list(([ {erlang:binary_to_atom(filename:basename(S, ".erl"), utf8), S} || S <- Sources ])).
 
 include_paths(Paths) ->
-  #{ headers := Headers } = tag_files(Paths),
+  #{ headers := Headers } = source_tagger:tag(Paths),
   uniq([ binary:bin_to_list(filename:dirname(H)) || H <- Headers ]).
-
-tag_files(Files) -> tag_files(Files,  [], [], []).
-tag_files([], Srcs, Hdrs, Others) -> #{ sources => Srcs, headers => Hdrs, others => Others };
-tag_files([<<"">>|Files], Srcs, Hdrs, Others) -> tag_files(Files, Srcs, Hdrs, Others);
-tag_files([<<".">>|Files], Srcs, Hdrs, Others) -> tag_files(Files, Srcs, Hdrs, Others);
-tag_files([File|Files], Srcs, Hdrs, Others) ->
-  case (catch filename:extension(File)) of
-    <<".erl">> -> tag_files(Files, [File|Srcs], Hdrs, Others);
-    <<".hrl">> -> tag_files(Files, Srcs, [File|Hdrs], Others);
-    _ -> tag_files(Files, Srcs, Hdrs, [File|Others])
-  end.

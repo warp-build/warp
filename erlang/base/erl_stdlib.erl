@@ -2,6 +2,7 @@
 
 -export([modules/0]).
 -export([is_user_module/1]).
+-export([is_user_include/1]).
 -export([erl_ext/0]).
 -export([file_to_module/1]).
 -export([files_to_modules/1]).
@@ -25,6 +26,10 @@ files_to_modules(Srcs) ->
           {error, path_is_not_a_module} -> false
         end
     end, Srcs).
+
+is_user_include(Mod) -> 
+  Path = path:new(Mod),
+  not path:contains(Path, "dist/lib/erlang/lib").
 
 is_user_module(Mod) -> not lists:member(Mod, modules()).
 

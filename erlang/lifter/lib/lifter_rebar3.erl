@@ -34,16 +34,18 @@ read_rebar_project(RebarConfig, Acc) ->
   end.
 
 do_read_rebar_project(RebarConfig, Acc) ->
-  ProjectRoot = filename:dirname(RebarConfig),
-  ProjectName = filename:basename(ProjectRoot),
+  ProjectRoot = path:relativize(filename:dirname(RebarConfig)),
+  ProjectName = path:basename(ProjectRoot),
 
   {ok, Project} = file:consult(RebarConfig),
+  ProjMap = maps:from_list(Project),
 
   FinalProject = [
-                  {name, binary:list_to_bin(ProjectName)},
-                  {root, binary:list_to_bin(ProjectRoot)},
-                  {srcs, get_sources(ProjectRoot)}
-                  | Project
+                  {name, ProjectName},
+                  {root, ProjectRoot},
+                  {files, get_sources(ProjectRoot)},
+                  {deps, get_deps(ProjMap)},
+                  {proj, ProjMap}
                  ],
 
   maps:put(RebarConfig, maps:from_list(FinalProject), Acc).
@@ -58,38 +60,44 @@ read_erlmk_project(ErlangMkConfig, Acc) ->
   end.
 
 do_read_erlmk_project(ErlangMkConfig, Acc) ->
-  ProjectRoot = filename:dirname(ErlangMkConfig),
-  ProjectName = filename:basename(ProjectRoot),
+  ProjectRoot = path:relativize(filename:dirname(ErlangMkConfig)),
+  ProjectName = path:basename(ProjectRoot),
 
   {ok, Project} = lifter_erlangmk:from_file(filename:join([ProjectRoot, "Makefile"])),
+  ProjMap = maps:from_list(Project),
 
   FinalProject = [
-                  {name, binary:list_to_bin(ProjectName)},
-                  {root, binary:list_to_bin(ProjectRoot)},
-                  {srcs, get_sources(ProjectRoot)}
-                  | Project
+                  {name, ProjectName},
+                  {root, ProjectRoot},
+                  {files, get_sources(ProjectRoot)},
+                  {deps, get_deps(ProjMap)},
+                  {proj, ProjMap}
                  ],
 
   maps:put(ErlangMkConfig, maps:from_list(FinalProject), Acc).
 
+get_deps(Pkg) when is_list(Pkg) -> get_deps(proplists:to_map(Pkg));
+get_deps(Pkg=#{ deps := Deps, profiles := Profiles}) when is_list(Profiles) ->
+  Deps ++ lists:flatmap(fun get_deps/1, maps:values(maps:from_list(Profiles)));
+get_deps(Pkg=#{ deps := Deps, profiles := Profiles}) when is_map(Profiles) ->
+  Deps ++ lists:flatmap(fun get_deps/1, maps:values(Profiles));
+get_deps(Pkg=#{ deps := Deps }) -> Deps;
+get_deps(_) -> [].
+
 get_sources(ProjectRoot) ->
-  SrcGlob = ProjectRoot ++ "/src/**/*.{erl,hrl}",
-  TestGlob = ProjectRoot ++ "/test/**/*.{erl,hrl}",
-  IncludeGlob = ProjectRoot ++ "/include/**/*.{erl,hrl}",
-  PrivGlob = ProjectRoot ++ "/priv/**/*",
+  SrcGlob = path:join(ProjectRoot, "src/**/*.{erl,hrl}"),
+  TestGlob = path:join(ProjectRoot, "test/**/*.{erl,hrl}"),
+  IncludeGlob = path:join(ProjectRoot, "include/**/*.{erl,hrl}"),
+  PrivGlob = path:join(ProjectRoot, "priv/**/*"),
 
   Srcs = #{
-           srcs => glob(ProjectRoot,SrcGlob),
-           tests => glob(ProjectRoot,TestGlob),
-           includes => glob(ProjectRoot,IncludeGlob),
-           priv => glob(ProjectRoot,PrivGlob)
+           srcs => glob:glob(ProjectRoot,SrcGlob),
+           tests => glob:glob(ProjectRoot,TestGlob),
+           includes => glob:glob(ProjectRoot,IncludeGlob),
+           priv => glob:glob(ProjectRoot,PrivGlob)
           },
 
   Srcs.
-
-
-glob(Root, Glob) ->
-  [ binary:list_to_bin(string:replace(P, Root, ".")) || P <- filelib:wildcard(Glob) ].
 
 clean(Map) when is_map(Map) -> clean(maps:to_list(Map), []);
 
@@ -119,7 +127,8 @@ clean([{K, V}|Rest], Acc) -> clean(Rest, [{clean(K), clean(V)} | Acc]).
 
 -spec download_and_flatten_dependencies(t()) -> result:t(t(), term()).
 download_and_flatten_dependencies(Projects) ->
-  {ok, Root} = tempdir:new(),
+  Root = <<"./.warp/_rebar_tmp">>,
+  filelib:ensure_path("./.warp/_rebar_tmp"),
   ?LOG_INFO("Dowloading and flattening deps at ~p", [Root]),
   loop_flatten(Root, 0, Projects).
 
@@ -138,7 +147,7 @@ loop_flatten(Root, Iter, Projects) ->
       ?LOG_INFO("Saving manifest..."),
       Rebar3File = rebar3_file(CurrentDeps),
       ok = file:write_file(filename:join(Root, "rebar.config"), Rebar3File),
-      {ok, NewProjects};
+      {ok, maps:values(NewProjects)};
     false ->
       loop_flatten(Root, Iter + 1, NewProjects)
   end.
@@ -208,17 +217,6 @@ install(Root, Deps) ->
   Rebar3File = rebar3_file(Deps),
   ok = file:write_file(filename:join(Root, "rebar.config"), Rebar3File),
   ok = in_dir(Root, fun () -> run_rebar("get-deps") end).
-
-mkdirp(Path) -> mkdirp(Path, []).
-mkdirp([], _Acc) -> ok;
-mkdirp([H|T], Acc0) ->
-  Acc1 = filename:join(Acc0, H),
-  case file:make_dir(Acc1) of
-    ok -> mkdirp(T, Acc1);
-    {error, eisdir}-> mkdirp(T, Acc1);
-    {error, eexist}-> mkdirp(T, Acc1)
-  end.
-
 
 rebar3_file(Deps) ->
 <<"

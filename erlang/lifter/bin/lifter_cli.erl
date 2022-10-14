@@ -15,29 +15,88 @@
 % @doc Lift the current directory.
 % information about the dependencies, and a place to set up overrides.
 %===================================================================================================
-lift(WorkspaceRoot) ->
+lift(WorkspaceRoot0) ->
+  WorkspaceRoot = binary:list_to_bin(WorkspaceRoot0),
+
+  % 1. find all rebar.configs to find all deps
   ?LOG_INFO("Searching for Rebar3 Projects in " ++ WorkspaceRoot),
   {ok, Projects} = lifter_rebar3:find_all_rebar_projects(WorkspaceRoot),
 
-  % 1. find all rebar.configs to find all deps
   % 2. flatten all deps
+  ?LOG_INFO("Flattening transitive dependencies..."),
+  {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(Projects),
+
   % 3. build dep lookup table from module/include to dep
-  % 4. check that all modules/includes missing from the source analysis are accounted by 3)
-  % 5. create buildfiles with a target per file
+  ExternalTable = lists:foldl(
+            fun (Dep = #{ name := Name, files := Files, root := Prefix } , Acc) ->
+                AllFiles = lists:flatten(maps:values(Files)),
+                #{ headers := Headers, sources := Sources } = source_tagger:tag(AllFiles),
 
-  [RebarConfig] = [binary:list_to_bin(P) || P <- filelib:wildcard(WorkspaceRoot ++ "/rebar.config")],
+                SrcEntries = lists:flatmap(
+                               fun (Src) ->
+                                   {ok, ModName} = erl_stdlib:file_to_module(Src),
+                                   [{ModName, Name}]
+                               end, Sources),
 
-  AllFiles = [binary:list_to_bin(P) || P <- filelib:wildcard(WorkspaceRoot ++ "/**/*.{erl,hrl}"),
-                                       string:find(P, "warp-outputs") == nomatch],
+                HdrEntries = lists:flatmap(
+                               fun (Hdr) ->
+                                   Include = path:basename(Hdr),
+                                   RelInclude = path:strip_prefix(Prefix, Hdr),
+                                   LibInclude = path:join(Name, RelInclude),
+                                   [
+                                    {Include, Name},
+                                    {RelInclude, Name},
+                                    {LibInclude, Name}
+                                   ]
+                               end, Headers),
+
+                DepMap = maps:from_list(SrcEntries ++ HdrEntries),
+
+                maps:merge(Acc, DepMap)
+            end, #{}, ExternalDeps),
+
+  % ?PRINT_JSON(Table),
+
+  % 4. analyze all sources 
+  AllFiles = [ P || P <- glob:glob(path:join(WorkspaceRoot, "**/*.{erl,hrl}")),
+                    not path:contains(P, "warp-outputs"),
+                    not path:contains(P, ".warp")
+             ],
   ?LOG_INFO("Lifting workspace with ~p files", [length(AllFiles)]),
 
-  {ok, Analysis0} = erl_analyzer:analyze(AllFiles),
-  Analysis = maps:to_list(Analysis0),
+  #{ headers := Headers, sources := Sources } = source_tagger:tag(AllFiles),
+  SourceTable = lists:foldl(
+            fun (Src, Acc) ->
+                {ok, ModName} = erl_stdlib:file_to_module(Src),
+                maps:merge(Acc, maps:from_list([{ModName, Src}]))
+            end, #{}, Sources),
+
+  HeaderTable = lists:foldl(
+            fun (Hdr, Acc) ->
+                Include = path:basename(Hdr),
+                RelInclude = path:strip_prefix(WorkspaceRoot, Hdr),
+                Entries = maps:from_list([
+                 {Include, Hdr},
+                 {RelInclude, Hdr}
+                ]),
+                maps:merge(Acc, Entries)
+            end, #{}, Headers),
+
+  FinalTable = maps:merge(maps:merge(ExternalTable, SourceTable), HeaderTable),
+
+  {ok, Analysis} = source_analyzer:analyze(AllFiles, FinalTable, []),
+  ?PRINT_JSON(Analysis),
+  
+  timer:sleep(200),
+  erlang:halt(),
 
   Missing = #{
               modules => uniq([ Mod || {_, #{ missing_modules := Mod }} <- Analysis ]),
               headers => uniq([ Inc || {_, #{ missing_includes := Inc }} <- Analysis ])
             },
+
+  % 4. check that all modules/includes missing from the source analysis are accounted by 3)
+  % 5. create buildfiles with a target per file
 
   case Missing of
     #{ modules := [], headers := [] } ->
@@ -73,11 +132,8 @@ lift(WorkspaceRoot) ->
 find_rebar_dependencies(WorkspaceRoot) ->
   ?LOG_INFO("Searching for Rebar3 Projects in " ++ WorkspaceRoot),
   {ok, Projects} = lifter_rebar3:find_all_rebar_projects(binary:list_to_bin(WorkspaceRoot)),
-
   ?LOG_INFO("Flattening transitive dependencies..."),
-
   {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(Projects),
-
   ?PRINT_JSON(ExternalDeps).
 
 %===================================================================================================
