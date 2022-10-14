@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::*;
 use dashmap::DashMap;
 use fxhash::*;
@@ -35,10 +37,10 @@ And try running the command again to see what the right `sha1` should be.
 }
 
 impl LabelResolver {
-    pub fn new(workspace: &Workspace) -> Self {
+    pub fn new(workspace: &Workspace, store: Arc<Store>) -> Self {
         Self {
             toolchain_configs: workspace.toolchain_configs.clone(),
-            remote_workspace_resolver: RemoteWorkspaceResolver::new(workspace),
+            remote_workspace_resolver: RemoteWorkspaceResolver::new(workspace, store),
             resolved_labels: DashMap::default(),
         }
     }

@@ -1,6 +1,7 @@
 use super::local_store::*;
 use super::remote_store::*;
 use super::*;
+use dashmap::DashMap;
 use std::path::PathBuf;
 use thiserror::*;
 use tracing::*;
@@ -9,7 +10,7 @@ pub type StoreKey = String;
 
 #[derive(Debug, Clone)]
 pub struct Store {
-    workspace_prefix: String,
+    workspace_prefixes: DashMap<PathBuf, PathBuf>,
     local_outputs_root: PathBuf,
     local_store: LocalStore,
     remote_store: RemoteStore,
@@ -60,15 +61,35 @@ impl Store {
             local_outputs_root: workspace.paths.local_outputs_root.clone(),
             local_store: LocalStore::new(workspace),
             remote_store: RemoteStore::new(workspace),
-            workspace_prefix: workspace.paths.workspace_name.clone(),
+            workspace_prefixes: {
+                let map = DashMap::new();
+                map.insert(
+                    workspace.paths.workspace_root.clone(),
+                    PathBuf::from(workspace.paths.workspace_name.clone()),
+                );
+                map
+            },
         }
+    }
+
+    pub fn register_workspace(&self, workspace: &Workspace) {
+        self.workspace_prefixes.insert(
+            workspace.paths.workspace_root.clone(),
+            PathBuf::from(workspace.paths.workspace_name.clone()),
+        );
     }
 
     pub fn _store_key(&self, hash: &str, label: &Label) -> StoreKey {
         if label.is_remote() {
             format!("{}/{}-{}", label.as_store_prefix(), hash, label.name())
         } else {
-            format!("{}/{}", self.workspace_prefix, hash)
+            self.workspace_prefixes
+                .get(&PathBuf::from(label.workspace()))
+                .unwrap()
+                .join(hash)
+                .to_str()
+                .unwrap()
+                .to_string()
         }
     }
 

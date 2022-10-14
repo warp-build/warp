@@ -1,6 +1,6 @@
 use super::*;
 use fxhash::*;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use thiserror::*;
 use tokio::fs;
 use tracing::*;
@@ -40,16 +40,18 @@ pub struct RemoteWorkspaceResolver {
     remote_workspace_configs: FxHashMap<String, RemoteWorkspaceConfig>,
     global_workspaces_path: PathBuf,
     archive_manager: ArchiveManager,
+    store: Arc<Store>,
 }
 
 impl RemoteWorkspaceResolver {
     #[tracing::instrument(name = "RemoteWorkspaceResolver::new", skip(workspace))]
-    pub fn new(workspace: &Workspace) -> Self {
+    pub fn new(workspace: &Workspace, store: Arc<Store>) -> Self {
         Self {
             root_workspace: workspace.clone(),
             remote_workspace_configs: workspace.remote_workspace_configs.clone(),
             global_workspaces_path: workspace.paths.global_workspaces_path.clone(),
             archive_manager: ArchiveManager::new(workspace),
+            store: store.clone(),
         }
     }
 
@@ -86,6 +88,8 @@ impl RemoteWorkspaceResolver {
                 .unwrap()
                 .build()
                 .unwrap();
+
+            self.store.register_workspace(&workspace);
 
             // NOTE(@ostera): save workspace for later
             // self.workspaces.insert(host, workspace);
