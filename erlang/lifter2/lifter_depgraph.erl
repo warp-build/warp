@@ -4,6 +4,8 @@
 
 -export([topo_sort/1]).
 -export([from_mods/1]).
+-export([sort_files/1]).
+
 -export_type([t/0]).
 
 -opaque t() :: #{ graph => digraph:t() }.
@@ -59,3 +61,9 @@ from_mods(Mods) when is_map(Mods) ->
     end, Entries),
 
   {ok, DepGraph}.
+
+-spec sort_files([path:t()]) -> [atom() | binary()].
+sort_files(Files) ->
+  {ok, Mods} = erl_analyzer:analyze(Files),
+  {ok, DepGraph} = from_mods(Mods),
+  topo_sort(DepGraph).

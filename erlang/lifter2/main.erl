@@ -13,7 +13,11 @@ main(Args) ->
   ?LOG_INFO("Running lifter on ~s", [WorkspaceRoot]),
 
   case Args of
+    [] -> lifter_cli:lift(WorkspaceRoot);
+    ["lift", Root] -> lifter_cli:lift(Root);
     ["help"] -> show_help();
+    ["find-rebar-dependencies"] -> lifter_cli:find_rebar_dependencies(WorkspaceRoot);
+    ["find-rebar-dependencies" | Root] -> lifter_cli:find_rebar_dependencies(Root);
     ["analyze-file", File] -> lifter_cli:analyze_files(WorkspaceRoot, [File]);
     ["analyze-files" | Files] -> lifter_cli:analyze_files(WorkspaceRoot, Files);
     ["sort-deps" | Files] -> lifter_cli:sort_deps(Files);
