@@ -126,7 +126,7 @@ main(_argv) ->
   SrcBeams = lists:map(fun (SrcFile) ->
     case compile:file(SrcFile, [binary, debug_info, return_errors]) of
       {ok, _, BeamCode} ->
-        BeamFile = filename:join([filename:basename(SrcFile, "https://pkgs.warp.build/rules/.erl"), ".beam"]),
+        BeamFile = filename:basename(SrcFile, ".erl") ++ ".beam",
         {filename:basename(BeamFile), BeamCode};
       {error, Reason} ->
         ?LOG_ERROR("Something went wrong! ~p\n", Reason)
