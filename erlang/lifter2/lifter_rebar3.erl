@@ -1,14 +1,22 @@
 -module(lifter_rebar3).
 
+-include_lib("kernel/include/logger.hrl").
 
 -export([find_all_rebar_projects/1]).
+-export([download_and_flatten_dependencies/1]).
 
-%===============================================================================
-% Find all dependencies in a workspace by folding over all rebar.config files
-% and "consulting" them.
-%===============================================================================
+-export_type([t/0]).
 
-find_all_rebar_projects(Root) ->
+-type t() :: #{ path:t() => #{} }.
+
+%===================================================================================================
+% @doc Find all dependencies in a workspace by folding over all rebar.config
+% files and "consulting" them.
+%===================================================================================================
+
+-spec find_all_rebar_projects(path:t()) -> result:t(t(), term()).
+find_all_rebar_projects(Root0) when is_binary(Root0) ->
+  Root = binary:bin_to_list(Root0),
   RebarProjects = filelib:fold_files(Root, "rebar\.config$", true, fun read_rebar_project/2, #{}),
   ErlMkProjects = filelib:fold_files(Root, "erlang\.mk", true, fun read_erlmk_project/2, #{}),
   Final = maps:merge(RebarProjects, ErlMkProjects),
@@ -100,3 +108,11 @@ clean(Term) -> Term.
 clean([], Acc) -> maps:from_list(Acc);
 clean([{K, V}|Rest], Acc) -> clean(Rest, [{clean(K), clean(V)} | Acc]).
   
+
+%===================================================================================================
+% @doc Given a map of project files, flatten all dependencies by calling rebar2
+% repeatedly until we have listed all transitive dependencies.
+%===================================================================================================
+
+-spec download_and_flatten_dependencies(t()) -> result:t(t(), term()).
+download_and_flatten_dependencies(Projects) -> ok.

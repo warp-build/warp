@@ -71,7 +71,7 @@ lift(WorkspaceRoot) ->
 
 find_rebar_dependencies(WorkspaceRoot) ->
   ?LOG_INFO("Searching for Rebar3 Projects in " ++ WorkspaceRoot),
-  {ok, Projects} = lifter_rebar3:find_all_rebar_projects(WorkspaceRoot),
+  {ok, Projects} = lifter_rebar3:find_all_rebar_projects(binary:list_to_bin(WorkspaceRoot)),
 
   ?PRINT_JSON(Projects).
 
@@ -79,25 +79,6 @@ find_rebar_dependencies(WorkspaceRoot) ->
   % {ok, _ThirdpartyDeps} = lifter_rebar3:flatten_deps(Projects),
 
   % ok.
-
-%===================================================================================================
-% @doc Reads the 3rdparty/rebar.manifest, and creates all the buildfiles
-% accordingly.
-%===================================================================================================
-
-create_3rdparty_buildfiles(WorkspaceRoot) ->
-  ?LOG_INFO("Creating 3rdparty Build.toml files in " ++ WorkspaceRoot),
-
-  {ok, Overrides} = lifter_3rdparty:read_overrides(WorkspaceRoot),
-  ?LOG_INFO("With overrides ~p\n", [Overrides]),
-
-  {ok, Projects} = lifter_rebar3:find_all_rebar_projects(wl_rebar3:basedir()),
-
-  ?LOG_INFO("Creating 3rdparty build files..."),
-  {ok, ThirdpartyBuildfiles} = wl_3rdparty:buildfiles(Projects, Overrides),
-  ok = wl_buildfile:write_all(ThirdpartyBuildfiles),
-
-  ok.
 
 %===================================================================================================
 % @doc Computes the missing dependencies for a list of Erlang source and header

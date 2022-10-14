@@ -1,4 +1,22 @@
 [[erlang_test]]
+name = "finds_projects"
+test = "lifter_rebar3_SUITE.erl"
+cases = ["finds_projects"]
+deps = [
+  "./fixtures:rebar3",
+  "//erlang/lifter2:lib",
+]
+
+[[erlang_test]]
+name = "returns_an_empty_list_for_no_projects"
+test = "lifter_rebar3_SUITE.erl"
+cases = ["returns_an_empty_list_for_no_projects"]
+deps = [
+  "./fixtures:rebar3",
+  "//erlang/lifter2:lib",
+]
+
+[[erlang_test]]
 name = "skips_dynamic_calls"
 test = "cerl_analyzer_SUITE.erl"
 cases = ["skips_dynamic_calls"]
