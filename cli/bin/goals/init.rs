@@ -1,11 +1,10 @@
 use anyhow::*;
-use dialoguer::Input;
+use dialoguer::{Input, MultiSelect};
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use structopt::StructOpt;
-use tokio::fs;
 use tracing::*;
 use warp_core::*;
 
@@ -26,23 +25,51 @@ pub struct InitGoal {
     max_workers: Option<usize>,
 }
 
+struct Selector {}
+
+impl Selector {
+    fn map_select_result_to_items(result: Vec<usize>, items: Vec<&str>) -> Vec<String> {
+        result
+            .iter()
+            .map(|i| items[i.clone()].to_string())
+            .collect()
+    }
+
+    pub fn show_for_items(
+        theme: &dialoguer::theme::ColorfulTheme,
+        items: Vec<&str>,
+    ) -> Result<Vec<String>, anyhow::Error> {
+        let result = MultiSelect::with_theme(theme)
+            .items(&items)
+            .with_prompt("Please choose the toolchains for your workspace")
+            .interact()?;
+
+        let selected_toolchains = Selector::map_select_result_to_items(result, items);
+
+        Ok(selected_toolchains)
+    }
+}
+
 impl InitGoal {
     pub async fn run(
         &self,
         build_started: std::time::Instant,
         cwd: &PathBuf,
-        workspace: Workspace,
+        current_user: String,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         let theme = dialoguer::theme::ColorfulTheme::default();
 
         println!(
             "\nWelcome {}, let's create a Workspace for your crew.\n",
-            workspace.current_user,
+            current_user,
         );
 
-        let current_dir = fs::canonicalize(PathBuf::from("."))
-            .await?
+        let workspace_root = std::fs::canonicalize(PathBuf::from("."))?;
+
+        let paths = WorkspacePaths::new(&workspace_root, None, current_user.clone())?;
+
+        let current_dir = workspace_root
             .file_name()
             .unwrap()
             .to_str()
@@ -62,6 +89,13 @@ impl InitGoal {
             .interact()?
             == "yes";
 
+        let mut toolchains_registry = ToolchainsRegistry::new(&paths);
+
+        toolchains_registry.ready().await?;
+
+        let chosen_toolchains =
+            Selector::show_for_items(&theme, toolchains_registry.show_toolchains())?;
+
         println!("\nPreparing...\n");
 
         let workspace_config = WorkspaceConfig::builder()
@@ -79,62 +113,7 @@ impl InitGoal {
                 map
             })
             .workspace(workspace_config)
-            .toolchains({
-                let mut map = BTreeMap::new();
-
-                map.insert(
-                    "cmake".to_string(),
-                    FlexibleRuleConfig({
-                        let mut map = BTreeMap::new();
-                        map.insert(
-                            "sha1".to_string(),
-                            "19b1473e6ded2d234256b6aac90eb22616c5ab5e".into(),
-                        );
-                        map.insert("version".to_string(), "3.24.2".into());
-                        map
-                    }),
-                );
-
-                map.insert(
-                    "erlang".to_string(),
-                    FlexibleRuleConfig({
-                        let mut map = BTreeMap::new();
-                        map.insert(
-                            "sha1".to_string(),
-                            "2bb7456ccb19cf83b07506744fb540ce4d66b257".into(),
-                        );
-                        map.insert("version".to_string(), "25.0".into());
-                        map
-                    }),
-                );
-
-                map.insert(
-                    "rebar3".to_string(),
-                    FlexibleRuleConfig({
-                        let mut map = BTreeMap::new();
-                        map.insert(
-                            "sha1".to_string(),
-                            "143d3473dae6ea8250452f7a29db73974be51b24".into(),
-                        );
-                        map
-                    }),
-                );
-
-                map.insert(
-                    "openssl".to_string(),
-                    FlexibleRuleConfig({
-                        let mut map = BTreeMap::new();
-                        map.insert(
-                            "sha1".to_string(),
-                            "73118336c58ece2e3b87f1f933f8ba446e2bdc26".into(),
-                        );
-                        map.insert("version".to_string(), "OpenSSL_1_1_1q".into());
-                        map
-                    }),
-                );
-
-                map
-            })
+            .toolchains(toolchains_registry.config_from_chosen_toolchains(&chosen_toolchains))
             .remote_workspaces({
                 let mut map = BTreeMap::new();
 
@@ -142,7 +121,7 @@ impl InitGoal {
                     "tools.warp.build".to_string(),
                     RemoteWorkspaceFile {
                         github: Some("warp-build/tools.warp.build".to_string()),
-                        git_ref: Some("3ab02bcfce544b80f350dd3f49a9fcd35aec1491".to_string()),
+                        git_ref: Some("d375d2380acea9ab8713afdb9ec1875140b479ed".to_string()),
                         ..RemoteWorkspaceFile::default()
                     },
                 );
@@ -151,59 +130,55 @@ impl InitGoal {
             })
             .build()?;
 
-        let workspace_root = PathBuf::from(".");
         workspace_file.write(&workspace_root).await?;
 
-        let (root, workspace_file) = WorkspaceFile::find_upwards(&cwd).await?;
-        std::env::set_current_dir(&root)?;
-
-        let paths = WorkspacePaths::new(&root, None, workspace.current_user.clone())?;
-
         let workspace = Workspace::builder()
-            .current_user(workspace.current_user)
+            .current_user(current_user)
             .paths(paths)
             .from_file(workspace_file)
             .await
             .unwrap()
             .build()?;
 
-        let label = Label::builder()
-            .with_workspace(&workspace)
-            .from_string("https://tools.warp.build/erlang/lifter")
-            .unwrap();
         let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
 
         let local_outputs_root = workspace.paths.local_outputs_root.clone();
+
+        let lifters =
+            toolchains_registry.get_lifters_from_chosen_toolchains(&chosen_toolchains, &workspace);
+
         let warp = BuildExecutor::from_workspace(workspace, worker_limit);
 
-        let status_reporter = StatusReporter::new(event_channel.clone());
-        let (result, ()) = futures::future::join(
-            warp.build(label.clone(), event_channel.clone(), BuildOpts::default()),
-            status_reporter.run(label.clone()),
-        )
-        .await;
+        for label in lifters {
+            let status_reporter = StatusReporter::new(event_channel.clone());
+            let (result, ()) = futures::future::join(
+                warp.build(label.clone(), event_channel.clone(), BuildOpts::default()),
+                status_reporter.run(label.clone()),
+            )
+            .await;
 
-        if let Some((manifest, target)) = result? {
-            let mut provides_env = manifest.env_map();
+            if let Some((manifest, target)) = result? {
+                let mut provides_env = manifest.env_map();
 
-            if let Some(RunScript { run_script, env }) = target.run_script {
-                let path = local_outputs_root.join(&run_script);
-                debug!("Running default run_script ({:?})", &path);
-                provides_env.extend(env);
+                if let Some(RunScript { run_script, env }) = target.run_script {
+                    let path = local_outputs_root.join(&run_script);
+                    debug!("Running default run_script ({:?})", &path);
+                    provides_env.extend(env);
 
-                for cmd in [
-                    "create-manifest",
-                    "create-3rdparty-buildfiles",
-                    "create-buildfiles",
-                ] {
-                    self.run_cmd(
-                        build_started,
-                        cwd,
-                        label.clone(),
-                        path.clone(),
-                        provides_env.clone(),
-                        &[cmd.to_string()],
-                    )?;
+                    for cmd in [
+                        "create-manifest",
+                        "create-3rdparty-buildfiles",
+                        "create-buildfiles",
+                    ] {
+                        self.run_cmd(
+                            build_started,
+                            cwd,
+                            label.clone(),
+                            path.clone(),
+                            provides_env.clone(),
+                            &[cmd.to_string()],
+                        )?;
+                    }
                 }
             }
         }

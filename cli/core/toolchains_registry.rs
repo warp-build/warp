@@ -32,26 +32,21 @@ impl Toolchains {
     ) {
         let FlexibleRuleConfig(dep_config) = self.toolchains.get(dep_name).unwrap();
 
-        //TODO: i think we should just use OpenSSL_1_1_1q
-        let dep_version = if dep_version.clone() == "OpenSSL_1_1_1q" {
-            "1.1.1q"
-        } else {
-            dep_version
-        };
-
         let dep_version_args = dep_config.get(dep_version).unwrap();
 
         config.insert(
             dep_name.clone(),
             FlexibleRuleConfig({
                 let mut dep_config_map = BTreeMap::new();
-                dep_config_map.insert("version".to_string(), dep_version.into());
                 match dep_version_args {
                     toml::Value::Table(args) => {
                         for k in args.keys() {
                             let key_to_add = k.clone();
-                            if key_to_add != "deps".to_string() {
-                                dep_config_map.insert(key_to_add, args.get(k).unwrap().clone());
+                            if key_to_add != "deps".to_string()
+                                && key_to_add != "lifter".to_string()
+                            {
+                                dep_config_map
+                                    .insert(key_to_add, args.get(k.as_str()).unwrap().clone());
                             }
                         }
                     }
@@ -62,7 +57,7 @@ impl Toolchains {
         );
     }
 
-    pub fn add_dep_to_config(
+    fn add_dep_to_config(
         &self,
         dep: &toml::Value,
         config: &mut BTreeMap<String, FlexibleRuleConfig>,
@@ -108,6 +103,40 @@ impl Toolchains {
             config,
         );
     }
+
+    pub fn get_lifters_from_chosen_toolchains(
+        &self,
+        chosen_toolchains: &Vec<String>,
+    ) -> Vec<String> {
+        let mut lifters: Vec<String> = vec![];
+        for (toolchain, config) in &self.toolchains {
+            if chosen_toolchains.contains(toolchain) {
+                let FlexibleRuleConfig(config) = config;
+
+                // NOTE(diogo): this only works because we only have one version per toolchain and
+                // chosen_toolchain only consists of the toolchain name. Once we allow specifying the name
+                // and version, we should change this to find the version as well.
+                let version = config.keys().last().unwrap();
+
+                match config.get(version) {
+                    Some(toml::Value::Table(version_config)) => {
+                        if version_config.get("lifter").is_some() {
+                            lifters.push(
+                                format!(
+                                    "\"{}\"",
+                                    version_config.get("lifter").unwrap().to_string()
+                                )
+                                .replace("\"", ""),
+                            );
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
+
+        lifters
+    }
 }
 
 impl ToolchainsRegistry {
@@ -150,7 +179,7 @@ impl ToolchainsRegistry {
 
     pub fn config_from_chosen_toolchains(
         &self,
-        chosen_toolchains: Vec<String>,
+        chosen_toolchains: &Vec<String>,
     ) -> BTreeMap<String, FlexibleRuleConfig> {
         let mut toolchains_config: BTreeMap<String, FlexibleRuleConfig> = BTreeMap::new();
         for toolchain in self.available_toolchains.toolchains.keys() {
@@ -166,8 +195,26 @@ impl ToolchainsRegistry {
     pub async fn ready(&mut self) -> Result<(), anyhow::Error> {
         let path = self.fetch().await?;
 
-        self.parse_downloaded_file(&path).await?;
+        self.parse_downloaded_file(&path).await
+    }
 
-        Ok(())
+    pub fn get_lifters_from_chosen_toolchains(
+        &self,
+        chosen_toolchains: &Vec<String>,
+        workspace: &Workspace,
+    ) -> Vec<Label> {
+        let lifters_as_string = self
+            .available_toolchains
+            .get_lifters_from_chosen_toolchains(chosen_toolchains);
+
+        lifters_as_string
+            .iter()
+            .map(|l| {
+                Label::builder()
+                    .with_workspace(workspace)
+                    .from_string(l)
+                    .unwrap()
+            })
+            .collect()
     }
 }

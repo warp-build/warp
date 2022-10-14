@@ -107,9 +107,6 @@ impl Warp {
 
         match &self.cmd {
             Some(Goal::Init(x)) => {
-                return x.run(t0, &cwd, Workspace::default(), event_channel).await
-            }
-            Some(Goal::Init2(x)) => {
                 return x.run(t0, &cwd, current_user.clone(), event_channel).await
             }
             Some(Goal::Setup(x)) => return x.run(current_user.clone(), event_channel).await,
@@ -148,7 +145,6 @@ enum Goal {
     Build(BuildGoal),
     Info(InfoGoal),
     Init(InitGoal),
-    Init2(InitGoal2),
     Run(RunGoal),
     Setup(SetupGoal),
     Shell(ShellGoal),
@@ -167,8 +163,7 @@ impl Goal {
         match self {
             Goal::Build(x) => x.run(workspace, event_channel).await,
             Goal::Info(x) => x.run(workspace, event_channel).await,
-            Goal::Init(x) => x.run(build_started, cwd, workspace, event_channel).await,
-            Goal::Init2(x) => {
+            Goal::Init(x) => {
                 x.run(build_started, cwd, workspace.current_user, event_channel)
                     .await
             }
