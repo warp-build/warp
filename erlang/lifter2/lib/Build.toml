@@ -1,3 +1,6 @@
 [[erlang_library]]
 name = "lib"
-deps = ["//erlang/base"]
+deps = [
+  "//erlang/base",
+  "//erlang/base/verl",
+]

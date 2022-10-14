@@ -18,6 +18,7 @@
 lift(WorkspaceRoot) ->
   ?LOG_INFO("Searching for Rebar3 Projects in " ++ WorkspaceRoot),
   {ok, Projects} = lifter_rebar3:find_all_rebar_projects(WorkspaceRoot),
+
   % 1. find all rebar.configs to find all deps
   % 2. flatten all deps
   % 3. build dep lookup table from module/include to dep
@@ -73,12 +74,11 @@ find_rebar_dependencies(WorkspaceRoot) ->
   ?LOG_INFO("Searching for Rebar3 Projects in " ++ WorkspaceRoot),
   {ok, Projects} = lifter_rebar3:find_all_rebar_projects(binary:list_to_bin(WorkspaceRoot)),
 
-  ?PRINT_JSON(Projects).
+  ?LOG_INFO("Flattening transitive dependencies..."),
 
-  % ?LOG_INFO("Flattening transitive dependencies..."),
-  % {ok, _ThirdpartyDeps} = lifter_rebar3:flatten_deps(Projects),
+  {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(Projects),
 
-  % ok.
+  ?PRINT_JSON(ExternalDeps).
 
 %===================================================================================================
 % @doc Computes the missing dependencies for a list of Erlang source and header

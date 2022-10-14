@@ -1,5 +1,6 @@
 -module(lifter_rebar3).
 
+-define(JSON(X), jsone:encode(X, [{indent, 2}, {space, 1}])).
 -include_lib("kernel/include/logger.hrl").
 
 -export([find_all_rebar_projects/1]).
@@ -78,19 +79,21 @@ get_sources(ProjectRoot) ->
   PrivGlob = ProjectRoot ++ "/priv/**/*",
 
   Srcs = #{
-           srcs => glob(SrcGlob),
-           tests => glob(TestGlob),
-           includes => glob(IncludeGlob),
-           priv => glob(PrivGlob)
+           srcs => glob(ProjectRoot,SrcGlob),
+           tests => glob(ProjectRoot,TestGlob),
+           includes => glob(ProjectRoot,IncludeGlob),
+           priv => glob(ProjectRoot,PrivGlob)
           },
 
   Srcs.
 
 
-glob(Glob) -> [ binary:list_to_bin(P) || P <- filelib:wildcard(Glob) ].
+glob(Root, Glob) ->
+  [ binary:list_to_bin(string:replace(P, Root, ".")) || P <- filelib:wildcard(Glob) ].
 
 clean(Map) when is_map(Map) -> clean(maps:to_list(Map), []);
 
+clean([]) -> [];
 clean(Term=[{_,_}|_]) -> clean(proplists:to_map(Term));
 clean(Term) when is_list(Term) ->
   case (catch string:to_graphemes(Term)) of
@@ -115,4 +118,131 @@ clean([{K, V}|Rest], Acc) -> clean(Rest, [{clean(K), clean(V)} | Acc]).
 %===================================================================================================
 
 -spec download_and_flatten_dependencies(t()) -> result:t(t(), term()).
-download_and_flatten_dependencies(Projects) -> ok.
+download_and_flatten_dependencies(Projects) ->
+  {ok, Root} = tempdir:new(),
+  ?LOG_INFO("Dowloading and flattening deps at ~p", [Root]),
+  loop_flatten(Root, 0, Projects).
+
+loop_flatten(Root, Iter, Projects) ->
+  {ok, CurrentDeps} = extract_all_deps(Projects),
+  ?LOG_INFO("Found ~p dependencies: ~p\n", [maps:size(CurrentDeps), lists:sort(maps:keys(CurrentDeps))]),
+
+  ok = install(Root, CurrentDeps),
+
+  {ok, NewProjects} = find_all_rebar_projects(Root),
+  {ok, FreshDeps} = extract_all_deps(NewProjects),
+
+  ?LOG_INFO("Verifying all transitive dependencies are specified..."),
+  case CurrentDeps == FreshDeps of
+    true ->
+      ?LOG_INFO("Saving manifest..."),
+      Rebar3File = rebar3_file(CurrentDeps),
+      ok = file:write_file(filename:join(Root, "rebar.config"), Rebar3File),
+      {ok, NewProjects};
+    false ->
+      loop_flatten(Root, Iter + 1, NewProjects)
+  end.
+
+
+extract_all_deps(Projects) ->
+  AllDeps = do_extract_deps(Projects),
+  {ok, collect_and_choose_newer(AllDeps)}.
+
+do_extract_deps(Projects) ->
+  Pkgs = maps:values(Projects),
+  uniq(lists:flatmap(
+    fun
+      (Pkg=#{ deps := Deps, profiles := #{ test := #{ deps := TestDeps }}})
+        when Deps =/= [], is_map(Deps), TestDeps =/= [], is_map(TestDeps) ->
+        maps:to_list(Deps) ++ maps:to_list(TestDeps);
+
+      (Pkg=#{ deps := Deps }) when Deps =/= [], is_map(Deps)->
+        maps:to_list(Deps);
+
+      (_) -> []
+    end, Pkgs)).
+
+collect_and_choose_newer(Deps) -> collect_and_choose_newer(Deps, #{}).
+collect_and_choose_newer([], Acc) -> maps:from_list(lists:sort(maps:values(Acc)));
+collect_and_choose_newer([D|T], Acc0) ->
+  Name = name(D),
+  Dep = choose_dep(D, maps:get(Name, Acc0, none)),
+  Acc1 = maps:put(Name, Dep, Acc0),
+  collect_and_choose_newer(T, Acc1).
+
+choose_dep(A, none) -> A;
+choose_dep(A, B) ->
+  case compare_v(version(A), version(B)) of
+    lt -> B;
+    _ -> A
+  end.
+
+compare_v({override, _}, _) -> gt;
+compare_v(_, {override, _}) -> lt;
+compare_v({semver, A}, {semver, B}) -> verl:compare(A, B).
+
+name(Dep) when is_tuple(Dep) -> name(element(1, Dep));
+name(Name) when is_list(Name) -> list_to_atom(Name);
+name(Name) when is_binary(Name) -> binary_to_atom(Name, utf8);
+name(Name) when is_atom(Name) -> Name.
+
+version(Dep) ->
+  RawV = v(Dep),
+  CleanV = clean_v(RawV),
+  case verl:parse(CleanV) of
+    {ok, V} -> {semver, V};
+    _ -> {override, RawV}
+  end.
+v({_Name, {git, _Repo, {tag, Version}}}) -> Version;
+v({_Name, {git, _Repo, {branch, Version}}}) -> Version;
+v({_Name, {path, _Path}}) -> "0.0.0";
+v({_Name, Version}) when is_binary(Version) -> Version;
+v({_Name, Version}) when is_list(Version) -> Version.
+
+clean_v(Version) when is_list(Version) -> clean_v(binary:list_to_bin(Version));
+clean_v(<<"v", Version/binary>>) -> Version;
+clean_v(Version) -> Version.
+
+
+install(Root, Deps) ->
+  Rebar3File = rebar3_file(Deps),
+  ok = file:write_file(filename:join(Root, "rebar.config"), Rebar3File),
+  ok = in_dir(Root, fun () -> run_rebar("get-deps") end).
+
+mkdirp(Path) -> mkdirp(Path, []).
+mkdirp([], _Acc) -> ok;
+mkdirp([H|T], Acc0) ->
+  Acc1 = filename:join(Acc0, H),
+  case file:make_dir(Acc1) of
+    ok -> mkdirp(T, Acc1);
+    {error, eisdir}-> mkdirp(T, Acc1);
+    {error, eexist}-> mkdirp(T, Acc1)
+  end.
+
+
+rebar3_file(Deps) ->
+<<"
+
+{base_dir, \"rebar3\"}.
+
+{deps, \n", (binary:list_to_bin(lists:flatten(io_lib:format("~p", [lists:sort(maps:to_list(Deps))]))))/binary, "\n}.
+
+">>.
+
+run_rebar(Cmd) ->
+  ?LOG_INFO("Running `rebar3 " ++ Cmd ++"`...this could take a while!"),
+
+  _ = os:cmd("rebar3 "++Cmd),
+
+  ok.
+
+in_dir(Dir, Fn) ->
+  {ok, Cwd} = file:get_cwd(),
+  ok = file:set_cwd(Dir),
+  Res = Fn(),
+  ok = file:set_cwd(Cwd),
+  Res.
+
+uniq([]) -> [];
+uniq([X]) -> [X];
+uniq(Xs) -> lists:flatten(sets:to_list(sets:from_list(Xs, [{version, 2}]))).

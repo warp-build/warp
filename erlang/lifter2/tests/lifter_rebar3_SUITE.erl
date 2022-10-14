@@ -87,8 +87,8 @@ finds_projects(_Config) ->
 			 project_plugins := [erlfmt],
 			 root := <<"../erlang/lifter2/tests/fixtures">>,
 			 srcs :=
-			 #{includes := <<>>,priv := <<>>,srcs := <<>>,
-				 tests := <<>>},
+			 #{includes := [],priv := [],srcs := [],
+				 tests := []},
 			 xref_checks :=
 			 [undefined_function_calls,undefined_functions,
 				locals_not_used,deprecated_function_calls,

@@ -185,7 +185,7 @@ mfa(M, F, A) -> {M, F, A}.
 
 uniq([]) -> [];
 uniq([X]) -> [X];
-uniq(Xs) -> sets:to_list(sets:from_list(Xs, [{version, 2}])).
+uniq(Xs) -> lists:flatten(sets:to_list(sets:from_list(Xs, [{version, 2}]))).
 
 tag_files(Files) -> tag_files(Files,  [], [], []).
 tag_files([], Srcs, Hdrs, Others) -> #{ sources => Srcs, headers => Hdrs, others => Others };
