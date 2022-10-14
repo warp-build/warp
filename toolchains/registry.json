@@ -18,7 +18,7 @@
       "sha1": "2bb7456ccb19cf83b07506744fb540ce4d66b257",
       "version": "25.0",
       "deps": [{ "openssl": "1.1.1q" }],
-      "lifter": "https://pkgs.warp.build/erlang/lifter"
+      "lifter": "https://tools.warp.build/erlang/lifter"
     }
   },
   "cmake": {
