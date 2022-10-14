@@ -62,6 +62,10 @@ impl LocalStore {
         dst: &PathBuf,
     ) -> Result<(), StoreError> {
         if let Ok(output_manifest) = OutputManifestHash::find(&manifest.label, dst).await {
+            info!(
+                "Comparing hashes: {} == {}",
+                output_manifest.hash, manifest.hash
+            );
             if output_manifest.hash == manifest.hash {
                 return Ok(());
             }
