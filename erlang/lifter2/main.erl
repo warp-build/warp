@@ -16,8 +16,8 @@ main(Args) ->
     [] -> lifter_cli:lift(WorkspaceRoot);
     ["lift", Root] -> lifter_cli:lift(Root);
     ["help"] -> show_help();
-    ["find-rebar-dependencies"] -> lifter_cli:find_rebar_dependencies(WorkspaceRoot);
-    ["find-rebar-dependencies" | Root] -> lifter_cli:find_rebar_dependencies(Root);
+    ["find-rebar-deps"] -> lifter_cli:find_rebar_dependencies(WorkspaceRoot);
+    ["find-rebar-deps" | Root] -> lifter_cli:find_rebar_dependencies(Root);
     ["analyze-file", File] -> lifter_cli:analyze_files(WorkspaceRoot, [File]);
     ["analyze-files" | Files] -> lifter_cli:analyze_files(WorkspaceRoot, Files);
     ["sort-deps" | Files] -> lifter_cli:sort_deps(Files);
@@ -38,10 +38,13 @@ show_help() ->
 
 Usage:
 
+* lifter
+* lifter lift ./path/to/dir
 * lifter analyze-file path/to/file.erl
 * lifter analyze-files a.erl b.erl c.erl
 * lifter sort-deps a.erl b.erl c.erl
 * lifter missing-deps a.erl b.erl c.erl
+* lifter find-rebar-deps [./path/to/dir = $cwd]
 
   ">>]),
   ok.
