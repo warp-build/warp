@@ -63,6 +63,10 @@ sha1_aarch64 = "bae0f096ec524ca5a85ec401b58444108e097218"
 sha1_x86_64 = "9f7a64ae5426e0101d492726416589acd0c110ab"
 version = "0.0.393"
 
+[toolchains.cmake]
+sha1 = "19b1473e6ded2d234256b6aac90eb22616c5ab5e"
+version = "3.24.2"
+
 [toolchains.rebar3]
 sha1 = "143d3473dae6ea8250452f7a29db73974be51b24"
 
