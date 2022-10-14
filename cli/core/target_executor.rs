@@ -66,7 +66,7 @@ impl TargetExecutor {
     pub async fn execute(
         &self,
         target: &ExecutableTarget,
-        build_opts: &BuildOpts,
+        _build_opts: &BuildOpts,
     ) -> Result<(TargetManifest, ValidationStatus), TargetExecutorError> {
         let build_started_at = chrono::Utc::now();
 

@@ -73,7 +73,7 @@ impl BuildExecutor {
             target_executor.clone(),
             store.clone(),
             share_rule_executor_state.clone(),
-            build_opts.clone(),
+            build_opts,
         )
         .map_err(BuildExecutorError::WorkerError)?;
 
@@ -90,7 +90,7 @@ impl BuildExecutor {
                 let target_executor = target_executor.clone();
                 let target = target.clone();
                 let store = store.clone();
-                let build_opts = build_opts.clone();
+                let build_opts = build_opts;
                 let share_rule_executor_state = share_rule_executor_state.clone();
 
                 let thread = worker_pool.spawn_pinned(move || async move {

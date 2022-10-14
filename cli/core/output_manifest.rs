@@ -1,6 +1,6 @@
 use super::*;
 use serde_derive::{Deserialize, Serialize};
-use std::path::{PathBuf};
+use std::path::{Path, PathBuf};
 use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
@@ -52,7 +52,7 @@ impl OutputManifestHash {
             .map_err(OutputManifestError::IOError)
     }
 
-    fn _file(label: &Label, root: &PathBuf) -> PathBuf {
+    fn _file(label: &Label, root: &Path) -> PathBuf {
         root.join(&label.hash().to_string())
             .with_extension(BUILDSTAMP)
     }
@@ -91,7 +91,7 @@ impl OutputManifest {
             .map_err(OutputManifestError::IOError)
     }
 
-    fn _file(label: &Label, root: &PathBuf) -> PathBuf {
+    fn _file(label: &Label, root: &Path) -> PathBuf {
         root.join(&label.hash().to_string())
             .with_extension(BUILDSTAMP)
     }

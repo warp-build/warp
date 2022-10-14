@@ -132,7 +132,7 @@ impl LocalStore {
     async fn needs_promotion(
         &self,
         manifest: &TargetManifest,
-        dst: &PathBuf,
+        dst: &Path,
     ) -> Result<bool, StoreError> {
         let buildstamp = dst.join(format!("{}.{}", manifest.label.hash(), BUILDSTAMP));
 

@@ -132,7 +132,7 @@ impl RemoteWorkspaceResolver {
 
         let url = config.url();
 
-        let final_dir = self._store_path(&config);
+        let final_dir = self._store_path(config);
 
         let expected_hash = if config.is_github() {
             None

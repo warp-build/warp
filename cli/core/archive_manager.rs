@@ -117,7 +117,7 @@ impl ArchiveManager {
         } else {
             Err(ArchiveManagerError::DownloadFailed {
                 url: url.clone(),
-                err: response.status().clone(),
+                err: response.status(),
             })
         }
     }
