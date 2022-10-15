@@ -5,32 +5,17 @@
 from_file(Path) ->
   {ok, Data} = file:read_file(Path),
   Lines = string:split(Data, <<"\n">>, all),
-  Deps = case find_var("DEPS", Lines) of
-           {ok, D} -> get_deps(D, Lines);
-           _ -> []
-         end,
+  Deps = parse(Lines, []),
   {ok, [ {deps, Deps} ]}.
 
-get_deps(Deps, Lines) ->
-  Keys = [ {Dep, "dep_" ++ Dep} || Dep <- Deps ],
-  lists:map(fun ({Name, Key}) ->
-                {ok, DepStr} = find_var(Key, Lines),
-                parse_dep(Name, DepStr)
-            end, Keys).
+parse([], Acc) -> Acc;
+parse([Line|Lines], Acc) ->
+  Tokens = [ binary:list_to_bin(T) || T <- string:tokens(binary:bin_to_list(Line), " ") ],
+  Acc2 = parse_line(Tokens, Acc),
+  parse(Lines, Acc2).
 
-find_var(VarName, Lines) -> find_var(VarName, Lines, none).
-find_var(VarName, [], none) -> {error, {var_not_found, VarName}};
-find_var(VarName, [Line|Rest], none) ->
-  case string:prefix(Line, VarName) of
-    nomatch -> find_var(VarName, Rest, none);
-    Value -> {ok, string:split(string:prefix(Value, " = "), <<" ">>, all)}
-  end.
+parse_line([<<"dep_", Name/binary>>, <<"=">>, <<"git">>, Repo, Version], Acc) ->
+  Dep = { erlang:binary_to_atom(Name, utf8), {git, Repo, {tag, Version} } },
+  [Dep | Acc];
 
-parse_dep(Name, [_, Repo, Version]) ->
-  {
-   erlang:binary_to_atom(Name, utf8),
-   {git,
-    binary:bin_to_list(Repo),
-    {tag, binary:bin_to_list(Version)}
-   }
-  }.
+parse_line(_, Acc) -> Acc.

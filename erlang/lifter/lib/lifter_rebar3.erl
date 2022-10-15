@@ -45,7 +45,7 @@ do_read_rebar_project(RebarConfig, Acc) ->
                   {url, hexpm:pkg_to_url(ProjectName)},
                   {root, ProjectRoot},
                   {files, get_sources(ProjectRoot)},
-                  {deps, get_deps(ProjMap)},
+                  {deps, clean_deps(get_deps(ProjMap))},
                   {proj, ProjMap}
                  ],
 
@@ -72,11 +72,17 @@ do_read_erlmk_project(ErlangMkConfig, Acc) ->
                   {url, hexpm:pkg_to_url(ProjectName)},
                   {root, ProjectRoot},
                   {files, get_sources(ProjectRoot)},
-                  {deps, get_deps(ProjMap)},
+                  {deps, clean_deps(get_deps(ProjMap))},
                   {proj, ProjMap}
                  ],
 
   maps:put(ErlangMkConfig, maps:from_list(FinalProject), Acc).
+
+clean_deps(Deps) -> clean_deps(Deps, []).
+clean_deps([], Acc) -> Acc;
+clean_deps([{_, {path, _}}|Rest], Acc) -> clean_deps(Rest, Acc);
+clean_deps([Dep|Rest], Acc) -> clean_deps(Rest, [Dep|Acc]).
+
 
 get_deps(Pkg) when is_list(Pkg) -> get_deps(proplists:to_map(Pkg));
 get_deps(Pkg=#{ deps := Deps, profiles := Profiles}) when is_list(Profiles) ->
@@ -206,8 +212,10 @@ version(Dep) ->
   end.
 v({_Name, {git_subdir, _Repo, {tag, Version}, _Subdir}}) -> Version;
 v({_Name, {git_subdir, _Repo, {branch, Version}, _Subdir}}) -> Version;
+v({_Name, {git_subdir, _Repo, {ref, Version}, _Subdir}}) -> Version;
 v({_Name, {git, _Repo, {tag, Version}}}) -> Version;
 v({_Name, {git, _Repo, {branch, Version}}}) -> Version;
+v({_Name, {git, _Repo, {ref, Version}}}) -> Version;
 v({_Name, {path, _Path}}) -> "0.0.0";
 v({_Name, Version}) when is_binary(Version) -> Version;
 v({_Name, Version}) when is_list(Version) -> Version.
