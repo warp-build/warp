@@ -90,8 +90,10 @@ lift(WorkspaceRoot0) ->
 
   FinalTable = maps:merge(maps:merge(ExternalTable, SourceTable), HeaderTable),
 
+  IncludePaths = [ "apps" ] ++ maps:keys(HeaderTable),
+
   % 5. run source analyzer to generate warp signatures
-  {ok, Signatures} = source_analyzer:analyze(AllFiles, FinalTable, maps:keys(HeaderTable)),
+  {ok, Signatures} = source_analyzer:analyze(AllFiles, FinalTable, IncludePaths),
 
   % 6. generate warp signatures
   ?LOG_INFO("Writing Warp signature files..."),
