@@ -5,7 +5,7 @@ use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 
-pub const BUILDFILE: &str = "Build.toml.json";
+pub const BUILDFILE: &str = "Build.json";
 
 #[derive(Debug)]
 pub struct Buildfile2 {
