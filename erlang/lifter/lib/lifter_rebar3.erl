@@ -4,7 +4,7 @@
 -include_lib("kernel/include/logger.hrl").
 
 -export([find_all_rebar_projects/1]).
--export([download_and_flatten_dependencies/1]).
+-export([download_and_flatten_dependencies/2]).
 
 -export_type([t/0]).
 
@@ -127,10 +127,10 @@ clean([{K, V}|Rest], Acc) -> clean(Rest, [{clean(K), clean(V)} | Acc]).
 % repeatedly until we have listed all transitive dependencies.
 %===================================================================================================
 
--spec download_and_flatten_dependencies(t()) -> result:t(t(), term()).
-download_and_flatten_dependencies(Projects) ->
-  Root = <<"./.warp/_rebar_tmp">>,
-  filelib:ensure_path("./.warp/_rebar_tmp"),
+-spec download_and_flatten_dependencies(path:t(), t()) -> result:t(t(), term()).
+download_and_flatten_dependencies(WorkspaceRoot, Projects) ->
+  Root = path:join(WorkspaceRoot,<<"./.warp/_rebar_tmp">>),
+  filelib:ensure_path(Root),
   ?LOG_INFO("Dowloading and flattening deps at ~p", [Root]),
   loop_flatten(Root, 0, Projects).
 
@@ -204,6 +204,8 @@ version(Dep) ->
     {ok, V} -> {semver, V};
     _ -> {override, RawV}
   end.
+v({_Name, {git_subdir, _Repo, {tag, Version}, _Subdir}}) -> Version;
+v({_Name, {git_subdir, _Repo, {branch, Version}, _Subdir}}) -> Version;
 v({_Name, {git, _Repo, {tag, Version}}}) -> Version;
 v({_Name, {git, _Repo, {branch, Version}}}) -> Version;
 v({_Name, {path, _Path}}) -> "0.0.0";
@@ -232,7 +234,8 @@ rebar3_file(Deps) ->
 run_rebar(Cmd) ->
   ?LOG_INFO("Running `rebar3 " ++ Cmd ++"`...this could take a while!"),
 
-  _ = os:cmd("rebar3 "++Cmd),
+  Output = os:cmd("rebar3 "++Cmd),
+  io:format("~s\n", [Output]),
 
   ok.
 

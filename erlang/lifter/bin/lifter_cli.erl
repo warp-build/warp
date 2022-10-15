@@ -24,9 +24,9 @@ lift(WorkspaceRoot0) ->
 
   % 2. flatten all deps
   ?LOG_INFO("Flattening transitive dependencies..."),
-  {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(Projects),
+  {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(WorkspaceRoot, Projects),
 
-  % 3. build dep lookup table from module/include to dep
+  % 3. build lookup table from module/include to dep
   ExternalTable = lists:foldl(
             fun (Dep = #{ url := Url, name := Name, files := Files, root := Prefix } , Acc) ->
                 AllFiles = lists:flatten(maps:values(Files)),
@@ -55,15 +55,12 @@ lift(WorkspaceRoot0) ->
                 maps:merge(Acc, DepMap)
             end, #{}, ExternalDeps),
 
-  % ?PRINT_JSON(Table),
-
-  % 4. analyze all sources 
+  % 4. tag all sources 
   AllFiles = [ P || P <- glob:glob(path:join(WorkspaceRoot, "**/*.{erl,hrl}")),
                     not path:contains(P, "warp-outputs"),
                     not path:contains(P, ".warp")
              ],
   ?LOG_INFO("Lifting workspace with ~p files", [length(AllFiles)]),
-
   #{ headers := Headers, sources := Sources } = source_tagger:tag(AllFiles),
   SourceTable = lists:foldl(
             fun (Src, Acc) ->
@@ -84,8 +81,10 @@ lift(WorkspaceRoot0) ->
 
   FinalTable = maps:merge(maps:merge(ExternalTable, SourceTable), HeaderTable),
 
-  {ok, Signatures} = source_analyzer:analyze(AllFiles, FinalTable, []),
+  % 5. run source analyzer to generate warp signatures
+  {ok, Signatures} = source_analyzer:analyze(AllFiles, FinalTable, maps:keys(HeaderTable)),
 
+  % 6. generate warp signatures
   ?LOG_INFO("Writing Warp signature files..."),
   lists:foreach(fun ({Path, WarpSig}) ->
                     ?LOG_INFO("- ~s\n", [Path]),
@@ -97,11 +96,12 @@ lift(WorkspaceRoot0) ->
 % information about the dependencies, and a place to set up overrides.
 %===================================================================================================
 
-find_rebar_dependencies(WorkspaceRoot) ->
-  ?LOG_INFO("Searching for Rebar3 Projects in " ++ WorkspaceRoot),
-  {ok, Projects} = lifter_rebar3:find_all_rebar_projects(binary:list_to_bin(WorkspaceRoot)),
+find_rebar_dependencies(WorkspaceRoot0) ->
+  ?LOG_INFO("Searching for Rebar3 Projects in " ++ WorkspaceRoot0),
+  WorkspaceRoot = binary:list_to_bin(WorkspaceRoot0),
+  {ok, Projects} = lifter_rebar3:find_all_rebar_projects(WorkspaceRoot),
   ?LOG_INFO("Flattening transitive dependencies..."),
-  {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(Projects),
+  {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(WorkspaceRoot, Projects),
   ?PRINT_JSON(ExternalDeps).
 
 %===================================================================================================
