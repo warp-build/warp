@@ -22,6 +22,20 @@ lift(WorkspaceRoot0) ->
   ?LOG_INFO("Searching for Rebar3 Projects in " ++ WorkspaceRoot),
   {ok, Projects} = lifter_rebar3:find_all_rebar_projects(WorkspaceRoot),
 
+  % 1-b. extract from the project configurations all the info we need, like modules to ignore
+  IgnoreMods= sets:from_list(lists:foldl(
+                   fun ({_, #{ proj := Proj }}, Acc) ->
+                       CoverIgnore = maps:get(cover_excl_mods, Proj, []),
+                       XrefIgnore = [ begin
+                                        case Ig of
+                                          {Mod, _, _} -> Mod;
+                                          Mod when is_atom(Mod) -> Mod
+                                        end
+                                      end
+                                      || Ig <- maps:get(xref_ignores, Proj, []) ],
+                       Acc ++ XrefIgnore ++ CoverIgnore
+                   end, [], maps:to_list(Projects))),
+
   % 2. flatten all deps
   ?LOG_INFO("Flattening transitive dependencies..."),
   {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(WorkspaceRoot, Projects),
@@ -59,6 +73,7 @@ lift(WorkspaceRoot0) ->
 
   % 4. tag all sources 
   AllFiles = [ P || P <- glob:glob(path:join(WorkspaceRoot, "**/*.{erl,hrl}")),
+                    not path:contains(P, "_build"),
                     not path:contains(P, "warp-outputs"),
                     not path:contains(P, ".warp")
              ],
@@ -90,22 +105,31 @@ lift(WorkspaceRoot0) ->
 
   ?PRINT_JSON(HeaderTable),
 
-  FinalTable = maps:merge(maps:merge(ExternalTable, SourceTable), HeaderTable),
+  ModMap = maps:merge(maps:merge(ExternalTable, SourceTable), HeaderTable),
 
-  IncludePaths = [
-                  path:join(WorkspaceRoot,"apps"),
+  IncludePaths = uniq([
+                  path:join(WorkspaceRoot, "apps"),
                   path:join(WorkspaceRoot, ".warp/_rebar_tmp/rebar3/default/lib")
-                 ] ++ maps:keys(HeaderTable),
+                 ] ++ [ begin 
+                          PAbs = case path:is_prefix(WorkspaceRoot, P) of
+                                      true -> P;
+                                      false -> path:join(WorkspaceRoot, P)
+                                 end,
+                          P0 = path:dirname(PAbs),
+                          P1 = path:dirname(P0),
+                          P2 = path:dirname(P1),
+                          [P0,P1,P2]
+                        end || P <- maps:keys(HeaderTable) ]),
 
   % 5. run source analyzer to generate warp signatures
-  {ok, Signatures} = source_analyzer:analyze(AllFiles, FinalTable, IncludePaths),
+  {ok, Signatures} = source_analyzer:analyze(AllFiles, ModMap, IgnoreMods, IncludePaths),
 
   % 6. generate warp signatures
   ?LOG_INFO("Writing Warp signature files..."),
-  lists:foreach(fun ({Path, WarpSig}) ->
+  maps:foreach(fun (Path, WarpSig) ->
                     ?LOG_INFO("- ~s\n", [Path]),
                     ok = file:write_file(Path, ?JSON(WarpSig))
-                end, maps:to_list(Signatures)).
+                end, Signatures).
 
 %===================================================================================================
 % @doc Creates the 3rdparty/rebar.manifest file that includes all the

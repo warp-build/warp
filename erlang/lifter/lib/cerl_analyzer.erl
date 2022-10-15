@@ -114,8 +114,12 @@ do_compile(Path, CompileOpts) ->
   % FIXME(@ostera): split this so we compile only once, and then manually write the file.
   File = path:to_string(Path),
   Opts = CompileOpts ++ default_compile_opts(),
+  ?LOG_DEBUG("compiling file: ~p\n", [File]),
   compile:noenv_file(File, Opts),
-  compile:noenv_file(File, [binary, to_core] ++ Opts).
+  ?LOG_DEBUG("second pass"),
+  R = compile:noenv_file(File, [binary, to_core] ++ Opts),
+  ?LOG_DEBUG("done"),
+  R.
 
 default_compile_opts() ->
   [no_copt, return_errors, no_inline, strict_record_tests,

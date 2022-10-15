@@ -2,6 +2,7 @@
 
 -export([new/1]).
 -export([basename/1]).
+-export([dirname/1]).
 -export([extension/1]).
 -export([contains/2]).
 -export([from_list/1]).
@@ -9,6 +10,7 @@
 -export([add_extension/2]).
 -export([relativize/1]).
 -export([strip_prefix/2]).
+-export([is_prefix/2]).
 -export([tail/1]).
 -export([to_list/1]).
 -export([to_string/1]).
@@ -18,6 +20,9 @@
 -opaque t() :: binary().
 
 new(Str) -> binary:list_to_bin([Str]).
+
+-spec is_prefix(Prefix :: t(), Path :: t()) -> bool().
+is_prefix(Prefix, Path) -> strip_prefix(Prefix, Path) =/= Path.
 
 -spec strip_prefix(Prefix :: t(), Path :: t()) -> t().
 strip_prefix(Prefix, Path) -> from_list([ "." | string:replace(Path, Prefix, "") ]).
@@ -29,6 +34,7 @@ extension(Path) -> new(filename:extension(Path)).
 add_extension(Path, Ext) -> new([Path, ".", Ext]).
 
 basename(Path) -> new(filename:basename(Path)).
+dirname(Path) -> new(filename:dirname(Path)).
 
 contains(Path, Str) -> not (string:find(Path, Str) == nomatch).
 
