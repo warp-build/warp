@@ -50,7 +50,6 @@ analyze(Files, ModMap, IncludePaths) ->
   {ok, Result}.
 
 do_analyze(Path, IncludePaths, ModMap) ->
-  ?LOG_INFO("(Source) Analyzing: ~s", [Path]),
   {ok, Ast} = erl_ast:parse_file(Path, IncludePaths),
 
   {Mods, MissingMods} = mods(ModMap, Ast),

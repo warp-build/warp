@@ -123,11 +123,11 @@ lift(WorkspaceRoot0) ->
   {ok, Signatures} = source_analyzer:analyze(AllFiles, ModMap, IgnoreMods, IncludePaths),
 
   % 6. generate warp signatures
-  ?LOG_INFO("Writing Warp signature files..."),
-  maps:foreach(fun (Path, WarpSig) ->
-                    ?LOG_INFO("- ~s\n", [Path]),
-                    ok = file:write_file(Path, ?JSON(WarpSig))
-                end, Signatures),
+  % ?LOG_INFO("Writing Warp signature files..."),
+  % maps:foreach(fun (Path, WarpSig) ->
+  %                   ?LOG_INFO("- ~s\n", [Path]),
+  %                   ok = file:write_file(Path, ?JSON(WarpSig))
+  %               end, Signatures),
 
   % 7. group and generate build files
   ?LOG_INFO("Writing Build.toml files..."),

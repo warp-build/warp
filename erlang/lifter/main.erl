@@ -18,7 +18,8 @@ main(Args) ->
     ["sort-deps" | Files] -> lifter_cli:sort_deps(Files);
     ["missing-deps" | Files] -> lifter_cli:missing_deps(Files);
     _ -> show_help()
-  end.
+  end,
+  timer:sleep(100).
 
 setup() ->
   logger:set_primary_config(#{ level => all }),

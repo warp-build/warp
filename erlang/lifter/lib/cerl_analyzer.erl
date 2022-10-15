@@ -80,7 +80,6 @@ analyze(Sources, IncludePaths) ->
 
 -spec do_analyze(path:t(), opts()) -> result:t(mod_desc(), err()).
 do_analyze(Path, #{ compiler_opts := CompileOpts, include_paths := IncludePaths }) when is_binary(Path) ->
-  ?LOG_INFO("(CoreErl) Analyzing: ~s", [Path]),
   ParseTrans = find_required_transforms(Path, IncludePaths),
 
   % Compile Sources into AST
