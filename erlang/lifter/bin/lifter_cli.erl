@@ -72,9 +72,11 @@ lift(WorkspaceRoot0) ->
             fun (Hdr, Acc) ->
                 Include = path:basename(Hdr),
                 RelInclude = path:strip_prefix(WorkspaceRoot, Hdr),
+                LibInclude = path:join(path:basename(WorkspaceRoot), RelInclude),
                 Entries = maps:from_list([
                  {Include, Hdr},
-                 {RelInclude, Hdr}
+                 {RelInclude, Hdr},
+                 {LibInclude, Hdr}
                 ]),
                 maps:merge(Acc, Entries)
             end, #{}, Headers),
