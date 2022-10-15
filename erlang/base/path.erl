@@ -20,7 +20,7 @@
 new(Str) -> binary:list_to_bin([Str]).
 
 -spec strip_prefix(Prefix :: t(), Path :: t()) -> t().
-strip_prefix(Prefix, Path) -> new(string:replace(Path, Prefix, ".")).
+strip_prefix(Prefix, Path) -> from_list([ "." | string:replace(Path, Prefix, "") ]).
 
 join(A, B) -> from_list([A, B]).
 

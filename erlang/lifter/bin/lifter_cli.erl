@@ -81,6 +81,8 @@ lift(WorkspaceRoot0) ->
                 maps:merge(Acc, Entries)
             end, #{}, Headers),
 
+  ?PRINT_JSON(HeaderTable),
+
   FinalTable = maps:merge(maps:merge(ExternalTable, SourceTable), HeaderTable),
 
   % 5. run source analyzer to generate warp signatures
