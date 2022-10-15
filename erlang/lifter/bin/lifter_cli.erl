@@ -74,10 +74,11 @@ lift(WorkspaceRoot0) ->
                 RelInclude = path:strip_prefix(WorkspaceRoot, Hdr),
                 LibInclude = path:join(path:basename(WorkspaceRoot), RelInclude),
                 Entries = maps:from_list([
-                 {Include, Hdr},
-                 {RelInclude, Hdr},
-                 {LibInclude, Hdr}
-                ]),
+                                          {Hdr, Hdr},
+                                          {Include, Hdr},
+                                          {RelInclude, Hdr},
+                                          {LibInclude, Hdr}
+                                         ]),
                 maps:merge(Acc, Entries)
             end, #{}, Headers),
 
