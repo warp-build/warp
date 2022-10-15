@@ -74,12 +74,14 @@ lift(WorkspaceRoot0) ->
             fun (Hdr, Acc) ->
                 Include = path:basename(Hdr),
                 RelInclude = path:strip_prefix(WorkspaceRoot, Hdr),
+                SrcInclude = path:tail(RelInclude),
                 LibInclude = path:join(path:basename(WorkspaceRoot), RelInclude),
                 TailInclude = path:tail(Hdr),
                 Entries = maps:from_list([
                                           {Hdr, Hdr},
                                           {Include, Hdr},
                                           {RelInclude, Hdr},
+                                          {SrcInclude, Hdr},
                                           {LibInclude, Hdr},
                                           {TailInclude, Hdr}
                                          ]),
@@ -90,7 +92,10 @@ lift(WorkspaceRoot0) ->
 
   FinalTable = maps:merge(maps:merge(ExternalTable, SourceTable), HeaderTable),
 
-  IncludePaths = [ "apps" ] ++ maps:keys(HeaderTable),
+  IncludePaths = [
+                  path:join(WorkspaceRoot,"apps"),
+                  path:join(WorkspaceRoot, ".warp/_rebar_tmp/rebar3/default/lib")
+                 ] ++ maps:keys(HeaderTable),
 
   % 5. run source analyzer to generate warp signatures
   {ok, Signatures} = source_analyzer:analyze(AllFiles, FinalTable, IncludePaths),
