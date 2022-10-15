@@ -1,16 +1,16 @@
 -module(path).
 
--export([new/1]).
--export([basename/1]).
+-export([add_extension/2]).
+-export([contains/2]).
 -export([dirname/1]).
 -export([extension/1]).
--export([contains/2]).
+-export([filename/1]).
 -export([from_list/1]).
+-export([is_prefix/2]).
 -export([join/2]).
--export([add_extension/2]).
+-export([new/1]).
 -export([relativize/1]).
 -export([strip_prefix/2]).
--export([is_prefix/2]).
 -export([tail/1]).
 -export([to_list/1]).
 -export([to_string/1]).
@@ -33,7 +33,8 @@ extension(Path) -> new(filename:extension(Path)).
 
 add_extension(Path, Ext) -> new([Path, ".", Ext]).
 
-basename(Path) -> new(filename:basename(Path)).
+filename(Path) -> new(filename:basename(Path)).
+
 dirname(Path) -> new(filename:dirname(Path)).
 
 contains(Path, Str) -> not (string:find(Path, Str) == nomatch).

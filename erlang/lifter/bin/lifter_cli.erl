@@ -54,7 +54,7 @@ lift(WorkspaceRoot0) ->
 
                 HdrEntries = lists:flatmap(
                                fun (Hdr) ->
-                                   Include = path:basename(Hdr),
+                                   Include = path:filename(Hdr),
                                    RelInclude = path:strip_prefix(Prefix, Hdr),
                                    LibInclude = path:join(Name, RelInclude),
                                    TailInclude = path:tail(Hdr),
@@ -87,10 +87,10 @@ lift(WorkspaceRoot0) ->
 
   HeaderTable = lists:foldl(
             fun (Hdr, Acc) ->
-                Include = path:basename(Hdr),
+                Include = path:filename(Hdr),
                 RelInclude = path:strip_prefix(WorkspaceRoot, Hdr),
                 SrcInclude = path:tail(RelInclude),
-                LibInclude = path:join(path:basename(WorkspaceRoot), RelInclude),
+                LibInclude = path:join(path:filename(WorkspaceRoot), RelInclude),
                 TailInclude = path:tail(Hdr),
                 Entries = maps:from_list([
                                           {Hdr, Hdr},
@@ -102,8 +102,6 @@ lift(WorkspaceRoot0) ->
                                          ]),
                 maps:merge(Acc, Entries)
             end, #{}, Headers),
-
-  ?PRINT_JSON(HeaderTable),
 
   ModMap = maps:merge(maps:merge(ExternalTable, SourceTable), HeaderTable),
 
@@ -121,7 +119,7 @@ lift(WorkspaceRoot0) ->
                           [P0,P1,P2]
                         end || P <- maps:keys(HeaderTable) ]),
 
-  % 5. run source analyzer to generate warp signatures
+  % 5. analyze all the sources to get their signatures
   {ok, Signatures} = source_analyzer:analyze(AllFiles, ModMap, IgnoreMods, IncludePaths),
 
   % 6. generate warp signatures
@@ -129,7 +127,25 @@ lift(WorkspaceRoot0) ->
   maps:foreach(fun (Path, WarpSig) ->
                     ?LOG_INFO("- ~s\n", [Path]),
                     ok = file:write_file(Path, ?JSON(WarpSig))
-                end, Signatures).
+                end, Signatures),
+
+  % 7. group and generate build files
+  ?LOG_INFO("Writing Build.toml files..."),
+  Buildfiles = lists:foldl(
+                 fun ({Path, WarpSig}, Acc) ->
+                     BuildPath = path:join(path:dirname(Path), "Build.toml"),
+                     LastTargets = maps:get(BuildPath, Acc, []), 
+                     maps:put(BuildPath, LastTargets ++ WarpSig, Acc)
+                 end, #{}, maps:to_list(Signatures)),
+
+  maps:foreach(fun (Path, BuildFile) ->
+                    ?LOG_INFO("- ~s\n", [Path]),
+                    ok = file:write_file(Path, ?JSON(BuildFile))
+                end, Buildfiles),
+
+  ?LOG_INFO("OK").
+
+
 
 %===================================================================================================
 % @doc Creates the 3rdparty/rebar.manifest file that includes all the

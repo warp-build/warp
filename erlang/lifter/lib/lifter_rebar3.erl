@@ -26,7 +26,7 @@ find_all_rebar_projects(Root0) when is_binary(Root0) ->
 read_rebar_project(RebarConfig) -> read_rebar_project(RebarConfig, #{}).
 read_rebar_project(RebarConfig, Acc) ->
   ProjectRoot = filename:dirname(RebarConfig),
-  ProjectName = filename:basename(ProjectRoot),
+  ProjectName = path:filename(ProjectRoot),
 
   case ProjectName of
     "3rdparty" -> Acc;
@@ -35,7 +35,7 @@ read_rebar_project(RebarConfig, Acc) ->
 
 do_read_rebar_project(RebarConfig, Acc) ->
   ProjectRoot = path:relativize(filename:dirname(RebarConfig)),
-  ProjectName = path:basename(ProjectRoot),
+  ProjectName = path:filename(ProjectRoot),
 
   {ok, Project} = file:consult(RebarConfig),
   ProjMap = maps:from_list(Project),
@@ -53,7 +53,7 @@ do_read_rebar_project(RebarConfig, Acc) ->
 
 read_erlmk_project(ErlangMkConfig, Acc) ->
   ProjectRoot = filename:dirname(ErlangMkConfig),
-  ProjectName = filename:basename(ProjectRoot),
+  ProjectName = path:filename(ProjectRoot),
 
   case ProjectName of
     "3rdparty" -> Acc;
@@ -62,7 +62,7 @@ read_erlmk_project(ErlangMkConfig, Acc) ->
 
 do_read_erlmk_project(ErlangMkConfig, Acc) ->
   ProjectRoot = path:relativize(filename:dirname(ErlangMkConfig)),
-  ProjectName = path:basename(ProjectRoot),
+  ProjectName = path:filename(ProjectRoot),
 
   {ok, Project} = lifter_erlangmk:from_file(filename:join([ProjectRoot, "Makefile"])),
   ProjMap = maps:from_list(Project),
