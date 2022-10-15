@@ -36,6 +36,7 @@ to_list(Path) -> [ new(Seg) || Seg <- filename:split(Path) ].
 
 to_string(Path) -> binary:bin_to_list(Path).
 
+from_list([]) -> new("");
 from_list(Ls) when is_list(Ls) -> new(filename:join(Ls)).
 
 relativize(Path) ->
