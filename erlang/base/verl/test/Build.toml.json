@@ -1,0 +1,175 @@
+[
+  {
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl_parser.erl"
+    ],
+    "name": "verl_parser_SUITE.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "verl_parser_SUITE.erl"
+    ]
+  },
+  {
+    "cases": [
+      "parse_requirement_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl_parser.erl"
+    ],
+    "name": "parse_requirement_test",
+    "rule": "erlang_test",
+    "test": "verl_parser_SUITE.erl"
+  },
+  {
+    "cases": [
+      "parse_version_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl_parser.erl"
+    ],
+    "name": "parse_version_test",
+    "rule": "erlang_test",
+    "test": "verl_parser_SUITE.erl"
+  },
+  {
+    "deps": [
+      "\/\/proper\/include:proper.hrl"
+    ],
+    "name": "prop_verl.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "prop_verl.erl"
+    ]
+  },
+  {
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "verl_SUITE.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "verl_SUITE.erl"
+    ]
+  },
+  {
+    "cases": [
+      "between_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "between_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  },
+  {
+    "cases": [
+      "compare_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "compare_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  },
+  {
+    "cases": [
+      "compile_requirement_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "compile_requirement_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  },
+  {
+    "cases": [
+      "eq_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "eq_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  },
+  {
+    "cases": [
+      "gt_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "gt_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  },
+  {
+    "cases": [
+      "gte_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "gte_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  },
+  {
+    "cases": [
+      "is_match_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "is_match_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  },
+  {
+    "cases": [
+      "lt_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "lt_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  },
+  {
+    "cases": [
+      "lte_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "lte_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  },
+  {
+    "cases": [
+      "parse_requirement_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "parse_requirement_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  },
+  {
+    "cases": [
+      "parse_test"
+    ],
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl.erl"
+    ],
+    "name": "parse_test",
+    "rule": "erlang_test",
+    "test": "verl_SUITE.erl"
+  }
+]

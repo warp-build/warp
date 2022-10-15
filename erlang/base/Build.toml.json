@@ -1,0 +1,94 @@
+[
+  {
+    "deps": [],
+    "name": "str.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "str.erl"
+    ]
+  },
+  {
+    "deps": [],
+    "name": "result.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "result.erl"
+    ]
+  },
+  {
+    "deps": [],
+    "name": "erl_visitor.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "erl_visitor.erl"
+    ]
+  },
+  {
+    "deps": [
+      "\/\/erlang\/base:path.erl"
+    ],
+    "name": "glob.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "glob.erl"
+    ]
+  },
+  {
+    "deps": [],
+    "name": "parallel_lists.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "parallel_lists.erl"
+    ]
+  },
+  {
+    "deps": [],
+    "name": "tempdir.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "tempdir.erl"
+    ]
+  },
+  {
+    "deps": [
+      "\/\/erlang\/base:path.erl"
+    ],
+    "name": "erl_stdlib.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "erl_stdlib.erl"
+    ]
+  },
+  {
+    "deps": [],
+    "name": "path.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "path.erl"
+    ]
+  },
+  {
+    "deps": [],
+    "name": "erl_ast.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "erl_ast.erl"
+    ]
+  },
+  {
+    "deps": [],
+    "name": "cerl_visitor.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "cerl_visitor.erl"
+    ]
+  },
+  {
+    "deps": [],
+    "name": "hexpm.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "hexpm.erl"
+    ]
+  }
+]

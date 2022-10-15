@@ -1,0 +1,37 @@
+[
+  {
+    "deps": [],
+    "name": "lib",
+    "rule": "erlang_library",
+    "srcs": [
+      "jsone.erl",
+      "jsone_inet.erl",
+      "jsone_encode.erl",
+      "jsone_decode.erl"
+    ]
+  },
+  {
+    "deps": [":lib"],
+    "name": "jsone.erl",
+    "rule": "erlang_library",
+    "srcs": []
+  },
+  {
+    "deps": [":lib"],
+    "name": "jsone_inet.erl",
+    "rule": "erlang_library",
+    "srcs": []
+  },
+  {
+    "deps": [":lib"],
+    "name": "jsone_decode.erl",
+    "rule": "erlang_library",
+    "srcs": []
+  },
+  {
+    "deps": [":lib"],
+    "name": "jsone_encode.erl",
+    "rule": "erlang_library",
+    "srcs": []
+  }
+]

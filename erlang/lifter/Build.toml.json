@@ -1,0 +1,11 @@
+[
+  {
+    "deps": [
+      "\/\/erlang\/lifter\/bin:lifter_cli.erl"
+    ],
+    "name": "lifter",
+    "rule": "erlang_script",
+    "main": "main.erl",
+    "apps": ["kernel", "jsone"]
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "deps": [],
+    "name": "verl_parser.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "verl_parser.erl"
+    ]
+  },
+  {
+    "deps": [
+      "\/\/erlang\/base\/verl\/src:verl_parser.erl"
+    ],
+    "name": "verl.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "verl.erl"
+    ]
+  }
+]

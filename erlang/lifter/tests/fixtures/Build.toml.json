@@ -1,0 +1,8 @@
+[
+  {
+    "deps": [],
+    "name": "fixtures",
+    "rule": "files",
+    "srcs": [ "*.hrl", "*.erl", "rebar.config" ]
+  }
+]

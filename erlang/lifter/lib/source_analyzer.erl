@@ -45,8 +45,8 @@ erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Comp
 
   [#{
     name => path:filename(File),
-    srcs => [File],
-    deps => ModDeps ++ IncludeDeps,
+    srcs => [path:filename(File)],
+    deps => lists:map(fun dep_to_label/1, ModDeps ++ IncludeDeps),
     rule => <<"erlang_library">>
    }].
 
@@ -80,8 +80,8 @@ get_ct_cases(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnaly
 
   [#{
     name => Case,
-    test => File,
-    deps => ModDeps ++ IncludeDeps,
+    test => path:filename(File),
+    deps => lists:map(fun dep_to_label/1, ModDeps ++ IncludeDeps),
     cases => [Case],
     rule => <<"erlang_test">>
    } || Case <- Cases].
@@ -97,6 +97,8 @@ extract_cases(literal, #c_literal{}=Tree, Acc) ->
 extract_cases(_Type, _Tree, Acc) -> Acc.
 
 
+dep_to_label(Dep) when is_atom(Dep) -> erlang:atom_to_binary(Dep);
+dep_to_label(Dep) -> <<"//", (path:dirname(Dep))/binary, ":", (path:filename(Dep))/binary>>.
 
 
 skip_std(Mods) ->
@@ -112,3 +114,4 @@ skip_std(Mods) ->
 uniq([]) -> [];
 uniq([X]) -> [X];
 uniq(Xs) -> sets:to_list(sets:from_list(Xs, [{version, 2}])).
+
