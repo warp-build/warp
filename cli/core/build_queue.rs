@@ -174,20 +174,7 @@ impl BuildQueue {
                 .from_path(buildfile_path.clone())
                 .unwrap();
 
-            let buildfile = Buildfile::from_label(&label).await;
-
-            /*
-            let relative_path = path
-                .parent()
-                .unwrap()
-                .strip_prefix(&self.workspace.paths.workspace_root)
-                .unwrap()
-                .to_path_buf();
-
-            let buildfile =
-                Buildfile::from_file(&self.workspace.paths.workspace_root, &path, &relative_path)
-                    .await;
-            */
+            let buildfile = Buildfile2::from_label(&label).await;
 
             match buildfile {
                 Err(err) => {

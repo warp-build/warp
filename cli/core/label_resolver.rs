@@ -16,7 +16,7 @@ pub struct LabelResolver {
 #[derive(Error, Debug)]
 pub enum LabelResolverError {
     #[error(transparent)]
-    BuildfileError(BuildfileError),
+    BuildfileError(Buildfile2Error),
 
     #[error(r#"Remote label {:?} needs to be configured in the Workspace.toml - you can do that by adding this:
 
@@ -79,7 +79,7 @@ impl LabelResolver {
         &self,
         label: &Label,
     ) -> Result<Option<Target>, LabelResolverError> {
-        let buildfile = Buildfile::from_label(label)
+        let buildfile = Buildfile2::from_label(label)
             .await
             .map_err(LabelResolverError::BuildfileError)?;
 

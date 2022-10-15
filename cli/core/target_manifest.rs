@@ -279,6 +279,6 @@ mod serde_duration {
     where
         D: Deserializer<'de>,
     {
-        deserializer.deserialize_i64(DurationVisitor)
+        deserializer.deserialize_any(DurationVisitor)
     }
 }

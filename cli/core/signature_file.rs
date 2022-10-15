@@ -1,6 +1,6 @@
 use super::*;
 use serde_derive::{Deserialize, Serialize};
-use std::path::collections::BTreeMap;
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use thiserror::*;
 use tokio::fs;

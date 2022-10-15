@@ -306,6 +306,31 @@ pub mod toml_codecs {
         }
     }
 
+    impl TryFrom<serde_json::Value> for CfgValue {
+        type Error = RuleConfigError;
+
+        fn try_from(value: serde_json::Value) -> Result<CfgValue, Self::Error> {
+            match value {
+                serde_json::Value::String(s) => Ok(CfgValue::String(s)),
+                serde_json::Value::Array(arr) => {
+                    let mut elements = vec![];
+                    for e in arr {
+                        let value = TryFrom::try_from(e.clone())?;
+                        elements.extend(match value {
+                            CfgValue::List(subparts) => subparts,
+                            el => vec![el],
+                        })
+                    }
+                    Ok(CfgValue::List(elements))
+                }
+                serde_json::Value::Number(val) => panic!("Numbers not supported: {:?}", val),
+                serde_json::Value::Bool(val) => panic!("Booleans not supported: {:?}", val),
+                serde_json::Value::Object(val) => panic!("Objects not supported: {:?}", val),
+                serde_json::Value::Null => panic!("Null not supported"),
+            }
+        }
+    }
+
     impl TryFrom<toml::Value> for CfgValue {
         type Error = RuleConfigError;
 

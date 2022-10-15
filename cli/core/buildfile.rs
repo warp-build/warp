@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use thiserror::*;
 use tokio::fs;
 
-pub const BUILDFILE: &str = "Build.toml";
+const BUILDFILE: &str = "Build.toml";
 
 #[derive(Debug)]
 pub struct Buildfile {
