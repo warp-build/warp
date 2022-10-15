@@ -70,6 +70,6 @@ impl TestGoal {
         )
         .await;
 
-        Err(anyhow!("There was no target to run."))
+        Ok(())
     }
 }
