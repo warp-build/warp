@@ -43,10 +43,12 @@ lift(WorkspaceRoot0) ->
                                    Include = path:basename(Hdr),
                                    RelInclude = path:strip_prefix(Prefix, Hdr),
                                    LibInclude = path:join(Name, RelInclude),
+                                   TailInclude = path:tail(Hdr),
                                    [
                                     {Include, Url},
                                     {RelInclude, Url},
-                                    {LibInclude, Url}
+                                    {LibInclude, Url},
+                                    {TailInclude, Hdr}
                                    ]
                                end, Headers),
 
