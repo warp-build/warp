@@ -133,7 +133,7 @@ lift(WorkspaceRoot0) ->
   ?LOG_INFO("Writing Build.toml files..."),
   Buildfiles = lists:foldl(
                  fun ({Path, WarpSig}, Acc) ->
-                     BuildPath = path:join(path:dirname(Path), "Build.toml"),
+                     BuildPath = path:join(path:dirname(Path), "Build.toml.json"),
                      LastTargets = maps:get(BuildPath, Acc, []), 
                      maps:put(BuildPath, LastTargets ++ WarpSig, Acc)
                  end, #{}, maps:to_list(Signatures)),

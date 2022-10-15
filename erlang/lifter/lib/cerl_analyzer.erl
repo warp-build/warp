@@ -9,6 +9,7 @@
 -export([analyze/1]).
 -export([analyze/2]).
 
+-export([function/2]).
 -export([dependency_modules/1]).
 -export([dependency_includes/1]).
 
@@ -34,6 +35,9 @@
 %%--------------------------------------------------------------------------------------------------
 %% API
 %%--------------------------------------------------------------------------------------------------
+%%
+-spec function(mod_desc(), {atom(), integer()}) -> term().
+function(#{ functions := Fn }, FA) -> maps:get(FA, Fn()).
 
 -spec dependency_modules(mod_desc()) -> [atom() | binary()].
 dependency_modules(#{ external_calls := ExtCalls }) ->
@@ -92,7 +96,8 @@ do_analyze(Path, #{ compiler_opts := CompileOpts, include_paths := IncludePaths 
 				external_calls => external_calls(Mod, Tree),
 				exports => exports(Mod, Tree),
 				type_exports => type_exports(Mod, Attrs),
-				includes => includes(Mod, Attrs)
+				includes => includes(Mod, Attrs),
+        functions => fun () -> functions(Mod, Tree) end
 			 };
 
     {error, Reasons, Other} ->
@@ -131,6 +136,18 @@ clean_compile_error(Reasons, Other) ->
   #{ kind => compilation_error,
      reasons => Reasons,
      other => Other }.
+
+functions(_Mod, Tree) ->
+  Defs = cerl:module_defs(Tree),
+  maps:from_list(lists:foldl(fun (AST, Acc) -> fold_function(AST, Acc) end, [], Defs)).
+
+fold_function({Var, Function}, Acc) ->
+  FunName = cerl:fname_id(Var),
+  Arity = cerl:fname_arity(Var),
+  case FunName of
+    module_info -> Acc;
+    _ -> [ {{FunName, Arity}, Function} | Acc]
+  end.
 
 includes(_Mod, Attrs) ->
   Includes = [cerl:concrete(L2) || {L1, L2} <- Attrs,

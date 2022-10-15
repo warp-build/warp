@@ -3,6 +3,7 @@
 -export([analyze/4]).
 
 -include_lib("kernel/include/logger.hrl").
+-include_lib("compiler/src/core_parse.hrl").
 
 analyze(Files, ModMap, IgnoreModMap, IncludePaths) ->
   Result = lists:foldl(fun (File, R) ->
@@ -27,7 +28,7 @@ do_analyze(File, ModMap, IgnoreModMap, IncludePaths) ->
   {path:add_extension(File, "wsig"), uniq(Result)}.
 
 
-erlang_libraries(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
+erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
   ModDeps0 = [ maps:get(Mod, ModMap)
                || Mod <- cerl_analyzer:dependency_modules(CompAnalysis), 
                   erl_stdlib:is_user_module(Mod),
@@ -51,6 +52,18 @@ erlang_libraries(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompA
 
 
 erlang_ct_suites(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
+  case str:ends_with(path:filename(File), "_SUITE.erl") of
+    true -> get_ct_cases(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis);
+    false -> []
+  end.
+
+get_ct_cases(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
+  AllFn = cerl_analyzer:function(CompAnalysis, {all,0}),
+  Cases = cerl_trees:fold(fun extract_cases/2, [], AllFn),
+
+  % TODO(@ostera): use the cases above to extract the external calls each test case makes, and use
+  % _those_ as the module listings for each case.
+
   ModDeps0 = [ maps:get(Mod, ModMap)
                || Mod <- cerl_analyzer:dependency_modules(CompAnalysis), 
                   erl_stdlib:is_user_module(Mod),
@@ -69,9 +82,19 @@ erlang_ct_suites(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompA
     name => Case,
     test => File,
     deps => ModDeps ++ IncludeDeps,
-    cases => [Case]
+    cases => [Case],
     rule => <<"erlang_test">>
    } || Case <- Cases].
+
+extract_cases(Tree, Acc) -> extract_cases(cerl:type(Tree), Tree, Acc).
+extract_cases(literal, #c_literal{}=Tree, Acc) ->
+  case cerl:is_c_list(Tree) of
+    true ->
+      Val = Tree#c_literal.val,
+      uniq(Val ++ Acc);
+    false -> Acc
+  end;
+extract_cases(_Type, _Tree, Acc) -> Acc.
 
 
 

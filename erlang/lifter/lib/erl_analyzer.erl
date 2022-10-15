@@ -13,6 +13,7 @@
 
 -export_type([mod_desc/0]).
 -export_type([err/0]).
+-export_type([opts/0]).
 
 -opaque mod_desc() :: #{
                         modules => [],

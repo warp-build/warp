@@ -23,7 +23,6 @@ find_all_rebar_projects(Root0) when is_binary(Root0) ->
   Final = maps:merge(RebarProjects, ErlMkProjects),
   {ok, clean(Final)}.
 
-read_rebar_project(RebarConfig) -> read_rebar_project(RebarConfig, #{}).
 read_rebar_project(RebarConfig, Acc) ->
   ProjectRoot = filename:dirname(RebarConfig),
   ProjectName = path:filename(ProjectRoot),
@@ -85,11 +84,11 @@ clean_deps([Dep|Rest], Acc) -> clean_deps(Rest, [Dep|Acc]).
 
 
 get_deps(Pkg) when is_list(Pkg) -> get_deps(proplists:to_map(Pkg));
-get_deps(Pkg=#{ deps := Deps, profiles := Profiles}) when is_list(Profiles) ->
+get_deps(_Pkg=#{ deps := Deps, profiles := Profiles}) when is_list(Profiles) ->
   Deps ++ lists:flatmap(fun get_deps/1, maps:values(maps:from_list(Profiles)));
-get_deps(Pkg=#{ deps := Deps, profiles := Profiles}) when is_map(Profiles) ->
+get_deps(_Pkg=#{ deps := Deps, profiles := Profiles}) when is_map(Profiles) ->
   Deps ++ lists:flatmap(fun get_deps/1, maps:values(Profiles));
-get_deps(Pkg=#{ deps := Deps }) -> Deps;
+get_deps(_Pkg=#{ deps := Deps }) -> Deps;
 get_deps(_) -> [].
 
 get_sources(ProjectRoot) ->
@@ -169,11 +168,11 @@ do_extract_deps(Projects) ->
   Pkgs = maps:values(Projects),
   uniq(lists:flatmap(
     fun
-      (Pkg=#{ deps := Deps, profiles := #{ test := #{ deps := TestDeps }}})
+      (_Pkg=#{ deps := Deps, profiles := #{ test := #{ deps := TestDeps }}})
         when Deps =/= [], is_map(Deps), TestDeps =/= [], is_map(TestDeps) ->
         maps:to_list(Deps) ++ maps:to_list(TestDeps);
 
-      (Pkg=#{ deps := Deps }) when Deps =/= [], is_map(Deps)->
+      (_Pkg=#{ deps := Deps }) when Deps =/= [], is_map(Deps)->
         maps:to_list(Deps);
 
       (_) -> []
