@@ -71,9 +71,15 @@ impl LabelResolver {
                 return Ok(target);
             }
 
-            if let Some(target) = self.find_in_remote_workspaces(label).await? {
-                self.save(label.clone(), target.clone());
-                return Ok(target);
+            match self.find_in_remote_workspaces(label).await {
+                Ok(Some(target)) => {
+                    self.save(label.clone(), target.clone());
+                    return Ok(target);
+                }
+                Ok(None) => (),
+                Err(err) => {
+                    return Err(err);
+                }
             }
         } else if let Some(target) = self.find_in_local_workspace(label).await? {
             self.save(label.clone(), target.clone());
