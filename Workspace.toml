@@ -17,7 +17,7 @@ ignore_patterns = [
 use_git_hooks = true
 
 [remote_workspaces]
-"tools.warp.build" = { github = "warp-build/tools.warp.build", git_ref = "4fd257d7bb2b3b308d85e01f8a16405d02daa106" }
+"tools.warp.build" = { github = "warp-build/tools.warp.build", git_ref = "8da4173ec9fe311162847a8e561110d4f67c1a77" }
 
 [aliases]
 deno = "https://pkgs.warp.build/toolchains/deno"
