@@ -90,7 +90,7 @@ impl RuleStore {
     async fn find_in_workspace(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
         let rule_path = self.local_rules_root.join(name).with_extension("js");
 
-        if let Ok(_meta) = fs::metadata(&rule_path).await {
+        if fs::metadata(&rule_path).await.is_ok() {
             Ok(Some(rule_path))
         } else {
             Ok(None)
@@ -123,7 +123,7 @@ impl RuleStore {
     }
 
     pub fn _store_key(&self, name: &str) -> PathBuf {
-        let name = name.replace(':', "/");
+        let name = name.replace("://", "/");
         self.global_rules_root.join(name).with_extension("js")
     }
 
