@@ -79,7 +79,7 @@ impl FileScanner {
         Ok(self)
     }
 
-    #[tracing::instrument(name = "FileScanner::stream_files")]
+    #[tracing::instrument(name = "FileScanner::stream_files", skip(self))]
     pub async fn stream_files(
         &self,
     ) -> impl futures::Stream<Item = Result<PathBuf, FileScannerError>> {
