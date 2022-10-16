@@ -10,6 +10,7 @@ use tracing::*;
 pub struct LabelResolver {
     toolchain_configs: FxHashMap<String, RuleConfig>,
     remote_workspace_resolver: RemoteWorkspaceResolver,
+    dependency_resolver: DependencyResolver,
     resolved_labels: DashMap<Label, Target>,
 }
 
@@ -34,12 +35,16 @@ And try running the command again to see what the right `sha1` should be.
 
     #[error(transparent)]
     RemoteWorkspaceResolverError(RemoteWorkspaceResolverError),
+
+    #[error(transparent)]
+    DependencyResolverError(DependencyResolverError),
 }
 
 impl LabelResolver {
     pub fn new(
         workspace: &Workspace,
         store: Arc<Store>,
+        build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
     ) -> Self {
         Self {
@@ -49,6 +54,7 @@ impl LabelResolver {
                 store,
                 event_channel,
             ),
+            dependency_resolver: DependencyResolver::new(workspace, build_results),
             resolved_labels: DashMap::default(),
         }
     }
@@ -120,6 +126,20 @@ impl LabelResolver {
             .get(label)
             .await
             .map_err(LabelResolverError::RemoteWorkspaceResolverError)?;
+
+        Ok(target)
+    }
+
+    #[tracing::instrument(name = "LabelResolver::find_with_dependency_resolver", skip(self))]
+    async fn find_with_dependency_resolver(
+        &self,
+        label: &Label,
+    ) -> Result<Option<Target>, LabelResolverError> {
+        let target = self
+            .dependency_resolver
+            .get(label)
+            .await
+            .map_err(LabelResolverError::DependencyResolverError)?;
 
         Ok(target)
     }

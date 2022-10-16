@@ -64,6 +64,7 @@ impl BuildExecutor {
         let label_resolver = Arc::new(LabelResolver::new(
             &self.workspace,
             store.clone(),
+            self.results.clone(),
             event_channel.clone(),
         ));
         let target_executor = Arc::new(TargetExecutor::new(store.clone(), event_channel.clone()));
