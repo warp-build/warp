@@ -27,12 +27,6 @@ pub enum Buildfile2Error {
     #[error("Could not read build file at {file:?} due to: {err:?}")]
     FileReadError { file: PathBuf, err: std::io::Error },
 
-    #[error(transparent)]
-    TomlError(toml::de::Error),
-
-    #[error("Expected contents of a Build.toml file to be a TOML table, but instead found: {0:?}")]
-    Buildfile2MustBeTable(toml::Value),
-
     #[error("Rule should be table")]
     RuleShouldBeTable,
 
