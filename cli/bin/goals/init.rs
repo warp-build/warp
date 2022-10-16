@@ -89,7 +89,7 @@ impl InitGoal {
             .interact()?
             == "yes";
 
-        let mut toolchains_registry = ToolchainsRegistry::new(&paths);
+        let mut toolchains_registry = ToolchainsRegistry::new(&paths, event_channel.clone());
 
         toolchains_registry.ready().await?;
 

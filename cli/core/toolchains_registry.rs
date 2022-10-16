@@ -3,6 +3,7 @@ use fxhash::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use url::Url;
@@ -140,10 +141,10 @@ impl Toolchains {
 }
 
 impl ToolchainsRegistry {
-    pub fn new(workspace_paths: &WorkspacePaths) -> Self {
+    pub fn new(workspace_paths: &WorkspacePaths, event_channel: Arc<EventChannel>) -> Self {
         ToolchainsRegistry {
             available_toolchains: Toolchains::default(),
-            archive_manager: ArchiveManager::from_paths(workspace_paths),
+            archive_manager: ArchiveManager::from_paths(workspace_paths, event_channel),
             remote_url: Url::parse(REMOTE_TOOLCHAINS_REGISTRY_URL).unwrap(),
         }
     }

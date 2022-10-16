@@ -61,7 +61,11 @@ impl BuildExecutor {
         ));
         let store = Arc::new(Store::new(&self.workspace));
         let rule_store = Arc::new(RuleStore::new(&self.workspace));
-        let label_resolver = Arc::new(LabelResolver::new(&self.workspace, store.clone()));
+        let label_resolver = Arc::new(LabelResolver::new(
+            &self.workspace,
+            store.clone(),
+            event_channel.clone(),
+        ));
         let target_executor = Arc::new(TargetExecutor::new(store.clone(), event_channel.clone()));
 
         let share_rule_executor_state = Arc::new(SharedRuleExecutorState::new(rule_store.clone()));

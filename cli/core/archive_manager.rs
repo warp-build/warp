@@ -4,6 +4,7 @@ use futures::StreamExt;
 use futures::TryStreamExt;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
+use std::sync::Arc;
 use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
@@ -21,6 +22,7 @@ pub struct Archive {
 pub struct ArchiveManager {
     client: reqwest::Client,
     global_archives_root: PathBuf,
+    event_channel: Arc<EventChannel>,
 }
 
 #[derive(Error, Debug)]
@@ -72,17 +74,19 @@ pub enum ArchiveManagerError {
 }
 
 impl ArchiveManager {
-    pub fn new(workspace: &Workspace) -> Self {
+    pub fn new(workspace: &Workspace, event_channel: Arc<EventChannel>) -> Self {
         Self {
             client: reqwest::Client::new(),
             global_archives_root: workspace.paths.global_archives_root.clone(),
+            event_channel,
         }
     }
 
-    pub fn from_paths(workspace_paths: &WorkspacePaths) -> Self {
+    pub fn from_paths(workspace_paths: &WorkspacePaths, event_channel: Arc<EventChannel>) -> Self {
         Self {
             client: reqwest::Client::new(),
             global_archives_root: workspace_paths.global_archives_root.clone(),
+            event_channel,
         }
     }
 
@@ -100,6 +104,11 @@ impl ArchiveManager {
         url: &Url,
         file_ext: &str,
     ) -> Result<(PathBuf, String), ArchiveManagerError> {
+        self.event_channel.send(Event::ArchiveDownloading {
+            label: Label::new(url.as_ref()),
+            url: url.to_string(),
+        });
+
         let response = self.client.get(url.clone()).send().await.map_err(|err| {
             ArchiveManagerError::CouldNotDownload {
                 url: url.clone(),
@@ -191,6 +200,8 @@ impl ArchiveManager {
         actual_hash: &str,
     ) -> Result<(), ArchiveManagerError> {
         if let Some(expected) = expected_hash {
+            self.event_channel
+                .send(Event::ArchiveVerifying(Label::new(url.as_ref())));
             if expected != actual_hash {
                 return Err(ArchiveManagerError::HashMismatch {
                     url: url.clone(),

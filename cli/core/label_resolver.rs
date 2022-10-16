@@ -37,10 +37,18 @@ And try running the command again to see what the right `sha1` should be.
 }
 
 impl LabelResolver {
-    pub fn new(workspace: &Workspace, store: Arc<Store>) -> Self {
+    pub fn new(
+        workspace: &Workspace,
+        store: Arc<Store>,
+        event_channel: Arc<EventChannel>,
+    ) -> Self {
         Self {
             toolchain_configs: workspace.toolchain_configs.clone(),
-            remote_workspace_resolver: RemoteWorkspaceResolver::new(workspace, store),
+            remote_workspace_resolver: RemoteWorkspaceResolver::new(
+                workspace,
+                store,
+                event_channel,
+            ),
             resolved_labels: DashMap::default(),
         }
     }
@@ -102,7 +110,7 @@ impl LabelResolver {
         }
     }
 
-    #[tracing::instrument(name = "LabelResolver::resolve_remote", skip(self))]
+    #[tracing::instrument(name = "LabelResolver::find_in_remote_workspaces", skip(self))]
     async fn find_in_remote_workspaces(
         &self,
         label: &Label,
