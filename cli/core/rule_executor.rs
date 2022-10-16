@@ -181,6 +181,7 @@ impl ComputeTargetProgram {
 
 pub struct NetModuleLoader {
     pub rule_store: Arc<RuleStore>,
+    pub module_store: Arc<DashMap<String, ModuleSource>>,
 }
 
 /// NOTE(@ostera): this feature copied from `deno-simple-module-loader`:
@@ -207,10 +208,16 @@ impl ModuleLoader for NetModuleLoader {
         _is_dyn_import: bool,
     ) -> Pin<Box<ModuleSourceFuture>> {
         let rule_store = self.rule_store.clone();
+        let module_store = self.module_store.clone();
         let module_specifier = module_specifier.clone();
         async move {
             let scheme = module_specifier.scheme().to_string();
             let string_specifier = module_specifier.to_string();
+
+            if let Some(module) = module_store.get(&string_specifier) {
+                return Ok(module.clone());
+            }
+
             let bytes: Vec<u8> = match scheme.clone().as_str() {
                 "http" | "https" => {
                     let (path, _) = rule_store.get(&string_specifier).await?;
@@ -234,12 +241,15 @@ impl ModuleLoader for NetModuleLoader {
             }
             .into_boxed_slice();
 
-            Ok(ModuleSource {
+            let module = ModuleSource {
                 code,
                 module_type: ModuleType::JavaScript,
                 module_url_specified: string_specifier.clone(),
-                module_url_found: string_specifier,
-            })
+                module_url_found: string_specifier.to_string(),
+            };
+            module_store.insert(string_specifier.to_string(), module.clone());
+
+            Ok(module)
         }
         .boxed_local()
     }
@@ -377,6 +387,7 @@ impl RuleExecutor {
             startup_snapshot: Some(deno_core::Snapshot::Static(JS_SNAPSHOT)),
             module_loader: Some(Rc::new(NetModuleLoader {
                 rule_store: shared_state.rule_store.clone(),
+                module_store: Arc::new(DashMap::new()),
             })),
             extensions: vec![extension, deno_console::init()],
             ..Default::default()
