@@ -141,24 +141,7 @@ impl BuildWorker {
 
         let executable_target = match self.target_planner.plan(&self.env, &target).await {
             Err(TargetPlannerError::MissingDependencies { deps, .. }) => {
-                if let Err(QueueError::DependencyCycle(err)) =
-                    self.build_queue.queue_deps(&target.label, &deps)
-                {
-                    self.event_channel.send(Event::BuildError(
-                        target.label.clone(),
-                        BuildError::BuildResultError(err),
-                    ));
-                    self.coordinator.signal_shutdown();
-                }
-
-                info!("Requeueing: {:#?}", target.label.clone());
-
-                if target.label != label {
-                    self.build_queue.swap(&label, &target.label);
-                }
-                self.build_queue.nack(target.label.clone());
-
-                return Ok(());
+                return self.requeue(&label, &target.label, &deps).await;
             }
 
             Err(err) => {
@@ -236,6 +219,33 @@ impl BuildWorker {
                 self.build_queue.ack(&label);
             }
         }
+
+        Ok(())
+    }
+
+    #[inline]
+    async fn requeue(
+        &self,
+        original_label: &Label,
+        actual_label: &Label,
+        deps: &[Label],
+    ) -> Result<(), BuildWorkerError> {
+        if let Err(QueueError::DependencyCycle(err)) =
+            self.build_queue.queue_deps(actual_label, deps)
+        {
+            self.event_channel.send(Event::BuildError(
+                actual_label.clone(),
+                BuildError::BuildResultError(err),
+            ));
+            self.coordinator.signal_shutdown();
+        }
+
+        info!("Requeueing: {:#?}", actual_label.clone());
+
+        if actual_label != original_label {
+            self.build_queue.swap(original_label, actual_label);
+        }
+        self.build_queue.nack(actual_label.clone());
 
         Ok(())
     }
