@@ -5,10 +5,7 @@ use thiserror::*;
 use tracing::*;
 
 #[derive(Error, Debug)]
-pub enum TargetError {
-    #[error("Expected TOML used to read this target to be a table, instead we found: {toml:?}")]
-    TargetTomlReprMustBeATable { toml: toml::Value },
-}
+pub enum TargetError {}
 
 /// A Target in the Warp dependency graph is a labeled instantiation of a rule plus a configuration
 /// object.
@@ -39,6 +36,10 @@ impl Target {
             .unwrap_or_default()
             .into_iter()
             .map(|dep| {
+                if dep.is_remote() {
+                    return dep;
+                }
+
                 let path = if dep.is_relative() {
                     // NOTE(@ostera): if we found a label that is defined in the same buildfile
                     // then its path is the same path as the current label
