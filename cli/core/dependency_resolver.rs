@@ -37,9 +37,9 @@ impl DependencyResolver {
 
         // TODO(@ostera): these should come from a registry, like the toolchains registry
         for (host, resolver) in [
-            ("hex.pm", "https://tools.warp.build/elixir/hexpm_resolver"),
+            ("hex.pm", "https://tools.warp.build/hexpm/resolver"),
             ("github.com", "https://tools.warp.build/github/resolver"),
-            ("npmjs.com", "https://tools.warp.build/js/npm_resolver"),
+            ("npmjs.com", "https://tools.warp.build/npm/resolver"),
         ] {
             this.resolvers
                 .insert(host.to_string(), Label::new(resolver));
