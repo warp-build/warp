@@ -1,12 +1,12 @@
 [
   {
     "deps": [
-      "\/\/erlang\/base:hexpm.erl"
+      "\/\/erlang\/base:hexpm.erl",
+      "\/\/erlang\/base/jsone"
     ],
-    "name": "main.erl",
-    "rule": "erlang_library",
-    "srcs": [
-      "main.erl"
-    ]
+    "name": "resolver",
+    "rule": "erlang_script",
+    "main": "main.erl",
+    "apps": ["kernel", "jsone"]
   }
 ]

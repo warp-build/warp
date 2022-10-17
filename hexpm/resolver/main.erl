@@ -5,10 +5,12 @@
 
 -include_lib("kernel/include/logger.hrl").
 
+-define(PRINT_JSON(X), io:format("~s\n", [jsone:encode(X, [{indent, 2}, {space, 1}])])).
+
 main(Args) ->
   ok = setup(),
   case Args of
-    ["resolve", Url] -> resolve(Url);
+    ["resolve", Url] -> ?PRINT_JSON(resolve(Url));
     ["help"] -> show_help()
   end,
   timer:sleep(100).
@@ -44,7 +46,7 @@ resolve(Url0) ->
     archive_url => hexpm:archive_url(PkgSpec),
     signatures => [
                    #{
-                     name => erlang:atom_to_binary(PkgName),
+                     name => hexpm:package_name(PkgSpec), 
                      rule => <<"mix_library">>
                     }
                   ]
