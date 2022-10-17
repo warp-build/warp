@@ -181,7 +181,6 @@ impl ComputeTargetProgram {
 
 pub struct NetModuleLoader {
     pub rule_store: Arc<RuleStore>,
-    pub module_store: Arc<DashMap<String, ModuleSource>>,
 }
 
 /// NOTE(@ostera): this feature copied from `deno-simple-module-loader`:
@@ -208,15 +207,10 @@ impl ModuleLoader for NetModuleLoader {
         _is_dyn_import: bool,
     ) -> Pin<Box<ModuleSourceFuture>> {
         let rule_store = self.rule_store.clone();
-        let module_store = self.module_store.clone();
         let module_specifier = module_specifier.clone();
         async move {
             let scheme = module_specifier.scheme().to_string();
             let string_specifier = module_specifier.to_string();
-
-            if let Some(module) = module_store.get(&string_specifier) {
-                return Ok(module.clone());
-            }
 
             let bytes: Vec<u8> = match scheme.clone().as_str() {
                 "http" | "https" => {
@@ -247,7 +241,6 @@ impl ModuleLoader for NetModuleLoader {
                 module_url_specified: string_specifier.clone(),
                 module_url_found: string_specifier.to_string(),
             };
-            module_store.insert(string_specifier.to_string(), module.clone());
 
             Ok(module)
         }
@@ -321,6 +314,7 @@ pub struct RuleExecutor {
     runtime: deno_core::JsRuntime,
     pub rule_map: Arc<DashMap<String, Rule>>,
     pub loaded_rules: FxHashMap<String, Rule>,
+    pub loaded_modules: FxHashMap<String, ()>,
     pub action_map: Arc<DashMap<Label, Vec<Action>>>,
     pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
     pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
@@ -387,7 +381,6 @@ impl RuleExecutor {
             startup_snapshot: Some(deno_core::Snapshot::Static(JS_SNAPSHOT)),
             module_loader: Some(Rc::new(NetModuleLoader {
                 rule_store: shared_state.rule_store.clone(),
-                module_store: Arc::new(DashMap::new()),
             })),
             extensions: vec![extension, deno_console::init()],
             ..Default::default()
@@ -403,6 +396,7 @@ impl RuleExecutor {
             run_script_map,
             runtime,
             loaded_rules: FxHashMap::default(),
+            loaded_modules: FxHashMap::default(),
         };
 
         rule_executor.setup()?;
@@ -491,6 +485,10 @@ impl RuleExecutor {
         module_name: &str,
         module_code: Option<String>,
     ) -> Result<(), RuleExecutorError> {
+        if self.loaded_modules.contains_key(&module_name.to_string()) {
+            return Ok(());
+        }
+
         let mod_specifier =
             url::Url::parse(module_name).map_err(|reason| RuleExecutorError::BadModuleName {
                 module_name: module_name.to_string(),
@@ -523,6 +521,8 @@ impl RuleExecutor {
                 module_name: module_name.to_string(),
                 reason,
             })?;
+
+        self.loaded_modules.insert(module_name.to_string(), ());
 
         Ok(())
     }
