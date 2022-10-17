@@ -10,7 +10,7 @@
 main(Args) ->
   ok = setup(),
   case Args of
-    ["resolve", Url] -> ?PRINT_JSON(resolve(Url));
+    ["resolve", Url, Vsn] -> ?PRINT_JSON(resolve(Url, Vsn));
     ["help"] -> show_help()
   end,
   timer:sleep(100).
@@ -28,20 +28,15 @@ show_help() ->
 
 Usage:
 
-* lifter
-* lifter lift ./path/to/dir
-* lifter analyze-file path/to/file.erl
-* lifter analyze-files a.erl b.erl c.erl
-* lifter sort-deps a.erl b.erl c.erl
-* lifter missing-deps a.erl b.erl c.erl
-* lifter find-rebar-deps [./path/to/dir = $cwd]
+* resolver resolver https://hex.pm/packages/proper 1.4.0
 
 ">>]),
 	erlang:halt().
 
-resolve(Url0) -> 
+resolve(Url0, Vsn0) -> 
   Url = binary:list_to_bin(Url0),
-  {ok, PkgSpec = {PkgName, _PkgVsn}} = hexpm:parse_url(Url),
+  Vsn = binary:list_to_bin(Vsn0),
+  {ok, PkgSpec = {PkgName, _PkgVsn}} = hexpm:parse_url(<<Url/binary, Vsn/binary>>),
   #{
     archive_url => hexpm:archive_url(PkgSpec),
     signatures => [

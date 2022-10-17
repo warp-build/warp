@@ -21,3 +21,6 @@ sha1 = "143d3473dae6ea8250452f7a29db73974be51b24"
 [toolchains.cmake]
 sha1 = "19b1473e6ded2d234256b6aac90eb22616c5ab5e"
 version = "3.24.2"
+
+[resolvers.overrides]
+"hex.pm" = "//hexpm/resolver" 
