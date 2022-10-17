@@ -35,7 +35,7 @@ release:
 
 .PHONY: install
 install:
-	cargo install --debug --path ./bin
+	cargo install --locked --debug --path ./bin
 
 .PHONY: setup
 setup:
