@@ -1,0 +1,39 @@
+{
+  "workspace": {
+    "name": "tools.warp.build",
+    "ignore_patterns": [],
+    "use_git_hooks": true
+  },
+  "remote_workspaces": {
+    "tools.warp.build": {
+      "github": "warp-build/tools.warp.build",
+      "git_ref": "8da4173ec9fe311162847a8e561110d4f67c1a77"
+    }
+  },
+  "aliases": {
+    "elixir": "https://pkgs.warp.build/toolchains/elixir",
+    "erlang": "https://pkgs.warp.build/toolchains/erlang"
+  },
+  "toolchains": {
+    "elixir": {
+      "sha1": "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa",
+      "kind": "source",
+      "version": "1.13"
+    },
+    "openssl": {
+      "sha1": "73118336c58ece2e3b87f1f933f8ba446e2bdc26",
+      "version": "OpenSSL_1_1_1q"
+    },
+    "erlang": {
+      "sha1": "2bb7456ccb19cf83b07506744fb540ce4d66b257",
+      "version": "25.0"
+    },
+    "cmake": {
+      "sha1": "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
+      "version": "3.24.2"
+    },
+    "rebar3": {
+      "sha1": "143d3473dae6ea8250452f7a29db73974be51b24"
+    }
+  }
+}
