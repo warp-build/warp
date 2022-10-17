@@ -68,6 +68,14 @@ impl StatusReporter {
                         queued_targets += count;
                     }
 
+                    ResolvingDependency { label } => {
+                        let line =
+                            format!("{:>12} {}", yellow.apply_to("Resolving"), label.to_string(),);
+                        pb.println(line);
+                        pb.set_length(pb.length() + 1);
+                        pb.inc(1)
+                    }
+
                     ArchiveVerifying(label) => {
                         let line =
                             format!("{:>12} {}", yellow.apply_to("Verifying"), label.to_string(),);

@@ -1,9 +1,11 @@
+use super::Event;
 use super::*;
 use async_compression::futures::bufread::GzipDecoder;
 use async_compression::tokio::write::GzipEncoder;
 use futures::stream::TryStreamExt;
 use futures::StreamExt;
 use std::path::PathBuf;
+use std::sync::Arc;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio_util::compat::TokioAsyncReadCompatExt;
@@ -15,14 +17,16 @@ use tracing::*;
 pub struct RemoteStore {
     api: API,
     client: reqwest::Client,
+    event_channel: Arc<EventChannel>,
 }
 
 impl RemoteStore {
     #[tracing::instrument(name = "RemoteStore::new", skip(workspace))]
-    pub fn new(workspace: &Workspace) -> RemoteStore {
+    pub fn new(workspace: &Workspace, event_channel: Arc<EventChannel>) -> Self {
         RemoteStore {
             api: API::from_workspace(workspace),
             client: reqwest::Client::builder().gzip(false).build().unwrap(),
+            event_channel,
         }
     }
 
@@ -65,19 +69,29 @@ impl RemoteStore {
     }
 
     #[tracing::instrument(name = "RemoteStore::try_fetch")]
-    pub async fn try_fetch(&self, key: &StoreKey, dst: &PathBuf) -> Result<(), StoreError> {
+    pub async fn try_fetch(
+        &self,
+        key: &StoreKey,
+        dst: &PathBuf,
+        label: &Label,
+    ) -> Result<(), StoreError> {
         let dst_tarball = &dst.with_extension("tar.gz");
 
         let url = format!("{}/artifact/{}.tar.gz", self.api.url, key);
 
         let response = self
             .client
-            .get(url)
+            .get(&url)
             .send()
             .await
             .map_err(StoreError::HTTPError)?;
 
         if response.status() == 200 {
+            self.event_channel.send(Event::ArchiveDownloading {
+                label: label.clone(),
+                url: url.to_string(),
+            });
+
             let mut byte_stream = response
                 .bytes_stream()
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));

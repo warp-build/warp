@@ -1,5 +1,7 @@
 use super::*;
-use std::{path::PathBuf, process::Stdio};
+use futures::Future;
+use futures::FutureExt;
+use std::{path::PathBuf, pin::Pin, process::Stdio};
 use thiserror::*;
 use tokio::process::Command;
 use tracing::*;
@@ -44,59 +46,68 @@ impl CommandRunner {
         CommandRunnerBuilder::default()
     }
 
-    pub async fn run(&self) -> Result<String, CommandRunnerError> {
-        let mut shell_env = self.manifest.env_map();
-        let bin = if let Some(RunScript { run_script, env }) = &self.target.run_script {
-            shell_env.extend(env.clone());
-            run_script
-        } else {
-            return Err(CommandRunnerError::NothingToRun);
-        };
+    #[tracing::instrument(name = "DependencyResolver::resolve", skip(self))]
+    pub fn run(self) -> Pin<Box<dyn Future<Output = Result<String, CommandRunnerError>>>> {
+        async move {
+            let mut shell_env = self.manifest.env_map();
+            let bin = if let Some(RunScript { run_script, env }) = &self.target.run_script {
+                shell_env.extend(env.clone());
+                self.manifest
+                    .provides
+                    .iter()
+                    .find(|(_, path)| path.ends_with(run_script))
+                    .map(|(_, path)| path.to_path_buf())
+                    .ok_or_else(|| CommandRunnerError::NothingToRun)?
+            } else {
+                return Err(CommandRunnerError::NothingToRun);
+            };
 
-        let mut cmd = Command::new(bin);
+            let mut cmd = Command::new(bin);
 
-        let extra_paths = shell_env
-            .get("PATH")
-            .cloned()
-            .unwrap_or_else(|| "".to_string());
-        shell_env.remove("PATH");
-        shell_env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
+            let extra_paths = shell_env
+                .get("PATH")
+                .cloned()
+                .unwrap_or_else(|| "".to_string());
+            shell_env.remove("PATH");
+            shell_env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
 
-        let tmpdir = tempfile::tempdir().unwrap();
+            let tmpdir = tempfile::tempdir().unwrap();
 
-        let cwd = if self.sandboxed {
-            tmpdir.path().to_path_buf()
-        } else {
-            self.cwd.clone()
-        };
+            let cwd = if self.sandboxed {
+                tmpdir.path().to_path_buf()
+            } else {
+                self.cwd.clone()
+            };
 
-        cmd.envs(&shell_env).args(&self.args).current_dir(&cwd);
+            cmd.envs(&shell_env).args(&self.args).current_dir(&cwd);
 
-        if self.stream_outputs {
-            cmd.stdin(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .stdout(Stdio::inherit());
+            if self.stream_outputs {
+                cmd.stdin(Stdio::inherit())
+                    .stderr(Stdio::inherit())
+                    .stdout(Stdio::inherit());
+            }
+
+            let mut proc = cmd.spawn().unwrap();
+            proc.wait()
+                .await
+                .map_err(|err| CommandRunnerError::ExecutionError {
+                    err,
+                    label: self.manifest.label.clone(),
+                })?;
+
+            let output = cmd
+                .output()
+                .await
+                .map_err(|err| CommandRunnerError::OutputError {
+                    err,
+                    label: self.manifest.label.clone(),
+                })?;
+
+            String::from_utf8(output.stdout).map_err(|err| CommandRunnerError::InvalidUtf8Output {
+                err,
+                label: self.manifest.label.clone(),
+            })
         }
-
-        let mut proc = cmd.spawn().unwrap();
-        proc.wait()
-            .await
-            .map_err(|err| CommandRunnerError::ExecutionError {
-                err,
-                label: self.manifest.label.clone(),
-            })?;
-
-        let output = cmd
-            .output()
-            .await
-            .map_err(|err| CommandRunnerError::OutputError {
-                err,
-                label: self.manifest.label.clone(),
-            })?;
-
-        String::from_utf8(output.stdout).map_err(|err| CommandRunnerError::InvalidUtf8Output {
-            err,
-            label: self.manifest.label.clone(),
-        })
+        .boxed_local()
     }
 }

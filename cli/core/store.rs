@@ -3,6 +3,7 @@ use super::remote_store::*;
 use super::*;
 use dashmap::DashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
 
@@ -56,11 +57,11 @@ pub enum StoreError {
 
 impl Store {
     #[tracing::instrument(name = "Store::new", skip(workspace))]
-    pub fn new(workspace: &Workspace) -> Self {
+    pub fn new(workspace: &Workspace, event_channel: Arc<EventChannel>) -> Self {
         Store {
             local_outputs_root: workspace.paths.local_outputs_root.clone(),
             local_store: LocalStore::new(workspace),
-            remote_store: RemoteStore::new(workspace),
+            remote_store: RemoteStore::new(workspace, event_channel),
             workspace_prefixes: {
                 let map = DashMap::new();
                 map.insert(
@@ -136,7 +137,7 @@ impl Store {
                 let expected_path = self.local_store.absolute_path_for_key(&store_key).await?;
                 let _ = self
                     .remote_store
-                    .try_fetch(&store_key, &expected_path)
+                    .try_fetch(&store_key, &expected_path, &node.label)
                     .await;
 
                 let result = self.local_store.find_manifest(&store_key).await;

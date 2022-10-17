@@ -1,6 +1,7 @@
+use super::Event;
 use super::*;
 use dashmap::DashMap;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use thiserror::*;
 use tracing::*;
 
@@ -24,15 +25,21 @@ pub struct DependencyResolver {
     build_results: Arc<BuildResults>,
     targets: DashMap<Label, Target>,
     resolvers: DashMap<String, Label>,
+    event_channel: Arc<EventChannel>,
 }
 
 impl DependencyResolver {
     #[tracing::instrument(name = "DependencyResolver::new", skip(workspace))]
-    pub fn new(workspace: &Workspace, build_results: Arc<BuildResults>) -> Self {
+    pub fn new(
+        workspace: &Workspace,
+        build_results: Arc<BuildResults>,
+        event_channel: Arc<EventChannel>,
+    ) -> Self {
         let this = Self {
             build_results,
             targets: DashMap::new(),
             resolvers: DashMap::new(),
+            event_channel,
         };
 
         // TODO(@ostera): these should come from a registry, like the toolchains registry
@@ -80,11 +87,16 @@ impl DependencyResolver {
                 resolver: resolver.clone(),
             })?;
 
+        self.event_channel.send(Event::ResolvingDependency {
+            label: label.clone(),
+        });
+
         // 2. run resolver passing in the label url as a parameter
         let cmd = CommandRunner::builder()
+            .cwd(PathBuf::from("."))
             .manifest(manifest)
             .target(target)
-            .args(vec![label.to_string()])
+            .args(vec!["resolve".to_string(), label.to_string()])
             .sandboxed(true)
             .stream_outputs(true)
             .build()

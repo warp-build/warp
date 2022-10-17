@@ -53,9 +53,9 @@ impl LabelResolver {
             remote_workspace_resolver: RemoteWorkspaceResolver::new(
                 workspace,
                 store,
-                event_channel,
+                event_channel.clone(),
             ),
-            dependency_resolver: DependencyResolver::new(workspace, build_results),
+            dependency_resolver: DependencyResolver::new(workspace, build_results, event_channel),
             resolved_labels: DashMap::default(),
         }
     }
@@ -96,7 +96,7 @@ impl LabelResolver {
 
             Err(LabelResolverError::TargetNotFound(label.clone()))
         }
-        .boxed()
+        .boxed_local()
     }
 
     #[tracing::instrument(name = "LabelResolver::save", skip(self))]

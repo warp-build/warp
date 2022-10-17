@@ -26,6 +26,7 @@ pub enum Event {
     ArchiveDownloading { label: Label, url: String },
     ArchiveUnpacking(Label),
     ArchiveVerifying(Label),
+    ResolvingDependency { label: Label },
     BadBuildfile(PathBuf, Buildfile2Error),
     BuildCompleted(std::time::Instant),
     BuildError(Label, BuildError),

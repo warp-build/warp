@@ -59,7 +59,7 @@ impl BuildExecutor {
             event_channel.clone(),
             self.workspace.clone(),
         ));
-        let store = Arc::new(Store::new(&self.workspace));
+        let store = Arc::new(Store::new(&self.workspace, event_channel.clone()));
         let rule_store = Arc::new(RuleStore::new(&self.workspace));
         let label_resolver = Arc::new(LabelResolver::new(
             &self.workspace,
