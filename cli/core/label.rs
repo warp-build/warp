@@ -285,6 +285,18 @@ impl Label {
         }
     }
 
+    pub fn to_local(mut self) -> Self {
+        let inner_label = match &self.inner_label {
+            InnerLabel::Remote { path, .. } => InnerLabel::Local {
+                kind: LocalLabelKind::Absolute,
+                path: PathBuf::from(path),
+            },
+            _ => self.inner_label.clone(),
+        };
+        self.inner_label = inner_label;
+        self
+    }
+
     pub fn as_store_prefix(&self) -> String {
         match &self.inner_label {
             InnerLabel::Remote {

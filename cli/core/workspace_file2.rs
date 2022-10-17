@@ -121,6 +121,10 @@ pub struct WorkspaceFile {
 
     #[builder(default)]
     #[serde(default)]
+    pub dependencies: BTreeMap<String, String>,
+
+    #[builder(default)]
+    #[serde(default)]
     pub aliases: BTreeMap<String, String>,
 
     #[builder(default)]

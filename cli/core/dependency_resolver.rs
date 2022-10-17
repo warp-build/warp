@@ -1,7 +1,7 @@
 use super::Event;
 use super::*;
 use dashmap::DashMap;
-use std::{path::PathBuf, sync::Arc};
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use thiserror::*;
 use tracing::*;
 
@@ -18,6 +18,9 @@ pub enum DependencyResolverError {
 
     #[error("We don't yet have resolver {} built!", .resolver.to_string())]
     MissingResolver { resolver: Label },
+
+    #[error("Dependency {} has no version in the Workspace.json", .dependency.to_string())]
+    UnspecifiedDependency { dependency: Label },
 }
 
 #[derive(Debug)]
@@ -26,6 +29,7 @@ pub struct DependencyResolver {
     targets: DashMap<Label, Target>,
     resolvers: DashMap<String, Label>,
     event_channel: Arc<EventChannel>,
+    dependency_map: BTreeMap<String, String>,
 }
 
 impl DependencyResolver {
@@ -40,6 +44,7 @@ impl DependencyResolver {
             targets: DashMap::new(),
             resolvers: DashMap::new(),
             event_channel,
+            dependency_map: workspace.dependency_map.clone(),
         };
 
         // TODO(@ostera): these should come from a registry, like the toolchains registry
@@ -62,9 +67,17 @@ impl DependencyResolver {
             return Ok(Some(target));
         }
 
+        let version = if let Some(version) = self.dependency_map.get(label.url().as_ref()) {
+            version.to_string()
+        } else {
+            return Err(DependencyResolverError::UnspecifiedDependency {
+                dependency: label.clone(),
+            });
+        };
+
         let host = label.url().host().unwrap().to_string();
         if let Some(ref resolver) = self.resolvers.get(&host) {
-            if let Some(target) = self.resolve(resolver, label).await? {
+            if let Some(target) = self.resolve(resolver, label, version).await? {
                 self.targets.insert(label.clone(), target.clone());
                 return Ok(Some(target));
             }
@@ -78,6 +91,7 @@ impl DependencyResolver {
         &self,
         resolver: &Label,
         label: &Label,
+        version: String,
     ) -> Result<Option<Target>, DependencyResolverError> {
         // 1. build resolver
         let (manifest, target) = self
@@ -96,7 +110,7 @@ impl DependencyResolver {
             .cwd(PathBuf::from("."))
             .manifest(manifest)
             .target(target)
-            .args(vec!["resolve".to_string(), label.to_string()])
+            .args(vec!["resolve".to_string(), label.to_string(), version])
             .sandboxed(true)
             .stream_outputs(true)
             .build()

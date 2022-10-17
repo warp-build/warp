@@ -1,0 +1,10 @@
+[
+  {
+    "deps": [],
+    "name": "b.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "b.erl"
+    ]
+  }
+]

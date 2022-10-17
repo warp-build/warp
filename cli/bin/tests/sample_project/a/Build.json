@@ -1,0 +1,20 @@
+[
+  {
+    "deps": [],
+    "name": "a.erl",
+    "rule": "erlang_library",
+    "srcs": [
+      "a.erl"
+    ]
+  },
+  {
+    "deps": [
+      "\/\/cli\/bin\/tests\/sample_project\/a:h.hrl"
+    ],
+    "name": "h.hrl",
+    "rule": "erlang_library",
+    "srcs": [
+      "h.hrl"
+    ]
+  }
+]

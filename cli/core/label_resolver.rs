@@ -13,6 +13,7 @@ pub struct LabelResolver {
     remote_workspace_resolver: RemoteWorkspaceResolver,
     dependency_resolver: DependencyResolver,
     resolved_labels: DashMap<Label, Target>,
+    workspace: Workspace,
 }
 
 #[derive(Error, Debug)]
@@ -49,6 +50,7 @@ impl LabelResolver {
         event_channel: Arc<EventChannel>,
     ) -> Self {
         Self {
+            workspace: workspace.clone(),
             toolchain_configs: workspace.toolchain_configs.clone(),
             remote_workspace_resolver: RemoteWorkspaceResolver::new(
                 workspace,

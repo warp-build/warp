@@ -1,6 +1,7 @@
 use super::*;
 use anyhow::*;
 use fxhash::*;
+use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::path::PathBuf;
 use thiserror::*;
@@ -56,6 +57,11 @@ pub struct Workspace {
     #[builder(default)]
     /// The collection of paths required for a Warp Workspace to work.
     pub paths: WorkspacePaths,
+
+    #[builder(default)]
+    /// A map of depenendices and their expected versions
+    // TODO(@ostera): DependencyMap
+    pub dependency_map: BTreeMap<String, String>,
 
     #[builder(default)]
     /// A map of aliases for commonly used targets
@@ -146,6 +152,8 @@ impl WorkspaceBuilder {
             remote_workspaces.insert(name.clone(), config.try_into()?);
         }
         self.remote_workspace_configs(remote_workspaces);
+
+        self.dependency_map(file.dependencies);
 
         Ok(self)
     }
