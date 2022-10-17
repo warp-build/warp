@@ -36,7 +36,7 @@ Usage:
 resolve(Url0, Vsn0) -> 
   Url = binary:list_to_bin(Url0),
   Vsn = binary:list_to_bin(Vsn0),
-  {ok, PkgSpec = {PkgName, _PkgVsn}} = hexpm:parse_url(<<Url/binary, Vsn/binary>>),
+  {ok, PkgSpec = {PkgName, _PkgVsn}} = hexpm:parse_url(<<Url/binary, "/", Vsn/binary>>),
   #{
     archive_url => hexpm:archive_url(PkgSpec),
     signatures => [
