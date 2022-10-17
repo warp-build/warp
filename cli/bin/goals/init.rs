@@ -84,7 +84,6 @@ impl InitGoal {
             .map(|(_idx, t)| t.clone())
             .collect();
 
-        dbg!(&toolchains_registry);
         let toolchains = toolchains_registry.flatten_dependencies(toolchains);
 
         println!("\nPreparing...\n");

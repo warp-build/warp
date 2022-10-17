@@ -130,7 +130,6 @@ impl ToolchainsRegistry {
     }
 
     pub fn get_toolchain_by_id(&self, id: &ToolchainId) -> Option<Toolchain> {
-        dbg!(&id);
         self.toolchains.get(id).cloned()
     }
 
