@@ -2,13 +2,13 @@ use super::*;
 use futures::StreamExt;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use thiserror::*;
 use tokio::fs;
-use tokio::io::AsyncReadExt;
 use tracing::*;
 
-pub const WORKSPACE: &str = "Workspace.toml";
+pub const WORKSPACE: &str = "Workspace.json";
 
 #[derive(Error, Debug)]
 pub enum RemoteWorkspaceFileError {
@@ -29,10 +29,10 @@ Instead we found: {0:?}"#
 #[derive(Error, Debug)]
 pub enum WorkspaceFileError {
     #[error("Could not parse Workspace file: {0:?}")]
-    ParseError(toml::de::Error),
+    ParseError(serde_json::Error),
 
     #[error("Could not print Workspace file: {0:#?}")]
-    PrintError(toml::ser::Error),
+    PrintError(serde_json::Error),
 
     #[error(transparent)]
     IOError(std::io::Error),
@@ -62,7 +62,7 @@ impl From<String> for WorkspaceFileError {
     }
 }
 
-/// A struct representing the top-level workspace configuration of a `Workspace.toml` file in a
+/// A struct representing the top-level workspace configuration of a `Workspace.json` file in a
 /// Warp Workspace.
 ///
 #[derive(Clone, Default, Debug, Builder, Serialize, Deserialize)]
@@ -71,7 +71,7 @@ pub struct WorkspaceConfig {
     pub name: String,
 
     #[builder(default = "vec![]")]
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ignore_patterns: Vec<String>,
 
     #[builder(default = "false")]
@@ -79,7 +79,7 @@ pub struct WorkspaceConfig {
     pub use_git_hooks: bool,
 
     #[builder(default)]
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remote_cache_url: Option<String>,
 }
 
@@ -91,29 +91,26 @@ impl WorkspaceConfig {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RemoteWorkspaceFile {
-    #[serde(default, alias = "url")]
+    #[serde(default, alias = "url", skip_serializing_if = "Option::is_none")]
     pub archive_url: Option<url::Url>,
 
-    #[serde(default, alias = "sha1")]
+    #[serde(default, alias = "sha1", skip_serializing_if = "Option::is_none")]
     pub archive_sha1: Option<String>,
 
-    #[serde(default, alias = "prefix")]
+    #[serde(default, alias = "prefix", skip_serializing_if = "Option::is_none")]
     pub archive_prefix: Option<String>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub github: Option<String>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub git_ref: Option<String>,
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct FlexibleRuleConfig(pub BTreeMap<String, toml::Value>);
-
-/// A struct representing a `Workspace.toml` file in a Warp Workspace.
+/// A struct representing a `Workspace.json` file in a Warp Workspace.
 ///
 /// This is primarily used for serialization/deserialization, and manipualting the file itself
-/// through a semantic API that hides the TOML disk representation.
+/// through a semantic API that hides the json disk representation.
 ///
 #[derive(Clone, Default, Debug, Builder, Serialize, Deserialize)]
 #[builder(build_fn(error = "WorkspaceFileError"))]
@@ -121,15 +118,19 @@ pub struct WorkspaceFile {
     pub workspace: WorkspaceConfig,
 
     #[builder(default)]
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub dependencies: BTreeMap<String, String>,
+
+    #[builder(default)]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub aliases: BTreeMap<String, String>,
 
     #[builder(default)]
-    #[serde(default)]
-    pub toolchains: BTreeMap<String, FlexibleRuleConfig>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub toolchains: BTreeMap<String, BTreeMap<String, serde_json::Value>>,
 
     #[builder(default)]
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub remote_workspaces: BTreeMap<String, RemoteWorkspaceFile>,
 }
 
@@ -166,23 +167,19 @@ impl WorkspaceFile {
 
     #[tracing::instrument(name = "WorkspaceFile::read_from_file")]
     pub async fn read_from_file(path: &Path) -> Result<Self, WorkspaceFileError> {
-        let mut bytes = vec![];
-
-        let mut file = fs::File::open(path)
+        let file = fs::File::open(path)
             .await
             .map_err(WorkspaceFileError::IOError)?;
 
-        file.read_to_end(&mut bytes)
-            .await
-            .map_err(WorkspaceFileError::IOError)?;
+        let reader = json_comments::StripComments::new(BufReader::new(file.into_std().await));
 
-        toml::from_slice(&bytes).map_err(WorkspaceFileError::ParseError)
+        serde_json::from_reader(reader).map_err(WorkspaceFileError::ParseError)
     }
 
     #[tracing::instrument(name = "WorkspaceFile::write")]
     pub async fn write(&self, root: &Path) -> Result<(), WorkspaceFileError> {
-        let toml = toml::to_string_pretty(&self).map_err(WorkspaceFileError::PrintError)?;
-        fs::write(&root.join(WORKSPACE), toml)
+        let json = serde_json::to_string_pretty(&self).map_err(WorkspaceFileError::PrintError)?;
+        fs::write(&root.join(WORKSPACE), json)
             .await
             .map_err(WorkspaceFileError::IOError)
     }
@@ -215,119 +212,3 @@ impl TryFrom<&Workspace> for WorkspaceFile {
             .build()
     }
 }
-
-/*
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    fn parse(toml: toml::Value, root: &PathBuf) -> Result<Workspace, WorkspaceFileError> {
-        let root = std::fs::canonicalize(root).unwrap();
-        let paths = WorkspacePaths::new(&root, None, None).unwrap();
-        WorkspaceParser::from_toml(toml, paths)
-    }
-
-    #[test]
-    fn demands_workspace_name() {
-        let toml: toml::Value = r#"
-[workspace]
-[toolchains]
-[dependencies]
-        "#
-        .parse::<toml::Value>()
-        .unwrap();
-        let workspace = parse(toml, &PathBuf::from("."));
-        assert_eq!(true, workspace.is_err());
-    }
-
-    #[test]
-    fn parses_toml_into_workspace_struct() {
-        let toml: toml::Value = r#"
-[workspace]
-name = "tiny_lib"
-
-[toolchains]
-
-[dependencies]
-        "#
-        .parse::<toml::Value>()
-        .unwrap();
-        let workspace = parse(toml, &PathBuf::from(".")).unwrap();
-        assert_eq!(workspace.name, "tiny_lib");
-    }
-
-    #[test]
-    fn expects_ignore_patterns_to_be_an_array() {
-        let toml: toml::Value = r#"
-[workspace]
-name = "tiny_lib"
-ignore_patterns = {}
-
-[toolchains]
-
-[dependencies]
-        "#
-        .parse::<toml::Value>()
-        .unwrap();
-
-        assert!(parse(toml, &PathBuf::from(".")).is_err());
-    }
-
-    #[test]
-    fn parses_ignore_patterns_into_workspace() {
-        let toml: toml::Value = r#"
-[workspace]
-name = "tiny_lib"
-ignore_patterns = ["node_modules"]
-
-[toolchains]
-
-[dependencies]
-        "#
-        .parse::<toml::Value>()
-        .unwrap();
-        let workspace = parse(toml, &PathBuf::from(".")).unwrap();
-        assert_eq!(
-            workspace.ignore_patterns,
-            vec!["node_modules", "warp-outputs"]
-        );
-    }
-
-    /*
-    #[test]
-    fn allows_for_custom_toolchains() {
-        let toml: toml::Value = r#"
-    [workspace]
-    name = "tiny_lib"
-
-    [toolchains]
-    erlang = { archive_url = "official", prefix = "otp-prefix" }
-    gleam = { archive_url = "https://github.com/forked/gleam", sha1 = "sha1-test" }
-
-    [dependencies]
-            "#
-        .parse::<toml::Value>()
-        .unwrap();
-        let _workspace = parse(toml, &PathBuf::from(".")).unwrap();
-        assert_eq!(
-            "official",
-            toolchain_manager.get_archive("erlang").unwrap().url()
-        );
-        assert_eq!(
-            "otp-prefix",
-            toolchain_manager.get_archive("erlang").unwrap().prefix()
-        );
-        assert_eq!(
-            "https://github.com/forked/gleam",
-            toolchain_manager.get_archive("gleam").unwrap().url()
-        );
-        assert_eq!(
-            "sha1-test",
-            toolchain_manager.get_archive("gleam").unwrap().sha1()
-        );
-    }
-    */
-}
-
-*/

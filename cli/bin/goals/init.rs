@@ -2,7 +2,6 @@ use anyhow::*;
 use dialoguer::{Input, MultiSelect};
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
 use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
@@ -23,31 +22,6 @@ pub struct InitGoal {
         long = "max-workers"
     )]
     max_workers: Option<usize>,
-}
-
-struct Selector {}
-
-impl Selector {
-    fn map_select_result_to_items(result: Vec<usize>, items: Vec<&str>) -> Vec<String> {
-        result
-            .iter()
-            .map(|i| items[i.clone()].to_string())
-            .collect()
-    }
-
-    pub fn show_for_items(
-        theme: &dialoguer::theme::ColorfulTheme,
-        items: Vec<&str>,
-    ) -> Result<Vec<String>, anyhow::Error> {
-        let result = MultiSelect::with_theme(theme)
-            .items(&items)
-            .with_prompt("Please choose the toolchains for your workspace")
-            .interact()?;
-
-        let selected_toolchains = Selector::map_select_result_to_items(result, items);
-
-        Ok(selected_toolchains)
-    }
 }
 
 impl InitGoal {
@@ -89,12 +63,29 @@ impl InitGoal {
             .interact()?
             == "yes";
 
-        let mut toolchains_registry = ToolchainsRegistry::new(&paths, event_channel.clone());
+        let toolchains_registry = ToolchainsRegistry::fetch(&paths, event_channel.clone()).await?;
 
-        toolchains_registry.ready().await?;
+        let chosen_toolchains = MultiSelect::with_theme(&theme)
+            .items(
+                &toolchains_registry
+                    .toolchains()
+                    .iter()
+                    .map(|t| format!("{} {}", t.id.language, t.id.version))
+                    .collect::<Vec<String>>(),
+            )
+            .with_prompt("Please choose the toolchains for your workspace")
+            .interact()?;
 
-        let chosen_toolchains =
-            Selector::show_for_items(&theme, toolchains_registry.show_toolchains())?;
+        let toolchains: Vec<Toolchain> = toolchains_registry
+            .toolchains()
+            .iter()
+            .enumerate()
+            .filter(|(idx, _)| chosen_toolchains.contains(idx))
+            .map(|(_idx, t)| t.clone())
+            .collect();
+
+        dbg!(&toolchains_registry);
+        let toolchains = toolchains_registry.flatten_dependencies(toolchains);
 
         println!("\nPreparing...\n");
 
@@ -113,7 +104,16 @@ impl InitGoal {
                 map
             })
             .workspace(workspace_config)
-            .toolchains(toolchains_registry.config_from_chosen_toolchains(&chosen_toolchains))
+            .toolchains({
+                let mut map = BTreeMap::new();
+                for toolchain in &toolchains {
+                    map.insert(
+                        toolchain.id.language.to_string(),
+                        TryFrom::try_from(toolchain.config.clone()).unwrap(),
+                    );
+                }
+                map
+            })
             .remote_workspaces({
                 let mut map = BTreeMap::new();
 
@@ -140,9 +140,7 @@ impl InitGoal {
             .unwrap()
             .build()?;
 
-        let lifters =
-            toolchains_registry.get_lifters_from_chosen_toolchains(&chosen_toolchains, &workspace);
-
+        let lifters: Vec<Label> = toolchains.iter().cloned().flat_map(|t| t.lifter).collect();
         if !lifters.is_empty() {
             let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
             let local_outputs_root = workspace.paths.local_outputs_root.clone();
@@ -155,78 +153,28 @@ impl InitGoal {
             )
             .await;
             for (manifest, target) in lifters? {
-                let mut provides_env = manifest.env_map();
-
-                if let Some(RunScript { run_script, env }) = target.run_script {
-                    let path = local_outputs_root.join(&run_script);
-                    debug!("Running default run_script ({:?})", &path);
-                    provides_env.extend(env);
-
-                    self.run_cmd(
-                        build_started,
-                        cwd,
-                        manifest.label.clone(),
-                        path.clone(),
-                        provides_env.clone(),
-                        &[],
-                    )?;
-                }
+                CommandRunner::builder()
+                    .cwd(cwd.to_path_buf())
+                    .manifest(manifest)
+                    .target(target)
+                    .stream_outputs(true)
+                    .sandboxed(false)
+                    .args(vec![])
+                    .build()?
+                    .run()
+                    .await?;
             }
         }
 
         println!(
-            r#"We are ready, captain!
+            r#"We are ready, here's a few commands for you to try:
 
-Here's a few commands for you to try:
-
-* Use `warp login` to set up the shared caching and remote builds
-* Use `warp build` to build your workspace incrementally
-* Use `warp test` to test your workspace incrementally
-* Use `warp --help` to learn more about other useful commands
+  warp build   build your workspace incrementally
+  warp test    test your workspace incrementally
 
 Build fast and prosper 🖖
 "#
         );
-
-        Ok(())
-    }
-
-    fn run_cmd(
-        &self,
-        build_started: std::time::Instant,
-        cwd: &PathBuf,
-        label: Label,
-        bin: PathBuf,
-        mut env: HashMap<String, String>,
-        args: &[String],
-    ) -> Result<(), Error> {
-        let mut cmd = Command::new(bin);
-
-        let extra_paths = env.get("PATH").cloned().unwrap_or_else(|| "".to_string());
-        env.remove("PATH");
-        env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
-
-        cmd.envs(&env);
-
-        cmd.current_dir(cwd)
-            .stdin(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .args(args);
-
-        debug!("Spawning {:?}", &cmd);
-        let mut proc = cmd.spawn().unwrap();
-
-        let t1 = std::time::Instant::now();
-        let delta = t1.saturating_duration_since(build_started).as_millis();
-        debug!("Spawned program in {:?}ms", delta);
-
-        trace!("Waiting on {:?}", &cmd);
-        proc.wait()
-            .map(|_| ())
-            .context(format!("Error executing {}", &label.to_string()))?;
-
-        trace!("Exited with status: {}", cmd.status()?);
 
         Ok(())
     }

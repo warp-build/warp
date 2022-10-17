@@ -1,5 +1,6 @@
 {
   "workspace": {
+    // of course we support comments!
     "name": "warp-build",
     "ignore_patterns": [
       "warp-*",
@@ -38,6 +39,14 @@
     "python": "https://pkgs.warp.build/toolchains/python"
   },
   "toolchains": {
+    "ruby": {
+      "sha1": "b0d86c60457fdfbcb532cb681877a2f790f66b25",
+      "version": "3.1.2"
+    },
+    "python": {
+      "sha1": "asdf",
+      "version": "3.10.8"
+    },
     "firefly": {
       "sha1": "4f1795afef0944216f4be88798bae1523ecb8c5e",
       "version": "0.1.0",

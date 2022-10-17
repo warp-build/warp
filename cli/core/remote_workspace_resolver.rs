@@ -71,7 +71,7 @@ impl RemoteWorkspaceResolver {
 
         let label = label.change_workspace(&workspace);
 
-        let buildfile = Buildfile2::from_label(&label)
+        let buildfile = Buildfile::from_label(&label)
             .await
             .map_err(LabelResolverError::BuildfileError)
             .unwrap();

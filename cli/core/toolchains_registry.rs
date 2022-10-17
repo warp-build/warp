@@ -1,221 +1,164 @@
 use super::*;
-use fxhash::*;
-use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::convert::TryFrom;
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::Arc;
+use thiserror::*;
 use tokio::fs;
-use tokio::io::AsyncReadExt;
 use url::Url;
 
 pub const REMOTE_TOOLCHAINS_REGISTRY_URL: &str = "https://pkgs.warp.build/toolchains/registry.json";
 
-#[derive(Debug, Default, Deserialize, Serialize)]
-pub struct Toolchains {
-    toolchains: FxHashMap<String, FlexibleRuleConfig>,
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub struct ToolchainId {
+    pub language: String,
+    pub version: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct Toolchain {
+    pub id: ToolchainId,
+    pub lifter: Option<Label>,
+    pub config: RuleConfig,
+    pub deps: Vec<ToolchainId>,
 }
 
 /// A Toolchains Registry defines which toolchains we have available.
 ///
 #[derive(Debug)]
 pub struct ToolchainsRegistry {
-    available_toolchains: Toolchains,
     archive_manager: ArchiveManager,
     remote_url: Url,
+
+    toolchains: BTreeMap<ToolchainId, Toolchain>,
 }
 
-impl Toolchains {
-    fn _add_toolchain_to_config_from_name_and_version(
-        &self,
-        dep_name: &String,
-        dep_version: &str,
-        config: &mut BTreeMap<String, FlexibleRuleConfig>,
-    ) {
-        let FlexibleRuleConfig(dep_config) = self.toolchains.get(dep_name).unwrap();
+#[derive(Error, Debug)]
+pub enum ToolchainsRegistryError {
+    #[error("Could not parse file: {0:?}")]
+    ParseError(serde_json::Error),
 
-        let dep_version_args = dep_config.get(dep_version).unwrap();
+    #[error("Could not print file: {0:#?}")]
+    PrintError(serde_json::Error),
 
-        config.insert(
-            dep_name.clone(),
-            FlexibleRuleConfig({
-                let mut dep_config_map = BTreeMap::new();
-                match dep_version_args {
-                    toml::Value::Table(args) => {
-                        for k in args.keys() {
-                            let key_to_add = k.clone();
-                            if key_to_add != "deps".to_string()
-                                && key_to_add != "lifter".to_string()
-                            {
-                                dep_config_map
-                                    .insert(key_to_add, args.get(k.as_str()).unwrap().clone());
-                            }
-                        }
-                    }
-                    _ => (),
-                }
-                dep_config_map
-            }),
-        );
-    }
+    #[error(transparent)]
+    ArchiveManagerError(ArchiveManagerError),
 
-    fn add_dep_to_config(
-        &self,
-        dep: &toml::Value,
-        config: &mut BTreeMap<String, FlexibleRuleConfig>,
-    ) {
-        match dep {
-            toml::Value::Table(dep_spec) => {
-                let dep_name = dep_spec.keys().last().unwrap();
-                let dep_version = dep_spec.get(dep_name).unwrap().as_str().unwrap();
-
-                self._add_toolchain_to_config_from_name_and_version(dep_name, dep_version, config);
-            }
-            _ => (),
-        }
-    }
-
-    pub fn add_toolchain_to_config(
-        &self,
-        toolchain: &str,
-        config: &mut BTreeMap<String, FlexibleRuleConfig>,
-    ) {
-        let FlexibleRuleConfig(chosen_toolchain_config) = self.toolchains.get(toolchain).unwrap();
-
-        // NOTE(diogo): this only works because we only have one version per toolchain and
-        // chosen_toolchain only consists of the toolchain name. Once we allow specifying the name
-        // and version, we should change this to find the version as well.
-        let version = chosen_toolchain_config.keys().last().unwrap();
-
-        match chosen_toolchain_config.get(version) {
-            Some(toml::Value::Table(version_config)) => match version_config.get("deps") {
-                Some(toml::Value::Array(deps)) => {
-                    for dep in deps {
-                        self.add_dep_to_config(dep, config)
-                    }
-                }
-                _ => (),
-            },
-            _ => (),
-        }
-
-        self._add_toolchain_to_config_from_name_and_version(
-            &toolchain.to_string(),
-            version,
-            config,
-        );
-    }
-
-    pub fn get_lifters_from_chosen_toolchains(
-        &self,
-        chosen_toolchains: &Vec<String>,
-    ) -> Vec<String> {
-        let mut lifters: Vec<String> = vec![];
-        for (toolchain, config) in &self.toolchains {
-            if chosen_toolchains.contains(toolchain) {
-                let FlexibleRuleConfig(config) = config;
-
-                // NOTE(diogo): this only works because we only have one version per toolchain and
-                // chosen_toolchain only consists of the toolchain name. Once we allow specifying the name
-                // and version, we should change this to find the version as well.
-                let version = config.keys().last().unwrap();
-
-                match config.get(version) {
-                    Some(toml::Value::Table(version_config)) => {
-                        if version_config.get("lifter").is_some() {
-                            lifters.push(
-                                format!(
-                                    "\"{}\"",
-                                    version_config.get("lifter").unwrap().to_string()
-                                )
-                                .replace("\"", ""),
-                            );
-                        }
-                    }
-                    _ => (),
-                }
-            }
-        }
-
-        lifters
-    }
+    #[error("Could not read registry file at {file:?} due to: {err:?}")]
+    FileReadError { file: PathBuf, err: std::io::Error },
 }
 
 impl ToolchainsRegistry {
-    pub fn new(workspace_paths: &WorkspacePaths, event_channel: Arc<EventChannel>) -> Self {
-        ToolchainsRegistry {
-            available_toolchains: Toolchains::default(),
-            archive_manager: ArchiveManager::from_paths(workspace_paths, event_channel),
-            remote_url: Url::parse(REMOTE_TOOLCHAINS_REGISTRY_URL).unwrap(),
-        }
-    }
+    pub async fn fetch(
+        workspace_paths: &WorkspacePaths,
+        event_channel: Arc<EventChannel>,
+    ) -> Result<Self, ToolchainsRegistryError> {
+        let mut toolchains = BTreeMap::new();
+        let archive_manager = ArchiveManager::from_paths(workspace_paths, event_channel);
+        let remote_url = Url::parse(REMOTE_TOOLCHAINS_REGISTRY_URL).unwrap();
 
-    async fn fetch(&self) -> Result<PathBuf, anyhow::Error> {
-        let (path, _) = self
-            .archive_manager
-            .download(&self.remote_url, "json")
-            .await?;
+        let (path, _) = archive_manager
+            .download(&remote_url, "json")
+            .await
+            .map_err(ToolchainsRegistryError::ArchiveManagerError)?;
 
-        Ok(path)
-    }
+        let file =
+            fs::File::open(&path)
+                .await
+                .map_err(|err| ToolchainsRegistryError::FileReadError {
+                    file: path.clone(),
+                    err,
+                })?;
 
-    async fn parse_downloaded_file(&mut self, path: &PathBuf) -> Result<(), anyhow::Error> {
-        let mut file = fs::File::open(path).await?;
+        let reader = json_comments::StripComments::new(BufReader::new(file.into_std().await));
+        let json: BTreeMap<String, serde_json::Value> =
+            serde_json::from_reader(reader).map_err(ToolchainsRegistryError::ParseError)?;
 
-        let mut bytes = vec![];
-        file.read_to_end(&mut bytes).await?;
+        for (language, vsn_cfgs) in json {
+            let vsn_cfgs = vsn_cfgs.as_object().unwrap();
 
-        self.available_toolchains.toolchains = serde_json::from_slice(&bytes)?;
+            for (version, config) in vsn_cfgs {
+                let object = config.as_object().unwrap();
 
-        Ok(())
-    }
+                let toolchain = Toolchain {
+                    id: ToolchainId {
+                        language: language.to_string(),
+                        version: version.to_string(),
+                    },
 
-    pub fn show_toolchains(&self) -> Vec<&str> {
-        let mut toolchains: Vec<&str> = vec![];
-        for key in self.available_toolchains.toolchains.keys() {
-            toolchains.push(key.as_str());
-        }
+                    deps: {
+                        let default = serde_json::Map::default();
+                        object
+                            .get("deps")
+                            .and_then(|o| o.as_object())
+                            .unwrap_or(&default)
+                            .iter()
+                            .map(|(k, v)| ToolchainId {
+                                language: k.to_string(),
+                                version: v.as_str().unwrap().to_string(),
+                            })
+                            .collect()
+                    },
 
-        toolchains
-    }
+                    lifter: object
+                        .get("lifter")
+                        .and_then(|s| s.as_str())
+                        .map(Label::new),
 
-    pub fn config_from_chosen_toolchains(
-        &self,
-        chosen_toolchains: &Vec<String>,
-    ) -> BTreeMap<String, FlexibleRuleConfig> {
-        let mut toolchains_config: BTreeMap<String, FlexibleRuleConfig> = BTreeMap::new();
-        for toolchain in self.available_toolchains.toolchains.keys() {
-            if chosen_toolchains.contains(&toolchain) {
-                self.available_toolchains
-                    .add_toolchain_to_config(toolchain, &mut toolchains_config);
+                    config: {
+                        let mut object = object.clone();
+                        object.remove("deps");
+                        object.remove("lifter");
+                        let config = serde_json::Value::Object(object);
+                        TryFrom::try_from(config.clone()).unwrap()
+                    },
+                };
+                toolchains.insert(toolchain.id.clone(), toolchain);
             }
         }
 
-        toolchains_config
+        Ok(Self {
+            toolchains,
+            archive_manager,
+            remote_url,
+        })
     }
 
-    pub async fn ready(&mut self) -> Result<(), anyhow::Error> {
-        let path = self.fetch().await?;
-
-        self.parse_downloaded_file(&path).await
+    pub fn toolchains(&self) -> Vec<Toolchain> {
+        self.toolchains.values().cloned().collect()
     }
 
-    pub fn get_lifters_from_chosen_toolchains(
-        &self,
-        chosen_toolchains: &Vec<String>,
-        workspace: &Workspace,
-    ) -> Vec<Label> {
-        let lifters_as_string = self
-            .available_toolchains
-            .get_lifters_from_chosen_toolchains(chosen_toolchains);
+    pub fn get_toolchain_by_id(&self, id: &ToolchainId) -> Option<Toolchain> {
+        dbg!(&id);
+        self.toolchains.get(id).cloned()
+    }
 
-        lifters_as_string
-            .iter()
-            .map(|l| {
-                Label::builder()
-                    .with_workspace(workspace)
-                    .from_string(l)
-                    .unwrap()
-            })
-            .collect()
+    pub fn flatten_dependencies(&self, mut toolchains: Vec<Toolchain>) -> Vec<Toolchain> {
+        let mut visited: Vec<ToolchainId> = toolchains.iter().map(|t| t.id.clone()).collect();
+        let mut pending: Vec<ToolchainId> =
+            toolchains.iter().flat_map(|t| t.deps.clone()).collect();
+
+        loop {
+            if pending.is_empty() {
+                break;
+            }
+            if let Some(toolchain_id) = pending.pop() {
+                if visited.contains(&toolchain_id) {
+                    continue;
+                }
+                visited.push(toolchain_id.clone());
+
+                let toolchain = self.get_toolchain_by_id(&toolchain_id).unwrap();
+
+                for dep in toolchain.deps.iter().filter(|d| !visited.contains(d)) {
+                    pending.push(dep.clone());
+                }
+
+                toolchains.push(toolchain);
+            }
+        }
+
+        toolchains
     }
 }

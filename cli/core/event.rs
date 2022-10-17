@@ -27,7 +27,7 @@ pub enum Event {
     ArchiveUnpacking(Label),
     ArchiveVerifying(Label),
     ResolvingDependency { label: Label },
-    BadBuildfile(PathBuf, Buildfile2Error),
+    BadBuildfile(PathBuf, BuildfileError),
     BuildCompleted(std::time::Instant),
     BuildError(Label, BuildError),
     BuildStarted(std::time::Instant),

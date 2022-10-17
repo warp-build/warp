@@ -54,9 +54,6 @@ pub enum RuleConfigError {
         found: CfgValue,
         key: String,
     },
-
-    #[error("Expected TOML used to read this target to be a table, instead we found: {toml:?}")]
-    RuleShouldBeTable { toml: toml::Value },
 }
 
 #[derive(Debug, Clone, Default)]
@@ -192,7 +189,62 @@ impl RuleConfig {
 }
 
 pub mod json_codecs {
+    use std::collections::BTreeMap;
+
     use super::*;
+
+    impl TryFrom<serde_json::Value> for RuleConfig {
+        type Error = RuleConfigError;
+
+        fn try_from(json: serde_json::Value) -> Result<Self, Self::Error> {
+            let mut config = FxHashMap::default();
+
+            for (key, value) in json.as_object().unwrap().iter() {
+                config.insert(key.to_string(), value.clone().try_into()?);
+            }
+
+            Ok(RuleConfig { config })
+        }
+    }
+
+    impl TryFrom<BTreeMap<String, serde_json::Value>> for RuleConfig {
+        type Error = RuleConfigError;
+
+        fn try_from(json: BTreeMap<String, serde_json::Value>) -> Result<Self, Self::Error> {
+            let mut config = FxHashMap::default();
+
+            for (key, value) in json {
+                config.insert(key.to_string(), value.clone().try_into()?);
+            }
+
+            Ok(RuleConfig { config })
+        }
+    }
+
+    impl From<RuleConfig> for BTreeMap<String, serde_json::Value> {
+        fn from(val: RuleConfig) -> Self {
+            let mut map = BTreeMap::new();
+
+            for (key, value) in val.config.iter() {
+                map.insert(key.to_string(), value.clone().into());
+            }
+
+            map
+        }
+    }
+
+    impl From<RuleConfig> for serde_json::Value {
+        fn from(val: RuleConfig) -> Self {
+            let mut map: serde_json::map::Map<String, serde_json::Value> =
+                serde_json::map::Map::new();
+
+            for (key, value) in val.config.iter() {
+                map.insert(key.to_string(), value.clone().into());
+            }
+
+            serde_json::Value::Object(map)
+        }
+    }
 
     impl From<(serde_json::Value, CfgValueType)> for CfgValue {
         fn from(spec: (serde_json::Value, CfgValueType)) -> CfgValue {
@@ -233,79 +285,6 @@ pub mod json_codecs {
         }
     }
 
-    impl From<RuleConfig> for serde_json::Value {
-        fn from(val: RuleConfig) -> Self {
-            let mut map: serde_json::map::Map<String, serde_json::Value> =
-                serde_json::map::Map::new();
-
-            for (key, value) in val.config.iter() {
-                map.insert(key.to_string(), value.clone().into());
-            }
-
-            serde_json::Value::Object(map)
-        }
-    }
-}
-
-pub mod toml_codecs {
-    use std::collections::BTreeMap;
-
-    use super::*;
-    use toml;
-
-    impl TryFrom<CfgValue> for toml::Value {
-        type Error = RuleConfigError;
-
-        fn try_from(value: CfgValue) -> Result<toml::Value, Self::Error> {
-            match value {
-                CfgValue::String(s) => Ok(toml::Value::String(s)),
-                CfgValue::List(arr) => {
-                    let mut elements = vec![];
-                    for e in arr {
-                        let value = TryFrom::try_from(e.clone())?;
-                        elements.extend(match value {
-                            toml::Value::Array(subparts) => subparts,
-                            el => vec![el],
-                        })
-                    }
-                    Ok(toml::Value::Array(elements))
-                }
-                CfgValue::Label(l) => Ok(toml::Value::String(l.to_string())),
-                CfgValue::File(f) => Ok(toml::Value::String(f.to_str().unwrap().to_string())),
-            }
-        }
-    }
-
-    impl TryFrom<&RuleConfig> for FlexibleRuleConfig {
-        type Error = RuleConfigError;
-
-        fn try_from(rule: &RuleConfig) -> Result<FlexibleRuleConfig, Self::Error> {
-            let mut map: BTreeMap<String, toml::Value> = BTreeMap::default();
-
-            for (key, value) in &rule.config {
-                let value: toml::Value = TryFrom::try_from(value.clone())?;
-                map.insert(key.to_string(), value);
-            }
-
-            Ok(FlexibleRuleConfig(map))
-        }
-    }
-
-    impl TryFrom<FlexibleRuleConfig> for RuleConfig {
-        type Error = RuleConfigError;
-
-        fn try_from(cfg: FlexibleRuleConfig) -> Result<Self, Self::Error> {
-            let mut values = RuleConfig::new();
-
-            for (key, value) in cfg.0 {
-                let value: CfgValue = TryFrom::try_from(value.clone())?;
-                values.insert(key.to_string(), value);
-            }
-
-            Ok(values)
-        }
-    }
-
     impl TryFrom<serde_json::Value> for CfgValue {
         type Error = RuleConfigError;
 
@@ -328,51 +307,6 @@ pub mod toml_codecs {
                 serde_json::Value::Object(val) => panic!("Objects not supported: {:?}", val),
                 serde_json::Value::Null => panic!("Null not supported"),
             }
-        }
-    }
-
-    impl TryFrom<toml::Value> for CfgValue {
-        type Error = RuleConfigError;
-
-        fn try_from(value: toml::Value) -> Result<CfgValue, Self::Error> {
-            match value {
-                toml::Value::String(s) => Ok(CfgValue::String(s)),
-                toml::Value::Array(arr) => {
-                    let mut elements = vec![];
-                    for e in arr {
-                        let value = TryFrom::try_from(e.clone())?;
-                        elements.extend(match value {
-                            CfgValue::List(subparts) => subparts,
-                            el => vec![el],
-                        })
-                    }
-                    Ok(CfgValue::List(elements))
-                }
-                toml::Value::Integer(val) => panic!("Integer not supported: {:?}", val),
-                toml::Value::Float(val) => panic!("Float not supported: {:?}", val),
-                toml::Value::Boolean(val) => panic!("Boolean not supported: {:?}", val),
-                toml::Value::Datetime(val) => panic!("Datetime not supported: {:?}", val),
-                toml::Value::Table(val) => panic!("Table not supported: {:?}", val),
-            }
-        }
-    }
-
-    impl TryFrom<&toml::Value> for RuleConfig {
-        type Error = RuleConfigError;
-
-        fn try_from(toml: &toml::Value) -> Result<Self, Self::Error> {
-            let mut values = RuleConfig::default();
-
-            let kvs = toml
-                .as_table()
-                .ok_or_else(|| RuleConfigError::RuleShouldBeTable { toml: toml.clone() })?;
-
-            for (key, value) in kvs {
-                let value: CfgValue = TryFrom::try_from(value.clone())?;
-                values.insert(key.to_string(), value);
-            }
-
-            Ok(values)
         }
     }
 }
