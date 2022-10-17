@@ -17,7 +17,7 @@
     "25.0": {
       "sha1": "2bb7456ccb19cf83b07506744fb540ce4d66b257",
       "version": "25.0",
-      "deps": { "openssl": "1.1.1q" },
+      "deps": { "openssl": "1.1.1q", "rebar3": "latest" },
       "lifter": "https://tools.warp.build/erlang/lifter"
     }
   },
@@ -31,6 +31,12 @@
     "latest": {
       "sha1": "143d3473dae6ea8250452f7a29db73974be51b24",
       "deps": { "cmake": "3.24.2", "erlang": "25.0" }
+    }
+  },
+  "ruby": {
+    "3.1.2": {
+      "sha1": "b0d86c60457fdfbcb532cb681877a2f790f66b25",
+      "version": "3.1.2"
     }
   }
 }
