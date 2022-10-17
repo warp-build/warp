@@ -157,6 +157,7 @@ main(_argv) ->
     script: `
 
 escript ${build} || exit 1
+
 mv ${File.filename(run)} ${run}
 
 ` })
@@ -164,6 +165,7 @@ mv ${File.filename(run)} ${run}
   ctx.action().declareOutputs([run]);
   ctx.action().setPermissions({file: run, executable: true});
   ctx.action().declareRunScript(run);
+  ctx.provides({ [name]: run });
 };
 
 export default Warp.Rule({
