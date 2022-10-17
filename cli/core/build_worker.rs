@@ -127,6 +127,12 @@ impl BuildWorker {
     #[tracing::instrument(name = "BuildWorker::run_target", skip(self))]
     pub async fn run_target(&mut self, label: Label) -> Result<(), BuildWorkerError> {
         let target = match self.label_resolver.resolve(&label).await {
+            Err(LabelResolverError::DependencyResolverError(
+                DependencyResolverError::MissingResolver { resolver },
+            )) => {
+                return self.requeue(&label, &label, &[resolver]).await;
+            }
+
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
                     label,
