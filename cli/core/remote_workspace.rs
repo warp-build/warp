@@ -45,6 +45,16 @@ impl RemoteWorkspaceConfig {
         matches!(&self, RemoteWorkspaceConfig::GithubWorkspace { .. })
     }
 
+    pub fn is_git_commit_or_url(&self) -> bool {
+        match &self {
+            RemoteWorkspaceConfig::GithubWorkspace { git_ref, .. } => {
+                let regex = regex::Regex::new("[a-fA-F0-9]{40}").unwrap();
+                git_ref.len() == 40 && regex.is_match(git_ref)
+            }
+            RemoteWorkspaceConfig::UrlWorkspace { .. } => true,
+        }
+    }
+
     pub fn path(&self) -> PathBuf {
         let url = self.url();
         let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());

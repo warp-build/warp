@@ -37,7 +37,8 @@ pub mod target_manifest;
 pub mod target_planner;
 pub mod toolchains_registry;
 pub mod workspace;
-pub mod workspace_file;
+//// pub mod workspace_file;
+pub mod workspace_file2;
 pub mod workspace_paths;
 pub mod workspace_scanner;
 
@@ -78,7 +79,8 @@ pub use target_manifest::*;
 pub use target_planner::*;
 pub use toolchains_registry::*;
 pub use workspace::*;
-pub use workspace_file::*;
+// pub use workspace_file::*;
+pub use workspace_file2::*;
 pub use workspace_paths::*;
 pub use workspace_scanner::*;
 
