@@ -1,8 +1,9 @@
-use std::sync::Arc;
-
 use super::*;
 use dashmap::DashMap;
+use futures::Future;
+use futures::FutureExt;
 use fxhash::*;
+use std::{pin::Pin, sync::Arc};
 use thiserror::*;
 use tracing::*;
 
@@ -60,33 +61,42 @@ impl LabelResolver {
     }
 
     #[tracing::instrument(name = "LabelResolver::resolve", skip(self))]
-    pub async fn resolve(&self, label: &Label) -> Result<Target, LabelResolverError> {
-        if let Some(target) = self.resolved_labels.get(label) {
-            return Ok(target.value().clone());
-        }
+    pub fn resolve<'a>(
+        &'a self,
+        label: &'a Label,
+    ) -> Pin<Box<dyn Future<Output = Result<Target, LabelResolverError>> + 'a>> {
+        async move {
+            if let Some(target) = self.resolved_labels.get(label) {
+                return Ok(target.value().clone());
+            }
 
-        if label.is_remote() {
-            if let Some(target) = self.find_as_toolchain(label).await? {
+            if label.is_remote() {
+                if let Some(target) = self.find_as_toolchain(label).await? {
+                    self.save(label.clone(), target.clone());
+                    return Ok(target);
+                }
+
+                match self.find_in_remote_workspaces(label).await {
+                    Ok(Some(target)) => {
+                        self.save(label.clone(), target.clone());
+                        return Ok(target);
+                    }
+                    Ok(None) => (),
+                    Err(err) => {
+                        if let Some(target) = self.find_with_dependency_resolver(label).await? {
+                            return Ok(target);
+                        }
+                        return Err(err);
+                    }
+                }
+            } else if let Some(target) = self.find_in_local_workspace(label).await? {
                 self.save(label.clone(), target.clone());
                 return Ok(target);
             }
 
-            match self.find_in_remote_workspaces(label).await {
-                Ok(Some(target)) => {
-                    self.save(label.clone(), target.clone());
-                    return Ok(target);
-                }
-                Ok(None) => (),
-                Err(err) => {
-                    return Err(err);
-                }
-            }
-        } else if let Some(target) = self.find_in_local_workspace(label).await? {
-            self.save(label.clone(), target.clone());
-            return Ok(target);
+            Err(LabelResolverError::TargetNotFound(label.clone()))
         }
-
-        Err(LabelResolverError::TargetNotFound(label.clone()))
+        .boxed()
     }
 
     #[tracing::instrument(name = "LabelResolver::save", skip(self))]
