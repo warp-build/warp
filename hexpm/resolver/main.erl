@@ -38,11 +38,14 @@ resolve(Url0, Vsn0) ->
   Vsn = binary:list_to_bin(Vsn0),
   {ok, PkgSpec = {PkgName, _PkgVsn}} = hexpm:parse_url(<<Url/binary, "/", Vsn/binary>>),
   #{
+    version => 0,
     archive_url => hexpm:archive_url(PkgSpec),
     signatures => [
                    #{
                      name => hexpm:package_name(PkgSpec), 
-                     rule => <<"mix_library">>
+                     rule => <<"mix_library">>,
+                     deps => [],
+                     srcs => [<<"mix.exs">>]
                     }
                   ]
    }.
