@@ -1,7 +1,12 @@
 use super::Event;
 use super::*;
 use dashmap::DashMap;
-use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
+use serde::{
+    de::{self, Visitor},
+    ser::{SerializeMap, SerializeSeq},
+    Deserialize, Deserializer, Serialize,
+};
+use std::{collections::BTreeMap, fmt, path::PathBuf, sync::Arc};
 use thiserror::*;
 use tracing::*;
 
@@ -112,22 +117,49 @@ impl DependencyResolver {
             .target(target)
             .args(vec!["resolve".to_string(), label.to_string(), version])
             .sandboxed(true)
-            .stream_outputs(true)
+            .stream_outputs(false)
             .build()
             .map_err(DependencyResolverError::CommandRunnerError)?;
 
-        let results = cmd
+        let str_output = cmd
             .run()
             .await
             .map_err(DependencyResolverError::CommandRunnerError)?;
 
+        let resolution: DependencyResolution =
+            serde_json::from_slice(str_output.as_bytes()).unwrap();
+
+        // parse it
+        dbg!(&resolution);
+
+        // https://hex.pm/packages/proper -> become a workspace
+        // use the arcchive_url to download the code
+        // create buildfile using the signatures
+
         // 3. parse results into a Target
-        if results.is_empty() {
-            Ok(None)
-        } else {
-            // let target: Target = serde_json::from_slice(results.as_bytes())
-            //     .map_err(DependencyResolverError::ParseError)?;
-            Ok(None)
-        }
+        Ok(None)
     }
+}
+
+#[derive(Builder, Debug, Clone, Serialize, Deserialize)]
+struct Signature {
+    name: Label,
+
+    rule: RuleName,
+
+    #[serde(default)]
+    deps: Vec<Label>,
+
+    #[serde(flatten)]
+    config: RuleConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DependencyResolution {
+    #[serde(default)]
+    version: usize,
+
+    archive_url: url::Url,
+
+    signatures: Vec<Signature>,
 }

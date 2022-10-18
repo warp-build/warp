@@ -1,5 +1,10 @@
 use super::*;
 use fxhash::*;
+use serde::{
+    de::{self, Visitor},
+    ser::{SerializeMap, SerializeSeq},
+    Deserialize, Serialize,
+};
 use std::path::{Path, PathBuf};
 use thiserror::*;
 
@@ -184,6 +189,114 @@ impl RuleConfig {
                 found: entry.clone(),
                 key: key.to_string(),
             })
+        }
+    }
+}
+
+struct RuleConfigVisitor;
+impl<'de> Visitor<'de> for RuleConfigVisitor {
+    type Value = RuleConfig;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a rule configuration should be a JSON object")
+    }
+
+    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+    where
+        M: serde::de::MapAccess<'de>,
+    {
+        let mut config = RuleConfig::new();
+        while let Some((key, value)) = access.next_entry()? {
+            config.insert(key, value);
+        }
+        Ok(config)
+    }
+}
+
+impl<'de> Deserialize<'de> for RuleConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_map(RuleConfigVisitor)
+    }
+}
+
+impl Serialize for RuleConfig {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let rule_map = self.as_map();
+        let mut map = serializer.serialize_map(Some(rule_map.len()))?;
+        for (k, v) in rule_map {
+            map.serialize_entry(k, v)?;
+        }
+        map.end()
+    }
+}
+
+struct CfgValueVisitor;
+impl<'de> Visitor<'de> for CfgValueVisitor {
+    type Value = CfgValue;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a rule configuration should be a JSON object")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Self::Value::String(v.to_string()))
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Self::Value::String(v))
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: de::SeqAccess<'de>,
+    {
+        let mut values = vec![];
+        while let Some(value) = seq.next_element()? {
+            values.push(value);
+        }
+        Ok(Self::Value::List(values))
+    }
+}
+
+impl<'de> Deserialize<'de> for CfgValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(CfgValueVisitor)
+    }
+}
+
+impl Serialize for CfgValue {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            CfgValue::String(s) => serializer.serialize_str(s),
+            CfgValue::Label(l) => serializer.serialize_str(&l.to_string()),
+            CfgValue::File(p) => serializer.serialize_str(p.to_str().unwrap()),
+            CfgValue::List(xs) => {
+                let mut seq = serializer.serialize_seq(Some(xs.len()))?;
+
+                for x in xs {
+                    seq.serialize_element(x)?;
+                }
+
+                seq.end()
+            }
         }
     }
 }
