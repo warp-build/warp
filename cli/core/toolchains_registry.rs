@@ -28,9 +28,6 @@ pub struct Toolchain {
 ///
 #[derive(Debug)]
 pub struct ToolchainsRegistry {
-    archive_manager: ArchiveManager,
-    remote_url: Url,
-
     toolchains: BTreeMap<ToolchainId, Toolchain>,
 }
 
@@ -118,11 +115,7 @@ impl ToolchainsRegistry {
             }
         }
 
-        Ok(Self {
-            toolchains,
-            archive_manager,
-            remote_url,
-        })
+        Ok(Self { toolchains })
     }
 
     pub fn toolchains(&self) -> Vec<Toolchain> {

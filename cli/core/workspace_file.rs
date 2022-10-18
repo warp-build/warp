@@ -135,18 +135,6 @@ pub struct WorkspaceFile {
 }
 
 impl WorkspaceFile {
-    #[tracing::instrument(name = "WorkspaceFile::walk_uptree")]
-    async fn walk_uptree(start: PathBuf) -> impl futures::Stream<Item = PathBuf> {
-        let mut cwd = start;
-        async_stream::stream! {
-            yield cwd.clone();
-            while let Some(parent) = cwd.parent() {
-                cwd = parent.to_path_buf();
-                yield cwd.clone();
-            }
-        }
-    }
-
     #[tracing::instrument(name = "WorkspaceFile::find_upwards")]
     pub async fn find_upwards(cwd: &Path) -> Result<(PathBuf, Self), WorkspaceFileError> {
         let mut dirs = Box::pin(WorkspaceFile::walk_uptree(cwd.to_path_buf()).await);
@@ -182,6 +170,18 @@ impl WorkspaceFile {
         fs::write(&root.join(WORKSPACE), json)
             .await
             .map_err(WorkspaceFileError::IOError)
+    }
+
+    #[tracing::instrument(name = "WorkspaceFile::walk_uptree")]
+    async fn walk_uptree(start: PathBuf) -> impl futures::Stream<Item = PathBuf> {
+        let mut cwd = start;
+        async_stream::stream! {
+            yield cwd.clone();
+            while let Some(parent) = cwd.parent() {
+                cwd = parent.to_path_buf();
+                yield cwd.clone();
+            }
+        }
     }
 }
 
