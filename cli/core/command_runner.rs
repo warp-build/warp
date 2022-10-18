@@ -57,7 +57,7 @@ impl CommandRunner {
                     .iter()
                     .find(|(_, path)| path.ends_with(run_script))
                     .map(|(_, path)| path.to_path_buf())
-                    .ok_or_else(|| CommandRunnerError::NothingToRun)?
+                    .ok_or(CommandRunnerError::NothingToRun)?
             } else {
                 return Err(CommandRunnerError::NothingToRun);
             };
@@ -82,9 +82,13 @@ impl CommandRunner {
             cmd.envs(&shell_env).args(&self.args).current_dir(&cwd);
 
             if self.stream_outputs {
-                cmd.stdin(Stdio::inherit())
-                    .stderr(Stdio::inherit())
-                    .stdout(Stdio::inherit());
+                cmd.stdin(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .stdout(Stdio::piped());
+            } else {
+                cmd.stdin(Stdio::null())
+                    .stderr(Stdio::null())
+                    .stdout(Stdio::null());
             }
 
             let mut proc = cmd.spawn().unwrap();
