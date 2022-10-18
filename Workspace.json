@@ -29,6 +29,7 @@
   },
   "aliases": {
     "deno": "https://pkgs.warp.build/toolchains/deno",
+    "ruby": "https://pkgs.warp.build/toolchains/ruby",
     "elixir": "https://pkgs.warp.build/toolchains/elixir",
     "erlang": "https://pkgs.warp.build/toolchains/erlang",
     "firefly": "https://pkgs.warp.build/toolchains/firefly",
