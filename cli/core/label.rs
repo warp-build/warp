@@ -1,8 +1,9 @@
 use super::*;
-use serde::de::Visitor;
+use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
+use std::str::FromStr;
 use thiserror::*;
 use tracing::*;
 use url::Url;
@@ -38,7 +39,7 @@ impl Default for InnerLabel {
     }
 }
 
-#[derive(Default, Builder, Clone, Debug, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Default, Builder, Clone, Debug, PartialOrd, Ord, Serialize)]
 #[builder(build_fn(error = "LabelBuilderError"))]
 pub struct Label {
     #[builder(default)]
@@ -335,45 +336,94 @@ impl ToString for Label {
     }
 }
 
-pub mod stringy_serde {
-    use super::*;
+impl FromStr for Label {
+    type Err = LabelBuilderError;
 
-    struct LabelVisitor;
-    impl<'de> Visitor<'de> for LabelVisitor {
-        type Value = Label;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::builder().from_string(s)
+    }
+}
 
-        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-            formatter
-                .write_str("a string following the label syntax: :a, ./a, //a, https://hello/a")
-        }
+#[derive(Deserialize)]
+#[serde(field_identifier, rename_all = "snake_case")]
+enum LabelField {
+    Name,
+    InnerLabel,
+    Workspace,
+}
 
-        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            Ok(Self::Value::builder().from_string(v).unwrap())
-        }
+struct LabelVisitor;
+impl<'de> Visitor<'de> for LabelVisitor {
+    type Value = Label;
 
-        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error,
-        {
-            Ok(Self::Value::builder().from_string(&v).unwrap())
-        }
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a string following the label syntax: :a, ./a, //a, https://hello/a")
     }
 
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Label, D::Error>
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(FromStr::from_str(v).unwrap())
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(FromStr::from_str(&v).unwrap())
+    }
+
+    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+    where
+        M: MapAccess<'de>,
+    {
+        let mut workspace = None;
+        let mut inner_label = None;
+        let mut name = None;
+
+        while let Some(key) = access.next_key()? {
+            match key {
+                LabelField::Name => {
+                    if name.is_some() {
+                        return Err(de::Error::duplicate_field("name"));
+                    }
+                    name = Some(access.next_value()?);
+                }
+                LabelField::InnerLabel => {
+                    if inner_label.is_some() {
+                        return Err(de::Error::duplicate_field("inner_label"));
+                    }
+                    inner_label = Some(access.next_value()?);
+                }
+                LabelField::Workspace => {
+                    if workspace.is_some() {
+                        return Err(de::Error::duplicate_field("workspace"));
+                    }
+                    workspace = access.next_value()?;
+                }
+            }
+        }
+
+        let name = name.ok_or_else(|| de::Error::missing_field("name"))?;
+        let inner_label = inner_label.ok_or_else(|| de::Error::missing_field("inner_label"))?;
+        let workspace = workspace.ok_or_else(|| de::Error::missing_field("inner_label"))?;
+
+        Ok(Self::Value::builder()
+            .name(name)
+            .inner_label(inner_label)
+            .workspace(workspace)
+            .build()
+            .unwrap())
+    }
+}
+
+impl<'de> Deserialize<'de> for Label {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_string(LabelVisitor)
-    }
-
-    pub fn serialize<S>(label: &Label, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(&label.to_string())
+        deserializer.deserialize_any(LabelVisitor)
     }
 }
 
