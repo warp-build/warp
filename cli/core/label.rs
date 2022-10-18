@@ -5,6 +5,7 @@ use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::str::FromStr;
 use thiserror::*;
+use tokio::fs;
 use tracing::*;
 use url::Url;
 
@@ -244,6 +245,14 @@ impl Label {
             InnerLabel::Wildcard => PathBuf::from(DOT.to_string()),
             InnerLabel::Local { path, .. } => path.to_path_buf(),
             InnerLabel::Remote { path, .. } => PathBuf::from(path.to_string()),
+        }
+    }
+
+    pub async fn is_file(&self) -> bool {
+        if let Ok(meta) = fs::metadata(self.workspace().join(self.path()).join(self.name())).await {
+            meta.is_file()
+        } else {
+            false
         }
     }
 
