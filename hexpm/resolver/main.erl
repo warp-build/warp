@@ -68,7 +68,7 @@ prepare(Root) ->
                                [<<"rebar3">> | _] -> <<"rebar3_library">>;
                                _ -> <<"mix_library">>
                              end,
-                     srcs => [ path:join("contents", F) || F <- maps:get(<<"files">>, Metadata) ],
+                     srcs => [ path:from_list([Root, "contents", F]) || F <- maps:get(<<"files">>, Metadata) ],
                      deps => Deps
                     }
                   ]
