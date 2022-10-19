@@ -11,6 +11,8 @@ main(Args) ->
   ok = setup(),
   case Args of
     ["resolve", Url, Vsn] -> ?PRINT_JSON(resolve(Url, Vsn));
+    ["prepare", Root] -> ?PRINT_JSON(prepare(Root));
+    ["prepare"] -> ?PRINT_JSON(prepare(<<".">>));
     ["help"] -> show_help()
   end,
   timer:sleep(100).
@@ -29,6 +31,7 @@ show_help() ->
 Usage:
 
 * resolver resolver https://hex.pm/packages/proper 1.4.0
+* analyze .
 
 ">>]),
 	erlang:halt().
@@ -39,10 +42,15 @@ resolve(Url0, Vsn0) ->
   {ok, PkgSpec = {PkgName, _PkgVsn}} = hexpm:parse_url(<<Url/binary, "/", Vsn/binary>>),
   #{
     version => 0,
-    archive_url => hexpm:archive_url(PkgSpec),
+    archive => #{ url => hexpm:archive_url(PkgSpec) }
+   }.
+
+prepare(Root) -> 
+  #{
+    version => 0,
     signatures => [
                    #{
-                     name => hexpm:package_name(PkgSpec), 
+                     name => hexpm:package_name(Root), 
                      rule => <<"mix_library">>,
                      deps => [],
                      srcs => [<<"mix.exs">>]
