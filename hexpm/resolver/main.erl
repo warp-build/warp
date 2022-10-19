@@ -9,10 +9,11 @@
 
 main(Args) ->
   ok = setup(),
+  {ok, Cwd} = file:get_cwd(),
   case Args of
     ["resolve", Url, Vsn] -> ?PRINT_JSON(resolve(Url, Vsn));
     ["prepare", Root] -> ?PRINT_JSON(prepare(Root));
-    ["prepare"] -> ?PRINT_JSON(prepare(<<".">>));
+    ["prepare"] -> ?PRINT_JSON(prepare(Cwd));
     ["help"] -> show_help()
   end,
   timer:sleep(100).
@@ -50,7 +51,7 @@ prepare(Root) ->
     version => 0,
     signatures => [
                    #{
-                     name => hexpm:package_name(Root), 
+                     name => path:filename(Root), 
                      rule => <<"mix_library">>,
                      deps => [],
                      srcs => [<<"mix.exs">>]
