@@ -47,14 +47,31 @@ resolve(Url0, Vsn0) ->
    }.
 
 prepare(Root) -> 
+  % 1. read CHECKSUM and validate?
+  % 2. unpack contents.tar.gz
+  % 3. read metadata.config 
+  %
+  {ok, Metadata0} = file:consult(path:join(Root, "metadata.config")),
+  Metadata = proplists:to_map(Metadata0),
+
+  ok = erl_tar:extract(path:join(Root, "contents.tar.gz"), [compressed, {cwd, path:join(Root, "contents")}]),
+
+  Deps = [ req_to_dep(proplists:to_map(Req)) || Req <- maps:get(<<"requirements">>, Metadata, []) ],
+
   #{
     version => 0,
+    metadata => Metadata,
     signatures => [
                    #{
-                     name => path:filename(Root), 
-                     rule => <<"mix_library">>,
-                     deps => [],
-                     srcs => [<<"mix.exs">>]
+                     name => maps:get(<<"app">>, Metadata),
+                     rule => case maps:get(<<"build_tools">>, Metadata) of
+                               [<<"rebar3">> | _] -> <<"rebar3_library">>;
+                               _ -> <<"mix_library">>
+                             end,
+                     srcs => maps:get(<<"files">>, Metadata),
+                     deps => Deps
                     }
                   ]
    }.
+
+req_to_dep(#{ <<"name">> := Name, <<"repository">> := <<"hexpm">> }) -> hexpm:pkg_to_url(Name).
