@@ -49,6 +49,7 @@ resolve(Url0, Vsn0) ->
 tools() -> [mix, make, rebar3].
 
 prepare(Root) -> 
+  ?LOG_DEBUG("Opening metadata.config in ~p", [Root]),
   % 1. read CHECKSUM and validate?
   % 2. unpack contents.tar.gz
   % 3. read metadata.config 
@@ -59,12 +60,18 @@ prepare(Root) ->
   PkgName = maps:get(<<"app">>, Metadata),
   Srcs = maps:get(<<"files">>, Metadata, []),
 
+  ?LOG_DEBUG("Found ~p and expecint ~i sources", [PkgName, length(Srcs)]),
+  ?LOG_DEBUG("Extracting..."),
   ok = erl_tar:extract(path:join(Root, "contents.tar.gz"), [compressed, {cwd, path:join(Root, PkgName)}]),
-  Deps = [ req_to_dep(proplists:to_map(Req)) || Req <- maps:get(<<"requirements">>, Metadata, []) ],
+  ?LOG_DEBUG("Finished extracting files to ~p", [path:join(Root, PkgName)]),
 
-  _ALlTools = tools(),
+  _AllTools = tools(),
   Tools = proplists:to_map([ erlang:binary_to_existing_atom(T, utf8)
                              || T <- maps:get(<<"build_tools">>, Metadata, []) ]),
+
+  Reqs = maps:get(<<"requirements">>, Metadata, []),
+  Deps = get_deps(Reqs, Tools),
+
 
   Rule = case Tools of
            #{ make := true } -> <<"erlangmk_library">>;
@@ -86,4 +93,10 @@ prepare(Root) ->
                   ]
    }.
 
-req_to_dep(#{ <<"name">> := Name, <<"repository">> := <<"hexpm">> }) -> hexpm:pkg_to_url(Name).
+get_deps(Reqs, #{ make := true }) ->
+  get_deps([ maps:to_list(maps:put(<<"name">>, Name, proplists:to_map(Req)))  || {Name, Req} <- Reqs ]);
+get_deps(Reqs, _) -> get_deps(Reqs).
+
+get_deps(Reqs) -> [ req_to_dep(proplists:to_map(Req)) || Req <- Reqs ].
+
+req_to_dep(#{ <<"name">> := Name }) -> hexpm:pkg_to_url(Name).
