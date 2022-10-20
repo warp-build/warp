@@ -54,7 +54,9 @@ prepare(Root) ->
   {ok, Metadata0} = file:consult(path:join(Root, "metadata.config")),
   Metadata = proplists:to_map(Metadata0),
 
-  ok = erl_tar:extract(path:join(Root, "contents.tar.gz"), [compressed, {cwd, path:join(Root, "contents")}]),
+  PkgName = maps:get(<<"app">>, Metadata),
+
+  ok = erl_tar:extract(path:join(Root, "contents.tar.gz"), [compressed, {cwd, path:join(Root, PkgName)}]),
 
   Deps = [ req_to_dep(proplists:to_map(Req)) || Req <- maps:get(<<"requirements">>, Metadata, []) ],
 
@@ -68,7 +70,7 @@ prepare(Root) ->
                                [<<"rebar3">> | _] -> <<"rebar3_library">>;
                                _ -> <<"mix_library">>
                              end,
-                     srcs => [ path:from_list([Root, "contents", F]) || F <- maps:get(<<"files">>, Metadata) ],
+                     srcs => [ path:join(PkgName, F) || F <- maps:get(<<"files">>, Metadata) ],
                      deps => Deps
                     }
                   ]
