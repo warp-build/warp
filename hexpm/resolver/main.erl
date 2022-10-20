@@ -46,6 +46,8 @@ resolve(Url0, Vsn0) ->
     archive => #{ url => hexpm:archive_url(PkgSpec) }
    }.
 
+tools() -> [mix, make, rebar3].
+
 prepare(Root) -> 
   % 1. read CHECKSUM and validate?
   % 2. unpack contents.tar.gz
@@ -60,7 +62,7 @@ prepare(Root) ->
   ok = erl_tar:extract(path:join(Root, "contents.tar.gz"), [compressed, {cwd, path:join(Root, PkgName)}]),
   Deps = [ req_to_dep(proplists:to_map(Req)) || Req <- maps:get(<<"requirements">>, Metadata, []) ],
 
-  _Tools = [make, rebar3, mix],
+  _ALlTools = tools(),
   Tools = proplists:to_map([ erlang:binary_to_existing_atom(T, utf8)
                              || T <- maps:get(<<"build_tools">>, Metadata, []) ]),
 
