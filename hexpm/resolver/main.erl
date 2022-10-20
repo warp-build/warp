@@ -69,8 +69,8 @@ prepare(Root) ->
   Tools = proplists:to_map([ erlang:binary_to_existing_atom(T, utf8)
                              || T <- maps:get(<<"build_tools">>, Metadata, []) ]),
 
-  Reqs = maps:get(<<"requirements">>, Metadata, []),
-  Deps = get_deps(Reqs, Tools),
+  Reqs = requirements(Metadata),
+  Deps = get_deps(Reqs),
 
 
   Rule = case Tools of
@@ -93,9 +93,12 @@ prepare(Root) ->
                   ]
    }.
 
-get_deps(Reqs, #{ make := true }) ->
-  get_deps([ maps:to_list(maps:put(<<"name">>, Name, proplists:to_map(Req)))  || {Name, Req} <- Reqs ]);
-get_deps(Reqs, _) -> get_deps(Reqs).
+requirements(Metadata) ->
+  Reqs0 = maps:get(<<"requirements">>, Metadata, []),
+  Reqs = lists:map(fun
+                     ({Name, Req}) -> [ {<<"name">>, Name} | Req ];
+                     (Req) when is_list(Req) -> Req
+                   end, Reqs0).
 
 get_deps(Reqs) -> [ req_to_dep(proplists:to_map(Req)) || Req <- Reqs ].
 
