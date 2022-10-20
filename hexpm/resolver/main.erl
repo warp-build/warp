@@ -70,7 +70,7 @@ prepare(Root) ->
                                [<<"rebar3">> | _] -> <<"rebar3_library">>;
                                _ -> <<"mix_library">>
                              end,
-                     srcs => [ path:join(PkgName, F) || F <- maps:get(<<"files">>, Metadata) ],
+                     srcs => maps:get(<<"files">>, Metadata, []),
                      deps => Deps
                     }
                   ]
