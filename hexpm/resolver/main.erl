@@ -55,22 +55,30 @@ prepare(Root) ->
   Metadata = proplists:to_map(Metadata0),
 
   PkgName = maps:get(<<"app">>, Metadata),
+  Srcs = maps:get(<<"files">>, Metadata, []),
 
   ok = erl_tar:extract(path:join(Root, "contents.tar.gz"), [compressed, {cwd, path:join(Root, PkgName)}]),
-
   Deps = [ req_to_dep(proplists:to_map(Req)) || Req <- maps:get(<<"requirements">>, Metadata, []) ],
+
+  _Tools = [make, rebar3, mix],
+  Tools = proplists:to_map([ erlang:binary_to_existing_atom(T, utf8)
+                             || T <- maps:get(<<"build_tools">>, Metadata, []) ]),
+
+  Rule = case Tools of
+           #{ make := true } -> <<"erlangmk_library">>;
+           #{ rebar3 := true } -> <<"rebar3_library">>;
+           #{ mix := true } -> <<"mix_library">>;
+           _ -> <<"mix_library">>
+         end,
 
   #{
     version => 0,
     metadata => Metadata,
     signatures => [
                    #{
-                     name => maps:get(<<"app">>, Metadata),
-                     rule => case maps:get(<<"build_tools">>, Metadata) of
-                               [<<"rebar3">> | _] -> <<"rebar3_library">>;
-                               _ -> <<"mix_library">>
-                             end,
-                     srcs => maps:get(<<"files">>, Metadata, []),
+                     name => PkgName,
+                     rule => Rule,
+                     srcs => Srcs, 
                      deps => Deps
                     }
                   ]
