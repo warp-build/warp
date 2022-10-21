@@ -62,7 +62,6 @@ impl LabelResolver {
                 workspace,
                 build_results,
                 event_channel,
-                remote_workspace_resolver.clone(),
                 store,
                 label_registry.clone(),
             ),

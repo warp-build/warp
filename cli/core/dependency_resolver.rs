@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use thiserror::*;
 use tokio::fs;
+use tokio::io::AsyncReadExt;
 use tracing::*;
 
 #[derive(Error, Debug)]
@@ -39,8 +40,6 @@ pub struct DependencyResolver {
     event_channel: Arc<EventChannel>,
     store: Arc<Store>,
     archive_manager: ArchiveManager,
-
-    remote_workspace_resolver: Arc<RemoteWorkspaceResolver>,
 }
 
 impl DependencyResolver {
@@ -49,7 +48,6 @@ impl DependencyResolver {
         workspace: &Workspace,
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
-        remote_workspace_resolver: Arc<RemoteWorkspaceResolver>,
         store: Arc<Store>,
         label_registry: Arc<LabelRegistry>,
     ) -> Self {
@@ -61,7 +59,6 @@ impl DependencyResolver {
             resolvers: DashMap::new(),
             event_channel,
             dependency_map: workspace.dependency_map.clone(),
-            remote_workspace_resolver,
             global_workspaces_path: workspace.paths.global_workspaces_path.clone(),
             label_registry,
         };
@@ -121,9 +118,6 @@ impl DependencyResolver {
         let label = self.label_registry.get(label);
 
         // 2. Resolve dependency
-        self.event_channel.send(Event::ResolvingDependency {
-            label: label.clone(),
-        });
 
         // 2.1. create a workspace for this dependency
 
@@ -149,50 +143,71 @@ impl DependencyResolver {
         self.store
             .register_workspace_raw(final_dir.clone(), PathBuf::from(workspace_name));
 
-        // 2.2. actually run the resolver to get the workspace contents
-        let cmd = CommandRunner::builder()
-            .cwd(final_dir.clone())
-            .manifest(manifest.clone())
-            .target(target.clone())
-            .args(vec!["resolve".to_string(), label.to_string(), version])
-            .sandboxed(true)
-            .stream_outputs(true)
-            .build()
-            .map_err(DependencyResolverError::CommandRunnerError)?;
+        // -- interlude --
+        // try to fetch the resolution file from disk
+        let signature_file_path = final_dir.join("Warp.signature");
 
-        let str_output = cmd
-            .run()
-            .await
-            .map_err(DependencyResolverError::CommandRunnerError)?;
+        let resolution = if fs::metadata(&signature_file_path).await.is_ok() {
+            let mut signature_file = fs::File::open(signature_file_path).await.unwrap();
+            let mut bytes = vec![];
+            signature_file.read_to_end(&mut bytes).await.unwrap();
+            serde_json::from_slice(&bytes).unwrap()
+        } else {
+            self.event_channel.send(Event::ResolvingDependency {
+                label: label.clone(),
+            });
+            // 2.2. actually run the resolver to get the workspace contents
+            let cmd = CommandRunner::builder()
+                .cwd(final_dir.clone())
+                .manifest(manifest.clone())
+                .target(target.clone())
+                .args(vec!["resolve".to_string(), label.to_string(), version])
+                .sandboxed(true)
+                .stream_outputs(true)
+                .build()
+                .map_err(DependencyResolverError::CommandRunnerError)?;
 
-        let resolution: DependencyArchiveResolution =
-            serde_json::from_slice(str_output.as_bytes()).unwrap();
+            let str_output = cmd
+                .run()
+                .await
+                .map_err(DependencyResolverError::CommandRunnerError)?;
 
-        // 2.3. download the workspace contents
-        self.archive_manager
-            .download_and_extract(&resolution.archive.url, &final_dir, None, None)
-            .await
-            .unwrap();
+            let resolution: DependencyArchiveResolution =
+                serde_json::from_slice(str_output.as_bytes()).unwrap();
 
-        // 3. let the resolver tell us how to build this workspace
-        let cmd = CommandRunner::builder()
-            .cwd(final_dir.clone())
-            .manifest(manifest)
-            .target(target)
-            .args(vec!["prepare".to_string()])
-            .sandboxed(false)
-            .stream_outputs(true)
-            .build()
-            .map_err(DependencyResolverError::CommandRunnerError)?;
+            // 2.3. download the workspace contents
+            self.archive_manager
+                .download_and_extract(&resolution.archive.url, &final_dir, None, None)
+                .await
+                .unwrap();
 
-        let str_output = cmd
-            .run()
-            .await
-            .map_err(DependencyResolverError::CommandRunnerError)?;
+            // 3. let the resolver tell us how to build this workspace
+            let cmd = CommandRunner::builder()
+                .cwd(final_dir.clone())
+                .manifest(manifest)
+                .target(target)
+                .args(vec!["prepare".to_string()])
+                .sandboxed(false)
+                .stream_outputs(true)
+                .build()
+                .map_err(DependencyResolverError::CommandRunnerError)?;
 
-        // parse it
-        let resolution: DependencySignaturesResolution =
-            serde_json::from_slice(str_output.as_bytes()).unwrap();
+            let str_output = cmd
+                .run()
+                .await
+                .map_err(DependencyResolverError::CommandRunnerError)?;
+
+            // parse it
+            let resolution: DependencySignaturesResolution =
+                serde_json::from_slice(str_output.as_bytes()).unwrap();
+
+            let json = serde_json::to_string_pretty(&resolution).unwrap();
+            fs::write(final_dir.join("Warp.signature"), json)
+                .await
+                .unwrap();
+
+            resolution
+        };
 
         // 4. Turn our new signature into a Target
         let sig = resolution.signatures[0].clone();
