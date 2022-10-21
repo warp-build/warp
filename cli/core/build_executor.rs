@@ -22,6 +22,8 @@ pub struct BuildExecutor {
 
     pub results: Arc<BuildResults>,
 
+    label_registry: Arc<LabelRegistry>,
+
     pub coordinator: Arc<BuildCoordinator>,
 
     /// The amount of workers to spawn.
@@ -31,10 +33,13 @@ pub struct BuildExecutor {
 impl BuildExecutor {
     #[tracing::instrument(name = "BuildExecutor::from_workspace")]
     pub fn from_workspace(workspace: Workspace, worker_limit: usize) -> BuildExecutor {
+        let label_registry = Arc::new(LabelRegistry::new());
+
         BuildExecutor {
             workspace,
             worker_limit,
-            results: Arc::new(BuildResults::new()),
+            results: Arc::new(BuildResults::new(label_registry.clone())),
+            label_registry,
             coordinator: Arc::new(BuildCoordinator::new()),
         }
     }
@@ -58,6 +63,7 @@ impl BuildExecutor {
             self.results.clone(),
             event_channel.clone(),
             self.workspace.clone(),
+            self.label_registry.clone(),
         ));
         let store = Arc::new(Store::new(&self.workspace, event_channel.clone()));
         let rule_store = Arc::new(RuleStore::new(&self.workspace));
@@ -66,6 +72,7 @@ impl BuildExecutor {
             store.clone(),
             self.results.clone(),
             event_channel.clone(),
+            self.label_registry.clone(),
         ));
         let target_executor = Arc::new(TargetExecutor::new(store.clone(), event_channel.clone()));
 
@@ -77,6 +84,7 @@ impl BuildExecutor {
             event_channel.clone(),
             build_queue.clone(),
             self.results.clone(),
+            self.label_registry.clone(),
             label_resolver.clone(),
             target_executor.clone(),
             store.clone(),
@@ -94,6 +102,7 @@ impl BuildExecutor {
                 let build_queue = build_queue.clone();
                 let build_results = self.results.clone();
                 let event_channel = event_channel.clone();
+                let label_registry = self.label_registry.clone();
                 let label_resolver = label_resolver.clone();
                 let target_executor = target_executor.clone();
                 let store = store.clone();
@@ -107,6 +116,7 @@ impl BuildExecutor {
                         event_channel,
                         build_queue,
                         build_results,
+                        label_registry,
                         label_resolver,
                         target_executor,
                         store,
@@ -125,7 +135,14 @@ impl BuildExecutor {
             }
         }
 
-        if targets.iter().find(|t| t.is_all()).is_some() {
+        let should_queue_everything = targets.iter().any(|t| t.is_all());
+
+        let targets: Vec<LabelId> = targets
+            .iter()
+            .map(|t| self.label_registry.register(t.clone()))
+            .collect();
+
+        if should_queue_everything {
             let queued_count = build_queue
                 .queue_entire_workspace(worker_limit, build_opts.target_filter)
                 .await
@@ -136,9 +153,9 @@ impl BuildExecutor {
                 self.coordinator.signal_shutdown();
             }
         } else {
-            for target in targets {
+            for target in &targets {
                 build_queue
-                    .queue(target.clone())
+                    .queue(*target)
                     .map_err(BuildExecutorError::QueueError)?;
             }
         }
@@ -154,9 +171,10 @@ impl BuildExecutor {
         .await
         .1?;
 
+        // Collect all results using our LabelIds
         let mut results = vec![];
         for target in targets {
-            if let Some(result) = self.results.get_computed_target(&target) {
+            if let Some(result) = self.results.get_computed_target(target) {
                 results.push(result)
             }
         }

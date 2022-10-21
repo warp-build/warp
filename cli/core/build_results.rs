@@ -26,26 +26,26 @@ pub enum BuildResultError {
 #[derive(Debug)]
 pub struct BuildResults {
     // The shared state of what targets have been built across workers.
-    pub computed_targets: Arc<DashMap<Label, (TargetManifest, ExecutableTarget)>>,
+    pub computed_targets: Arc<DashMap<LabelId, (TargetManifest, ExecutableTarget)>>,
 
-    pub expected_targets: Arc<DashMap<Label, ()>>,
+    pub expected_targets: Arc<DashMap<LabelId, ()>>,
 
-    pub missing_targets: Arc<DashMap<Label, ()>>,
+    pub missing_targets: Arc<DashMap<LabelId, ()>>,
 
-    pub renamed_targets: Arc<DashMap<Label, Label>>,
+    pub build_graph: Arc<DashMap<LabelId, Vec<LabelId>>>,
 
-    pub build_graph: Arc<DashMap<Label, Vec<Label>>>,
+    label_registry: Arc<LabelRegistry>,
 }
 
 impl BuildResults {
     #[tracing::instrument(name = "BuildResults::new")]
-    pub fn new() -> BuildResults {
-        BuildResults {
+    pub fn new(label_registry: Arc<LabelRegistry>) -> Self {
+        Self {
             computed_targets: Arc::new(DashMap::new()),
-            renamed_targets: Arc::new(DashMap::new()),
             expected_targets: Arc::new(DashMap::new()),
             missing_targets: Arc::new(DashMap::new()),
             build_graph: Arc::new(DashMap::new()),
+            label_registry,
         }
     }
 
@@ -69,25 +69,14 @@ impl BuildResults {
         self.missing_targets.is_empty()
     }
 
-    pub fn rename_expected_target(&self, src: Label, dst: Label) {
-        self.renamed_targets.insert(src.clone(), dst.clone());
-        self.add_expected_target(dst);
-        self.remove_expected_target(&src);
-    }
-
-    pub fn add_expected_target(&self, label: Label) {
-        self.expected_targets.insert(label.clone(), ());
+    pub fn add_expected_target(&self, label: LabelId) {
+        self.expected_targets.insert(label, ());
         self.missing_targets.insert(label, ());
-    }
-
-    pub fn remove_expected_target(&self, label: &Label) {
-        self.expected_targets.remove(label);
-        self.missing_targets.remove(label);
     }
 
     pub fn add_computed_target(
         &self,
-        label: Label,
+        label: LabelId,
         manifest: TargetManifest,
         target: ExecutableTarget,
     ) {
@@ -95,15 +84,19 @@ impl BuildResults {
         self.computed_targets.insert(label, (manifest, target));
     }
 
-    pub fn add_dependencies(&self, label: Label, deps: &[Label]) -> Result<(), BuildResultError> {
-        self.build_graph.insert(label.clone(), deps.to_vec());
+    pub fn add_dependencies(
+        &self,
+        label: LabelId,
+        deps: &[LabelId],
+    ) -> Result<(), BuildResultError> {
+        self.build_graph.insert(label, deps.to_vec());
 
-        let mut dag: Dag<Label, (), u32> = Dag::new();
+        let mut dag: Dag<LabelId, (), u32> = Dag::new();
 
-        let mut nodes: FxHashMap<Label, NodeIndex> = FxHashMap::default();
+        let mut nodes: FxHashMap<LabelId, NodeIndex> = FxHashMap::default();
         for entry in self.build_graph.iter() {
-            let label = entry.key().clone();
-            let node_idx = dag.add_node(label.clone());
+            let label = *entry.key();
+            let node_idx = dag.add_node(label);
             nodes.insert(label, node_idx);
         }
 
@@ -120,28 +113,26 @@ impl BuildResults {
 
         dag.extend_with_edges(edges)
             .map_err(|e| BuildResultError::DepGraphError {
-                label,
+                label: self.label_registry.get(label),
                 inner_error: e,
             })?;
 
         Ok(())
     }
 
-    pub fn get_computed_target(&self, label: &Label) -> Option<(TargetManifest, ExecutableTarget)> {
-        let label = if let Some(r) = self.renamed_targets.get(label) {
-            r.value().clone()
-        } else {
-            label.clone()
-        };
-        self.computed_targets.get(&label).map(|v| v.clone())
+    pub fn get_computed_target(
+        &self,
+        label: LabelId,
+    ) -> Option<(TargetManifest, ExecutableTarget)> {
+        self.computed_targets.get(&label).map(|r| r.value().clone())
     }
 
-    pub fn has_manifest(&self, label: &Label) -> bool {
-        self.computed_targets.contains_key(label)
+    pub fn has_manifest(&self, label: LabelId) -> bool {
+        self.is_target_built(label)
     }
 
-    pub fn get_manifest(&self, label: &Label) -> Option<TargetManifest> {
-        if let Some(r) = self.computed_targets.get(label) {
+    pub fn get_manifest(&self, label: LabelId) -> Option<TargetManifest> {
+        if let Some(r) = self.computed_targets.get(&label) {
             let (manifest, _node) = r.value();
             Some(manifest.clone())
         } else {
@@ -149,20 +140,21 @@ impl BuildResults {
         }
     }
 
-    pub fn get_target_deps(&self, label: &Label) -> Vec<Label> {
-        if let Some(r) = self.computed_targets.get(label) {
-            let (_manifest, node) = r.value();
-            node.deps
-                .iter()
-                .map(|d| d.label.clone())
-                .collect::<Vec<Label>>()
-        } else {
-            vec![]
-        }
+    pub fn get_target_deps(&self, label: LabelId) -> Vec<LabelId> {
+        self.computed_targets
+            .get(&label)
+            .map(|r| {
+                let (_manifest, node) = r.value();
+                node.deps
+                    .iter()
+                    .map(|d| self.label_registry.register(d.label.clone()))
+                    .collect::<Vec<LabelId>>()
+            })
+            .unwrap_or_default()
     }
 
-    pub fn is_target_built(&self, label: &Label) -> bool {
-        self.computed_targets.contains_key(label)
+    pub fn is_target_built(&self, label: LabelId) -> bool {
+        self.computed_targets.contains_key(&label)
     }
 }
 

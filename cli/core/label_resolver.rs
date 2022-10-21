@@ -9,11 +9,12 @@ use tracing::*;
 
 #[derive(Debug)]
 pub struct LabelResolver {
+    resolved_labels: DashMap<LabelId, Target>,
     toolchain_configs: FxHashMap<String, RuleConfig>,
-    remote_workspace_resolver: RemoteWorkspaceResolver,
+    remote_workspace_resolver: Arc<RemoteWorkspaceResolver>,
     dependency_resolver: DependencyResolver,
-    resolved_labels: DashMap<Label, Target>,
-    workspace: Workspace,
+
+    label_registry: Arc<LabelRegistry>,
 }
 
 #[derive(Error, Debug)]
@@ -48,61 +49,72 @@ impl LabelResolver {
         store: Arc<Store>,
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
+        label_registry: Arc<LabelRegistry>,
     ) -> Self {
+        let remote_workspace_resolver = Arc::new(RemoteWorkspaceResolver::new(
+            workspace,
+            store.clone(),
+            event_channel.clone(),
+        ));
         Self {
-            workspace: workspace.clone(),
             toolchain_configs: workspace.toolchain_configs.clone(),
-            remote_workspace_resolver: RemoteWorkspaceResolver::new(
+            dependency_resolver: DependencyResolver::new(
                 workspace,
+                build_results,
+                event_channel,
+                remote_workspace_resolver.clone(),
                 store,
-                event_channel.clone(),
+                label_registry.clone(),
             ),
-            dependency_resolver: DependencyResolver::new(workspace, build_results, event_channel),
+            remote_workspace_resolver,
             resolved_labels: DashMap::default(),
+            label_registry,
         }
     }
 
     #[tracing::instrument(name = "LabelResolver::resolve", skip(self))]
     pub fn resolve<'a>(
         &'a self,
-        label: &'a Label,
+        label_id: LabelId,
     ) -> Pin<Box<dyn Future<Output = Result<Target, LabelResolverError>> + 'a>> {
         async move {
-            if let Some(target) = self.resolved_labels.get(label) {
+            if let Some(target) = self.resolved_labels.get(&label_id) {
                 return Ok(target.value().clone());
             }
 
+            let label = self.label_registry.get(label_id);
             if label.is_remote() {
-                if let Some(target) = self.find_as_toolchain(label).await? {
-                    self.save(label.clone(), target.clone());
+                if let Some(target) = self.find_as_toolchain(&label).await? {
+                    self.save(label_id, target.clone());
                     return Ok(target);
                 }
 
-                match self.find_in_remote_workspaces(label).await {
+                match self.find_in_remote_workspaces(&label).await {
                     Ok(Some(target)) => {
-                        self.save(label.clone(), target.clone());
+                        self.save(label_id, target.clone());
                         return Ok(target);
                     }
                     Ok(None) => (),
                     Err(err) => {
-                        if let Some(target) = self.find_with_dependency_resolver(label).await? {
+                        if let Some(target) = self.find_with_dependency_resolver(label_id).await? {
+                            self.save(label_id, target.clone());
                             return Ok(target);
                         }
                         return Err(err);
                     }
                 }
-            } else if let Some(target) = self.find_in_local_workspace(label).await? {
-                self.save(label.clone(), target.clone());
+            } else if let Some(target) = self.find_in_local_workspace(&label).await? {
+                self.save(label_id, target.clone());
                 return Ok(target);
             }
 
-            Err(LabelResolverError::TargetNotFound(label.clone()))
+            Err(LabelResolverError::TargetNotFound(label))
         }
         .boxed_local()
     }
 
     #[tracing::instrument(name = "LabelResolver::save", skip(self))]
-    fn save(&self, label: Label, target: Target) {
+    fn save(&self, label: LabelId, target: Target) {
         self.resolved_labels.insert(label, target);
     }
 
@@ -151,11 +163,11 @@ impl LabelResolver {
     #[tracing::instrument(name = "LabelResolver::find_with_dependency_resolver", skip(self))]
     async fn find_with_dependency_resolver(
         &self,
-        label: &Label,
+        label_id: LabelId,
     ) -> Result<Option<Target>, LabelResolverError> {
         let target = self
             .dependency_resolver
-            .get(label)
+            .get(label_id)
             .await
             .map_err(LabelResolverError::DependencyResolverError)?;
 

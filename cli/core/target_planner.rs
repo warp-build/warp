@@ -8,12 +8,13 @@ pub struct TargetPlanner {
     rule_store: Arc<RuleStore>,
     rule_executor: RuleExecutor,
     store: Arc<Store>,
+    label_registry: Arc<LabelRegistry>,
 }
 
 #[derive(Error, Debug)]
 pub enum TargetPlannerError {
     #[error("When planning {label:?}, the following dependencies were missing: {deps:?}")]
-    MissingDependencies { deps: Vec<Label>, label: Label },
+    MissingDependencies { deps: Vec<LabelId>, label: LabelId },
 
     #[error(transparent)]
     ExecutableTargetError(ExecutableTargetError),
@@ -34,6 +35,7 @@ impl TargetPlanner {
         build_results: Arc<BuildResults>,
         store: Arc<Store>,
         share_rule_executor_state: Arc<SharedRuleExecutorState>,
+        label_registry: Arc<LabelRegistry>,
     ) -> Result<Self, TargetPlannerError> {
         Ok(Self {
             build_results,
@@ -41,6 +43,7 @@ impl TargetPlanner {
             rule_store: share_rule_executor_state.rule_store.clone(),
             rule_executor: RuleExecutor::new(share_rule_executor_state)
                 .map_err(TargetPlannerError::RuleExecutorError)?,
+            label_registry,
         })
     }
 
@@ -134,8 +137,11 @@ impl TargetPlanner {
     ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
         let mut manifests = FxHashSet::default();
 
-        for label in self._deps(label, deps, transitive)? {
-            manifests.insert(self.build_results.get_manifest(&label).unwrap());
+        let label = self.label_registry.register(label.clone());
+        let deps = self.label_registry.register_many(deps);
+
+        for label in self._deps(label, &deps, transitive)? {
+            manifests.insert(self.build_results.get_manifest(label).unwrap());
         }
 
         Ok(manifests.into_iter().collect())
@@ -143,25 +149,25 @@ impl TargetPlanner {
 
     pub fn _deps(
         &self,
-        label: &Label,
-        deps: &[Label],
+        label: LabelId,
+        deps: &[LabelId],
         transitive: bool,
-    ) -> Result<Vec<Label>, TargetPlannerError> {
-        let mut collected_deps: Vec<Label> = vec![];
-        let mut missing_deps: Vec<Label> = vec![];
+    ) -> Result<Vec<LabelId>, TargetPlannerError> {
+        let mut collected_deps: Vec<LabelId> = vec![];
+        let mut missing_deps: Vec<LabelId> = vec![];
 
         for dep in deps {
-            if self.build_results.has_manifest(dep) {
-                collected_deps.push(dep.clone());
+            if self.build_results.has_manifest(*dep) {
+                collected_deps.push(*dep);
 
                 if transitive {
-                    let node_deps = self.build_results.get_target_deps(dep);
-                    for dep in self._deps(dep, &node_deps, transitive)? {
+                    let node_deps = self.build_results.get_target_deps(*dep);
+                    for dep in self._deps(*dep, &node_deps, transitive)? {
                         collected_deps.push(dep);
                     }
                 }
             } else {
-                missing_deps.push(dep.clone());
+                missing_deps.push(*dep);
             }
         }
 
@@ -169,7 +175,7 @@ impl TargetPlanner {
             // NOTE(@ostera): we want to build the things that are furthest away from our target
             // first, so the dependencies of our dependencies.
             Err(TargetPlannerError::MissingDependencies {
-                label: label.clone(),
+                label,
                 deps: missing_deps,
             })
         } else {

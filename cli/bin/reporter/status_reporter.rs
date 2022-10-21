@@ -111,11 +111,17 @@ impl StatusReporter {
                         action_count += ac as u64;
                     }
 
-                    CacheHit(label) => {
+                    CacheHit {
+                        label,
+                        label_id,
+                        worker_id,
+                    } => {
                         let line = format!(
-                            "{:>12} {}",
+                            "{:>12} {} (#{} @ worker#{})",
                             blue_dim.apply_to("Cache-hit"),
                             label.to_string(),
+                            label_id,
+                            worker_id,
                         );
                         current_targets.remove(&label);
                         let current_targets_names = current_targets

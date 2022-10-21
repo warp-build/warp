@@ -1,13 +1,10 @@
 use super::Event;
 use super::*;
 use dashmap::DashMap;
-use serde::{
-    de::{self, Visitor},
-    ser::{SerializeMap, SerializeSeq},
-    Deserialize, Deserializer, Serialize,
-};
-use std::{collections::BTreeMap, fmt, path::PathBuf, sync::Arc};
+use serde::{Deserialize, Serialize};
+use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
 use thiserror::*;
+use tokio::fs;
 use tracing::*;
 
 #[derive(Error, Debug)]

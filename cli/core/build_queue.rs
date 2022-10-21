@@ -31,16 +31,16 @@ pub struct BuildQueue {
     workspace: Workspace,
 
     /// Targets currently being built.
-    busy_targets: Arc<DashMap<Label, ()>>,
+    busy_targets: Arc<DashMap<LabelId, ()>>,
 
     /// Targets currently being built.
-    in_queue_targets: Arc<DashMap<Label, ()>>,
+    in_queue_targets: Arc<DashMap<LabelId, ()>>,
 
     /// The queue from which workers pull work.
-    inner_queue: Arc<crossbeam::deque::Injector<Label>>,
+    inner_queue: Arc<crossbeam::deque::Injector<LabelId>>,
 
     /// A backup queue used for set-aside targets.
-    wait_queue: Arc<crossbeam::deque::Injector<Label>>,
+    wait_queue: Arc<crossbeam::deque::Injector<LabelId>>,
 
     /// Targets already built.
     build_results: Arc<BuildResults>,
@@ -49,7 +49,9 @@ pub struct BuildQueue {
     event_channel: Arc<EventChannel>,
 
     /// The labels that have been successfully queued.
-    all_queued_labels: Arc<DashMap<Label, ()>>,
+    all_queued_labels: Arc<DashMap<LabelId, ()>>,
+
+    label_registry: Arc<LabelRegistry>,
 }
 
 impl BuildQueue {
@@ -58,6 +60,7 @@ impl BuildQueue {
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
         workspace: Workspace,
+        label_registry: Arc<LabelRegistry>,
     ) -> BuildQueue {
         BuildQueue {
             inner_queue: Arc::new(crossbeam::deque::Injector::new()),
@@ -68,11 +71,12 @@ impl BuildQueue {
             event_channel,
             build_results,
             workspace,
+            label_registry,
         }
     }
 
     #[tracing::instrument(name = "BuildQueue::next", skip(self))]
-    pub fn next(&self) -> Option<Label> {
+    pub fn next(&self) -> Option<LabelId> {
         if let crossbeam::deque::Steal::Success(label) = self.inner_queue.steal() {
             return self.handle_next(label);
         }
@@ -82,35 +86,28 @@ impl BuildQueue {
         None
     }
 
-    fn handle_next(&self, label: Label) -> Option<Label> {
+    fn handle_next(&self, label: LabelId) -> Option<LabelId> {
         // If the target is already computed or being computed, we can skip it
         // and try to fetch the next one immediately.
         //
         // When the queue empties up, this will return a None, but otherwise
         // we'll go through a bunch of duplicates, discarding them.
-        if self.build_results.is_target_built(&label) || self.busy_targets.contains_key(&label) {
+        if self.build_results.is_target_built(label) || self.busy_targets.contains_key(&label) {
             return self.next();
         }
         // But if it is yet to be built, we mark it as busy
-        self.busy_targets.insert(label.clone(), ());
+        self.busy_targets.insert(label, ());
         self.in_queue_targets.remove(&label);
         Some(label)
     }
 
     #[tracing::instrument(name = "BuildQueue::ack", skip(self))]
-    pub fn ack(&self, label: &Label) {
-        self.busy_targets.remove(label);
-    }
-
-    #[tracing::instrument(name = "BuildQueue::swap", skip(self))]
-    pub fn swap(&self, src: &Label, dst: &Label) {
-        self.build_results
-            .rename_expected_target(src.clone(), dst.clone());
-        self.ack(src);
+    pub fn ack(&self, label: LabelId) {
+        self.busy_targets.remove(&label);
     }
 
     #[tracing::instrument(name = "BuildQueue::nack", skip(self))]
-    pub fn nack(&self, label: Label) {
+    pub fn nack(&self, label: LabelId) {
         self.busy_targets.remove(&label);
         self.wait_queue.push(label);
     }
@@ -121,31 +118,31 @@ impl BuildQueue {
     }
 
     #[tracing::instrument(name = "BuildQueue::queue", skip(self))]
-    pub fn queue(&self, label: Label) -> Result<(), QueueError> {
-        info!("Queued {:#?}", &label);
-        if label.is_all() {
+    pub fn queue(&self, label: LabelId) -> Result<(), QueueError> {
+        info!("Queued {:#?}", self.label_registry.get(label));
+        if self.label_registry.get(label).is_all() {
             return Err(QueueError::CannotQueueTargetAll);
         }
-        if self.build_results.is_target_built(&label)
+        if self.build_results.is_target_built(label)
             || self.busy_targets.contains_key(&label)
             || self.in_queue_targets.contains_key(&label)
         {
             return Ok(());
         }
-        self.build_results.add_expected_target(label.clone());
-        self.in_queue_targets.insert(label.clone(), ());
-        self.inner_queue.push(label.clone());
+        self.build_results.add_expected_target(label);
+        self.in_queue_targets.insert(label, ());
+        self.inner_queue.push(label);
         self.all_queued_labels.insert(label, ());
         Ok(())
     }
 
-    pub fn queue_deps(&self, label: &Label, deps: &[Label]) -> Result<(), QueueError> {
+    pub fn queue_deps(&self, label: LabelId, deps: &[LabelId]) -> Result<(), QueueError> {
         self.build_results
-            .add_dependencies(label.clone(), deps)
+            .add_dependencies(label, deps)
             .map_err(QueueError::DependencyCycle)?;
 
         for dep in deps {
-            self.queue(dep.clone())?;
+            self.queue(*dep)?;
         }
 
         Ok(())
@@ -186,7 +183,8 @@ impl BuildQueue {
                     for target in buildfile.targets {
                         if target_filter.passes(&target) {
                             let label = target.label.change_workspace(&self.workspace);
-                            self.queue(label)?;
+                            let label_id = self.label_registry.register(label);
+                            self.queue(label_id)?;
                         }
                     }
                 }
@@ -205,7 +203,7 @@ mod tests {
 
     use super::*;
 
-    async fn make_target(label: Label) -> ExecutableTarget {
+    async fn make_target(label: LabelId) -> ExecutableTarget {
         let rule = Rule::new(
             "test_rule".to_string(),
             "TestRule".to_string(),
@@ -243,7 +241,7 @@ mod tests {
 
     #[test]
     fn queue_emptiness() {
-        let final_target = Label::new("//test/0");
+        let final_target = LabelId::new("//test/0");
         let q = BuildQueue::new(
             final_target.clone(),
             Arc::new(BuildResults::new()),
@@ -260,7 +258,7 @@ mod tests {
 
     #[test]
     fn contiguous_duplicates_are_discarded() {
-        let final_target = Label::new("//test/0");
+        let final_target = LabelId::new("//test/0");
         let q = BuildQueue::new(
             final_target.clone(),
             Arc::new(BuildResults::new()),
@@ -287,7 +285,7 @@ mod tests {
 
     #[tokio::test]
     async fn already_built_targets_are_ignored_when_queueing_new_targets() {
-        let final_target = Label::new("//test/0");
+        let final_target = LabelId::new("//test/0");
         let br = Arc::new(BuildResults::new());
         let q = BuildQueue::new(
             final_target.clone(),
@@ -309,7 +307,7 @@ mod tests {
 
     #[tokio::test]
     async fn once_a_target_is_built_we_discard_it() {
-        let final_target = Label::new("//test/0");
+        let final_target = LabelId::new("//test/0");
         let br = Arc::new(BuildResults::new());
         let q = BuildQueue::new(
             final_target.clone(),
@@ -337,7 +335,7 @@ mod tests {
 
     #[test]
     fn nexting_a_target_requires_a_nack_to_get_it_again() {
-        let final_target = Label::new("//test/0");
+        let final_target = LabelId::new("//test/0");
         let br = Arc::new(BuildResults::new());
         let q = BuildQueue::new(
             final_target.clone(),

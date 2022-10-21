@@ -40,6 +40,7 @@ pub struct BuildWorker {
     /// The queue from which workers pull work.
     pub build_queue: Arc<BuildQueue>,
     pub build_results: Arc<BuildResults>,
+    pub label_registry: Arc<LabelRegistry>,
     pub label_resolver: Arc<LabelResolver>,
     pub target_executor: Arc<TargetExecutor>,
 
@@ -55,6 +56,7 @@ impl BuildWorker {
         event_channel: Arc<EventChannel>,
         build_queue: Arc<BuildQueue>,
         build_results: Arc<BuildResults>,
+        label_registry: Arc<LabelRegistry>,
         label_resolver: Arc<LabelResolver>,
         target_executor: Arc<TargetExecutor>,
         store: Arc<Store>,
@@ -63,9 +65,13 @@ impl BuildWorker {
     ) -> Result<Self, BuildWorkerError> {
         let env = ExecutionEnvironment::new();
 
-        let target_planner =
-            TargetPlanner::new(build_results.clone(), store, share_rule_executor_state)
-                .map_err(BuildWorkerError::TargetPlannerError)?;
+        let target_planner = TargetPlanner::new(
+            build_results.clone(),
+            store,
+            share_rule_executor_state,
+            label_registry.clone(),
+        )
+        .map_err(BuildWorkerError::TargetPlannerError)?;
 
         Ok(Self {
             build_queue,
@@ -73,6 +79,7 @@ impl BuildWorker {
             coordinator,
             env,
             event_channel,
+            label_registry,
             label_resolver,
             role,
             target_executor,
@@ -125,29 +132,39 @@ impl BuildWorker {
     }
 
     #[tracing::instrument(name = "BuildWorker::run_target", skip(self))]
-    pub async fn run_target(&mut self, label: Label) -> Result<(), BuildWorkerError> {
-        let target = match self.label_resolver.resolve(&label).await {
+    pub async fn run_target(&mut self, label: LabelId) -> Result<(), BuildWorkerError> {
+        let target = match self.label_resolver.resolve(label).await {
             Err(LabelResolverError::DependencyResolverError(
                 DependencyResolverError::MissingResolver { resolver },
             )) => {
-                return self.requeue(&label, &label, &[resolver]).await;
+                return self.requeue(label, &[resolver]).await;
             }
 
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
-                    label,
+                    self.label_registry.get(label),
                     BuildError::LabelResolverError(err),
                 ));
                 self.coordinator.signal_shutdown();
                 return Ok(());
             }
 
-            Ok(target) => target,
+            Ok(target) => {
+                let original_label = self.label_registry.get(label);
+                let actual_label = target.label.clone();
+                if original_label != actual_label {
+                    self.label_registry.update(label, actual_label);
+                }
+                target
+            }
         };
 
         let executable_target = match self.target_planner.plan(&self.env, &target).await {
-            Err(TargetPlannerError::MissingDependencies { deps, .. }) => {
-                return self.requeue(&label, &target.label, &deps).await;
+            Err(TargetPlannerError::MissingDependencies {
+                deps,
+                label: target_label,
+            }) => {
+                return self.requeue(target_label, &deps).await;
             }
 
             Err(err) => {
@@ -208,21 +225,31 @@ impl BuildWorker {
                     .await
                     .map_err(BuildWorkerError::TargetPlannerError)?;
 
+                let final_label_id = self
+                    .label_registry
+                    .register(executable_target.label.clone());
+                let final_label = self.label_registry.get(final_label_id);
+
                 if manifest.cached {
-                    self.event_channel
-                        .send(Event::CacheHit(executable_target.label.clone()));
+                    self.event_channel.send(Event::CacheHit {
+                        label: final_label,
+                        label_id: if final_label_id != label {
+                            label
+                        } else {
+                            final_label_id
+                        },
+                        worker_id: match self.role {
+                            Role::MainWorker => 0,
+                            Role::HelperWorker(id) => id,
+                        },
+                    });
                 } else {
-                    self.event_channel
-                        .send(Event::TargetBuilt(executable_target.label.clone()));
+                    self.event_channel.send(Event::TargetBuilt(final_label));
                 }
 
-                let label = executable_target.label.clone();
-                self.build_results.add_computed_target(
-                    executable_target.label.clone(),
-                    manifest,
-                    executable_target,
-                );
-                self.build_queue.ack(&label);
+                self.build_results
+                    .add_computed_target(final_label_id, manifest, executable_target);
+                self.build_queue.ack(final_label_id);
             }
         }
 
@@ -230,28 +257,16 @@ impl BuildWorker {
     }
 
     #[inline]
-    async fn requeue(
-        &self,
-        original_label: &Label,
-        actual_label: &Label,
-        deps: &[Label],
-    ) -> Result<(), BuildWorkerError> {
-        if let Err(QueueError::DependencyCycle(err)) =
-            self.build_queue.queue_deps(actual_label, deps)
-        {
+    async fn requeue(&self, label: LabelId, deps: &[LabelId]) -> Result<(), BuildWorkerError> {
+        if let Err(QueueError::DependencyCycle(err)) = self.build_queue.queue_deps(label, deps) {
             self.event_channel.send(Event::BuildError(
-                actual_label.clone(),
+                self.label_registry.get(label),
                 BuildError::BuildResultError(err),
             ));
             self.coordinator.signal_shutdown();
         }
 
-        info!("Requeueing: {:#?}", actual_label.clone());
-
-        if actual_label != original_label {
-            self.build_queue.swap(original_label, actual_label);
-        }
-        self.build_queue.nack(actual_label.clone());
+        self.build_queue.nack(label);
 
         Ok(())
     }
