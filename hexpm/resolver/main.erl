@@ -77,7 +77,7 @@ prepare(Root) ->
            #{ mix := true } -> <<"mix_library">>;
            #{ make := true } -> <<"erlangmk_library">>;
            #{ rebar3 := true } -> <<"rebar3_library">>;
-           _ => <<"mix_library">>
+           _ -> <<"mix_library">>
          end,
 
   #{
