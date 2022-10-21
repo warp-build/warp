@@ -142,7 +142,6 @@ impl InitGoal {
         let lifters: Vec<Label> = toolchains.iter().cloned().flat_map(|t| t.lifter).collect();
         if !lifters.is_empty() {
             let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
-            let local_outputs_root = workspace.paths.local_outputs_root.clone();
             let warp = BuildExecutor::from_workspace(workspace, worker_limit);
 
             let status_reporter = StatusReporter::new(event_channel.clone());

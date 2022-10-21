@@ -82,9 +82,9 @@ impl CommandRunner {
             cmd.envs(&shell_env).args(&self.args).current_dir(&cwd);
 
             if self.stream_outputs {
-                cmd.stdin(Stdio::piped())
-                    .stderr(Stdio::piped())
-                    .stdout(Stdio::piped());
+                cmd.stdin(Stdio::inherit())
+                    .stderr(Stdio::inherit())
+                    .stdout(Stdio::inherit());
             } else {
                 cmd.stdin(Stdio::null())
                     .stderr(Stdio::null())
