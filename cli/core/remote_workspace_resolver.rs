@@ -52,7 +52,7 @@ impl RemoteWorkspaceResolver {
         Self {
             root_workspace: workspace.clone(),
             remote_workspace_configs: {
-                let mut map = DashMap::default();
+                let map = DashMap::default();
                 for (k, v) in workspace.remote_workspace_configs.iter() {
                     map.insert(k.clone(), v.clone());
                 }
@@ -79,6 +79,9 @@ impl RemoteWorkspaceResolver {
             return Ok(Some(target));
         }
 
+        let mut url = label.url();
+        url.set_path("");
+
         let workspace = self.find_workspace(label).await?;
 
         let label = label.change_workspace(&workspace);
@@ -92,7 +95,7 @@ impl RemoteWorkspaceResolver {
             .targets
             .iter()
             .find(|t| t.label.name() == *label.name())
-            .map(|t| t.change_workspace(&workspace));
+            .map(|t| t.change_workspace(&workspace).with_associated_url(&url));
 
         if let Some(ref target) = target {
             self.targets.insert(label.clone(), target.clone());

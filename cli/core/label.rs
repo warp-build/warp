@@ -26,7 +26,9 @@ pub enum InnerLabel {
         kind: LocalLabelKind,
         path: PathBuf,
         #[serde(default)]
-        remote: Option<Box<InnerLabel>>,
+        promoted_from: Option<Box<InnerLabel>>,
+        #[serde(default)]
+        associated_url: Option<Url>,
     },
     Remote {
         url: String,
@@ -120,7 +122,8 @@ impl LabelBuilder {
         self.inner_label(InnerLabel::Local {
             path,
             kind,
-            remote: None,
+            promoted_from: None,
+            associated_url: None,
         });
 
         self.build()
@@ -310,13 +313,43 @@ impl Label {
         }
     }
 
-    pub fn promote(&self, promotion: Label) -> Label {
-        match (&self.inner_label, &promotion.inner_label) {
-            (remote @ InnerLabel::Remote { .. }, InnerLabel::Local { kind, path, .. }) => Self {
+    pub fn with_associated_url(&self, url: Url) -> Label {
+        let this = self.clone();
+        match &self.inner_label {
+            InnerLabel::Local {
+                kind,
+                path,
+                promoted_from,
+                ..
+            } => Self {
                 inner_label: InnerLabel::Local {
                     kind: kind.clone(),
                     path: path.clone(),
-                    remote: Some(Box::new(remote.clone())),
+                    associated_url: Some(url),
+                    promoted_from: promoted_from.clone(),
+                },
+                ..this
+            },
+            _ => this,
+        }
+    }
+
+    pub fn promote(&self, promotion: Label) -> Label {
+        match (&self.inner_label, &promotion.inner_label) {
+            (
+                remote @ InnerLabel::Remote { .. },
+                InnerLabel::Local {
+                    kind,
+                    path,
+                    associated_url,
+                    ..
+                },
+            ) => Self {
+                inner_label: InnerLabel::Local {
+                    kind: kind.clone(),
+                    path: path.clone(),
+                    associated_url: associated_url.clone(),
+                    promoted_from: Some(Box::new(remote.clone())),
                 },
                 ..promotion
             },
@@ -344,7 +377,10 @@ impl ToString for Label {
         let body = self.inner_label.to_string();
 
         match &self.inner_label {
-            InnerLabel::Local { remote: None, .. } => format!("{}:{}", body, self.name),
+            InnerLabel::Local {
+                promoted_from: None,
+                ..
+            } => format!("{}:{}", body, self.name),
             _ => body,
         }
     }
@@ -355,13 +391,23 @@ impl ToString for InnerLabel {
         match &self {
             InnerLabel::Wildcard => WILDCARD.to_string(),
             InnerLabel::Local {
-                remote: Some(remote),
+                promoted_from: Some(remote),
                 ..
             } => remote.to_string(),
-            InnerLabel::Local { path, .. } => {
+            InnerLabel::Local {
+                associated_url,
+                path,
+                ..
+            } => {
                 let path = path.to_str().unwrap();
-                let path = if path == "." { "" } else { path };
-                format!("//{}", path.replace("./", ""))
+                let path = if path == "." { "" } else { path }.replace("./", "");
+                if let Some(url) = associated_url {
+                    let mut url = url.clone();
+                    url.set_path(&path);
+                    url.to_string()
+                } else {
+                    format!("//{}", path)
+                }
             }
             InnerLabel::Remote { url, .. } => url.to_string(),
         }

@@ -69,6 +69,20 @@ impl Target {
         }
     }
 
+    #[tracing::instrument(name = "Target::with_associated_url")]
+    pub fn with_associated_url(&self, url: &url::Url) -> Self {
+        let mut new_self = self.clone();
+        new_self.label = self.label.with_associated_url(url.clone());
+        new_self.deps = vec![];
+
+        for dep in &self.deps {
+            let dep = dep.with_associated_url(url.clone());
+            new_self.deps.push(dep);
+        }
+
+        new_self
+    }
+
     #[tracing::instrument(name = "Target::change_workspace", skip(workspace))]
     pub fn change_workspace(&self, workspace: &Workspace) -> Self {
         debug!("changing target workspace: {:?}", &self);
