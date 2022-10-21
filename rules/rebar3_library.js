@@ -21,10 +21,16 @@ export CPLUS_LIB_PATH="$ERL_LIB_PATH:$CPLUS_LIB_PATH"
 cd ${cwd}
 rm -rf _build
 
-# NOTE(@ostera): if these dirs aren't created, rebar3 will create dangling links
-mkdir -p _build/default/lib/${name}/include
-mkdir -p _build/default/lib/${name}/priv
-mkdir -p _build/default/lib/${name}/src
+maybe_copy() {
+  if [[ -d $1 ]]; then
+    cp -R $1 _build/default/lib/${name}/;
+  else
+    mkdir -p _build/default/lib/${name}/$1;
+  fi
+}
+maybe_copy priv;
+maybe_copy include;
+maybe_copy src;
 
 rebar3 compile || status=$?
 
@@ -32,8 +38,6 @@ if [ \${status:-0} -gt 1 ]; then
   echo "Rebar exited with status $status"
   exit $status
 fi
-
-
 
 `,
   });
