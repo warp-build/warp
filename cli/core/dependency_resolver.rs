@@ -163,7 +163,7 @@ impl DependencyResolver {
                 .target(target.clone())
                 .args(vec!["resolve".to_string(), label.to_string(), version])
                 .sandboxed(true)
-                .stream_outputs(true)
+                .stream_outputs(false)
                 .build()
                 .map_err(DependencyResolverError::CommandRunnerError)?;
 
@@ -188,7 +188,7 @@ impl DependencyResolver {
                 .target(target)
                 .args(vec!["prepare".to_string()])
                 .sandboxed(false)
-                .stream_outputs(true)
+                .stream_outputs(false)
                 .build()
                 .map_err(DependencyResolverError::CommandRunnerError)?;
 
