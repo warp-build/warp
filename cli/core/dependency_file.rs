@@ -52,7 +52,7 @@ impl From<String> for DependencyFileError {
 pub struct DependencyFile {
     #[builder(default)]
     #[serde(default)]
-    pub verison: String,
+    pub version: String,
 
     #[builder(default)]
     #[serde(default)]
@@ -78,7 +78,7 @@ impl DependencyFile {
     #[tracing::instrument(name = "DependencyFile::write")]
     pub async fn write(&self, root: &Path) -> Result<(), DependencyFileError> {
         let json = serde_json::to_string_pretty(&self).map_err(DependencyFileError::PrintError)?;
-        fs::write(&root.join(DEPENDENCY), json)
+        fs::write(&root.join(DEPENDENCIES_JSON), json)
             .await
             .map_err(DependencyFileError::IOError)
     }

@@ -12,7 +12,6 @@ pub struct Dependency {
 
 #[derive(Debug, Clone)]
 pub struct DependencyManager {
-    file: DependencyFile,
     dependencies: BTreeMap<LabelId, Dependency>,
 }
 
@@ -29,7 +28,14 @@ impl DependencyManager {
     ) -> Result<Self, DependencyManagerError> {
         let dep_file = workspace.paths.local_warp_root.join(DEPENDENCIES_JSON);
         if fs::metadata(&dep_file).await.is_err() {
-            fs::write(&dep_file, "{}").await.unwrap();
+            let dep_file = DependencyFile::builder()
+                .version("0".to_string())
+                .build()
+                .unwrap();
+            dep_file
+                .write(&workspace.paths.local_warp_root)
+                .await
+                .unwrap();
         }
 
         let dependency_file = DependencyFile::read_from_file(&dep_file)
@@ -49,10 +55,7 @@ impl DependencyManager {
             dependencies.insert(label, dep);
         }
 
-        Ok(Self {
-            file: dependency_file,
-            dependencies,
-        })
+        Ok(Self { dependencies })
     }
 
     pub fn get(&self, label: LabelId) -> Option<Dependency> {

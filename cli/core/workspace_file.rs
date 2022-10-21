@@ -9,7 +9,6 @@ use tokio::fs;
 use tracing::*;
 
 pub const WORKSPACE: &str = "Workspace.json";
-pub const DEPENDENCY: &str = "Dependencies.json";
 
 #[derive(Error, Debug)]
 pub enum RemoteWorkspaceFileError {
