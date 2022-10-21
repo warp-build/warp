@@ -25,6 +25,8 @@ pub enum InnerLabel {
     Local {
         kind: LocalLabelKind,
         path: PathBuf,
+        #[serde(default)]
+        remote: Option<Box<InnerLabel>>,
     },
     Remote {
         url: String,
@@ -115,7 +117,11 @@ impl LabelBuilder {
             self.name(name);
         }
 
-        self.inner_label(InnerLabel::Local { path, kind });
+        self.inner_label(InnerLabel::Local {
+            path,
+            kind,
+            remote: None,
+        });
 
         self.build()
     }
@@ -295,24 +301,26 @@ impl Label {
         }
     }
 
-    pub fn to_local(mut self) -> Self {
-        let inner_label = match &self.inner_label {
-            InnerLabel::Remote { path, .. } => InnerLabel::Local {
-                kind: LocalLabelKind::Absolute,
-                path: PathBuf::from(path),
-            },
-            _ => self.inner_label.clone(),
-        };
-        self.inner_label = inner_label;
-        self
-    }
-
     pub fn as_store_prefix(&self) -> String {
         match &self.inner_label {
             InnerLabel::Remote {
                 host, prefix_hash, ..
             } => format!("{}-{}", prefix_hash, host),
             _ => panic!("We can't turn a non-remote label into a cache prefix!"),
+        }
+    }
+
+    pub fn promote(&self, promotion: Label) -> Label {
+        match (&self.inner_label, &promotion.inner_label) {
+            (remote @ InnerLabel::Remote { .. }, InnerLabel::Local { kind, path, .. }) => Self {
+                inner_label: InnerLabel::Local {
+                    kind: kind.clone(),
+                    path: path.clone(),
+                    remote: Some(Box::new(remote.clone())),
+                },
+                ..promotion
+            },
+            _ => promotion,
         }
     }
 }
@@ -333,12 +341,27 @@ impl std::hash::Hash for Label {
 
 impl ToString for Label {
     fn to_string(&self) -> String {
+        let body = self.inner_label.to_string();
+
         match &self.inner_label {
+            InnerLabel::Local { remote: None, .. } => format!("{}:{}", body, self.name),
+            _ => body,
+        }
+    }
+}
+
+impl ToString for InnerLabel {
+    fn to_string(&self) -> String {
+        match &self {
             InnerLabel::Wildcard => WILDCARD.to_string(),
+            InnerLabel::Local {
+                remote: Some(remote),
+                ..
+            } => remote.to_string(),
             InnerLabel::Local { path, .. } => {
                 let path = path.to_str().unwrap();
                 let path = if path == "." { "" } else { path };
-                format!("//{}:{}", path.replace("./", ""), self.name)
+                format!("//{}", path.replace("./", ""))
             }
             InnerLabel::Remote { url, .. } => url.to_string(),
         }

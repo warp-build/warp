@@ -67,6 +67,10 @@ impl LabelRegistry {
     }
 
     pub fn update(&self, id: LabelId, label: Label) {
+        let last_label = self.get(id);
+
+        let label = last_label.promote(label);
+
         self.ids.insert(label.clone(), id);
         self.labels.insert(id, label);
     }
