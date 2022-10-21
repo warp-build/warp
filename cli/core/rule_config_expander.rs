@@ -70,6 +70,7 @@ impl ConfigExpander {
             }
             (CfgValueType::File, CfgValue::String(path)) => self.expand_glob(label, path),
             (CfgValueType::Label, CfgValue::String(name)) => Ok(CfgValue::Label(Label::new(name))),
+            (CfgValueType::Label, CfgValue::Label(label)) => Ok(CfgValue::Label(label.clone())),
             (CfgValueType::List(t), CfgValue::List(parts)) => {
                 self.expand_list(label, parts.to_vec(), t)
             }
