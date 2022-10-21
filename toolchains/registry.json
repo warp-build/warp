@@ -30,7 +30,13 @@
   "rebar3": {
     "latest": {
       "sha1": "143d3473dae6ea8250452f7a29db73974be51b24",
-      "deps": { "cmake": "3.24.2", "erlang": "25.0" }
+      "deps": { "cmake": "3.24.2", "erlang": "25.0", "git": "2.38.1" }
+    }
+  },
+  "git": {
+    "2.38.1": {
+      "version": "2.38.1",
+      "sha1": "fc5107c0cc41fc7ee870c360d67517cd0ee26d17"
     }
   },
   "ruby": {
