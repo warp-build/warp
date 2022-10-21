@@ -1,5 +1,6 @@
 import ErlangToolchain from "https://pkgs.warp.build/toolchains/erlang.js";
 import CMakeToolchain from "https://pkgs.warp.build/toolchains/cmake.js";
+import GitToolchain from "https://pkgs.warp.build/toolchains/git.js";
 
 const impl = (ctx) => {
   const { url, sha1 } = ctx.cfg();
@@ -30,5 +31,5 @@ export default Warp.Toolchain({
   defaults: {
     url: "https://s3.amazonaws.com/rebar3/rebar3",
   },
-  toolchains: [ErlangToolchain, CMakeToolchain]
+  toolchains: [ErlangToolchain, CMakeToolchain, GitToolchain]
 });
