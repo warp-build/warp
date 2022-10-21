@@ -8,6 +8,7 @@
 -export([analyze/1]).
 -export([analyze/3]).
 
+-export([functions/1]).
 -export([dependency_modules/1]).
 -export([dependency_includes/1]).
 
@@ -18,13 +19,21 @@
 -opaque mod_desc() :: #{
                         modules => [],
                         includes => [],
+                        functions => [],
                         missing_includes => [],
-                        missing_modules => []
+                        missing_modules => [],
+                        parse_transforms => []
                        }.
 
 -type err() :: {parse_error, term()}.
 
 -type opts() :: #{ compiler_opts => [atom()] }.
+
+%%--------------------------------------------------------------------------------------------------
+%% Setters / Getters
+%%--------------------------------------------------------------------------------------------------
+
+functions(#{ functions := Fns }) -> Fns.
 
 %%--------------------------------------------------------------------------------------------------
 %% API
@@ -54,20 +63,60 @@ do_analyze(Path, IncludePaths, ModMap) ->
 
   {Mods, MissingMods} = mods(ModMap, Ast),
 
+  ParseTrans = parse_trans(Ast),
+
   {Includes, MissingIncludes} = includes(Ast),
+
+  Functions = case erl_stdlib:file_to_module(Path) of
+                {ok, ModName} -> all_functions(ModName, Ast);
+                _ -> []
+              end,
 
   {Path, #{
            modules => Mods,
            includes => Includes,
+           functions => Functions,
            missing_includes => MissingIncludes,
-           missing_modules => MissingMods
+           missing_modules => MissingMods,
+           parse_transforms => ParseTrans,
+           ast => fun () -> Ast end
           }}.
+
+all_functions(ModName, Ast) ->
+  AllFns = uniq(erl_visitor:walk(
+    Ast,
+    _Acc = [],
+    fun
+      (_Ast={function, _Loc1, Name, Arity, _Clauses}, Acc) ->
+        [{ModName, Name, Arity} | Acc];
+
+      (_Ast, Acc) ->
+        Acc
+    end)),
+
+  AllFns.
+
+parse_trans(Ast) ->
+  AllMods = skip_std(uniq(erl_visitor:walk(
+    Ast,
+    _Acc = [],
+    fun
+      (_Ast={attribute, _Loc1, compile, _Args={parse_transform, Mod}}, Acc) ->
+        [Mod | Acc];
+      (_Ast, Acc) ->
+        Acc
+    end))),
+
+  AllMods.
 
 mods(ModMap, Ast) ->
   AllMods = skip_std(uniq(erl_visitor:walk(
     Ast,
     _Acc = [],
     fun
+      (_Ast={attribute, _Loc1, import, _Args={Mod, _Args}}, Acc) ->
+        [Mod | Acc];
+
       (_Ast={attribute, _Loc1, compile, _Args={parse_transform, Mod}}, Acc) ->
         [Mod | Acc];
 
@@ -77,7 +126,8 @@ mods(ModMap, Ast) ->
       (_Ast={remote_type, _Loc1, [{atom, _Loc3, Mod}, _Fun, _Args]}, Acc) ->
         [Mod | Acc];
 
-      (_Ast, Acc) ->
+      (Ast, Acc) ->
+        io:format("~p\n", [Ast]),
         Acc
     end))),
 

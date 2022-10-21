@@ -13,7 +13,7 @@ file_to_module(Path) ->
   BaseName = filename:basename(Path),
   ModName = filename:basename(Path, erl_ext()),
   case BaseName =:= ModName of
-    true -> {error, path_is_not_a_module};
+    true -> {error, {path_is_not_a_module, Path}};
     false when is_list(ModName) -> {ok, erlang:list_to_atom(ModName)};
     false when is_binary(ModName) -> {ok, erlang:binary_to_atom(ModName, utf8)}
   end.

@@ -17,7 +17,6 @@ do_analyze(File, ModMap, IgnoreModMap, IncludePaths) ->
   ?LOG_INFO("Analyzing: ~s", [File]),
 
 	{ok, #{ File := SourceAnalysis}} = erl_analyzer:analyze([File], ModMap, IncludePaths),
-
 	{ok, #{ File := CompAnalysis}} = cerl_analyzer:analyze([File], IncludePaths),
 
   Result =
@@ -114,8 +113,12 @@ erlang_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, Comp
   end.
 
 get_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
-  Fns = cerl_analyzer:functions(CompAnalysis),
-  Properties = maps:keys(Fns),
+  Properties = case CompAnalysis of 
+                 #{ error := _ } ->
+                   [ Fn || {_Mod, Fn, _Arity} <- erl_analyzer:functions(SourceAnalysis) ];
+                 _ ->
+                   maps:keys(cerl_analyzer:functions(SourceAnalysis))
+               end,
 
   % TODO(@ostera): use the cases above to extract the external calls each test case makes, and use
   % _those_ as the module listings for each case.
@@ -129,17 +132,16 @@ get_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAna
   ModDeps = skip_std(uniq(ModDeps0)),
 
   IncludeDeps0 = [ maps:get(Hrl, ModMap, Hrl) || Hrl <- cerl_analyzer:dependency_includes(CompAnalysis)
-                                            ++ erl_analyzer:dependency_includes(SourceAnalysis),
-                                      erl_stdlib:is_user_include(Hrl),
-                                      path:extension(Hrl) == <<".hrl">>,
-                                      Hrl =/= <<"proper/include/proper.hrl">>
-                 ],
+                                                         ++ erl_analyzer:dependency_includes(SourceAnalysis),
+                                                 erl_stdlib:is_user_include(Hrl),
+                                                 path:extension(Hrl) == <<".hrl">>,
+                                                 Hrl =/= <<"proper/include/proper.hrl">> ],
   IncludeDeps = skip_std(uniq(IncludeDeps0)),
 
   [#{
     name => Prop,
     test => path:filename(File),
-    deps => [ "https://hex.pm/packages/proper" ] ++ lists:map(fun dep_to_label/1, ModDeps ++ IncludeDeps),
+    deps => lists:map(fun dep_to_label/1, ModDeps ++ IncludeDeps),
     props => [Prop],
     rule => <<"erlang_proper_test">>
    } || Prop <- Properties].
@@ -150,6 +152,7 @@ get_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAna
 %%--------------------------------------------------------------------------------------------------
 
 dep_to_label(Dep) when is_atom(Dep) -> erlang:atom_to_binary(Dep);
+dep_to_label(Dep = <<"https://", _Url/binary>>) -> Dep;
 dep_to_label(Dep) -> <<"//", (path:dirname(Dep))/binary, ":", (path:filename(Dep))/binary>>.
 
 skip_std(Mods) ->
