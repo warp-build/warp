@@ -1,7 +1,7 @@
 use super::*;
 use dashmap::DashMap;
-use fxhash::*;
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
+use std::sync::Arc;
 use thiserror::*;
 use tokio::fs;
 use tracing::*;
@@ -38,7 +38,7 @@ or
 #[derive(Debug)]
 pub struct RemoteWorkspaceResolver {
     root_workspace: Workspace,
-    remote_workspace_configs: FxHashMap<String, RemoteWorkspaceConfig>,
+    remote_workspace_configs: DashMap<String, RemoteWorkspaceConfig>,
     global_workspaces_path: PathBuf,
     archive_manager: ArchiveManager,
     workspaces: DashMap<String, Workspace>,
@@ -51,13 +51,25 @@ impl RemoteWorkspaceResolver {
     pub fn new(workspace: &Workspace, store: Arc<Store>, event_channel: Arc<EventChannel>) -> Self {
         Self {
             root_workspace: workspace.clone(),
-            remote_workspace_configs: workspace.remote_workspace_configs.clone(),
+            remote_workspace_configs: {
+                let mut map = DashMap::default();
+                for (k, v) in workspace.remote_workspace_configs.iter() {
+                    map.insert(k.clone(), v.clone());
+                }
+                map
+            },
             global_workspaces_path: workspace.paths.global_workspaces_path.clone(),
             targets: DashMap::new(),
             workspaces: DashMap::new(),
             archive_manager: ArchiveManager::new(workspace, event_channel),
             store,
         }
+    }
+
+    #[tracing::instrument(name = "RemoteWorkspaceResolver::register", skip(self))]
+    pub fn register(&self, config: RemoteWorkspaceConfig) {
+        let host = config.url().host().unwrap().to_string();
+        self.remote_workspace_configs.insert(host, config);
     }
 
     #[tracing::instrument(name = "RemoteWorkspaceResolver::get", skip(self))]
@@ -107,15 +119,16 @@ impl RemoteWorkspaceResolver {
             .host()
             .ok_or_else(|| RemoteWorkspaceResolverError::UrlHadNoHost(label.url()))?
             .to_string();
+
         if let Some(workspace) = self.workspaces.get(&host) {
             Ok(workspace.clone())
         } else if let Some(config) = self.remote_workspace_configs.get(&host) {
-            self.ensure_workspace(config).await?;
+            self.ensure_workspace(&config).await?;
             // NOTE(@ostera): once we know that we have a workspace ready in this
             // folder, we can use the current label and _reparent it_ to use the
             // path to this workspace.
             let label_path = format!(".{}", label.url().path());
-            let workspace_path = self._store_path(config);
+            let workspace_path = self._store_path(&config);
 
             let relative_label_path = workspace_path.join(&label_path);
 

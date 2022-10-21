@@ -54,8 +54,10 @@ impl RemoteWorkspaceConfig {
             RemoteWorkspaceConfig::UrlWorkspace { .. } => true,
         }
     }
+}
 
-    pub fn path(&self) -> PathBuf {
+impl WorkspaceConfig for RemoteWorkspaceConfig {
+    fn path(&self) -> PathBuf {
         let url = self.url();
         let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
         match &self {
