@@ -10,6 +10,7 @@
 -export([analyze/2]).
 
 -export([function/2]).
+-export([functions/1]).
 -export([dependency_modules/1]).
 -export([dependency_includes/1]).
 
@@ -36,6 +37,9 @@
 %% API
 %%--------------------------------------------------------------------------------------------------
 %%
+-spec functions(mod_desc()) -> term().
+functions(#{ functions := Fn }) -> Fn().
+
 -spec function(mod_desc(), {atom(), integer()}) -> term().
 function(#{ functions := Fn }, FA) -> maps:get(FA, Fn()).
 

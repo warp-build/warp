@@ -46,6 +46,7 @@ to_string(Path) -> binary:bin_to_list(Path).
 from_list([]) -> new("");
 from_list(Ls) when is_list(Ls) -> new(filename:join(Ls)).
 
+-spec relativize(Path :: t()) -> t().
 relativize(Path) ->
   case to_list(Path) of
     [<<".">> | Rest] -> from_list(Rest);
