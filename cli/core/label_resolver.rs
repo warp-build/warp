@@ -209,7 +209,7 @@ name = "pkg"
 
         let workspace_file = WorkspaceFile::builder()
             .workspace(
-                WorkspaceConfig::builder()
+                WorkspaceConfigFile::builder()
                     .name("test-workspace".to_string())
                     .build()
                     .unwrap(),

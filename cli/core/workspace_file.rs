@@ -67,7 +67,7 @@ impl From<String> for WorkspaceFileError {
 ///
 #[derive(Clone, Default, Debug, Builder, Serialize, Deserialize)]
 #[builder(build_fn(error = "WorkspaceFileError"))]
-pub struct WorkspaceConfig {
+pub struct WorkspaceConfigFile {
     pub name: String,
 
     #[builder(default = "vec![]")]
@@ -83,9 +83,9 @@ pub struct WorkspaceConfig {
     pub remote_cache_url: Option<String>,
 }
 
-impl WorkspaceConfig {
-    pub fn builder() -> WorkspaceConfigBuilder {
-        WorkspaceConfigBuilder::default()
+impl WorkspaceConfigFile {
+    pub fn builder() -> WorkspaceConfigFileBuilder {
+        WorkspaceConfigFileBuilder::default()
     }
 }
 
@@ -115,7 +115,7 @@ pub struct RemoteWorkspaceFile {
 #[derive(Clone, Default, Debug, Builder, Serialize, Deserialize)]
 #[builder(build_fn(error = "WorkspaceFileError"))]
 pub struct WorkspaceFile {
-    pub workspace: WorkspaceConfig,
+    pub workspace: WorkspaceConfigFile,
 
     #[builder(default)]
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -191,7 +191,7 @@ impl TryFrom<&Workspace> for WorkspaceFile {
     fn try_from(w: &Workspace) -> Result<Self, WorkspaceFileError> {
         Self::builder()
             .workspace(
-                WorkspaceConfig::builder()
+                WorkspaceConfigFile::builder()
                     .name(w.name.clone())
                     .ignore_patterns(w.ignore_patterns.clone())
                     .use_git_hooks(w.use_git_hooks)

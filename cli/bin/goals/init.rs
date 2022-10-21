@@ -88,7 +88,7 @@ impl InitGoal {
 
         println!("\nPreparing...\n");
 
-        let workspace_config = WorkspaceConfig::builder()
+        let workspace_config = WorkspaceConfigFile::builder()
             .name(workspace_name)
             .use_git_hooks(use_git_hooks)
             .build()?;
