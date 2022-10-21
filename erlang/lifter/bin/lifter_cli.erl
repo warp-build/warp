@@ -8,8 +8,8 @@
 -export([missing_deps/1]).
 -export([find_rebar_dependencies/1]).
 
--define(JSON(X), jsone:encode(X, [{indent, 2}, {space, 1}])).
--define(PRINT_JSON(X), io:format("~s\n", [jsone:encode(X, [{indent, 2}, {space, 1}])])).
+-define(JSON(X), jsone:encode(X, [{indent, 2}, {space, 1}, native_utf8, native_forward_slash])).
+-define(PRINT_JSON(X), io:format("~s\n", [?JSON(X)])).
 
 %===================================================================================================
 % @doc Lift the current directory.
@@ -22,7 +22,7 @@ lift(WorkspaceRoot0) ->
   ?LOG_INFO("Searching for Rebar3 Projects in " ++ WorkspaceRoot),
   {ok, Projects} = lifter_rebar3:find_all_rebar_projects(WorkspaceRoot),
 
-  % 1-b. extract from the project configurations all the info we need, like modules to ignore
+  % 1.1. extract from the project configurations all the info we need, like modules to ignore
   IgnoreMods= sets:from_list(lists:foldl(
                    fun ({_, #{ proj := Proj }}, Acc) ->
                        CoverIgnore = maps:get(cover_excl_mods, Proj, []),
@@ -39,6 +39,20 @@ lift(WorkspaceRoot0) ->
   % 2. flatten all deps
   ?LOG_INFO("Flattening transitive dependencies..."),
   {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(WorkspaceRoot, Projects),
+
+  % 2.1. write Dependencies.json file
+  {ok, Lock} = file:consult(path:join(WorkspaceRoot, ".warp/_rebar_tmp/rebar.lock")),
+  #{ "1.2.0" := LockedDeps } = proplists:to_map(Lock),
+  LockMap =  maps:from_list([
+                             case Vsn of
+                               {pkg, Name, SemVer} -> {hexpm:pkg_to_url(Name), str:new(SemVer)};
+                               {git, Repo, {ref, Ref}} -> {str:new(Repo), str:new(Ref)}
+                             end
+                             || {_, Vsn, _} <- LockedDeps ]),
+  Dependencies = #{ version => <<"0">>,
+                    dependencies => LockMap },
+  ok = file:write_file(path:join(WorkspaceRoot, ".warp/Dependencies.json"), ?JSON(Dependencies)),
+
 
   % 3. build lookup table from module/include to dep
   ExternalTable = lists:foldl(

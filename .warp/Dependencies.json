@@ -1,6 +1,14 @@
 {
-  "version": 0,
   "dependencies": {
-    "https://hex.pm/packages/proper": "1.4.0"
-  }
+    "https://github.com/benoitc/erlang-idna": "6cff72747821110169ecfac871b0c69e5064afff",
+    "https://github.com/emqx/cowboy": "c8e2b9e069655ad166702a7deb935cabddc85888",
+    "https://github.com/ninenines/cowlib": "c6553f8308a2ca5dcd69d845f0a7d098c40c3363",
+    "https://github.com/ninenines/ct_helper": "478aa272708ed4ad282ca02bed41a5320330e8af",
+    "https://github.com/ninenines/gun": "a4425a1d7db2d9e35f246aa078c324988ea395f0",
+    "https://github.com/ninenines/horse.git": "4dc81d47c3116b38af673481402f34ce03f8936b",
+    "https://github.com/ninenines/ranch": "a692f44567034dacf5efcaa24a24183788594eb7",
+    "https://hex.pm/packages/proper": "1.4.0",
+    "https://hex.pm/packages/unicode_util_compat": "0.4.1"
+  },
+  "version": "0"
 }
