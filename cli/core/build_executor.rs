@@ -11,6 +11,9 @@ pub enum BuildExecutorError {
 
     #[error(transparent)]
     QueueError(build_queue::QueueError),
+
+    #[error(transparent)]
+    DependencyManagerError(DependencyManagerError),
 }
 
 /// A BuildExecutor orchestrates a local build starting from the target and
@@ -59,6 +62,12 @@ impl BuildExecutor {
         let worker_limit = self.worker_limit;
         debug!("Starting build executor with {} workers...", &worker_limit);
 
+        let dependency_manager = Arc::new(
+            DependencyManager::new(&self.workspace, self.label_registry.clone())
+                .await
+                .map_err(BuildExecutorError::DependencyManagerError)?,
+        );
+
         let build_queue = Arc::new(BuildQueue::new(
             self.results.clone(),
             event_channel.clone(),
@@ -73,6 +82,7 @@ impl BuildExecutor {
             self.results.clone(),
             event_channel.clone(),
             self.label_registry.clone(),
+            dependency_manager.clone(),
         ));
         let target_executor = Arc::new(TargetExecutor::new(store.clone(), event_channel.clone()));
 

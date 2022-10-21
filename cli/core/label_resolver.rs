@@ -50,6 +50,7 @@ impl LabelResolver {
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
         label_registry: Arc<LabelRegistry>,
+        dependency_manager: Arc<DependencyManager>,
     ) -> Self {
         let remote_workspace_resolver = Arc::new(RemoteWorkspaceResolver::new(
             workspace,
@@ -64,6 +65,7 @@ impl LabelResolver {
                 event_channel,
                 store,
                 label_registry.clone(),
+                dependency_manager,
             ),
             remote_workspace_resolver,
             resolved_labels: DashMap::default(),

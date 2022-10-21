@@ -24,9 +24,6 @@
       "git_ref": "main"
     }
   },
-  "dependencies": {
-    "https://hex.pm/packages/proper": "1.4.0"
-  },
   "aliases": {
     "deno": "https://pkgs.warp.build/toolchains/deno",
     "ruby": "https://pkgs.warp.build/toolchains/ruby",
@@ -40,6 +37,10 @@
     "python": "https://pkgs.warp.build/toolchains/python"
   },
   "toolchains": {
+    "git": {
+      "version": "2.38.1",
+      "sha1": "fc5107c0cc41fc7ee870c360d67517cd0ee26d17"
+    },
     "ruby": {
       "sha1": "b0d86c60457fdfbcb532cb681877a2f790f66b25",
       "version": "3.1.2"

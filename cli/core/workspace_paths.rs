@@ -39,6 +39,9 @@ pub struct WorkspacePaths {
     /// The location of global rules
     pub global_rules_root: PathBuf,
 
+    /// The location of the Warp configuration overrides root for this workspace
+    pub local_warp_root: PathBuf,
+
     /// The location of the outputs for this workspace
     pub local_outputs_root: PathBuf,
 
@@ -121,6 +124,7 @@ impl WorkspacePaths {
             global_cache_root,
             global_rules_root,
             global_workspaces_path,
+            local_warp_root,
             local_cache_root,
             local_outputs_root,
             local_rules_root,

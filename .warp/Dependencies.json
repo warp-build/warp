@@ -1,0 +1,6 @@
+{
+  "version": 0,
+  "dependencies": {
+    "https://hex.pm/packages/proper": "1.4.0"
+  }
+}

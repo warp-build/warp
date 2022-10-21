@@ -33,7 +33,7 @@ pub struct DependencyResolver {
     targets: DashMap<LabelId, Target>,
     resolvers: DashMap<String, LabelId>,
 
-    dependency_map: BTreeMap<String, String>,
+    dependency_manager: Arc<DependencyManager>,
 
     build_results: Arc<BuildResults>,
     label_registry: Arc<LabelRegistry>,
@@ -50,6 +50,7 @@ impl DependencyResolver {
         event_channel: Arc<EventChannel>,
         store: Arc<Store>,
         label_registry: Arc<LabelRegistry>,
+        dependency_manager: Arc<DependencyManager>,
     ) -> Self {
         let this = Self {
             archive_manager: ArchiveManager::new(workspace, event_channel.clone()),
@@ -58,7 +59,7 @@ impl DependencyResolver {
             targets: DashMap::new(),
             resolvers: DashMap::new(),
             event_channel,
-            dependency_map: workspace.dependency_map.clone(),
+            dependency_manager,
             global_workspaces_path: workspace.paths.global_workspaces_path.clone(),
             label_registry,
         };
@@ -85,8 +86,8 @@ impl DependencyResolver {
         }
 
         let label = self.label_registry.get(label_id);
-        let version = if let Some(version) = self.dependency_map.get(label.url().as_ref()) {
-            version.to_string()
+        let version = if let Some(dependency) = self.dependency_manager.get(label_id) {
+            dependency.version
         } else {
             return Err(DependencyResolverError::UnspecifiedDependency { dependency: label });
         };

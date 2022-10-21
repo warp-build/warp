@@ -3062,7 +3062,7 @@ dependencies = [
 
 [[package]]
 name = "warp-build"
-version = "0.0.43"
+version = "0.0.44"
 dependencies = [
  "anyhow",
  "assert_cmd",

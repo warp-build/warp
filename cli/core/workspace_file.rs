@@ -9,6 +9,7 @@ use tokio::fs;
 use tracing::*;
 
 pub const WORKSPACE: &str = "Workspace.json";
+pub const DEPENDENCY: &str = "Dependencies.json";
 
 #[derive(Error, Debug)]
 pub enum RemoteWorkspaceFileError {
@@ -119,10 +120,6 @@ pub struct WorkspaceFile {
 
     #[builder(default)]
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub dependencies: BTreeMap<String, String>,
-
-    #[builder(default)]
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub aliases: BTreeMap<String, String>,
 
     #[builder(default)]
@@ -141,9 +138,8 @@ impl WorkspaceFile {
         while let Some(path) = dirs.next().await {
             let here = &path.join(WORKSPACE);
             if fs::canonicalize(&here).await.is_ok() {
-                return WorkspaceFile::read_from_file(here)
-                    .await
-                    .map(|file| (path.clone(), file));
+                let workspace_file = WorkspaceFile::read_from_file(here).await?;
+                return Ok((path.clone(), workspace_file));
             }
         }
         Err(WorkspaceFileError::WorkspaceFileNotFound)
