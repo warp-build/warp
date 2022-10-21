@@ -131,7 +131,7 @@ impl ArchiveManager {
         }
     }
 
-    #[tracing::instrument(name = "ArchiveManager::download_and_extract", skip(self))]
+    #[tracing::instrument(name = "ArchiveManager::download_and_move", skip(self))]
     pub async fn download_and_move(
         &self,
         url: &Url,
@@ -292,15 +292,25 @@ impl ArchiveManager {
                     reader.copy_to_end_crc(&mut output, 65536).await?;
                 }
             }
-            Err(_) => {
+            Err(err) => {
                 let file = fs::File::open(&archive).await?;
                 let decompress_stream =
                     GzipDecoder::new(futures::io::BufReader::new(file.compat()));
+
                 let tar = async_tar::Archive::new(decompress_stream);
 
                 if let Some(ref prefix) = strip_prefix {
                     let tmpdir = tempfile::tempdir()?;
-                    tar.unpack(tmpdir.path()).await?;
+
+                    match tar.unpack(tmpdir.path()).await {
+                        Ok(_) => (),
+                        Err(err) => {
+                            let file = fs::File::open(&archive).await?;
+                            let tar =
+                                async_tar::Archive::new(futures::io::BufReader::new(file.compat()));
+                            tar.unpack(tmpdir.path()).await?
+                        }
+                    };
 
                     let mut files = Box::pin(
                         FileScanner::new()
@@ -318,7 +328,15 @@ impl ArchiveManager {
                         fs::copy(src_path, dst_path).await?;
                     }
                 } else {
-                    tar.unpack(dst).await?;
+                    match tar.unpack(&dst).await {
+                        Ok(_) => (),
+                        Err(err) => {
+                            let file = fs::File::open(&archive).await?;
+                            let tar =
+                                async_tar::Archive::new(futures::io::BufReader::new(file.compat()));
+                            tar.unpack(dst).await?
+                        }
+                    };
                 }
             }
         }
