@@ -127,7 +127,6 @@ mods(ModMap, Ast) ->
         [Mod | Acc];
 
       (Ast, Acc) ->
-        io:format("~p\n", [Ast]),
         Acc
     end))),
 

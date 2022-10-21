@@ -141,7 +141,7 @@ get_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAna
   [#{
     name => Prop,
     test => path:filename(File),
-    deps => lists:map(fun dep_to_label/1, ModDeps ++ IncludeDeps),
+    deps => lists:map(fun dep_to_label/1, [File] ++ ModDeps ++ IncludeDeps),
     props => [Prop],
     rule => <<"erlang_proper_test">>
    } || Prop <- Properties].
