@@ -9,6 +9,27 @@ use tracing::*;
 
 pub type StoreKey = String;
 
+/// A lock to a store, represented as a physical file.
+///
+/// This lock file will be removed whenever the lock itself is out of scope / dropped.
+///
+pub struct StoreLock(PathBuf);
+
+impl StoreLock {
+    pub async fn try_lock(key: &PathBuf) -> Result<Self, std::io::Error> {
+        tokio::fs::create_dir_all(&key).await?;
+        let lock_file = key.join("Warp.lock");
+        tokio::fs::write(&lock_file, "lock").await?;
+        Ok(Self(lock_file))
+    }
+}
+
+impl Drop for StoreLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Store {
     workspace_prefixes: DashMap<PathBuf, PathBuf>,
@@ -53,6 +74,9 @@ pub enum StoreError {
         dst: PathBuf,
         err: std::io::Error,
     },
+
+    #[error("Could not lock store key: {key:?}, due to: {err:?}")]
+    LockError { key: PathBuf, err: std::io::Error },
 }
 
 impl Store {
@@ -71,6 +95,11 @@ impl Store {
                 map
             },
         }
+    }
+
+    // TODO(@ostera): remove me
+    pub fn register_workspace_raw(&self, prefix: PathBuf, root: PathBuf) {
+        self.workspace_prefixes.insert(prefix, root);
     }
 
     pub fn register_workspace(&self, workspace: &Workspace) {
@@ -148,6 +177,14 @@ impl Store {
             }
             result => Ok(result),
         }
+    }
+
+    #[tracing::instrument(name = "Store::lock", skip(node))]
+    pub async fn lock(&self, node: &ExecutableTarget) -> Result<StoreLock, StoreError> {
+        let key = self.absolute_path_by_node(node).await?;
+        StoreLock::try_lock(&key)
+            .await
+            .map_err(|err| StoreError::LockError { key, err })
     }
 
     #[tracing::instrument(name = "Store::clean", skip(node))]
