@@ -70,6 +70,12 @@ impl TargetExecutor {
     ) -> Result<(TargetManifest, ValidationStatus), TargetExecutorError> {
         let build_started_at = chrono::Utc::now();
 
+        let lock = self
+            .store
+            .lock(target)
+            .await
+            .map_err(TargetExecutorError::StoreError)?;
+
         if let StoreHitType::Hit(manifest) = self
             .store
             .is_stored(target)
