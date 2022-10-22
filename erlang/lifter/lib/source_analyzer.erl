@@ -158,6 +158,7 @@ get_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAna
 
 dep_to_label(Dep) when is_atom(Dep) -> erlang:atom_to_binary(Dep);
 dep_to_label(Dep = <<"https://", _Url/binary>>) -> Dep;
+dep_to_label(Dep = <<"http://", _Url/binary>>) -> Dep;
 dep_to_label(Dep) -> <<"//", (path:dirname(Dep))/binary, ":", (path:filename(Dep))/binary>>.
 
 skip_std(Mods) ->
