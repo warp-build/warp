@@ -37,28 +37,50 @@ lift(WorkspaceRoot0) ->
                    end, [], maps:to_list(Projects))),
 
   % 2. flatten all deps
-  ?LOG_INFO("Flattening transitive dependencies..."),
-  {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(WorkspaceRoot, Projects),
+  % ?LOG_INFO("Flattening transitive dependencies..."),
+  % {ok, ExternalDeps} = lifter_rebar3:download_and_flatten_dependencies(WorkspaceRoot, Projects),
 
-  % 2.1. write Dependencies.json file
-  {ok, Lock} = file:consult(path:join(WorkspaceRoot, ".warp/_rebar_tmp/rebar.lock")),
-  #{ "1.2.0" := LockedDeps } = proplists:to_map(Lock),
-  LockMap =  maps:from_list([
+  {ok, Lock} = file:consult(path:join(WorkspaceRoot, "rebar.lock")),
+  LockedDeps = case proplists:to_map(Lock) of
+                 #{ "1.2.0" := X } -> X;
+                 _ -> []
+               end,
+
+  ?LOG_INFO("Getting dependencies sources to facilitate analysis..."),
+  RebarDeps =  [
+              case Vsn of
+                {pkg, _Name, SemVer} -> {erlang:binary_to_atom(Name), SemVer};
+                Git -> {erlang:binary_to_atom(Name), Git}
+              end
+              || {Name, Vsn, _} <- LockedDeps ],
+  {ok, ExternalDeps} = lifter_rebar3:download(#{ deps => RebarDeps }, WorkspaceRoot),
+
+  % 2.1. write Dependencies.json file using the External Dependencies Table
+  LockMap =  maps:from_list(lists:sort([
                              case Vsn of
                                {pkg, Name, SemVer} -> {hexpm:pkg_to_url(Name), str:new(SemVer)};
-                               {git, Repo, {ref, Ref}} -> {str:new(Repo), str:new(Ref)}
+                               {git, Repo, {ref, Ref}} -> {str:new(string:replace(Repo, ".git", "", all)), str:new(Ref)}
                              end
-                             || {_, Vsn, _} <- LockedDeps ]),
+                             || {_, Vsn, _} <- LockedDeps ])),
   Dependencies = #{ version => <<"0">>,
                     dependencies => LockMap },
   ok = file:write_file(path:join(WorkspaceRoot, ".warp/Dependencies.json"), ?JSON(Dependencies)),
 
+  Mod2Url =  maps:from_list(lists:sort([
+                             case Vsn of
+                               {pkg, _Name, SemVer} -> {str:new(Name), hexpm:pkg_to_url(Name)};
+                               {git, Repo, {ref, Ref}} -> {str:new(Name), str:new(Repo)}
+                             end
+                             || {Name, Vsn, _} <- LockedDeps ])),
+
 
   % 3. build lookup table from module/include to dep
   ExternalTable = lists:foldl(
-            fun (Dep = #{ url := Url, name := Name, files := Files, root := Prefix } , Acc) ->
+            fun (_Dep = #{ name := Name, files := Files, root := Prefix } , Acc) ->
                 AllFiles = lists:flatten(maps:values(Files)),
                 #{ headers := Headers, sources := Sources } = source_tagger:tag(AllFiles),
+
+                Url = maps:get(Name, Mod2Url, hexpm:pkg_to_url(Name)),
 
                 SrcEntries = lists:flatmap(
                                fun (Src) ->

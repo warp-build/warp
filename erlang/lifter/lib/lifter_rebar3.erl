@@ -3,8 +3,9 @@
 -define(JSON(X), jsone:encode(X, [{indent, 2}, {space, 1}])).
 -include_lib("kernel/include/logger.hrl").
 
--export([find_all_rebar_projects/1]).
+-export([download/2]).
 -export([download_and_flatten_dependencies/2]).
+-export([find_all_rebar_projects/1]).
 
 -export_type([t/0]).
 
@@ -18,10 +19,29 @@
 -spec find_all_rebar_projects(path:t()) -> result:t(t(), term()).
 find_all_rebar_projects(Root0) when is_binary(Root0) ->
   Root = binary:bin_to_list(Root0),
+  MixProjects = filelib:fold_files(Root, "hex_metadata\.config$", true, fun read_hex_metadata/2, #{}),
   RebarProjects = filelib:fold_files(Root, "rebar\.config$", true, fun read_rebar_project/2, #{}),
   ErlMkProjects = filelib:fold_files(Root, "erlang\.mk", true, fun read_erlmk_project/2, #{}),
-  Final = maps:merge(RebarProjects, ErlMkProjects),
+  Final = maps:merge(maps:merge(RebarProjects, ErlMkProjects), MixProjects),
   {ok, clean(Final)}.
+
+read_hex_metadata(HexMetadata, Acc) ->
+  ProjectRoot = path:relativize(filename:dirname(HexMetadata)),
+  ProjectName = path:filename(ProjectRoot),
+
+  {ok, Project} = file:consult(HexMetadata),
+  ProjMap = maps:from_list(Project),
+
+  FinalProject = [
+                  {name, ProjectName},
+                  {url, hexpm:pkg_to_url(ProjectName)},
+                  {root, ProjectRoot},
+                  {files, get_sources(ProjectRoot)},
+                  {deps, []},
+                  {proj, ProjMap}
+                 ],
+
+  maps:put(HexMetadata, maps:from_list(FinalProject), Acc).
 
 read_rebar_project(RebarConfig, Acc) ->
   ProjectRoot = filename:dirname(RebarConfig),
@@ -126,6 +146,28 @@ clean(Term) -> Term.
 clean([], Acc) -> maps:from_list(Acc);
 clean([{K, V}|Rest], Acc) -> clean(Rest, [{clean(K), clean(V)} | Acc]).
   
+%===================================================================================================
+% @doc Given a set of dependencies, install them all.
+%===================================================================================================
+
+download(Rebar3Config, WorkspaceRoot)  ->
+  Root = path:join(WorkspaceRoot,<<"./.warp/_rebar_tmp">>),
+  filelib:ensure_path(Root),
+
+  Rebar3File = [ {base_dir, "rebar3"} ] ++ maps:to_list(Rebar3Config),
+
+  ok = write_terms(filename:join(Root, "rebar.config"), Rebar3File),
+  ok = in_dir(Root, fun () -> run_rebar("get-deps") end),
+
+  {ok, NewProjects} = find_all_rebar_projects(Root),
+
+  {ok, maps:values(NewProjects)}.
+
+write_terms(Filename, List) ->
+    Format = fun(Term) -> io_lib:format("~tp.~n", [Term]) end,
+    Text = unicode:characters_to_binary(lists:map(Format, List)),
+    file:write_file(Filename, Text).
+
 
 %===================================================================================================
 % @doc Given a map of project files, flatten all dependencies by calling rebar2
