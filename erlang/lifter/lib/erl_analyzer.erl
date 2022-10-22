@@ -8,6 +8,7 @@
 -export([analyze/1]).
 -export([analyze/3]).
 
+-export([ast/1]).
 -export([functions/1]).
 -export([dependency_modules/1]).
 -export([dependency_includes/1]).
@@ -22,7 +23,8 @@
                         functions => [],
                         missing_includes => [],
                         missing_modules => [],
-                        parse_transforms => []
+                        parse_transforms => [],
+                        ast => fun(() -> term())
                        }.
 
 -type err() :: {parse_error, term()}.
@@ -34,6 +36,7 @@
 %%--------------------------------------------------------------------------------------------------
 
 functions(#{ functions := Fns }) -> Fns.
+ast(#{ ast := Fn }) -> Fn().
 
 %%--------------------------------------------------------------------------------------------------
 %% API
@@ -114,7 +117,7 @@ mods(CurrPath, ModMap, Ast) ->
     Ast,
     _Acc = [],
     fun
-      (_Ast={attribute, _Loc1, import, _Args={Mod, _Args}}, Acc) ->
+      (_Ast={attribute, _Loc1, import, _Args={Mod, _ModArgs}}, Acc) ->
         [Mod | Acc];
 
       (_Ast={attribute, _Loc1, compile, _Args={parse_transform, Mod}}, Acc) ->
@@ -126,7 +129,7 @@ mods(CurrPath, ModMap, Ast) ->
       (_Ast={remote_type, _Loc1, [{atom, _Loc3, Mod}, _Fun, _Args]}, Acc) ->
         [Mod | Acc];
 
-      (Ast, Acc) ->
+      (_Ast, Acc) ->
         Acc
     end))),
 

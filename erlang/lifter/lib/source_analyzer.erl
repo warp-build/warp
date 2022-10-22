@@ -66,14 +66,16 @@ erlang_ct_suites(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompA
 
 get_ct_cases(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
   Cases = case CompAnalysis of
-            #{ error := _ } -> [];
+            #{ error := Err } ->
+              io:format("Include Paths: ~p\n", [IncludePaths]),
+              io:format("Error analyzing CommonTest cases for ~p:\n~p\n", [File, Err]),
+              timer:sleep(100),
+              erlang:halt(),
+              [];
             _ ->
               AllFn = cerl_analyzer:function(CompAnalysis, {all,0}),
               cerl_trees:fold(fun extract_cases/2, [], AllFn)
           end,
-
-  % TODO(@ostera): use the cases above to extract the external calls each test case makes, and use
-  % _those_ as the module listings for each case.
 
   ModDeps0 = [ maps:get(Mod, ModMap)
                || Mod <- cerl_analyzer:dependency_modules(CompAnalysis), 
