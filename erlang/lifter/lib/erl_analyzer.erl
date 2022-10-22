@@ -61,7 +61,7 @@ analyze(Files, ModMap, IncludePaths) ->
 do_analyze(Path, IncludePaths, ModMap) ->
   {ok, Ast} = erl_ast:parse_file(Path, IncludePaths),
 
-  {Mods, MissingMods} = mods(ModMap, Ast),
+  {Mods, MissingMods} = mods(Path, ModMap, Ast),
 
   ParseTrans = parse_trans(Ast),
 
@@ -109,7 +109,7 @@ parse_trans(Ast) ->
 
   AllMods.
 
-mods(ModMap, Ast) ->
+mods(CurrPath, ModMap, Ast) ->
   AllMods = skip_std(uniq(erl_visitor:walk(
     Ast,
     _Acc = [],
@@ -133,7 +133,8 @@ mods(ModMap, Ast) ->
   {Mods, Missing} = lists:foldl(fun (Mod, {Mods, Missing}) ->
                              case maps:get(Mod, ModMap, missing) of
                                missing -> {Mods, [Mod|Missing]};
-                               Path -> {[Path|Mods], Missing}
+                               Path when Path =/= CurrPath -> {[Path|Mods], Missing};
+                               _ -> {Mods, Missing}
                              end
                          end, {_Mods = [], _Missing = []}, AllMods),
 

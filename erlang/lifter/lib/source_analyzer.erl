@@ -32,6 +32,7 @@ do_analyze(File, ModMap, IgnoreModMap, IncludePaths) ->
 %%--------------------------------------------------------------------------------------------------
 
 erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
+
   ModDeps0 = [ maps:get(Mod, ModMap)
                || Mod <- cerl_analyzer:dependency_modules(CompAnalysis), 
                   erl_stdlib:is_user_module(Mod),
