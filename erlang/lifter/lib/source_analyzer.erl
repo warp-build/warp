@@ -94,7 +94,7 @@ get_ct_cases(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnaly
     deps => lists:map(fun dep_to_label/1, ModDeps ++ IncludeDeps),
     cases => [Case],
     rule => <<"erlang_test">>
-   } || Case <- Cases].
+   } || Case <- Cases, erlang:is_binary(Case)].
 
 extract_cases(Tree, Acc) -> extract_cases(cerl:type(Tree), Tree, Acc).
 extract_cases(literal, #c_literal{}=Tree, Acc) ->
