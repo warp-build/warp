@@ -74,8 +74,10 @@ analyze(Sources, IncludePaths) ->
   {ok, OutDir} = tempdir:new(),
   true = code:add_path(path:to_string(OutDir)),
 
+  CompilerOpts = [{outdir, path:to_string(OutDir)} | [ {i, binary:bin_to_list(P)} || P <- IncludePaths]],
+
   Opts = #{
-           compiler_opts => [{outdir, path:to_string(OutDir)} | IncludePaths],
+           compiler_opts => CompilerOpts,
            include_paths => IncludePaths
           },
   Results0 = lists:map(fun (Source) -> {Source, do_analyze(Source, Opts)} end, Sources),
