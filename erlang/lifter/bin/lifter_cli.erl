@@ -69,7 +69,7 @@ lift(WorkspaceRoot0) ->
   Mod2Url =  maps:from_list(lists:sort([
                              case Vsn of
                                {pkg, _Name, SemVer} -> {str:new(Name), hexpm:pkg_to_url(Name)};
-                               {git, Repo, {ref, Ref}} -> {str:new(Name), str:new(Repo)}
+                               {git, Repo, {ref, Ref}} -> {str:new(Name), str:new(string:replace(Repo, ".git", "", all))}
                              end
                              || {Name, Vsn, _} <- LockedDeps ])),
 
