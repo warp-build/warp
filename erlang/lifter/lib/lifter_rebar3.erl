@@ -6,10 +6,54 @@
 -export([download/2]).
 -export([download_and_flatten_dependencies/2]).
 -export([find_all_rebar_projects/1]).
+-export([locked_dependencies/2]).
 
 -export_type([t/0]).
 
 -type t() :: #{ path:t() => #{} }.
+
+%===================================================================================================
+% @doc Get the list of flattened transitive dependencies and the versions they are locked to.
+%===================================================================================================
+
+locked_dependencies(WorkspaceRoot, Projects) ->
+  {ok, Lock} = file:consult(path:join(WorkspaceRoot, "rebar.lock")),
+  LockedDeps = case proplists:to_map(Lock) of
+                 #{ "1.2.0" := X } -> X;
+                 _ -> []
+               end,
+
+  ?LOG_INFO("Getting dependencies sources to facilitate analysis..."),
+  {ok, ExternalDeps} = 
+    case LockedDeps of
+      [] ->
+        % 2. flatten all deps
+        ?LOG_INFO("Lock file was empty. Attempting to flatten transitive dependencies..."),
+        download_and_flatten_dependencies(WorkspaceRoot, Projects);
+      _ ->
+        RebarDeps =  [
+                      case Vsn of
+                        {pkg, PkgName, SemVer} -> {erlang:binary_to_atom(PkgName), SemVer};
+                        Git -> {erlang:binary_to_atom(Name), Git}
+                      end
+                      || {Name, Vsn, _} <- LockedDeps ],
+        download(#{ deps => RebarDeps }, WorkspaceRoot)
+    end,
+
+  FinalLockedDeps = case LockedDeps of
+                      [] -> 
+                        {ok, NewLock} = file:consult(path:join(WorkspaceRoot, ".warp/_rebar_tmp/rebar.lock")),
+                        case proplists:to_map(NewLock) of
+                          #{ "1.2.0" := Y } -> Y;
+                          _ -> []
+                        end;
+
+                      _ ->
+                        LockedDeps
+                    end,
+
+  {ok, ExternalDeps, FinalLockedDeps}.
+
 
 %===================================================================================================
 % @doc Find all dependencies in a workspace by folding over all rebar.config

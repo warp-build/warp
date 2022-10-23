@@ -37,40 +37,7 @@ lift(WorkspaceRoot0) ->
                    end, [], maps:to_list(Projects))),
 
 
-  {ok, Lock} = file:consult(path:join(WorkspaceRoot, "rebar.lock")),
-  LockedDeps = case proplists:to_map(Lock) of
-                 #{ "1.2.0" := X } -> X;
-                 _ -> []
-               end,
-
-  ?LOG_INFO("Getting dependencies sources to facilitate analysis..."),
-  {ok, ExternalDeps} = 
-    case LockedDeps of
-      [] ->
-        % 2. flatten all deps
-        ?LOG_INFO("Lock file was empty. Attempting to flatten transitive dependencies..."),
-        lifter_rebar3:download_and_flatten_dependencies(WorkspaceRoot, Projects);
-      _ ->
-        RebarDeps =  [
-                      case Vsn of
-                        {pkg, PkgName, SemVer} -> {erlang:binary_to_atom(PkgName), SemVer};
-                        Git -> {erlang:binary_to_atom(Name), Git}
-                      end
-                      || {Name, Vsn, _} <- LockedDeps ],
-        lifter_rebar3:download(#{ deps => RebarDeps }, WorkspaceRoot)
-    end,
-
-  FinalLockedDeps = case LockedDeps of
-                      [] -> 
-                        {ok, NewLock} = file:consult(path:join(WorkspaceRoot, ".warp/_rebar_tmp/rebar.lock")),
-                        case proplists:to_map(NewLock) of
-                          #{ "1.2.0" := Y } -> Y;
-                          _ -> []
-                        end;
-
-                      _ ->
-                        LockedDeps
-                    end,
+  {ok, ExternalDeps, Lock} = lifter_rebar3:locked_dependencies(WorkspaceRoot, Projects),
 
   % 2.1. write Dependencies.json file using the External Dependencies Table
   LockMap =  maps:from_list(lists:sort([
@@ -78,7 +45,7 @@ lift(WorkspaceRoot0) ->
                                {pkg, Name, SemVer} -> {hexpm:pkg_to_url(Name), str:new(SemVer)};
                                {git, Repo, {ref, Ref}} -> {str:new(string:replace(Repo, ".git", "", all)), str:new(Ref)}
                              end
-                             || {_, Vsn, _} <- FinalLockedDeps ])),
+                             || {_, Vsn, _} <- Lock ])),
   Dependencies = #{ version => <<"0">>,
                     dependencies => LockMap },
   ok = file:write_file(path:join(WorkspaceRoot, ".warp/Dependencies.json"), ?JSON(Dependencies)),
@@ -88,7 +55,7 @@ lift(WorkspaceRoot0) ->
                                {pkg, _Name, _SemVer} -> {str:new(Name), hexpm:pkg_to_url(Name)};
                                {git, Repo, _Ref} -> {str:new(Name), str:new(string:replace(Repo, ".git", "", all))}
                              end
-                             || {Name, Vsn, _} <- LockedDeps ])),
+                             || {Name, Vsn, _} <- Lock ])),
 
 
   % 3. build lookup table from module/include to dep
