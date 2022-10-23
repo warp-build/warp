@@ -105,6 +105,9 @@ pub struct RemoteWorkspaceFile {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub git_ref: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
 }
 
 /// A struct representing a `Workspace.json` file in a Warp Workspace.

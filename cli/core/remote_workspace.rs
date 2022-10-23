@@ -17,13 +17,22 @@ pub enum RemoteWorkspaceConfig {
         sha1: String,
         prefix: String,
     },
+
+    LocalWorkspace {
+        path: String,
+    },
 }
 
 impl RemoteWorkspaceConfig {
+    pub fn is_local(&self) -> bool {
+        matches!(self, RemoteWorkspaceConfig::LocalWorkspace { .. })
+    }
+
     pub fn hash(&self) -> &str {
         match self {
             RemoteWorkspaceConfig::UrlWorkspace { sha1, .. } => sha1,
             RemoteWorkspaceConfig::GithubWorkspace { git_ref, .. } => git_ref,
+            RemoteWorkspaceConfig::LocalWorkspace { .. } => todo!(),
         }
     }
 
@@ -31,6 +40,7 @@ impl RemoteWorkspaceConfig {
         match self {
             RemoteWorkspaceConfig::UrlWorkspace { prefix, .. } => prefix,
             RemoteWorkspaceConfig::GithubWorkspace { prefix, .. } => prefix,
+            RemoteWorkspaceConfig::LocalWorkspace { .. } => todo!(),
         }
     }
 
@@ -38,6 +48,7 @@ impl RemoteWorkspaceConfig {
         match self {
             RemoteWorkspaceConfig::UrlWorkspace { url, .. } => url,
             RemoteWorkspaceConfig::GithubWorkspace { url, .. } => url,
+            RemoteWorkspaceConfig::LocalWorkspace { .. } => todo!(),
         }
     }
 
@@ -52,16 +63,16 @@ impl RemoteWorkspaceConfig {
                 git_ref.len() == 40 && regex.is_match(git_ref)
             }
             RemoteWorkspaceConfig::UrlWorkspace { .. } => true,
+            RemoteWorkspaceConfig::LocalWorkspace { .. } => false,
         }
     }
 }
 
 impl WorkspaceConfig for RemoteWorkspaceConfig {
     fn path(&self) -> PathBuf {
-        let url = self.url();
-        let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
         match &self {
             RemoteWorkspaceConfig::GithubWorkspace { url, git_ref, .. } => {
+                let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
                 let org_and_repo: String = url
                     .path_segments()
                     .unwrap()
@@ -71,7 +82,11 @@ impl WorkspaceConfig for RemoteWorkspaceConfig {
                 // NOTE(@ostera): path should be https/github.com/<org>/<repo>/<hash>
                 scheme_and_host.join(org_and_repo).join(git_ref)
             }
-            RemoteWorkspaceConfig::UrlWorkspace { .. } => scheme_and_host,
+            RemoteWorkspaceConfig::UrlWorkspace { url, .. } => {
+                let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
+                scheme_and_host
+            }
+            RemoteWorkspaceConfig::LocalWorkspace { path } => PathBuf::from(path),
         }
     }
 }
@@ -95,6 +110,10 @@ impl From<RemoteWorkspaceConfig> for RemoteWorkspaceFile {
                 archive_prefix: Some(prefix),
                 ..Self::default()
             },
+            RemoteWorkspaceConfig::LocalWorkspace { path } => Self {
+                path: Some(path),
+                ..Self::default()
+            },
         }
     }
 }
@@ -103,6 +122,12 @@ impl TryFrom<RemoteWorkspaceFile> for RemoteWorkspaceConfig {
     type Error = WorkspaceFileError;
 
     fn try_from(value: RemoteWorkspaceFile) -> Result<Self, Self::Error> {
+        if value.path.is_some() {
+            return Ok(Self::LocalWorkspace {
+                path: value.path.unwrap(),
+            });
+        }
+
         if value.archive_url.is_some() && value.archive_sha1.is_some() {
             return Ok(Self::UrlWorkspace {
                 url: value.archive_url.unwrap(),

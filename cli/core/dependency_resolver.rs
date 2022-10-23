@@ -68,6 +68,7 @@ impl DependencyResolver {
         for (host, resolver) in [
             ("hex.pm", "https://tools.warp.build/hexpm/resolver"),
             ("github.com", "https://tools.warp.build/github/resolver"),
+            ("gitlab.com", "https://tools.warp.build/gitlab/resolver"),
             ("npmjs.com", "https://tools.warp.build/npm/resolver"),
         ] {
             let label = Label::new(resolver);

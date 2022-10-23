@@ -105,7 +105,12 @@ impl RemoteWorkspaceResolver {
     }
 
     fn _store_path(&self, config: &RemoteWorkspaceConfig) -> PathBuf {
-        self.global_workspaces_path.join(config.path())
+        if config.is_local() {
+            std::fs::canonicalize(self.root_workspace.paths.workspace_root.join(config.path()))
+                .unwrap()
+        } else {
+            self.global_workspaces_path.join(config.path())
+        }
     }
 
     fn _warp_lock_path(&self, config: &RemoteWorkspaceConfig) -> PathBuf {
@@ -168,6 +173,10 @@ impl RemoteWorkspaceResolver {
         &self,
         config: &RemoteWorkspaceConfig,
     ) -> Result<(), RemoteWorkspaceResolverError> {
+        if config.is_local() {
+            return Ok(());
+        }
+
         // NOTE(@ostera): if the lock file is there, we assume its already downloaded
         // TODO(@ostera): move the lock functionality into the ArchiveManager
         if self.lock_exists(config).await {
