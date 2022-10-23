@@ -54,6 +54,18 @@ impl BuildExecutor {
         event_channel: Arc<EventChannel>,
         build_opts: BuildOpts,
     ) -> Result<Vec<(TargetManifest, ExecutableTarget)>, BuildExecutorError> {
+        self.do_run(targets, event_channel, build_opts, Goal::Build)
+            .await
+    }
+
+    #[tracing::instrument(name = "BuildExecutor::build", skip(self))]
+    pub async fn do_run(
+        &self,
+        targets: &[Label],
+        event_channel: Arc<EventChannel>,
+        build_opts: BuildOpts,
+        goal: Goal,
+    ) -> Result<Vec<(TargetManifest, ExecutableTarget)>, BuildExecutorError> {
         if targets.is_empty() {
             event_channel.send(Event::BuildCompleted(std::time::Instant::now()));
             return Ok(vec![]);
@@ -154,7 +166,7 @@ impl BuildExecutor {
 
         if should_queue_everything {
             let queued_count = build_queue
-                .queue_entire_workspace(worker_limit, build_opts.target_filter)
+                .queue_entire_workspace(worker_limit, build_opts.target_filter, goal)
                 .await
                 .map_err(BuildExecutorError::QueueError)?;
 
@@ -165,7 +177,10 @@ impl BuildExecutor {
         } else {
             for target in &targets {
                 build_queue
-                    .queue(*target)
+                    .queue(Task {
+                        label: *target,
+                        goal,
+                    })
                     .map_err(BuildExecutorError::QueueError)?;
             }
         }

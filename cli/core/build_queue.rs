@@ -6,6 +6,40 @@ use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
 
+#[derive(Debug, Copy, Clone)]
+pub enum Goal {
+    Build,
+    Test,
+    Run,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Task {
+    pub label: LabelId,
+    pub goal: Goal,
+}
+
+impl Task {
+    pub fn run(label: LabelId) -> Self {
+        Self {
+            label,
+            goal: Goal::Run,
+        }
+    }
+    pub fn build(label: LabelId) -> Self {
+        Self {
+            label,
+            goal: Goal::Build,
+        }
+    }
+    pub fn test(label: LabelId) -> Self {
+        Self {
+            label,
+            goal: Goal::Test,
+        }
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum QueueError {
     #[error("Cannot queue the //... target")]
@@ -37,10 +71,10 @@ pub struct BuildQueue {
     in_queue_targets: Arc<DashMap<LabelId, ()>>,
 
     /// The queue from which workers pull work.
-    inner_queue: Arc<crossbeam::deque::Injector<LabelId>>,
+    inner_queue: Arc<crossbeam::deque::Injector<Task>>,
 
     /// A backup queue used for set-aside targets.
-    wait_queue: Arc<crossbeam::deque::Injector<LabelId>>,
+    wait_queue: Arc<crossbeam::deque::Injector<Task>>,
 
     /// Targets already built.
     build_results: Arc<BuildResults>,
@@ -76,40 +110,42 @@ impl BuildQueue {
     }
 
     #[tracing::instrument(name = "BuildQueue::next", skip(self))]
-    pub fn next(&self) -> Option<LabelId> {
-        if let crossbeam::deque::Steal::Success(label) = self.inner_queue.steal() {
-            return self.handle_next(label);
+    pub fn next(&self) -> Option<Task> {
+        if let crossbeam::deque::Steal::Success(task) = self.inner_queue.steal() {
+            return self.handle_next(task);
         }
-        if let crossbeam::deque::Steal::Success(label) = self.wait_queue.steal() {
-            return self.handle_next(label);
+        if let crossbeam::deque::Steal::Success(task) = self.wait_queue.steal() {
+            return self.handle_next(task);
         }
         None
     }
 
-    fn handle_next(&self, label: LabelId) -> Option<LabelId> {
+    fn handle_next(&self, task: Task) -> Option<Task> {
         // If the target is already computed or being computed, we can skip it
         // and try to fetch the next one immediately.
         //
         // When the queue empties up, this will return a None, but otherwise
         // we'll go through a bunch of duplicates, discarding them.
-        if self.build_results.is_target_built(label) || self.busy_targets.contains_key(&label) {
+        if self.build_results.is_target_built(task.label)
+            || self.busy_targets.contains_key(&task.label)
+        {
             return self.next();
         }
         // But if it is yet to be built, we mark it as busy
-        self.busy_targets.insert(label, ());
-        self.in_queue_targets.remove(&label);
-        Some(label)
+        self.busy_targets.insert(task.label, ());
+        self.in_queue_targets.remove(&task.label);
+        Some(task)
     }
 
     #[tracing::instrument(name = "BuildQueue::ack", skip(self))]
-    pub fn ack(&self, label: LabelId) {
-        self.busy_targets.remove(&label);
+    pub fn ack(&self, task: Task) {
+        self.busy_targets.remove(&task.label);
     }
 
     #[tracing::instrument(name = "BuildQueue::nack", skip(self))]
-    pub fn nack(&self, label: LabelId) {
-        self.busy_targets.remove(&label);
-        self.wait_queue.push(label);
+    pub fn nack(&self, task: Task) {
+        self.busy_targets.remove(&task.label);
+        self.wait_queue.push(task);
     }
 
     #[tracing::instrument(name = "BuildQueue::is_queue_empty", skip(self))]
@@ -118,7 +154,8 @@ impl BuildQueue {
     }
 
     #[tracing::instrument(name = "BuildQueue::queue", skip(self))]
-    pub fn queue(&self, label: LabelId) -> Result<(), QueueError> {
+    pub fn queue(&self, task: Task) -> Result<(), QueueError> {
+        let label = task.label;
         info!("Queued {:#?}", self.label_registry.get(label));
         if self.label_registry.get(label).is_all() {
             return Err(QueueError::CannotQueueTargetAll);
@@ -131,18 +168,18 @@ impl BuildQueue {
         }
         self.build_results.add_expected_target(label);
         self.in_queue_targets.insert(label, ());
-        self.inner_queue.push(label);
+        self.inner_queue.push(task);
         self.all_queued_labels.insert(label, ());
         Ok(())
     }
 
-    pub fn queue_deps(&self, label: LabelId, deps: &[LabelId]) -> Result<(), QueueError> {
+    pub fn queue_deps(&self, task: Task, deps: &[LabelId]) -> Result<(), QueueError> {
         self.build_results
-            .add_dependencies(label, deps)
+            .add_dependencies(task.label, deps)
             .map_err(QueueError::DependencyCycle)?;
 
         for dep in deps {
-            self.queue(*dep)?;
+            self.queue(Task::build(*dep))?;
         }
 
         Ok(())
@@ -152,6 +189,7 @@ impl BuildQueue {
         &self,
         max_concurrency: usize,
         target_filter: TargetFilter,
+        goal: Goal,
     ) -> Result<usize, QueueError> {
         debug!("Queueing all targets...");
         self.event_channel.send(Event::QueueingWorkspace);
@@ -183,8 +221,8 @@ impl BuildQueue {
                     for target in buildfile.targets {
                         if target_filter.passes(&target) {
                             let label = target.label.change_workspace(&self.workspace);
-                            let label_id = self.label_registry.register(label);
-                            self.queue(label_id)?;
+                            let label = self.label_registry.register(label);
+                            self.queue(Task { label, goal })?;
                         }
                     }
                 }

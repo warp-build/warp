@@ -124,20 +124,23 @@ impl BuildWorker {
 
     #[tracing::instrument(name = "BuildWorker::run", skip(self))]
     pub async fn run(&mut self) -> Result<(), BuildWorkerError> {
-        if let Some(label) = self.build_queue.next() {
-            let result = self.run_target(label).await;
+        if let Some(task) = self.build_queue.next() {
+            let result = self.run_target(task).await;
+
             result?;
         }
         Ok(())
     }
 
     #[tracing::instrument(name = "BuildWorker::run_target", skip(self))]
-    pub async fn run_target(&mut self, label: LabelId) -> Result<(), BuildWorkerError> {
+    pub async fn run_target(&mut self, task: Task) -> Result<(), BuildWorkerError> {
+        let label = task.label;
+
         let target = match self.label_resolver.resolve(label).await {
             Err(LabelResolverError::DependencyResolverError(
                 DependencyResolverError::MissingResolver { resolver },
             )) => {
-                return self.requeue(label, &[resolver]).await;
+                return self.requeue(task, &[resolver]).await;
             }
 
             Err(err) => {
@@ -160,11 +163,8 @@ impl BuildWorker {
         };
 
         let executable_target = match self.target_planner.plan(&self.env, &target).await {
-            Err(TargetPlannerError::MissingDependencies {
-                deps,
-                label: target_label,
-            }) => {
-                return self.requeue(target_label, &deps).await;
+            Err(TargetPlannerError::MissingDependencies { deps, .. }) => {
+                return self.requeue(task, &deps).await;
             }
 
             Err(err) => {
@@ -249,7 +249,13 @@ impl BuildWorker {
 
                 self.build_results
                     .add_computed_target(final_label_id, manifest, executable_target);
-                self.build_queue.ack(final_label_id);
+
+                match &task.goal {
+                    Goal::Build => (),
+                    _ => (),
+                }
+
+                self.build_queue.ack(task);
             }
         }
 
@@ -257,16 +263,16 @@ impl BuildWorker {
     }
 
     #[inline]
-    async fn requeue(&self, label: LabelId, deps: &[LabelId]) -> Result<(), BuildWorkerError> {
-        if let Err(QueueError::DependencyCycle(err)) = self.build_queue.queue_deps(label, deps) {
+    async fn requeue(&self, task: Task, deps: &[LabelId]) -> Result<(), BuildWorkerError> {
+        if let Err(QueueError::DependencyCycle(err)) = self.build_queue.queue_deps(task, deps) {
             self.event_channel.send(Event::BuildError(
-                self.label_registry.get(label),
+                self.label_registry.get(task.label),
                 BuildError::BuildResultError(err),
             ));
             self.coordinator.signal_shutdown();
         }
 
-        self.build_queue.nack(label);
+        self.build_queue.nack(task);
 
         Ok(())
     }
