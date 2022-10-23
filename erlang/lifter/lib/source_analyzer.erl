@@ -62,6 +62,8 @@ get_ct_cases(Root, File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Co
               cerl_trees:fold(fun extract_cases/2, [], AllFn)
           end,
 
+  ?LOG_INFO("Found ~p common test cases\n", [length(Cases)]),
+
   ModDeps = mods_from_analyses(Root, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis),
   IncludeDeps = includes_from_analyses(Root, ModMap, CompAnalysis, SourceAnalysis),
 
@@ -71,7 +73,7 @@ get_ct_cases(Root, File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Co
     deps => deps_to_labels(ModDeps ++ IncludeDeps), 
     cases => [Case],
     rule => <<"erlang_test">>
-   } || Case <- Cases, erlang:is_binary(Case)].
+   } || Case <- Cases, erlang:is_atom(Case)].
 
 extract_cases(Tree, Acc) -> extract_cases(cerl:type(Tree), Tree, Acc).
 extract_cases(literal, #c_literal{}=Tree, Acc) ->
@@ -124,7 +126,7 @@ mods_from_analyses(Root, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis) ->
                   erl_stdlib:is_user_module(Mod),
                   not sets:is_element(Mod, IgnoreModMap)
              ] ++ erl_analyzer:dependency_modules(SourceAnalysis),
-  skip_std(uniq([ path:strip_prefix(Root, Mod) || Mod <- ModDeps0 ])).
+  skip_std(uniq([ Mod || Mod <- ModDeps0 ])).
 
 includes_from_analyses(Root, ModMap, CompAnalysis, SourceAnalysis) ->
   IncludeDeps0 = uniq(cerl_analyzer:dependency_includes(CompAnalysis) ++ erl_analyzer:dependency_includes(SourceAnalysis)),
@@ -139,7 +141,7 @@ includes_from_analyses(Root, ModMap, CompAnalysis, SourceAnalysis) ->
                    end|| Hrl <- IncludeDeps0,
                                       erl_stdlib:is_user_include(Hrl),
                                       path:extension(Hrl) == <<".hrl">> ],
-  skip_std(uniq([ path:strip_prefix(Root, Path) || Path <- IncludeDeps1 ])).
+  skip_std(uniq([ Path || Path <- IncludeDeps1 ])).
 
 deps_to_labels(Deps) -> uniq(lists:map(fun dep_to_label/1, Deps)).
 

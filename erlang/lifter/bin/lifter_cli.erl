@@ -40,6 +40,7 @@ lift(WorkspaceRoot0) ->
   {ok, ExternalDeps, Lock} = lifter_rebar3:locked_dependencies(WorkspaceRoot, Projects),
 
   % 2.1. write Dependencies.json file using the External Dependencies Table
+  ?LOG_INFO("Writing Dependencies.json files..."),
   LockMap =  maps:from_list(lists:sort([
                              case Vsn of
                                {pkg, Name, SemVer} -> {hexpm:pkg_to_url(Name), str:new(SemVer)};
@@ -56,7 +57,6 @@ lift(WorkspaceRoot0) ->
                                {git, Repo, _Ref} -> {str:new(Name), str:new(string:replace(Repo, ".git", "", all))}
                              end
                              || {Name, Vsn, _} <- Lock ])),
-
 
   % 3. build lookup table from module/include to dep
   ExternalTable = lists:foldl(
@@ -149,7 +149,7 @@ lift(WorkspaceRoot0) ->
   %               end, Signatures),
 
   % 7. group and generate build files
-  ?LOG_INFO("Writing Build.toml files..."),
+  ?LOG_INFO("Writing Build.json files..."),
   Buildfiles = lists:foldl(
                  fun ({Path, WarpSig}, Acc) ->
                      BuildPath = path:join(path:dirname(Path), "Build.json"),
