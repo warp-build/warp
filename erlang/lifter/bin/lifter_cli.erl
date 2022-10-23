@@ -49,7 +49,7 @@ lift(WorkspaceRoot0) ->
   ?LOG_INFO("Getting dependencies sources to facilitate analysis..."),
   RebarDeps =  [
               case Vsn of
-                {pkg, _Name, SemVer} -> {erlang:binary_to_atom(Name), SemVer};
+                {pkg, PkgName, SemVer} -> {erlang:binary_to_atom(PkgName), SemVer};
                 Git -> {erlang:binary_to_atom(Name), Git}
               end
               || {Name, Vsn, _} <- LockedDeps ],
@@ -68,8 +68,8 @@ lift(WorkspaceRoot0) ->
 
   Mod2Url =  maps:from_list(lists:sort([
                              case Vsn of
-                               {pkg, _Name, SemVer} -> {str:new(Name), hexpm:pkg_to_url(Name)};
-                               {git, Repo, {ref, Ref}} -> {str:new(Name), str:new(string:replace(Repo, ".git", "", all))}
+                               {pkg, _Name, _SemVer} -> {str:new(Name), hexpm:pkg_to_url(Name)};
+                               {git, Repo, _Ref} -> {str:new(Name), str:new(string:replace(Repo, ".git", "", all))}
                              end
                              || {Name, Vsn, _} <- LockedDeps ])),
 
@@ -93,12 +93,11 @@ lift(WorkspaceRoot0) ->
                                    Include = path:filename(Hdr),
                                    RelInclude = path:strip_prefix(Prefix, Hdr),
                                    LibInclude = path:join(Name, RelInclude),
-                                   TailInclude = path:tail(Hdr),
                                    [
+                                    {Hdr, Url},
                                     {Include, Url},
                                     {RelInclude, Url},
-                                    {LibInclude, Url},
-                                    {TailInclude, Hdr}
+                                    {LibInclude, Url}
                                    ]
                                end, Headers),
 
@@ -156,7 +155,7 @@ lift(WorkspaceRoot0) ->
                         end || P <- maps:keys(HeaderTable) ]),
 
   % 5. analyze all the sources to get their signatures
-  {ok, Signatures} = source_analyzer:analyze(AllFiles, ModMap, IgnoreMods, IncludePaths),
+  {ok, Signatures} = source_analyzer:analyze(WorkspaceRoot, AllFiles, ModMap, IgnoreMods, IncludePaths),
 
   % 6. generate warp signatures
   % ?LOG_INFO("Writing Warp signature files..."),

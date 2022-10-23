@@ -9,6 +9,7 @@
 -export([is_prefix/2]).
 -export([join/2]).
 -export([new/1]).
+-export([nth_tail/2]).
 -export([relativize/1]).
 -export([strip_prefix/2]).
 -export([tail/1]).
@@ -24,8 +25,19 @@ new(Str) -> binary:list_to_bin([Str]).
 -spec is_prefix(Prefix :: t(), Path :: t()) -> bool().
 is_prefix(Prefix, Path) -> strip_prefix(Prefix, Path) =/= Path.
 
+-spec nth_tail(Path :: t(), N :: non_neg_integer()) -> t().
+nth_tail(Path, N) when N > 0 ->
+  Parts = path:to_list(Path),
+  path:from_list(lists:nthtail(length(Parts) - N, Parts)).
+
 -spec strip_prefix(Prefix :: t(), Path :: t()) -> t().
-strip_prefix(Prefix, Path) -> from_list([ "." | string:replace(Path, Prefix, "") ]).
+strip_prefix(Prefix, Path) ->
+  Replaced = str:new(string:replace(Path, Prefix, "")),
+  Final = case str:begins_with(Replaced, "/") of
+            true -> str:new(string:replace(Replaced, "/", ""));
+            false -> Replaced
+          end,
+  new([ Final ]).
 
 join(A, B) -> from_list([A, B]).
 
