@@ -1,7 +1,7 @@
-mod goals;
+mod commands;
 mod reporter;
 
-use goals::*;
+use commands::*;
 use opentelemetry::global::shutdown_tracer_provider;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -20,7 +20,7 @@ use warp_core::*;
 )]
 struct Warp {
     #[structopt(subcommand, help = "the command to run")]
-    cmd: Option<Goal>,
+    cmd: Option<Command>,
 
     #[structopt(
         long = "user",
@@ -102,10 +102,10 @@ impl Warp {
         event_channel.send(Event::BuildStarted(t0));
 
         match &self.cmd {
-            Some(Goal::Init(x)) => {
+            Some(Command::Init(x)) => {
                 return x.run(t0, &cwd, current_user.clone(), event_channel).await
             }
-            Some(Goal::Setup(x)) => return x.run(current_user.clone(), event_channel).await,
+            Some(Command::Setup(x)) => return x.run(current_user.clone(), event_channel).await,
             _ => (),
         };
 
@@ -126,7 +126,7 @@ impl Warp {
         let result = self
             .cmd
             .take()
-            .unwrap_or_else(|| Goal::Build(BuildGoal::all()))
+            .unwrap_or_else(|| Command::Build(BuildCommand::all()))
             .run(t0, &cwd, workspace, event_channel)
             .await;
 
@@ -137,18 +137,18 @@ impl Warp {
 }
 
 #[derive(StructOpt, Debug, Clone)]
-enum Goal {
-    Build(BuildGoal),
-    Info(InfoGoal),
-    Init(InitGoal),
-    Run(RunGoal),
-    Setup(SetupGoal),
-    Shell(ShellGoal),
-    Test(TestGoal),
+enum Command {
+    Build(BuildCommand),
+    Info(InfoCommand),
+    Init(InitCommand),
+    Run(RunCommand),
+    Setup(SetupCommand),
+    Shell(ShellCommand),
+    Test(TestCommand),
 }
 
-impl Goal {
-    #[tracing::instrument(name = "Goal::run", skip(self, workspace))]
+impl Command {
+    #[tracing::instrument(name = "Command::run", skip(self, workspace))]
     async fn run(
         self,
         build_started: std::time::Instant,
@@ -157,16 +157,16 @@ impl Goal {
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         match self {
-            Goal::Build(x) => x.run(workspace, event_channel).await,
-            Goal::Info(x) => x.run(workspace, event_channel).await,
-            Goal::Init(x) => {
+            Command::Build(x) => x.run(workspace, event_channel).await,
+            Command::Info(x) => x.run(workspace, event_channel).await,
+            Command::Init(x) => {
                 x.run(build_started, cwd, workspace.current_user, event_channel)
                     .await
             }
-            Goal::Run(x) => x.run(build_started, cwd, workspace, event_channel).await,
-            Goal::Setup(x) => x.run(workspace.current_user, event_channel).await,
-            Goal::Shell(x) => x.run(build_started, cwd, workspace, event_channel).await,
-            Goal::Test(x) => x.run(build_started, cwd, workspace, event_channel).await,
+            Command::Run(x) => x.run(build_started, cwd, workspace, event_channel).await,
+            Command::Setup(x) => x.run(workspace.current_user, event_channel).await,
+            Command::Shell(x) => x.run(build_started, cwd, workspace, event_channel).await,
+            Command::Test(x) => x.run(build_started, cwd, workspace, event_channel).await,
         }
     }
 }
