@@ -1,4 +1,7 @@
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    sync::{Arc, Mutex},
+};
 
 use super::*;
 use dashmap::DashMap;
@@ -29,6 +32,7 @@ impl LabelId {
 pub struct LabelRegistry {
     ids: DashMap<Label, LabelId>,
     labels: DashMap<LabelId, Label>,
+    register_lock: Arc<Mutex<()>>,
 }
 
 #[derive(Error, Debug)]
@@ -45,6 +49,7 @@ impl LabelRegistry {
     ///
     #[tracing::instrument(name = "LabelRegistry::register", skip(self))]
     pub fn register(&self, label: Label) -> LabelId {
+        let _lock = self.register_lock.lock().unwrap();
         if let Some(id) = self.find(&label) {
             id
         } else {
