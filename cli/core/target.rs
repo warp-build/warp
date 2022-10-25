@@ -19,8 +19,11 @@ pub struct Target {
     /// The name of this target.
     pub label: Label,
 
-    /// The dependencies of this target.
+    /// The build-time dependencies of this target.
     pub deps: Vec<Label>,
+
+    /// The runtime dependencies of this target.
+    pub runtime_deps: Vec<Label>,
 
     /// The rule used to build this target.
     pub rule_name: RuleName,
@@ -31,38 +34,18 @@ pub struct Target {
 
 impl Target {
     pub fn new(label: Label, rule_name: &str, config: RuleConfig) -> Self {
-        let deps = config
-            .get_label_list("deps")
-            .unwrap_or_default()
-            .into_iter()
-            .map(|dep| {
-                if dep.is_remote() {
-                    return dep;
-                }
+        let deps =
+            Target::reparent_labels(&label, config.get_label_list("deps").unwrap_or_default());
 
-                let path = if dep.is_relative() {
-                    // NOTE(@ostera): if we found a label that is defined in the same buildfile
-                    // then its path is the same path as the current label
-                    if dep.path().to_str().unwrap().is_empty() {
-                        label.path()
-                    } else {
-                        label.path().join(dep.path())
-                    }
-                } else {
-                    dep.path()
-                };
-
-                Label::builder()
-                    .name(dep.name())
-                    .workspace(label.workspace().to_str().unwrap().to_string())
-                    .from_path(path)
-                    .unwrap()
-            })
-            .collect();
+        let runtime_deps = Target::reparent_labels(
+            &label,
+            config.get_label_list("runtime_deps").unwrap_or_default(),
+        );
 
         Self {
             build_started_at: chrono::Utc::now(),
             deps,
+            runtime_deps,
             config,
             label,
             rule_name: rule_name.to_string(),
@@ -96,6 +79,35 @@ impl Target {
         }
 
         new_self
+    }
+
+    fn reparent_labels(label: &Label, labels: Vec<Label>) -> Vec<Label> {
+        labels
+            .into_iter()
+            .map(|dep| {
+                if dep.is_remote() {
+                    return dep;
+                }
+
+                let path = if dep.is_relative() {
+                    // NOTE(@ostera): if we found a label that is defined in the same buildfile
+                    // then its path is the same path as the current label
+                    if dep.path().to_str().unwrap().is_empty() {
+                        label.path()
+                    } else {
+                        label.path().join(dep.path())
+                    }
+                } else {
+                    dep.path()
+                };
+
+                Label::builder()
+                    .name(dep.name())
+                    .workspace(label.workspace().to_str().unwrap().to_string())
+                    .from_path(path)
+                    .unwrap()
+            })
+            .collect()
     }
 }
 
