@@ -144,7 +144,7 @@ Warp.Rule = spec => {
 
   spec.toolchains = (spec.toolchains || []).map( toolchain => toolchain.name );
   spec.defaults = spec.defaults || {};
-  spec.runnable = spec.runnable || false;
+  spec.kind = spec.name.endsWith("_test") ? "test" : spec.runnable ? "run" : "build";
   spec.pinned = spec.pinned || false;
   spec.portable = spec.portable || false;
   spec.sandbox = spec.sandbox || { mode: "link" };
@@ -180,7 +180,7 @@ Warp.Toolchain = spec => {
   spec.toolchains = spec.toolchains.map( toolchain => toolchain.name );
 
   spec.provides = () => ffi("op_ctx_fetch_provides", {label: name});
-  spec.runnable = false;
+  spec.kind = "build";
 
   spec.pinned = true;
   spec.portable = false;

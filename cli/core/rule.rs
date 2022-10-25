@@ -6,9 +6,10 @@ use serde::Deserialize;
 pub type RuleName = String;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Runnable {
-    Runnable,
-    NotRunnable,
+pub enum RuleKind {
+    Build,
+    Run,
+    Test,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,8 +50,8 @@ pub struct Rule {
     /// A map of default configuration values.
     pub defaults: RuleConfig,
 
-    /// Whether this rule is runnable or not
-    pub runnable: Runnable,
+    /// The kind of rule this is (buildable, kind, testable, etc)
+    pub kind: RuleKind,
 
     /// Whether targets of this rule as pinned or not.
     pub pinned: Pinned,
@@ -66,7 +67,7 @@ impl Rule {
         toolchains: Vec<Label>,
         config: ConfigSpec,
         defaults: RuleConfig,
-        runnable: Runnable,
+        kind: RuleKind,
         pinned: Pinned,
         portability: Portability,
     ) -> Rule {
@@ -76,7 +77,7 @@ impl Rule {
             toolchains,
             config,
             defaults,
-            runnable,
+            kind,
             pinned,
             portability,
         }
@@ -151,10 +152,10 @@ impl<'de> Deserialize<'de> for Rule {
             })
             .collect();
 
-        let runnable = if rule_spec["runnable"].as_bool().unwrap_or(false) {
-            Runnable::Runnable
-        } else {
-            Runnable::NotRunnable
+        let kind = match rule_spec["kind"].as_str().unwrap_or("build") {
+            "test" => RuleKind::Test,
+            "run" => RuleKind::Run,
+            _ => RuleKind::Build,
         };
 
         let pinned = if rule_spec["pinned"].as_bool().unwrap_or(false) {
@@ -175,7 +176,7 @@ impl<'de> Deserialize<'de> for Rule {
             toolchains,
             config,
             defaults,
-            runnable,
+            kind,
             pinned,
             portability,
         );

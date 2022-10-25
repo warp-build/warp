@@ -13,6 +13,15 @@ pub enum Goal {
     Run,
 }
 
+impl Goal {
+    pub fn includes(&self, target: &Target) -> bool {
+        match &self {
+            Goal::Test => target.rule_name.ends_with("_test"),
+            Goal::Build | Goal::Run => !target.rule_name.ends_with("_test"),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Task {
     pub label: LabelId,
@@ -188,7 +197,6 @@ impl BuildQueue {
     pub async fn queue_entire_workspace(
         &self,
         max_concurrency: usize,
-        target_filter: TargetFilter,
         goal: Goal,
     ) -> Result<usize, QueueError> {
         debug!("Queueing all targets...");
@@ -219,7 +227,7 @@ impl BuildQueue {
                 }
                 Ok(buildfile) => {
                     for target in buildfile.targets {
-                        if target_filter.passes(&target) {
+                        if goal.includes(&target) {
                             let label = target.label.change_workspace(&self.workspace);
                             let label = self.label_registry.register(label);
                             self.queue(Task { label, goal })?;

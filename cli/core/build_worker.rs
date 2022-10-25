@@ -252,7 +252,12 @@ impl BuildWorker {
 
                 match &task.goal {
                     Goal::Build => (),
-                    _ => (),
+                    Goal::Test => {
+                        // run test
+                        // save results
+                        // self.test_results
+                    }
+                    Goal::Run => (),
                 }
 
                 self.build_queue.ack(task);

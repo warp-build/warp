@@ -166,7 +166,7 @@ impl BuildExecutor {
 
         if should_queue_everything {
             let queued_count = build_queue
-                .queue_entire_workspace(worker_limit, build_opts.target_filter, goal)
+                .queue_entire_workspace(worker_limit, goal)
                 .await
                 .map_err(BuildExecutorError::QueueError)?;
 
