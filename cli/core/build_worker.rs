@@ -162,6 +162,15 @@ impl BuildWorker {
             }
         };
 
+        if !target.runtime_deps.is_empty() {
+            for dep in &target.runtime_deps {
+                let dep = self.label_registry.register(dep.clone());
+                self.build_queue
+                    .queue(Task::build(dep))
+                    .map_err(BuildWorkerError::QueueError)?;
+            }
+        }
+
         let executable_target = match self.target_planner.plan(&self.env, &target).await {
             Err(TargetPlannerError::MissingDependencies { deps, .. }) => {
                 return self.requeue(task, &deps).await;
