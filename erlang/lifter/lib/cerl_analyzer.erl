@@ -60,7 +60,7 @@ dependency_includes(_) -> [].
 analyze(Paths) ->
   #{ sources := Sources, headers := Headers } = source_tagger:tag(Paths),
 
-  HeaderDirs = [ {i, binary:bin_to_list(filename:dirname(H))} || H <- Headers ],
+  HeaderDirs = [ filename:dirname(H) || H <- Headers ],
   IncludePaths = uniq(HeaderDirs),
 	analyze(Sources, IncludePaths).
 
@@ -72,17 +72,21 @@ analyze(Sources, IncludePaths) ->
   % This is important to make parse_transforms work correctly.
   %
   {ok, OutDir} = tempdir:new(),
-  true = code:add_path(path:to_string(OutDir)),
+  _ = code:add_path(path:to_string(OutDir)),
 
-  CompilerOpts = [{outdir, path:to_string(OutDir)} | [ {i, binary:bin_to_list(P)} || P <- IncludePaths]],
+  CompilerOpts = [{outdir, path:to_string(OutDir)} | [ {i, path:to_string(P)} || P <- IncludePaths]],
 
   Opts = #{
            compiler_opts => CompilerOpts,
            include_paths => IncludePaths
           },
-  Results0 = lists:map(fun (Source) -> {Source, do_analyze(Source, Opts)} end, Sources),
+
+  Results0 = lists:map(fun (Source) ->
+                           {Source, do_analyze(Source, Opts)}
+                       end, Sources),
   Results = maps:from_list(Results0), 
 
+  _ = code:del_path(path:to_string(OutDir)),
   _ = file:del_dir(OutDir),
 
   {ok, Results}.
@@ -111,6 +115,9 @@ do_analyze(Path, #{ compiler_opts := CompileOpts, include_paths := IncludePaths 
 
     {error, Reasons, Other} ->
       #{ path => Path,
+         compiler_opts => CompileOpts++ParseTrans,
+         code_paths => code:get_path(),
+         available_modules => code:all_available(),
          error => clean_compile_error(Reasons, Other) }
   end.
 
@@ -137,7 +144,7 @@ default_compile_opts() ->
 
 clean_compile_error([{Path, [{none, compile, {undef_parse_transform, Mod}}]}], _Other) ->
   #{ kind => missing_parse_transform,
-     path => binary:list_to_bin(Path),
+     path => str:new(Path),
      transform_name => Mod
    };
 

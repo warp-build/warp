@@ -1,16 +1,18 @@
 [
   {
     "deps": [
-      "\/\/erlang\/base:erl_stdlib.erl",
-      "\/\/erlang\/base:glob.erl",
-      "\/\/erlang\/base\/jsone",
-      "\/\/erlang\/base:path.erl",
-      "\/\/erlang\/lifter\/lib:cerl_analyzer.erl",
-      "\/\/erlang\/lifter\/lib:erl_analyzer.erl",
-      "\/\/erlang\/lifter\/lib:lifter_depgraph.erl",
-      "\/\/erlang\/lifter\/lib:lifter_rebar3.erl",
-      "\/\/erlang\/lifter\/lib:source_analyzer.erl",
-      "\/\/erlang\/lifter\/lib:source_tagger.erl"
+      "//erlang/base/jsone",
+      "//erlang/base:erl_stdlib.erl",
+      "//erlang/base:glob.erl",
+      "//erlang/base:hexpm.erl",
+      "//erlang/base:path.erl",
+      "//erlang/base:str.erl",
+      "//erlang/lifter/lib:cerl_analyzer.erl",
+      "//erlang/lifter/lib:erl_analyzer.erl",
+      "//erlang/lifter/lib:lifter_depgraph.erl",
+      "//erlang/lifter/lib:lifter_rebar3.erl",
+      "//erlang/lifter/lib:source_analyzer.erl",
+      "//erlang/lifter/lib:source_tagger.erl"
     ],
     "name": "lifter_cli.erl",
     "rule": "erlang_library",

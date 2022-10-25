@@ -1,7 +1,7 @@
 [
   {
     "deps": [
-      "\/\/erlang\/lifter\/bin:lifter_cli.erl"
+      "//erlang/lifter/bin:lifter_cli.erl"
     ],
     "name": "lifter",
     "rule": "erlang_script",

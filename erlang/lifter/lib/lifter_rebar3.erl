@@ -17,9 +17,20 @@
 %===================================================================================================
 
 locked_dependencies(WorkspaceRoot, Projects) ->
-  {ok, Lock} = file:consult(path:join(WorkspaceRoot, "rebar.lock")),
-  LockedDeps = case proplists:to_map(Lock) of
-                 #{ "1.2.0" := X } -> X;
+  LockFile = path:join(WorkspaceRoot, "rebar.lock"),
+  Rebar3File = path:join(WorkspaceRoot, "rebar.config"),
+  case {filelib:is_file(Rebar3File), filelib:is_file(LockFile)} of
+    {true, _} -> do_locked_dependencies(WorkspaceRoot, Projects);
+    {false, true} -> do_locked_dependencies(WorkspaceRoot, Projects);
+    {false, false} ->  {ok, [], []}
+  end.
+
+do_locked_dependencies(WorkspaceRoot, Projects) ->
+  LockedDeps = case file:consult(path:join(WorkspaceRoot, "rebar.lock")) of
+                 {ok, Lock} -> case proplists:to_map(Lock) of
+                                 #{ "1.2.0" := X } -> X;
+                                 _ -> []
+                               end;
                  _ -> []
                end,
 

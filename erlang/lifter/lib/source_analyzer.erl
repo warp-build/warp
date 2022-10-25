@@ -20,9 +20,9 @@ do_analyze(Root, File, ModMap, IgnoreModMap, IncludePaths) ->
 	{ok, #{ File := CompAnalysis}} = cerl_analyzer:analyze([File], IncludePaths),
 
   Result =
-    erlang_libraries(Root, File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
-    ++ erlang_ct_suites(Root, File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
-    ++ erlang_prop_tests(Root, File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
+    erlang_libraries(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
+    ++ erlang_ct_suites(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
+    ++ erlang_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
     ++ [],
 
   {path:add_extension(File, "wsig"), uniq(Result)}.
@@ -31,9 +31,12 @@ do_analyze(Root, File, ModMap, IgnoreModMap, IncludePaths) ->
 %% Analyzer for Erlang libraries
 %%--------------------------------------------------------------------------------------------------
 
-erlang_libraries(Root, File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
-  ModDeps = mods_from_analyses(Root, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis),
-  IncludeDeps = includes_from_analyses(Root, ModMap, CompAnalysis, SourceAnalysis),
+erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
+  ModDeps = case path:extension(File) of
+              <<".hrl">> -> [];
+              _ -> mods_from_analyses(File, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis)
+            end,
+  IncludeDeps = includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis),
 
   [#{
     name => path:filename(File),
@@ -46,13 +49,13 @@ erlang_libraries(Root, File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis
 %% Analyzer for Erlang Common Test Suites
 %%--------------------------------------------------------------------------------------------------
 
-erlang_ct_suites(Root, File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
+erlang_ct_suites(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
   case str:ends_with(path:filename(File), "_SUITE.erl") of
-    true -> get_ct_cases(Root, File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis);
+    true -> get_ct_cases(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis);
     false -> []
   end.
 
-get_ct_cases(Root, File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
+get_ct_cases(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
   Cases = case CompAnalysis of
             #{ error := Err } ->
               ?LOG_ERROR("Error analyzing CommonTest cases for ~p:\n~p\n", [File, Err]),
@@ -64,8 +67,8 @@ get_ct_cases(Root, File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Co
 
   ?LOG_INFO("Found ~p common test cases\n", [length(Cases)]),
 
-  ModDeps = mods_from_analyses(Root, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis),
-  IncludeDeps = includes_from_analyses(Root, ModMap, CompAnalysis, SourceAnalysis),
+  ModDeps = mods_from_analyses(File, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis),
+  IncludeDeps = includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis),
 
   [#{
     name => Case,
@@ -89,13 +92,13 @@ extract_cases(_Type, _Tree, Acc) -> Acc.
 %% Analyzer for Erlang Property Tests
 %%--------------------------------------------------------------------------------------------------
 
-erlang_prop_tests(Root, File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
+erlang_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
   case str:begins_with(path:filename(File), "prop_") of
-    true -> get_prop_tests(Root, File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis);
+    true -> get_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis);
     false -> []
   end.
 
-get_prop_tests(Root, File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
+get_prop_tests(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
   Properties = case CompAnalysis of 
                  #{ error := _ } ->
                    [ Fn || {_Mod, Fn, _Arity} <- erl_analyzer:functions(SourceAnalysis) ];
@@ -103,8 +106,8 @@ get_prop_tests(Root, File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, 
                    maps:keys(cerl_analyzer:functions(SourceAnalysis))
                end,
 
-  ModDeps = mods_from_analyses(Root, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis),
-  IncludeDeps = includes_from_analyses(Root, ModMap, CompAnalysis, SourceAnalysis),
+  ModDeps = mods_from_analyses(File, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis),
+  IncludeDeps = includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis),
 
   [#{
     name => Prop,
@@ -120,15 +123,15 @@ get_prop_tests(Root, File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, 
 %%--------------------------------------------------------------------------------------------------
 
 
-mods_from_analyses(Root, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis) ->
-  ModDeps0 = [ maps:get(Mod, ModMap)
+mods_from_analyses(File, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis) ->
+  ModDeps0 = [ maps:get(Mod, ModMap, Mod)
                || Mod <- cerl_analyzer:dependency_modules(CompAnalysis), 
                   erl_stdlib:is_user_module(Mod),
                   not sets:is_element(Mod, IgnoreModMap)
              ] ++ erl_analyzer:dependency_modules(SourceAnalysis),
-  skip_std(uniq([ Mod || Mod <- ModDeps0 ])).
+  skip_std(uniq([ Mod || Mod <- ModDeps0, Mod =/= File ])).
 
-includes_from_analyses(Root, ModMap, CompAnalysis, SourceAnalysis) ->
+includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis) ->
   IncludeDeps0 = uniq(cerl_analyzer:dependency_includes(CompAnalysis) ++ erl_analyzer:dependency_includes(SourceAnalysis)),
   IncludeDeps1 = [ begin
                      case path:contains(Hrl, <<"include">>) of
@@ -138,10 +141,13 @@ includes_from_analyses(Root, ModMap, CompAnalysis, SourceAnalysis) ->
                        _ ->
                          maps:get(Hrl, ModMap, Hrl)
                      end
-                   end|| Hrl <- IncludeDeps0,
-                                      erl_stdlib:is_user_include(Hrl),
-                                      path:extension(Hrl) == <<".hrl">> ],
-  skip_std(uniq([ Path || Path <- IncludeDeps1 ])).
+                   end
+                   || Hrl <- IncludeDeps0,
+                      erl_stdlib:is_user_include(Hrl),
+                      path:extension(Hrl) == <<".hrl">>,
+                      Hrl =/= File
+                 ],
+  skip_std(uniq([ Path || Path <- IncludeDeps1, Path =/= File ])).
 
 deps_to_labels(Deps) -> uniq(lists:map(fun dep_to_label/1, Deps)).
 

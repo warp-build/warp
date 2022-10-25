@@ -2,7 +2,7 @@
   {
     "deps": [
       "./fixtures",
-      "\/\/erlang\/lifter\/lib:lifter_rebar3.erl"
+      "//erlang/lifter/lib:lifter_rebar3.erl"
     ],
     "name": "lifter_rebar3_SUITE.erl",
     "rule": "erlang_library",
@@ -16,7 +16,7 @@
     ],
     "deps": [
       "./fixtures",
-      "\/\/erlang\/lifter\/lib:lifter_rebar3.erl"
+      "//erlang/lifter/lib:lifter_rebar3.erl"
     ],
     "name": "finds_projects",
     "rule": "erlang_test",
@@ -28,7 +28,7 @@
     ],
     "deps": [
       "./fixtures",
-      "\/\/erlang\/lifter\/lib:lifter_rebar3.erl"
+      "//erlang/lifter/lib:lifter_rebar3.erl"
     ],
     "name": "returns_an_empty_list_for_no_projects",
     "rule": "erlang_test",
@@ -37,7 +37,7 @@
   {
     "deps": [
       "./fixtures",
-      "\/\/erlang\/lifter\/lib:cerl_analyzer.erl"
+      "//erlang/lifter/lib:cerl_analyzer.erl"
     ],
     "name": "cerl_analyzer_SUITE.erl",
     "rule": "erlang_library",
@@ -51,7 +51,7 @@
     ],
     "deps": [
       "./fixtures",
-      "\/\/erlang\/lifter\/lib:cerl_analyzer.erl"
+      "//erlang/lifter/lib:cerl_analyzer.erl"
     ],
     "name": "fails_on_missing_parse_transform",
     "rule": "erlang_test",
@@ -63,8 +63,7 @@
     ],
     "deps": [
       "./fixtures",
-      "./fixtures/includes",
-      "\/\/erlang\/lifter\/lib:cerl_analyzer.erl"
+      "//erlang/lifter/lib:cerl_analyzer.erl"
     ],
     "name": "handles_parse_transforms",
     "rule": "erlang_test",
@@ -76,8 +75,7 @@
     ],
     "deps": [
       "./fixtures",
-      "./fixtures/includes",
-      "\/\/erlang\/lifter\/lib:cerl_analyzer.erl"
+      "//erlang/lifter/lib:cerl_analyzer.erl"
     ],
     "name": "handles_real_life_example_from_emqx",
     "rule": "erlang_test",
@@ -88,9 +86,9 @@
       "handles_real_life_example_from_emqx_with_parse_transforms"
     ],
     "deps": [
-      "./fixtures",
       "./fixtures/includes",
-      "\/\/erlang\/lifter\/lib:cerl_analyzer.erl"
+      "./fixtures",
+      "//erlang/lifter/lib:cerl_analyzer.erl"
     ],
     "name": "handles_real_life_example_from_emqx_with_parse_transforms",
     "rule": "erlang_test",
@@ -102,8 +100,7 @@
     ],
     "deps": [
       "./fixtures",
-      "./fixtures/includes",
-      "\/\/erlang\/lifter\/lib:cerl_analyzer.erl"
+      "//erlang/lifter/lib:cerl_analyzer.erl"
     ],
     "name": "handles_real_life_example_from_verl",
     "rule": "erlang_test",
@@ -115,8 +112,7 @@
     ],
     "deps": [
       "./fixtures",
-      "./fixtures/includes",
-      "\/\/erlang\/lifter\/lib:cerl_analyzer.erl"
+      "//erlang/lifter/lib:cerl_analyzer.erl"
     ],
     "name": "skips_dynamic_calls",
     "rule": "erlang_test",

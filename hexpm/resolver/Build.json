@@ -1,9 +1,9 @@
 [
   {
     "deps": [
-      "\/\/erlang\/base:hexpm.erl",
-      "\/\/erlang\/base:path.erl",
-      "\/\/erlang\/base/jsone"
+      "//erlang/base/jsone",
+      "//erlang/base:hexpm.erl",
+      "//erlang/base:path.erl"
     ],
     "name": "resolver",
     "rule": "erlang_script",

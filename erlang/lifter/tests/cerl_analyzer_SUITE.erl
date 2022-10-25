@@ -180,10 +180,9 @@ handles_real_life_example_from_emqx(_Config) ->
      , TypeExports),
 
   ?assertMatch(
-     [
-      <<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
-      <<"../erlang/lifter/tests/fixtures/emqx_bpapi.hrl">>,
+     [<<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
       <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>,
+      <<"../erlang/lifter/tests/fixtures/includes/emqx_bpapi.hrl">>,
       <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/ms_transform.hrl">>]
      , Includes).
 
@@ -347,13 +346,12 @@ handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
        <<"../erlang/lifter/tests/fixtures/emqx_statsd_proto_v1.erl">>,
        type_exports := []}}}
   = cerl_analyzer:analyze([
-                           <<"../erlang/lifter/tests/fixtures/emqx_statsd_proto_v1.erl">>,
-                           <<"../erlang/lifter/tests/fixtures/emqx_bpapi.hrl">>,
-                           <<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
-                           <<"../erlang/lifter/tests/fixtures/emqx_bpapi_trans.erl">>,
                            <<"../erlang/lifter/tests/fixtures/includes/bpapi.hrl">>,
-                           <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>
+                           <<"../erlang/lifter/tests/fixtures/emqx_statsd_proto_v1.erl">>,
+                           <<"../erlang/lifter/tests/fixtures/emqx_bpapi_trans.erl">>
                           ]).
+                           % <<"../erlang/lifter/tests/fixtures/emqx_bpapi.hrl">>,
+                           % <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>
 
 fails_on_missing_parse_transform(_Config) ->
   {ok,#{<<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">> :=
