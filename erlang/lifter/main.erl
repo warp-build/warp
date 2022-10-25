@@ -17,6 +17,7 @@ main(Args) ->
     ["analyze-files" | Files] -> lifter_cli:analyze_files(".", Files);
     ["sort-deps" | Files] -> lifter_cli:sort_deps(Files);
     ["missing-deps" | Files] -> lifter_cli:missing_deps(Files);
+    ["generate-signatures", Root] -> lifter_cli:generate_signatures(Root);
     _ -> show_help()
   end,
   timer:sleep(100).

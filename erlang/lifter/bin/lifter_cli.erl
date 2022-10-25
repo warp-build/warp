@@ -2,11 +2,12 @@
 
 -include_lib("kernel/include/logger.hrl").
 
--export([lift/1]).
 -export([analyze_files/2]).
--export([sort_deps/1]).
--export([missing_deps/1]).
 -export([find_rebar_dependencies/1]).
+-export([generate_signatures/1]).
+-export([lift/1]).
+-export([missing_deps/1]).
+-export([sort_deps/1]).
 
 -define(JSON(X), jsone:encode(X, [{indent, 2}, {space, 1}, native_utf8, native_forward_slash])).
 -define(PRINT_JSON(X), io:format("~s\n", [?JSON(X)])).
@@ -164,7 +165,84 @@ lift(WorkspaceRoot0) ->
 
   ?LOG_INFO("OK").
 
+%===================================================================================================
+% @doc Analyzes all sources.
+%===================================================================================================
 
+generate_signatures(WorkspaceRoot0) ->
+  WorkspaceRoot = str:new(WorkspaceRoot0),
+
+  AllFiles = [ P || P <- glob:glob(path:join(WorkspaceRoot, "**/*.{erl,hrl}")),
+                    not path:contains(P, "_build"),
+                    not path:contains(P, "warp-outputs"),
+                    not path:contains(P, ".warp")
+             ],
+  ?LOG_INFO("Lifting workspace with ~p files", [length(AllFiles)]),
+  #{ headers := Headers, sources := Sources } = source_tagger:tag(AllFiles),
+  SourceTable = lists:foldl(
+            fun (Src, Acc) ->
+                {ok, ModName} = erl_stdlib:file_to_module(Src),
+                maps:merge(Acc, maps:from_list([{ModName, Src}]))
+            end, #{}, Sources),
+
+  HeaderTable = lists:foldl(
+            fun (Hdr, Acc) ->
+                Include = path:filename(Hdr),
+                RelInclude = path:strip_prefix(WorkspaceRoot, Hdr),
+                SrcInclude = path:tail(RelInclude),
+                LibInclude = path:join(path:filename(WorkspaceRoot), RelInclude),
+                TailInclude = path:tail(Hdr),
+                Entries = maps:from_list([
+                                          {Hdr, Hdr},
+                                          {Include, Hdr},
+                                          {RelInclude, Hdr},
+                                          {SrcInclude, Hdr},
+                                          {LibInclude, Hdr},
+                                          {TailInclude, Hdr}
+                                         ]),
+                maps:merge(Acc, Entries)
+            end, #{}, Headers),
+
+  ModMap = maps:merge(SourceTable, HeaderTable),
+
+  IncludePaths = uniq([
+                  path:join(WorkspaceRoot, "apps"),
+                  path:join(WorkspaceRoot, ".warp/_rebar_tmp/rebar3/default/lib")
+                 ] ++ [ begin 
+                          PAbs = case path:is_prefix(WorkspaceRoot, P) of
+                                      true -> P;
+                                      false -> path:join(WorkspaceRoot, P)
+                                 end,
+                          P0 = path:dirname(PAbs),
+                          P1 = path:dirname(P0),
+                          P2 = path:dirname(P1),
+                          [P0,P1,P2]
+                        end || P <- maps:keys(HeaderTable) ]),
+
+  % 5. analyze all the sources to get their signatures
+  {ok, Signatures} = source_analyzer:analyze(WorkspaceRoot, AllFiles, ModMap, #{}, IncludePaths),
+
+  % 6. generate warp signatures
+  % ?LOG_INFO("Writing Warp signature files..."),
+  % maps:foreach(fun (Path, WarpSig) ->
+  %                   ?LOG_INFO("- ~s\n", [Path]),
+  %                   ok = file:write_file(Path, ?JSON(WarpSig))
+  %               end, Signatures),
+  % 7. group and generate build files
+  ?LOG_INFO("Writing Build.json files..."),
+  Buildfiles = lists:foldl(
+                 fun ({Path, WarpSig}, Acc) ->
+                     BuildPath = path:join(path:dirname(Path), "Build.json"),
+                     LastTargets = maps:get(BuildPath, Acc, []), 
+                     maps:put(BuildPath, LastTargets ++ WarpSig, Acc)
+                 end, #{}, maps:to_list(Signatures)),
+
+  maps:foreach(fun (Path, BuildFile) ->
+                    ?LOG_INFO("- ~s\n", [Path]),
+                    ok = file:write_file(Path, ?JSON(BuildFile))
+                end, Buildfiles),
+
+  ?LOG_INFO("OK").
 
 %===================================================================================================
 % @doc Creates the 3rdparty/rebar.manifest file that includes all the
