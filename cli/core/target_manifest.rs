@@ -53,26 +53,45 @@ impl Default for BuildStamps {
 // a table has been defined. This means that after the first composite value (BuildStamps,
 // BTreeMap, etc), you can't have simple values (String, bool, Vec).
 //
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct TargetManifest {
     pub label: Label,
 
     pub rule_name: String,
+
     pub hash: String,
+
+    #[serde(default)]
     pub cached: bool,
+
+    #[serde(default)]
     pub is_valid: bool,
 
+    #[serde(default)]
     pub srcs: Vec<PathBuf>,
+
+    #[serde(default)]
     pub outs: Vec<PathBuf>,
 
+    #[serde(default)]
     pub buildstamps: BuildStamps,
 
+    #[serde(default)]
     pub provides: BTreeMap<String, PathBuf>,
 
+    #[serde(default)]
     pub deps: BTreeMap<String, String>,
+
+    #[serde(default)]
+    pub runtime_deps: BTreeMap<String, String>,
+
+    #[serde(default)]
     pub transitive_deps: BTreeMap<String, String>,
+
+    #[serde(default)]
     pub toolchains: BTreeMap<String, String>,
 
+    #[serde(default)]
     pub env: BTreeMap<String, String>,
 }
 
@@ -104,6 +123,13 @@ impl TargetManifest {
 
         let deps = target
             .deps
+            .iter()
+            .cloned()
+            .map(|d| (d.label.to_string(), d.hash))
+            .collect();
+
+        let runtime_deps = target
+            .runtime_deps
             .iter()
             .cloned()
             .map(|d| (d.label.to_string(), d.hash))
@@ -151,6 +177,7 @@ impl TargetManifest {
             srcs: target.srcs.iter().cloned().collect(),
             toolchains,
             transitive_deps,
+            runtime_deps,
         }
     }
 
@@ -186,6 +213,13 @@ impl TargetManifest {
         fs::write(&root.join(MANIFEST_FILE), json)
             .await
             .map_err(TargetManifestError::IOError)
+    }
+
+    pub fn placeholder(label: Label) -> Self {
+        Self {
+            label,
+            ..Self::default()
+        }
     }
 }
 

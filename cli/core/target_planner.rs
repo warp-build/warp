@@ -88,6 +88,17 @@ impl TargetPlanner {
 
         let transitive_deps = self.find_transitive_deps(target)?;
 
+        let runtime_deps = if rule.kind.is_runnable() {
+            self.find_runtime_deps(target)?
+        } else {
+            target
+                .runtime_deps
+                .iter()
+                .cloned()
+                .map(TargetManifest::placeholder)
+                .collect()
+        };
+
         let exec_result = self
             .rule_executor
             .execute(
@@ -97,6 +108,7 @@ impl TargetPlanner {
                 target,
                 &deps,
                 &transitive_deps,
+                &runtime_deps,
             )
             .await
             .map_err(TargetPlannerError::RuleExecutorError)?;
@@ -106,6 +118,7 @@ impl TargetPlanner {
             &rule,
             target,
             &deps,
+            &runtime_deps,
             &transitive_deps,
             &toolchains,
             exec_result,
@@ -120,12 +133,12 @@ impl TargetPlanner {
         target: &Target,
         rule: &Rule,
     ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
-        self._manifests(&target.label, &rule.toolchains, true)
+        self._manifests(&target.label, &rule.toolchains, true, false)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_deps", skip(self))]
     pub fn find_deps(&self, target: &Target) -> Result<Vec<TargetManifest>, TargetPlannerError> {
-        self._manifests(&target.label, &target.deps, false)
+        self._manifests(&target.label, &target.deps, false, false)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_deps", skip(self))]
@@ -133,16 +146,7 @@ impl TargetPlanner {
         &self,
         target: &Target,
     ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
-        self._manifests(&target.label, &target.runtime_deps, true)
-            .map_err(|err| match err {
-                TargetPlannerError::MissingDependencies { deps, label } => {
-                    TargetPlannerError::MissingRuntimeDependencies {
-                        runtime_deps: deps,
-                        label,
-                    }
-                }
-                _ => err,
-            })
+        self._manifests(&target.label, &target.runtime_deps, true, true)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_transitive_deps", skip(self))]
@@ -150,7 +154,7 @@ impl TargetPlanner {
         &self,
         target: &Target,
     ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
-        self._manifests(&target.label, &target.deps, true)
+        self._manifests(&target.label, &target.deps, true, false)
     }
 
     pub fn _manifests(
@@ -158,17 +162,67 @@ impl TargetPlanner {
         label: &Label,
         deps: &[Label],
         transitive: bool,
+        runtime: bool,
     ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
         let mut manifests = FxHashSet::default();
 
         let label = self.label_registry.register(label.clone());
         let deps = self.label_registry.register_many(deps);
 
-        for label in self._deps(label, &deps, transitive)? {
+        let labels = if runtime {
+            self._runtime_deps(label, &deps)?
+        } else {
+            self._deps(label, &deps, transitive)?
+        };
+
+        for label in labels {
             manifests.insert(self.build_results.get_manifest(label).unwrap());
         }
 
         Ok(manifests.into_iter().collect())
+    }
+
+    pub fn _runtime_deps(
+        &self,
+        label: LabelId,
+        deps: &[LabelId],
+    ) -> Result<Vec<LabelId>, TargetPlannerError> {
+        let target_label = self.label_registry.get(label);
+        let mut collected_labels: Vec<Label> = vec![];
+        let mut missing_labels: Vec<Label> = vec![];
+
+        let mut collected_deps: Vec<LabelId> = vec![];
+        let mut missing_deps: Vec<LabelId> = vec![];
+
+        let mut pending: Vec<LabelId> = deps.to_vec();
+        let mut visited: Vec<LabelId> = vec![];
+
+        while let Some(dep) = pending.pop() {
+            let dep_label = self.label_registry.get(dep);
+            if visited.contains(&dep) {
+                continue;
+            }
+            visited.push(dep);
+
+            if self.build_results.has_manifest(dep) {
+                collected_deps.push(dep);
+                collected_labels.push(dep_label);
+                let node_deps = self.build_results.get_target_runtime_deps(dep);
+                pending.extend(node_deps);
+            } else {
+                missing_labels.push(dep_label);
+                missing_deps.push(dep);
+            }
+        }
+
+        if !missing_deps.is_empty() {
+            Err(TargetPlannerError::MissingDependencies {
+                label,
+                deps: missing_deps,
+            })
+        } else {
+            Ok(collected_deps)
+        }
     }
 
     pub fn _deps(

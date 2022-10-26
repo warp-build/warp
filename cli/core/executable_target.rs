@@ -26,7 +26,7 @@ pub struct ExecutableTarget {
     pub transitive_deps: Vec<TargetManifest>,
 
     /// Transitive Runtime Dependencies needed to execute this target
-    pub runtime_deps: Vec<Label>,
+    pub runtime_deps: Vec<TargetManifest>,
 
     /// Dependencies that need to be present but not copied into the cache
     pub toolchains: Vec<TargetManifest>,
@@ -54,6 +54,7 @@ impl ExecutableTarget {
         rule: &Rule,
         target: &Target,
         deps: &[TargetManifest],
+        runtime_deps: &[TargetManifest],
         transitive_deps: &[TargetManifest],
         toolchains: &[TargetManifest],
         exec_result: ExecutionResult,
@@ -63,7 +64,7 @@ impl ExecutableTarget {
             target_plan_started_at: exec_result.target_plan_started_at,
             actions: exec_result.actions,
             deps: deps.to_vec(),
-            runtime_deps: target.runtime_deps.clone(),
+            runtime_deps: runtime_deps.to_vec(),
             hash: "".to_string(),
             label: target.label.clone(),
             outs: exec_result.outs,

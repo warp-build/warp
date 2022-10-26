@@ -68,6 +68,7 @@ Warp.Targets.compute = target => {
     cfg: () => config,
     deps: () => target.deps,
     transitiveDeps: () => target.transitiveDeps,
+    runtimeDeps: () => target.runtimeDeps,
 
     // TODO(@ostera): build this entire object on the Rust side
     env: () => ({
@@ -144,10 +145,17 @@ Warp.Rule = spec => {
 
   spec.toolchains = (spec.toolchains || []).map( toolchain => toolchain.name );
   spec.defaults = spec.defaults || {};
-  spec.kind = spec.name.endsWith("_test") ? "test" : spec.runnable ? "run" : "build";
   spec.pinned = spec.pinned || false;
   spec.portable = spec.portable || false;
   spec.sandbox = spec.sandbox || { mode: "link" };
+
+  spec.kind = "build";
+  if (spec.name.endsWith("_test")) {
+    spec.kind = "test"
+  }
+  if (spec.runnable) {
+    spec.kind = "run"
+  }
 
   Warp.Rules.register(name, spec);
 

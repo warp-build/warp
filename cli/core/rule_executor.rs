@@ -70,6 +70,7 @@ impl ComputeTargetProgram {
         target: &Target,
         deps: &[TargetManifest],
         transitive_deps: &[TargetManifest],
+        runtime_deps: &[TargetManifest],
         rule: &Rule,
         config: &RuleConfig,
     ) -> String {
@@ -150,6 +151,46 @@ impl ComputeTargetProgram {
                 .collect(),
         );
 
+        let runtime_deps: serde_json::Value = serde_json::Value::Array(
+            runtime_deps
+                .iter()
+                .map(|dep| {
+                    let mut map = serde_json::Map::new();
+                    map.insert(
+                        "name".to_string(),
+                        serde_json::Value::String(dep.label.name()),
+                    );
+                    map.insert(
+                        "ruleName".to_string(),
+                        serde_json::Value::String(dep.rule_name.clone()),
+                    );
+                    map.insert(
+                        "label".to_string(),
+                        serde_json::to_value(dep.label.clone()).unwrap(),
+                    );
+                    map.insert(
+                        "srcs".to_string(),
+                        serde_json::Value::Array(
+                            dep.srcs
+                                .iter()
+                                .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
+                                .collect(),
+                        ),
+                    );
+                    map.insert(
+                        "outs".to_string(),
+                        serde_json::Value::Array(
+                            dep.outs
+                                .iter()
+                                .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
+                                .collect(),
+                        ),
+                    );
+                    serde_json::Value::Object(map)
+                })
+                .collect(),
+        );
+
         let label: serde_json::Value = serde_json::to_value(target.label.clone()).unwrap();
 
         let env: serde_json::Value = env.clone().into();
@@ -163,6 +204,7 @@ impl ComputeTargetProgram {
       cfg: {CONFIG},
       deps: {DEPS},
       transitiveDeps: {TRANSITIVE_DEPS},
+      runtimeDeps: {RUNTIME_DEPS},
       env: {ENVIRONMENT},
     });
 })();
@@ -175,6 +217,7 @@ impl ComputeTargetProgram {
             .replace("{CONFIG}", &config.to_string())
             .replace("{DEPS}", &deps.to_string())
             .replace("{TRANSITIVE_DEPS}", &transitive_deps.to_string())
+            .replace("{RUNTIME_DEPS}", &runtime_deps.to_string())
             .replace("{ENVIRONMENT}", &env.to_string())
     }
 }
@@ -549,14 +592,22 @@ impl RuleExecutor {
         target: &Target,
         deps: &[TargetManifest],
         transitive_deps: &[TargetManifest],
+        runtime_deps: &[TargetManifest],
     ) -> Result<ExecutionResult, RuleExecutorError> {
         let config = ConfigExpander
             .expand(rule, target)
             .await
             .map_err(RuleExecutorError::ConfigExpanderError)?;
 
-        let compute_program =
-            ComputeTargetProgram::as_js_source(env, target, deps, transitive_deps, rule, &config);
+        let compute_program = ComputeTargetProgram::as_js_source(
+            env,
+            target,
+            deps,
+            transitive_deps,
+            runtime_deps,
+            rule,
+            &config,
+        );
 
         let script_name = format!("<target: {:?}>", &target.label.to_string());
         self.runtime

@@ -162,6 +162,13 @@ impl BuildWorker {
             }
         };
 
+        for dep in &target.runtime_deps {
+            let dep = self.label_registry.register(dep.clone());
+            self.build_queue
+                .queue(Task::build(dep))
+                .map_err(BuildWorkerError::QueueError)?;
+        }
+
         let executable_target = match self
             .target_planner
             .plan(&self.build_opts, &self.env, &target)
@@ -182,13 +189,6 @@ impl BuildWorker {
 
             Ok(executable_target) => executable_target,
         };
-
-        for dep in &target.runtime_deps {
-            let dep = self.label_registry.register(dep.clone());
-            self.build_queue
-                .queue(Task::build(dep))
-                .map_err(BuildWorkerError::QueueError)?;
-        }
 
         self.event_channel.send(Event::BuildingTarget {
             label: target.label.clone(),

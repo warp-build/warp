@@ -12,6 +12,12 @@ pub enum RuleKind {
     Test,
 }
 
+impl RuleKind {
+    pub fn is_runnable(&self) -> bool {
+        matches!(&self, RuleKind::Run | RuleKind::Test)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pinned {
     Pinned,

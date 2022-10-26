@@ -182,7 +182,11 @@ impl TargetExecutor {
         target: &ExecutableTarget,
     ) -> Result<(), TargetExecutorError> {
         // Copy dependencies
-        for dep in &target.transitive_deps {
+        for dep in target
+            .transitive_deps
+            .iter()
+            .chain(target.runtime_deps.iter())
+        {
             let dep_src = self
                 .store
                 .absolute_path_by_dep(dep)

@@ -140,6 +140,19 @@ impl BuildResults {
         }
     }
 
+    pub fn get_target_runtime_deps(&self, label: LabelId) -> Vec<LabelId> {
+        self.computed_targets
+            .get(&label)
+            .map(|r| {
+                let (_manifest, node) = r.value();
+                node.runtime_deps
+                    .iter()
+                    .map(|d| self.label_registry.register(d.label.clone()))
+                    .collect::<Vec<LabelId>>()
+            })
+            .unwrap_or_default()
+    }
+
     pub fn get_target_deps(&self, label: LabelId) -> Vec<LabelId> {
         self.computed_targets
             .get(&label)
