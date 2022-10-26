@@ -3,6 +3,7 @@
     "deps": [],
     "name": "str.erl",
     "rule": "erlang_library",
+    "runtime_deps": [],
     "srcs": [
       "str.erl"
     ]
@@ -11,6 +12,7 @@
     "deps": [],
     "name": "result.erl",
     "rule": "erlang_library",
+    "runtime_deps": [],
     "srcs": [
       "result.erl"
     ]
@@ -19,16 +21,18 @@
     "deps": [],
     "name": "erl_visitor.erl",
     "rule": "erlang_library",
+    "runtime_deps": [],
     "srcs": [
       "erl_visitor.erl"
     ]
   },
   {
-    "deps": [
-      "\/\/erlang\/base:path.erl"
-    ],
+    "deps": [],
     "name": "glob.erl",
     "rule": "erlang_library",
+    "runtime_deps": [
+      "//erlang/base:path.erl"
+    ],
     "srcs": [
       "glob.erl"
     ]
@@ -37,6 +41,7 @@
     "deps": [],
     "name": "parallel_lists.erl",
     "rule": "erlang_library",
+    "runtime_deps": [],
     "srcs": [
       "parallel_lists.erl"
     ]
@@ -45,16 +50,18 @@
     "deps": [],
     "name": "tempdir.erl",
     "rule": "erlang_library",
+    "runtime_deps": [],
     "srcs": [
       "tempdir.erl"
     ]
   },
   {
-    "deps": [
-      "\/\/erlang\/base:path.erl"
-    ],
+    "deps": [],
     "name": "erl_stdlib.erl",
     "rule": "erlang_library",
+    "runtime_deps": [
+      "//erlang/base:path.erl"
+    ],
     "srcs": [
       "erl_stdlib.erl"
     ]
@@ -63,6 +70,9 @@
     "deps": [],
     "name": "path.erl",
     "rule": "erlang_library",
+    "runtime_deps": [
+      "//erlang/base:str.erl"
+    ],
     "srcs": [
       "path.erl"
     ]
@@ -71,6 +81,7 @@
     "deps": [],
     "name": "erl_ast.erl",
     "rule": "erlang_library",
+    "runtime_deps": [],
     "srcs": [
       "erl_ast.erl"
     ]
@@ -79,6 +90,7 @@
     "deps": [],
     "name": "cerl_visitor.erl",
     "rule": "erlang_library",
+    "runtime_deps": [],
     "srcs": [
       "cerl_visitor.erl"
     ]
@@ -87,6 +99,7 @@
     "deps": [],
     "name": "hexpm.erl",
     "rule": "erlang_library",
+    "runtime_deps": [],
     "srcs": [
       "hexpm.erl"
     ]

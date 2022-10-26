@@ -347,11 +347,11 @@ handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
        type_exports := []}}}
   = cerl_analyzer:analyze([
                            <<"../erlang/lifter/tests/fixtures/includes/bpapi.hrl">>,
-                           <<"../erlang/lifter/tests/fixtures/emqx_statsd_proto_v1.erl">>,
-                           <<"../erlang/lifter/tests/fixtures/emqx_bpapi_trans.erl">>
+                           <<"../erlang/lifter/tests/fixtures/emqx_bpapi_trans.erl">>,
+                           <<"../erlang/lifter/tests/fixtures/emqx_bpapi.hrl">>,
+                           <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>,
+                           <<"../erlang/lifter/tests/fixtures/emqx_statsd_proto_v1.erl">>
                           ]).
-                           % <<"../erlang/lifter/tests/fixtures/emqx_bpapi.hrl">>,
-                           % <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>
 
 fails_on_missing_parse_transform(_Config) ->
   {ok,#{<<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">> :=
@@ -378,7 +378,10 @@ handles_parse_transforms(_Config) ->
             external_calls := ExtCalls,
             type_exports := TypeExports,
             includes := Includes
-           }}} = cerl_analyzer:analyze([<<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">>]),
+           }}} = cerl_analyzer:analyze([
+                                        <<"../erlang/lifter/tests/fixtures/dummy_transform.erl">>,
+                                        <<"../erlang/lifter/tests/fixtures/needs_parse_transform.erl">>
+                                       ]),
 
   ?assertMatch([], Exports),
 

@@ -1,7 +1,10 @@
 [
   {
-    "deps": [
-      "//erlang/base/jsone",
+    "deps": [],
+    "name": "lifter_cli.erl",
+    "rule": "erlang_library",
+    "runtime_deps": [
+      "//erlang/base/jsone/src:jsone.erl",
       "//erlang/base:erl_stdlib.erl",
       "//erlang/base:glob.erl",
       "//erlang/base:hexpm.erl",
@@ -14,8 +17,6 @@
       "//erlang/lifter/lib:source_analyzer.erl",
       "//erlang/lifter/lib:source_tagger.erl"
     ],
-    "name": "lifter_cli.erl",
-    "rule": "erlang_library",
     "srcs": [
       "lifter_cli.erl"
     ]

@@ -1,10 +1,11 @@
 [
   {
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl_parser.erl"
-    ],
+    "deps": [],
     "name": "verl_parser_SUITE.erl",
     "rule": "erlang_library",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl_parser.erl"
+    ],
     "srcs": [
       "verl_parser_SUITE.erl"
     ]
@@ -13,40 +14,44 @@
     "cases": [
       "parse_requirement_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl_parser.erl"
-    ],
+    "deps": [],
     "name": "parse_requirement_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl_parser.erl"
+    ],
     "test": "verl_parser_SUITE.erl"
   },
   {
     "cases": [
       "parse_version_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl_parser.erl"
-    ],
+    "deps": [],
     "name": "parse_version_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl_parser.erl"
+    ],
     "test": "verl_parser_SUITE.erl"
   },
   {
     "deps": [
-      "https://hex.pm/packages/proper"
+      "//proper/include:proper.hrl"
     ],
     "name": "prop_verl.erl",
     "rule": "erlang_library",
+    "runtime_deps": [],
     "srcs": [
       "prop_verl.erl"
     ]
   },
   {
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "verl_SUITE.erl",
     "rule": "erlang_library",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "srcs": [
       "verl_SUITE.erl"
     ]
@@ -55,121 +60,132 @@
     "cases": [
       "between_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "between_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   },
   {
     "cases": [
       "compare_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "compare_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   },
   {
     "cases": [
       "compile_requirement_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "compile_requirement_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   },
   {
     "cases": [
       "eq_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "eq_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   },
   {
     "cases": [
       "gt_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "gt_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   },
   {
     "cases": [
       "gte_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "gte_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   },
   {
     "cases": [
       "is_match_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "is_match_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   },
   {
     "cases": [
       "lt_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "lt_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   },
   {
     "cases": [
       "lte_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "lte_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   },
   {
     "cases": [
       "parse_requirement_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "parse_requirement_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   },
   {
     "cases": [
       "parse_test"
     ],
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl.erl"
-    ],
+    "deps": [],
     "name": "parse_test",
     "rule": "erlang_test",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl.erl"
+    ],
     "test": "verl_SUITE.erl"
   }
 ]

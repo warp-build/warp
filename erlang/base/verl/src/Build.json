@@ -3,16 +3,18 @@
     "deps": [],
     "name": "verl_parser.erl",
     "rule": "erlang_library",
+    "runtime_deps": [],
     "srcs": [
       "verl_parser.erl"
     ]
   },
   {
-    "deps": [
-      "\/\/erlang\/base\/verl\/src:verl_parser.erl"
-    ],
+    "deps": [],
     "name": "verl.erl",
     "rule": "erlang_library",
+    "runtime_deps": [
+      "//erlang/base/verl/src:verl_parser.erl"
+    ],
     "srcs": [
       "verl.erl"
     ]
