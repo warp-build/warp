@@ -83,15 +83,15 @@ impl ExecutableTarget {
 
         s.update(self.label.to_string().as_bytes());
 
-        let deps = self.deps.iter().map(|d| d.hash.as_str());
-
         let actions: Vec<String> = self.actions.iter().map(|a| format!("{:?}", a)).collect();
 
         let mut srcs: Vec<&PathBuf> = self.srcs.iter().collect();
         srcs.dedup_by(|a, b| a == b);
         srcs.sort();
 
+        let deps = self.deps.iter().map(|d| d.hash.as_str());
         let mut seeds: Vec<&str> = deps
+            .chain(self.transitive_deps.iter().map(|d| d.hash.as_str()))
             .chain(self.outs.iter().map(|o| o.to_str().unwrap()))
             .chain(actions.iter().map(|a| a.as_str()))
             .chain(srcs.iter().map(|s| s.to_str().unwrap()))
