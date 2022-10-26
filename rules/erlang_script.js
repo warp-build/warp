@@ -47,7 +47,7 @@ const impl = (ctx) => {
   ctx.action().writeFile({
     dst: build,
     data: `
--module(${name}_escript_builder).
+-module('${name}_escript_builder').
 
 -include_lib("kernel/include/logger.hrl").
 
