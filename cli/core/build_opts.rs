@@ -18,6 +18,7 @@ impl TargetFilter {
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct BuildOpts {
+    pub goal: Goal,
     pub target_filter: TargetFilter,
     pub force_output_promotion: bool,
 }

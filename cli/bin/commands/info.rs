@@ -56,7 +56,7 @@ impl InfoCommand {
 
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
-            warp.build(
+            warp.execute(
                 &[label.clone()],
                 event_channel.clone(),
                 BuildOpts::default(),

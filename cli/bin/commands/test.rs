@@ -57,11 +57,12 @@ impl TestCommand {
         let warp = BuildExecutor::from_workspace(workspace, worker_limit);
 
         let status_reporter = StatusReporter::new(event_channel.clone());
-        let (_result, ()) = futures::future::join(
-            warp.build(
+        let (_results, ()) = futures::future::join(
+            warp.execute(
                 &[label.clone()],
                 event_channel.clone(),
                 BuildOpts {
+                    goal: Goal::Test,
                     target_filter: TargetFilter::OnlyTests,
                     ..Default::default()
                 },

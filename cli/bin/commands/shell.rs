@@ -42,13 +42,10 @@ impl ShellCommand {
 
         let status_reporter = StatusReporter::new(event_channel.clone());
         let (result, ()) = futures::future::join(
-            warp.build(
+            warp.execute(
                 &[label.clone()],
                 event_channel.clone(),
-                BuildOpts {
-                    target_filter: TargetFilter::Everything,
-                    ..Default::default()
-                },
+                BuildOpts::default(),
             ),
             status_reporter.run(&[label.clone()]),
         )

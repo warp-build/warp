@@ -16,6 +16,12 @@ pub enum TargetPlannerError {
     #[error("When planning {label:?}, the following dependencies were missing: {deps:?}")]
     MissingDependencies { deps: Vec<LabelId>, label: LabelId },
 
+    #[error("When planning {label:?}, the following dependencies were missing: {runtime_deps:?}")]
+    MissingRuntimeDependencies {
+        runtime_deps: Vec<LabelId>,
+        label: LabelId,
+    },
+
     #[error(transparent)]
     ExecutableTargetError(ExecutableTargetError),
 
@@ -58,6 +64,7 @@ impl TargetPlanner {
     #[tracing::instrument(name = "TargetPlanner::plan", skip(self, env))]
     pub async fn plan(
         &mut self,
+        build_opts: &BuildOpts,
         env: &ExecutionEnvironment,
         target: &Target,
     ) -> Result<ExecutableTarget, TargetPlannerError> {
@@ -119,6 +126,23 @@ impl TargetPlanner {
     #[tracing::instrument(name = "TargetPlanner::find_deps", skip(self))]
     pub fn find_deps(&self, target: &Target) -> Result<Vec<TargetManifest>, TargetPlannerError> {
         self._manifests(&target.label, &target.deps, false)
+    }
+
+    #[tracing::instrument(name = "TargetPlanner::find_deps", skip(self))]
+    pub fn find_runtime_deps(
+        &self,
+        target: &Target,
+    ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
+        self._manifests(&target.label, &target.runtime_deps, true)
+            .map_err(|err| match err {
+                TargetPlannerError::MissingDependencies { deps, label } => {
+                    TargetPlannerError::MissingRuntimeDependencies {
+                        runtime_deps: deps,
+                        label,
+                    }
+                }
+                _ => err,
+            })
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_transitive_deps", skip(self))]

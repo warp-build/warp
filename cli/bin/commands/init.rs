@@ -146,7 +146,7 @@ impl InitCommand {
 
             let status_reporter = StatusReporter::new(event_channel.clone());
             let (lifters, ()) = futures::future::join(
-                warp.build(&lifters, event_channel.clone(), BuildOpts::default()),
+                warp.execute(&lifters, event_channel.clone(), BuildOpts::default()),
                 status_reporter.run(&lifters),
             )
             .await;

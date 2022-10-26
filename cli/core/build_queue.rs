@@ -6,8 +6,9 @@ use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone)]
 pub enum Goal {
+    #[default]
     Build,
     Test,
     Run,
@@ -19,6 +20,10 @@ impl Goal {
             Goal::Test => target.rule_name.ends_with("_test"),
             Goal::Build | Goal::Run => !target.rule_name.ends_with("_test"),
         }
+    }
+
+    pub fn is_runnable(&self) -> bool {
+        matches!(self, Goal::Test | Goal::Run)
     }
 }
 
@@ -165,7 +170,7 @@ impl BuildQueue {
     #[tracing::instrument(name = "BuildQueue::queue", skip(self))]
     pub fn queue(&self, task: Task) -> Result<(), QueueError> {
         let label = task.label;
-        info!("Queued {:#?}", self.label_registry.get(label));
+        debug!("Queued {:?} {:#?}", label, self.label_registry.get(label));
         if self.label_registry.get(label).is_all() {
             return Err(QueueError::CannotQueueTargetAll);
         }
