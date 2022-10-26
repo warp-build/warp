@@ -36,7 +36,7 @@
   },
   {
     "deps": [
-      "//proper/include:proper.hrl"
+      "https://hex.pm/packages/proper"
     ],
     "name": "prop_verl.erl",
     "rule": "erlang_library",

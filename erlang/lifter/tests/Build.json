@@ -1,6 +1,32 @@
 [
   {
     "deps": [],
+    "name": "source_analyzer_SUITE.erl",
+    "rule": "erlang_library",
+    "runtime_deps": [
+      "./fixtures",
+			"//erlang/base:path.erl",
+      "//erlang/lifter/lib:source_analyzer.erl"
+    ],
+    "srcs": [
+      "source_analyzer_SUITE.erl"
+    ]
+  },
+  {
+    "cases": [
+      "handles_real_life_example_from_emqx"
+    ],
+    "deps": [],
+    "name": "source_analyzer_handles_real_life_example_from_emqx",
+    "rule": "erlang_test",
+    "runtime_deps": [
+      "./fixtures",
+      ":source_analyzer_SUITE.erl"
+    ],
+    "test": "source_analyzer_SUITE.erl"
+  },
+  {
+    "deps": [],
     "name": "lifter_rebar3_SUITE.erl",
     "rule": "erlang_library",
     "runtime_deps": [
