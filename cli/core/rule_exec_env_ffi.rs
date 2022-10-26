@@ -22,7 +22,12 @@ pub struct InnerState {
 
 #[op]
 pub fn op_label_path(label: Label) -> Result<String, AnyError> {
-    Ok(label.path().to_str().unwrap().to_string())
+    let path = label.path().to_str().unwrap().to_string();
+    Ok(if path.is_empty() {
+        ".".to_string()
+    } else {
+        path
+    })
 }
 
 #[op]
@@ -33,8 +38,16 @@ pub fn op_label_name(label: Label) -> Result<String, AnyError> {
 #[op]
 pub fn op_file_parent(filepath: String) -> Result<String, AnyError> {
     let path = PathBuf::from(filepath);
-    let parent = path.parent().unwrap().to_str().unwrap();
-    Ok(parent.to_string())
+    let parent = path
+        .parent()
+        .and_then(|p| p.to_str())
+        .map(|p| p.to_string())
+        .unwrap();
+    Ok(if parent.is_empty() {
+        ".".to_string()
+    } else {
+        parent
+    })
 }
 
 #[op]

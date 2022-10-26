@@ -115,7 +115,11 @@ impl LabelBuilder {
         let (kind, path) = self._clean_path(path);
 
         if self.name.is_none() {
-            let name = path.file_name().unwrap().to_str().unwrap().to_string();
+            let name = path
+                .file_name()
+                .and_then(|f| f.to_str())
+                .map(|f| f.to_string())
+                .unwrap_or_default();
             self.name(name);
         }
 
@@ -185,8 +189,8 @@ impl LabelBuilder {
         let path = if path.is_absolute() {
             stripped = true;
             path.strip_prefix(&self.workspace.clone().unwrap_or_default())
-                .unwrap()
-                .to_path_buf()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|_| path.clone())
         } else {
             path
         };
