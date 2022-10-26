@@ -37,6 +37,7 @@ Usage:
 
 * lifter
 * lifter lift ./path/to/dir
+* lifter generate-signatures ./path/to/dir
 * lifter analyze-file path/to/file.erl
 * lifter analyze-files a.erl b.erl c.erl
 * lifter sort-deps a.erl b.erl c.erl

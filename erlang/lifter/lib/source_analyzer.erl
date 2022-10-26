@@ -41,7 +41,8 @@ erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Comp
   [#{
     name => path:filename(File),
     srcs => [path:filename(File)],
-    deps => deps_to_labels(ModDeps ++ IncludeDeps), 
+    runtime_deps => deps_to_labels(ModDeps),
+    deps => deps_to_labels(IncludeDeps), 
     rule => <<"erlang_library">>
    }].
 
@@ -73,7 +74,8 @@ get_ct_cases(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnal
   [#{
     name => Case,
     test => path:filename(File),
-    deps => deps_to_labels(ModDeps ++ IncludeDeps), 
+    runtime_deps => deps_to_labels(ModDeps),
+    deps => deps_to_labels(IncludeDeps), 
     cases => [Case],
     rule => <<"erlang_test">>
    } || Case <- Cases, erlang:is_atom(Case)].
@@ -112,7 +114,8 @@ get_prop_tests(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAn
   [#{
     name => Prop,
     test => path:filename(File),
-    deps => deps_to_labels([File] ++ ModDeps ++ IncludeDeps), 
+    runtime_deps => deps_to_labels(ModDeps),
+    deps => deps_to_labels(IncludeDeps), 
     props => [Prop],
     rule => <<"erlang_proper_test">>
    } || Prop <- Properties].
