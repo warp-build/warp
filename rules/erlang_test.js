@@ -14,6 +14,8 @@ const impl = ctx => {
 
 ct_run \
   -dir ${cwd()} \
+  -verbosity 100 \
+  -no-auto-compile \
   -suite ${test.replace(ERL_EXT, "")} \
   ${(cases.length > 0) ? `-case ${cases.join(" ")}` : ""} \
   -erl_args \
