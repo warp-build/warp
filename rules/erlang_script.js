@@ -7,16 +7,19 @@ const impl = (ctx) => {
   const cwd = Label.path(label);
 
   const transitiveDeps = ctx.transitiveDeps().flatMap(dep => dep.outs);
+  const runtimeDeps = ctx.runtimeDeps().flatMap(dep => dep.outs);
 
   const includePaths = transitiveDeps
     .filter(path => path.endsWith(HEADER_EXT))
     .unique();
 
-  const transitiveBeams = transitiveDeps
+  const beamFiles = transitiveDeps
+    .concat(runtimeDeps)
     .filter(path => path.endsWith(BEAM_EXT) || path.endsWith(".app") || path.endsWith(".app.src"))
     .unique();
 
   const transitiveApps = ctx.transitiveDeps()
+    .concat(ctx.runtimeDeps())
     .flatMap(dep => {
       let app = dep.outs.find(path => path.endsWith(".app"));
       if (app) {
@@ -61,7 +64,7 @@ main(_argv) ->
   % The raw list of files.
   DepBeamFiles = [
     ${
-      transitiveBeams
+      beamFiles
       .map(dep => `"${dep}"`)
       .join(",\n    ")
     }

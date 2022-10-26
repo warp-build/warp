@@ -4,7 +4,10 @@ const impl = ctx => {
   const { name, deps, test, cases, cwd } = ctx.cfg();
 
   const transitiveDeps = ctx.transitiveDeps().flatMap(dep => dep.outs);
+  const runtimeDeps = ctx.runtimeDeps().flatMap(dep => dep.outs);
+
   const extraLibPaths = transitiveDeps
+    .concat(runtimeDeps)
     .filter(path => path.endsWith(BEAM_EXT))
     .map(File.parent)
     .unique()
