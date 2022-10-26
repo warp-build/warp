@@ -1,15 +1,13 @@
 [
   {
-    "deps": [],
-    "name": "main.erl",
-    "rule": "erlang_library",
-    "runtime_deps": [
-      "//erlang/base/jsone/src:jsone.erl",
+    "deps": [
+      "//erlang/base/jsone",
       "//erlang/base:hexpm.erl",
       "//erlang/base:path.erl"
     ],
-    "srcs": [
-      "main.erl"
-    ]
+    "name": "resolver",
+    "rule": "erlang_script",
+    "main": "main.erl",
+    "apps": ["kernel", "jsone"]
   }
 ]

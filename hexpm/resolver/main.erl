@@ -5,7 +5,8 @@
 
 -include_lib("kernel/include/logger.hrl").
 
--define(PRINT_JSON(X), io:format("~s\n", [jsone:encode(X, [{indent, 2}, {space, 1}])])).
+-define(JSON(X), jsone:encode(X, [{indent, 2}, {space, 1}, native_utf8, native_forward_slash])).
+-define(PRINT_JSON(X), io:format("~s\n", [?JSON(X)])).
 
 main(Args) ->
   ok = setup(),
@@ -15,15 +16,19 @@ main(Args) ->
     ["prepare", Root] -> ?PRINT_JSON(prepare(Root));
     ["prepare"] -> ?PRINT_JSON(prepare(Cwd));
     ["help"] -> show_help()
-  end,
-  timer:sleep(100).
+  end.
 
 setup() ->
   logger:set_primary_config(#{ level => all }),
   logger:set_handler_config(default, formatter, {logger_formatter, #{}}),
   [HandlerId] = logger:get_handler_ids(),
   logger:remove_handler(HandlerId),
-  logger:add_handler(default_h, logger_std_h, #{ config => #{ type => standard_error }}),
+  logger:add_handler(default_h, logger_std_h, #{
+                                                config => #{
+                                                            type => standard_error,
+                                                            sync_mode_qlen => 0
+                                                           }
+                                               }),
   ok.
 
 show_help() ->
@@ -40,7 +45,7 @@ Usage:
 resolve(Url0, Vsn0) -> 
   Url = binary:list_to_bin(Url0),
   Vsn = binary:list_to_bin(Vsn0),
-  {ok, PkgSpec = {PkgName, _PkgVsn}} = hexpm:parse_url(<<Url/binary, "/", Vsn/binary>>),
+  {ok, PkgSpec = {_PkgName, _PkgVsn}} = hexpm:parse_url(<<Url/binary, "/", Vsn/binary>>),
   #{
     version => 0,
     archive => #{ url => hexpm:archive_url(PkgSpec) }
@@ -58,7 +63,7 @@ prepare(Root) ->
   Metadata = proplists:to_map(Metadata0),
 
   PkgName = maps:get(<<"app">>, Metadata),
-  Srcs = maps:get(<<"files">>, Metadata, []),
+  Srcs = get_files(Metadata),
 
   ?LOG_DEBUG("Found ~p and expecint ~i sources", [PkgName, length(Srcs)]),
   ?LOG_DEBUG("Extracting..."),
@@ -92,6 +97,11 @@ prepare(Root) ->
                     }
                   ]
    }.
+
+get_files(Metadata) -> handle_files(maps:get(<<"files">>, Metadata, [])).
+handle_files([{_k, _v}|Files]) -> handle_files(proplists:to_map(Files));
+handle_files(Files) when is_list(Files) -> Files;
+handle_files(Files) when is_map(Files) -> maps:keys(Files).
 
 requirements(Metadata) ->
   Reqs0 = maps:get(<<"requirements">>, Metadata, []),
