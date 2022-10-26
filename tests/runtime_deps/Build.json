@@ -1,0 +1,32 @@
+[
+  {
+    "rule": "erlang_script",
+    "name": "main.erl",
+    "main": "main.erl",
+    "runtime_deps": [":b.erl"]
+  },
+  {
+    "rule": "erlang_library",
+    "name": "b.erl",
+    "srcs": ["b.erl"],
+    "headers": [],
+    "runtime_deps": [":a.erl"],
+    "deps": [":c.hrl"]
+  },
+  {
+    "rule": "erlang_library",
+    "name": "a.erl",
+    "srcs": ["a.erl"],
+    "headers": [],
+    "runtime_deps": [":b.erl"],
+    "deps": []
+  },
+  {
+    "rule": "erlang_library",
+    "name": "c.hrl",
+    "srcs": [],
+    "headers": ["c.hrl"],
+    "runtime_deps": [],
+    "deps": []
+  }
+]
