@@ -1,3 +1,4 @@
+use super::Event;
 use super::*;
 use async_compression::futures::bufread::GzipDecoder;
 use futures::StreamExt;
@@ -9,6 +10,7 @@ use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use tokio_util::compat::TokioAsyncReadCompatExt;
+use tracing::*;
 use url::Url;
 
 #[derive(Clone, Debug)]
@@ -246,6 +248,7 @@ impl ArchiveManager {
         Ok((path, hash))
     }
 
+    #[tracing::instrument(name = "ArchiveManager::extract", skip(self))]
     async fn extract(
         &self,
         url: &Url,
@@ -302,29 +305,38 @@ impl ArchiveManager {
                 if let Some(ref prefix) = strip_prefix {
                     let tmpdir = tempfile::tempdir()?;
 
-                    match tar.unpack(tmpdir.path()).await {
-                        Ok(_) => (),
-                        Err(err) => {
-                            let file = fs::File::open(&archive).await?;
-                            let tar =
-                                async_tar::Archive::new(futures::io::BufReader::new(file.compat()));
-                            tar.unpack(tmpdir.path()).await?
-                        }
+                    if tar.unpack(tmpdir.path()).await.is_err() {
+                        let file = fs::File::open(&archive).await?;
+                        let tar =
+                            async_tar::Archive::new(futures::io::BufReader::new(file.compat()));
+                        tar.unpack(tmpdir.path()).await?
                     };
+
+                    let tmp_root = tmpdir.path().join(&prefix).to_path_buf();
 
                     let mut files = Box::pin(
                         FileScanner::new()
-                            .starting_from(&tmpdir.path().to_path_buf())
+                            .starting_from(&tmp_root)
                             .await?
                             .stream_files()
                             .await,
                     );
 
                     while let Some(src_path) = files.next().await {
-                        let src_path = src_path?;
-                        let path = src_path.strip_prefix(tmpdir.path())?.strip_prefix(prefix)?;
+                        let src_path = src_path.unwrap();
+                        if fs::metadata(&src_path).await?.is_dir() {
+                            continue;
+                        }
+                        // NOTE(@ostera): when using tmpdir we create a folder that starts at `/tmp`,
+                        // but our FileScanner resolves _through_ and gets the actual `/private/tmp`
+                        // prefix.
+                        let path = src_path
+                            .strip_prefix("/private")?
+                            .strip_prefix(&tmp_root.strip_prefix("/").unwrap())?;
+
                         let dst_path = dst.join(path);
                         fs::create_dir_all(dst_path.parent().unwrap()).await?;
+                        debug!("cp {:#?} -> {:#?}", &src_path, &dst_path);
                         fs::copy(src_path, dst_path).await?;
                     }
                 } else {
