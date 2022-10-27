@@ -29,7 +29,7 @@
   },
   "rebar3": {
     "latest": {
-      "sha1": "143d3473dae6ea8250452f7a29db73974be51b24",
+      "sha1": "7e281994851487caf5daa4a2c32b5a0cabdf7bdb",
       "deps": { "cmake": "3.24.2", "erlang": "25.0", "git": "2.38.1" }
     }
   },
