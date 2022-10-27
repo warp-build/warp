@@ -82,7 +82,6 @@ analyze(Sources, IncludePaths) ->
           },
 
   Results0 = lists:map(fun (Source) ->
-                           io:format("~p\n", [Source]),
                            {Source, do_analyze(Source, Opts)}
                        end, Sources),
   Results = maps:from_list(Results0), 

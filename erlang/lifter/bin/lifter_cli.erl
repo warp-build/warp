@@ -42,20 +42,49 @@ lift(WorkspaceRoot0) ->
 
   % 2.1. write Dependencies.json file using the External Dependencies Table
   ?LOG_INFO("Writing Dependencies.json files..."),
-  LockMap =  maps:from_list(lists:sort([
-                             case Vsn of
-                               {pkg, Name, SemVer} -> {hexpm:pkg_to_url(Name), str:new(SemVer)};
-                               {git, Repo, {ref, Ref}} -> {str:new(string:replace(Repo, ".git", "", all)), str:new(Ref)}
-                             end
-                             || {_, Vsn, _} <- Lock ])),
+  LockMap =  maps:from_list(lists:sort(
+                              [
+                               begin
+                                 case Vsn of
+                                   {pkg, RemoteName, SemVer} -> 
+                                     Url = hexpm:pkg_to_url(RemoteName),
+                                     {Url, #{
+                                             url => Url,
+                                             package => Name,
+                                             version => str:new(SemVer)
+                                            }};
+                                   {git, Repo, {ref, Ref}} ->
+                                     Url = str:new(string:replace(Repo, ".git", "", all)),
+                                     {Url, #{ 
+                                             url => Url,
+                                             package => Name,
+                                             version => str:new(Ref),
+                                             resolver => <<"https://tools.warp.build/hexpm/resolver">>
+                                            }}
+                                 end
+                               end
+                               || {Name, Vsn, _} <- Lock ])),
   Dependencies = #{ version => <<"0">>,
                     dependencies => LockMap },
   ok = file:write_file(path:join(WorkspaceRoot, ".warp/Dependencies.json"), ?JSON(Dependencies)),
 
+  ModLockMap = maps:from_list([ begin
+                                  Package = maps:get(package, Dep),
+                                  {Package, Dep}
+                                  end || {_Url, Dep} <- maps:to_list(LockMap) ]),
+
   Mod2Url =  maps:from_list(lists:sort([
                              case Vsn of
-                               {pkg, _Name, _SemVer} -> {str:new(Name), hexpm:pkg_to_url(Name)};
-                               {git, Repo, _Ref} -> {str:new(Name), str:new(string:replace(Repo, ".git", "", all))}
+                               {pkg, _Name, _SemVer} ->
+                                 case maps:get(Name, ModLockMap, none) of
+                                   none -> {str:new(Name), hexpm:pkg_to_url(Name)};
+                                   #{ url := Url } -> {str:new(Name), Url}
+                                 end;
+                               {git, Repo, _Ref} -> 
+                                 case maps:get(Name, ModLockMap, none) of
+                                   none -> {str:new(Name), str:new(string:replace(Repo, ".git", "", all))};
+                                   #{ url := Url2 } -> {str:new(Name), Url2}
+                                 end
                              end
                              || {Name, Vsn, _} <- Lock ])),
 
