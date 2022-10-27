@@ -125,30 +125,35 @@ impl BuildQueue {
 
     #[tracing::instrument(name = "BuildQueue::next", skip(self))]
     pub fn next(&self) -> Option<Task> {
-        if let crossbeam::deque::Steal::Success(task) = self.inner_queue.steal() {
-            return self.handle_next(task);
-        }
-        if let crossbeam::deque::Steal::Success(task) = self.wait_queue.steal() {
-            return self.handle_next(task);
-        }
-        None
-    }
+        loop {
+            let task = if let crossbeam::deque::Steal::Success(task) = self.inner_queue.steal() {
+                task
+            } else if self.busy_targets.is_empty() {
+                if let crossbeam::deque::Steal::Success(task) = self.wait_queue.steal() {
+                    task
+                } else {
+                    return None;
+                }
+            } else {
+                return None;
+            };
 
-    fn handle_next(&self, task: Task) -> Option<Task> {
-        // If the target is already computed or being computed, we can skip it
-        // and try to fetch the next one immediately.
-        //
-        // When the queue empties up, this will return a None, but otherwise
-        // we'll go through a bunch of duplicates, discarding them.
-        if self.build_results.is_target_built(task.label)
-            || self.busy_targets.contains_key(&task.label)
-        {
-            return self.next();
+            // If the target is already computed or being computed, we can skip it
+            // and try to fetch the next one immediately.
+            //
+            // When the queue empties up, this will return a None, but otherwise
+            // we'll go through a bunch of duplicates, discarding them.
+            if self.build_results.is_target_built(task.label)
+                || self.busy_targets.contains_key(&task.label)
+            {
+                continue;
+            }
+
+            // But if it is yet to be built, we mark it as busy
+            self.busy_targets.insert(task.label, ());
+            self.in_queue_targets.remove(&task.label);
+            return Some(task);
         }
-        // But if it is yet to be built, we mark it as busy
-        self.busy_targets.insert(task.label, ());
-        self.in_queue_targets.remove(&task.label);
-        Some(task)
     }
 
     #[tracing::instrument(name = "BuildQueue::ack", skip(self))]
@@ -241,6 +246,7 @@ impl BuildQueue {
                 }
             }
         }
+
         let target_count = self.all_queued_labels.len();
         self.event_channel
             .send(Event::QueuedTargets(target_count as u64));
