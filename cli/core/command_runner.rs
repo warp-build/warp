@@ -107,7 +107,12 @@ impl CommandRunner {
                     label: self.manifest.label.clone(),
                 })?;
 
-            String::from_utf8(output.stdout).map_err(|err| CommandRunnerError::InvalidUtf8Output {
+            if cmd.status().await.unwrap().success() {
+                String::from_utf8(output.stdout)
+            } else {
+                String::from_utf8(output.stderr)
+            }
+            .map_err(|err| CommandRunnerError::InvalidUtf8Output {
                 err,
                 label: self.manifest.label.clone(),
             })

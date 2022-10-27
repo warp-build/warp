@@ -20,6 +20,7 @@
   },
   "remote_workspaces": {
     "tools.warp.build": {
+      "path": "../../warp-build/tools.warp.build/",
       "github": "warp-build/tools.warp.build",
       "git_ref": "main"
     }
@@ -86,7 +87,7 @@
       "version": "3.24.2"
     },
     "rebar3": {
-      "sha1": "143d3473dae6ea8250452f7a29db73974be51b24"
+      "sha1": "7e281994851487caf5daa4a2c32b5a0cabdf7bdb"
     },
     "rescript": {
       "sha1": "d5279f085d19a2234d2024080ad90bf69a09ab66",

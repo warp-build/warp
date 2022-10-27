@@ -50,10 +50,16 @@ impl DependencyManager {
 
             let version = dep_json.version.to_string();
 
+            let package = dep_json.package.to_string();
+
+            let url = dep_json.url.clone();
+
             let dep = Dependency {
                 label,
                 resolver,
                 version,
+                package,
+                url,
             };
 
             dependencies.insert(label, dep);

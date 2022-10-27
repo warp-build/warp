@@ -190,8 +190,9 @@ impl DependencyResolver {
                 .target(target.clone())
                 .args(vec![
                     "resolve".to_string(),
-                    label.to_string(),
+                    dependency.url.to_string(),
                     dependency.version.clone(),
+                    dependency.package.clone(),
                 ])
                 .sandboxed(true)
                 .stream_outputs(false)
@@ -227,7 +228,13 @@ impl DependencyResolver {
                 .cwd(final_dir.clone())
                 .manifest(override_manifest)
                 .target(override_target)
-                .args(vec!["prepare".to_string()])
+                .args(vec![
+                    "prepare".to_string(),
+                    final_dir.to_str().unwrap().to_string(),
+                    dependency.url.to_string(),
+                    dependency.version.clone(),
+                    dependency.package.clone(),
+                ])
                 .sandboxed(false)
                 .stream_outputs(false)
                 .build()

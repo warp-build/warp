@@ -6,9 +6,15 @@ use tracing::*;
 #[derive(Debug, Clone, Builder)]
 pub struct Dependency {
     pub label: LabelId,
+
     #[builder(default)]
     pub resolver: Option<LabelId>,
+
+    pub package: String,
+
     pub version: String,
+
+    pub url: url::Url,
 }
 
 impl Dependency {

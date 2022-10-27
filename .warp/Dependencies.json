@@ -1,6 +1,10 @@
 {
   "version": "0",
   "dependencies": {
-    "https://hex.pm/packages/proper": "1.4.0"
+    "https://hex.pm/packages/proper": {
+      "url": "https://hex.pm/packages/proper",
+      "package": "proper",
+      "version": "1.4.0"
+    }
   }
 }
