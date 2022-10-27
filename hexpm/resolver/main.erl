@@ -65,7 +65,7 @@ prepare(Root) ->
   PkgName = maps:get(<<"app">>, Metadata),
   Srcs = get_files(Metadata),
 
-  ?LOG_DEBUG("Found ~p and expecint ~i sources", [PkgName, length(Srcs)]),
+  ?LOG_DEBUG("Found ~p and expecting ~p sources", [PkgName, length(Srcs)]),
   ?LOG_DEBUG("Extracting..."),
   ok = erl_tar:extract(path:join(Root, "contents.tar.gz"), [compressed, {cwd, path:join(Root, PkgName)}]),
   ?LOG_DEBUG("Finished extracting files to ~p", [path:join(Root, PkgName)]),
@@ -87,7 +87,8 @@ prepare(Root) ->
 
   #{
     version => 0,
-    metadata => Metadata,
+    % NOTE(@ostera): useful for debugging
+    % metadata => Metadata,
     signatures => [
                    #{
                      name => PkgName,
@@ -98,13 +99,18 @@ prepare(Root) ->
                   ]
    }.
 
-get_files(Metadata) -> handle_files(maps:get(<<"files">>, Metadata, [])).
-handle_files([{_k, _v}|Files]) -> handle_files(proplists:to_map(Files));
-handle_files(Files) when is_list(Files) -> Files;
-handle_files(Files) when is_map(Files) -> maps:keys(Files).
+get_files(Metadata) -> handle_files(maps:get(<<"files">>, Metadata, []), []).
+
+handle_files([], Acc) -> Acc;
+handle_files([{Path, _Src}|T], Acc) -> handle_files(T, [Path | Acc]);
+handle_files([Path|T], Acc) -> handle_files(T, [Path | Acc]);
+handle_files(Files, _Acc) when is_map(Files) -> maps:keys(Files).
 
 requirements(Metadata) ->
-  Reqs0 = maps:get(<<"requirements">>, Metadata, []),
+  Reqs0 = case maps:get(<<"requirements">>, Metadata, []) of
+            X when is_map(X) -> maps:to_list(X);
+            Y -> Y
+          end,
   Reqs = lists:map(fun
                      ({Name, Req}) -> [ {<<"name">>, Name} | Req ];
                      (Req) when is_list(Req) -> Req
