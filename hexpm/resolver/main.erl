@@ -12,9 +12,9 @@ main(Args) ->
   ok = setup(),
   {ok, Cwd} = file:get_cwd(),
   case Args of
-    ["resolve", Url, Vsn] -> ?PRINT_JSON(resolve(Url, Vsn));
-    ["prepare", Root] -> ?PRINT_JSON(prepare(Root));
-    ["prepare"] -> ?PRINT_JSON(prepare(Cwd));
+    ["resolve", Url, Ref, _Pkg] -> ?PRINT_JSON(resolve(Url, Ref));
+    ["prepare", Root, _Url, _Ref, Pkg] -> ?PRINT_JSON(prepare(Root, Pkg));
+    ["prepare"] -> ?PRINT_JSON(prepare(Cwd, path:filename(Cwd)));
     ["help"] -> show_help()
   end.
 
@@ -36,8 +36,16 @@ show_help() ->
 
 Usage:
 
-* resolver resolver https://hex.pm/packages/proper 1.4.0
-* analyze .
+* resolve <url> <version> <pkg-name>
+* analyze <root> <url> <version> <pkg-name>
+
+Examples:
+
+* To resolve the final archive url of the library `proper` at version `1.4.0`:
+
+  resolve https://hex.pm/packages/proper 1.4.0 proper
+
+* analyze ./path/to/proper/sources https://hex.pm/packages/proper 1.4.0 proper
 
 ">>]),
 	erlang:halt().
@@ -53,17 +61,47 @@ resolve(Url0, Vsn0) ->
 
 tools() -> [mix, make, rebar3].
 
-prepare(Root) -> 
+prepare(Root0, Pkg0) -> 
+  Root = path:new(Root0),
+  Pkg = str:new(Pkg0),
+	case file:consult(path:join(Root, "metadata.config")) of
+		{ok, Metadata} -> do_prepare_from_hex_metadata(Metadata, Root);
+		_ -> 
+				case file:consult(path:join(Root, "rebar.config")) of
+					{ok, RebarConf} -> generate_signatures_from_rebar_config(Pkg, RebarConf);
+					_ -> #{ error => missing_config }
+				end
+	end.
+
+generate_signatures_from_rebar_config(Pkg, RebarConf) ->
+	Rebar = maps:from_list(RebarConf),
+  #{
+    version => 0,
+    signatures => [
+                   #{
+										 name => <<":", Pkg/binary>>,
+                     rule => <<"rebar3_library">>,
+                     deps => [ begin
+                                 case Vsn of
+                                   {git, Repo, _Ref} -> str:new(string:replace(Repo, ".git", "", all));
+                                   _ -> hexpm:pkg_to_url(Dep)
+                                 end
+                               end
+                               || {Dep, Vsn} <- maps:get(deps, Rebar, []) ]
+                    }
+                  ]
+   }.
+
+do_prepare_from_hex_metadata(Metadata0, Root) -> 
   ?LOG_DEBUG("Opening metadata.config in ~p", [Root]),
   % 1. read CHECKSUM and validate?
   % 2. unpack contents.tar.gz
   % 3. read metadata.config 
   %
-  {ok, Metadata0} = file:consult(path:join(Root, "metadata.config")),
   Metadata = proplists:to_map(Metadata0),
 
   PkgName = maps:get(<<"app">>, Metadata),
-  Srcs = get_files(Metadata),
+  Srcs = get_files(Metadata, path:join(Root, PkgName)),
 
   ?LOG_DEBUG("Found ~p and expecting ~p sources", [PkgName, length(Srcs)]),
   ?LOG_DEBUG("Extracting..."),
@@ -99,12 +137,16 @@ prepare(Root) ->
                   ]
    }.
 
-get_files(Metadata) -> handle_files(maps:get(<<"files">>, Metadata, []), []).
+get_files(Metadata, Root) -> handle_files(maps:get(<<"files">>, Metadata, []), _Acc = [], Root).
 
-handle_files([], Acc) -> Acc;
-handle_files([{Path, _Src}|T], Acc) -> handle_files(T, [Path | Acc]);
-handle_files([Path|T], Acc) -> handle_files(T, [Path | Acc]);
-handle_files(Files, _Acc) when is_map(Files) -> maps:keys(Files).
+handle_files([], Acc, _Root) -> Acc;
+handle_files([{Path, _Src}|T], Acc, Root) ->
+  case filelib:is_file(path:join(Root, Path)) of
+		true -> handle_files(T, [Path | Acc], Root);
+		false -> handle_files(T, Acc, Root)
+	end;
+handle_files([Path|T], Acc, Root) -> handle_files(T, [Path | Acc], Root);
+handle_files(Files, _Acc, _Root) when is_map(Files) -> maps:keys(Files).
 
 requirements(Metadata) ->
   Reqs0 = case maps:get(<<"requirements">>, Metadata, []) of

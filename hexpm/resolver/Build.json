@@ -3,6 +3,7 @@
     "deps": [
       "//erlang/base/jsone",
       "//erlang/base:hexpm.erl",
+      "//erlang/base:str.erl",
       "//erlang/base:path.erl"
     ],
     "name": "resolver",
