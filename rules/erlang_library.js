@@ -11,8 +11,8 @@ const impl = ctx => {
   const includePaths = transitiveDeps
     .filter(path => path.endsWith(HEADER_EXT))
     .concat(srcsHrl)
-    .flatMap(path => ["-I", File.parent(path)])
-    .unique();
+    .unique()
+    .flatMap(path => ["-I", File.parent(path)]);
 
   const extraLibPaths = transitiveDeps
     .filter(path => path.endsWith(BEAM_EXT))
