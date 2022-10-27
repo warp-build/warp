@@ -12,7 +12,7 @@ main(Args) ->
   ok = setup(),
   % {ok, Cwd} = file:get_cwd(),
   case Args of
-    ["resolve", Url, Ref] -> ?PRINT_JSON(resolve(Url, Ref));
+    ["resolve", Url, Ref, _Pkg] -> ?PRINT_JSON(resolve(Url, Ref));
     ["help"] -> show_help()
   end.
 
