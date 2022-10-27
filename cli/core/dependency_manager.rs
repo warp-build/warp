@@ -5,12 +5,6 @@ use tokio::fs;
 use tracing::*;
 
 #[derive(Debug, Clone)]
-pub struct Dependency {
-    pub label: LabelId,
-    pub version: String,
-}
-
-#[derive(Debug, Clone)]
 pub struct DependencyManager {
     dependencies: BTreeMap<LabelId, Dependency>,
 }
@@ -45,13 +39,23 @@ impl DependencyManager {
 
         let mut dependencies = BTreeMap::new();
 
-        for (url, version) in &dependency_file.dependencies {
+        for (url, dep_json) in &dependency_file.dependencies {
             let url = url::Url::parse(url).unwrap();
             let label = label_registry.register(Label::builder().from_url(&url).unwrap());
+
+            let resolver = dep_json
+                .resolver
+                .clone()
+                .map(|r| label_registry.register(r));
+
+            let version = dep_json.version.to_string();
+
             let dep = Dependency {
                 label,
-                version: version.to_string(),
+                resolver,
+                version,
             };
+
             dependencies.insert(label, dep);
         }
 

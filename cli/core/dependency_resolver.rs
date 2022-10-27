@@ -2,7 +2,7 @@ use super::Event;
 use super::*;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
@@ -24,6 +24,15 @@ pub enum DependencyResolverError {
 
     #[error("Dependency {} has no version in the Workspace.json", .dependency.to_string())]
     UnspecifiedDependency { dependency: Label },
+
+    #[error("Could not parse Dependency Resolution contents: \n\n{resolution}\n\ndue to {err:#?}")]
+    ParseError {
+        err: serde_json::Error,
+        resolution: String,
+    },
+
+    #[error(transparent)]
+    ExtractionError(ArchiveManagerError),
 }
 
 #[derive(Debug)]
@@ -87,15 +96,15 @@ impl DependencyResolver {
         }
 
         let label = self.label_registry.get(label_id);
-        let version = if let Some(dependency) = self.dependency_manager.get(label_id) {
-            dependency.version
-        } else {
-            return Err(DependencyResolverError::UnspecifiedDependency { dependency: label });
-        };
+        let dependency = self.dependency_manager.get(label_id).ok_or_else(|| {
+            DependencyResolverError::UnspecifiedDependency {
+                dependency: label.clone(),
+            }
+        })?;
 
         let host = label.url().host().unwrap().to_string();
         if let Some(resolver) = self.resolvers.get(&host) {
-            if let Some(target) = self.resolve(*resolver, label_id, version).await? {
+            if let Some(target) = self.resolve(*resolver, label_id, dependency).await? {
                 self.targets.insert(label_id, target.clone());
                 return Ok(Some(target));
             }
@@ -109,13 +118,26 @@ impl DependencyResolver {
         &self,
         resolver: LabelId,
         label: LabelId,
-        version: String,
+        dependency: Dependency,
     ) -> Result<Option<Target>, DependencyResolverError> {
         // 1. build resolver
         let (manifest, target) = self
             .build_results
             .get_computed_target(resolver)
             .ok_or(DependencyResolverError::MissingResolver { resolver })?;
+
+        // 1.1. if the dependency actually needs a separate resolver for analyzing the contents,
+        //   lets make sure its ready.
+        let (override_manifest, override_target) =
+            if let Some(override_resolver) = dependency.resolver {
+                self.build_results
+                    .get_computed_target(override_resolver)
+                    .ok_or(DependencyResolverError::MissingResolver {
+                        resolver: override_resolver,
+                    })?
+            } else {
+                (manifest.clone(), target.clone())
+            };
 
         let label = self.label_registry.get(label);
 
@@ -128,7 +150,10 @@ impl DependencyResolver {
         let url = label.url().to_string().replace("://", "/");
 
         // WorkspaceManager.prepare_workspace(&mut dep_workspace).await?;
-        let final_dir = self.global_workspaces_path.join(url).join(&version);
+        let final_dir = self
+            .global_workspaces_path
+            .join(url)
+            .join(&dependency.version);
         fs::create_dir_all(&final_dir).await.unwrap();
 
         let workspace_name = {
@@ -163,7 +188,11 @@ impl DependencyResolver {
                 .cwd(final_dir.clone())
                 .manifest(manifest.clone())
                 .target(target.clone())
-                .args(vec!["resolve".to_string(), label.to_string(), version])
+                .args(vec![
+                    "resolve".to_string(),
+                    label.to_string(),
+                    dependency.version.clone(),
+                ])
                 .sandboxed(true)
                 .stream_outputs(false)
                 .build()
@@ -175,19 +204,29 @@ impl DependencyResolver {
                 .map_err(DependencyResolverError::CommandRunnerError)?;
 
             let resolution: DependencyArchiveResolution =
-                serde_json::from_slice(str_output.as_bytes()).unwrap();
+                serde_json::from_slice(str_output.as_bytes()).map_err(|err| {
+                    DependencyResolverError::ParseError {
+                        err,
+                        resolution: str_output.clone(),
+                    }
+                })?;
 
             // 2.3. download the workspace contents
             self.archive_manager
-                .download_and_extract(&resolution.archive.url, &final_dir, None, None)
+                .download_and_extract(
+                    &resolution.archive.url,
+                    &final_dir,
+                    None,
+                    resolution.archive.strip_prefix,
+                )
                 .await
-                .unwrap();
+                .map_err(DependencyResolverError::ExtractionError)?;
 
             // 3. let the resolver tell us how to build this workspace
             let cmd = CommandRunner::builder()
                 .cwd(final_dir.clone())
-                .manifest(manifest)
-                .target(target)
+                .manifest(override_manifest)
+                .target(override_target)
                 .args(vec!["prepare".to_string()])
                 .sandboxed(false)
                 .stream_outputs(false)
@@ -201,7 +240,12 @@ impl DependencyResolver {
 
             // parse it
             let resolution: DependencySignaturesResolution =
-                serde_json::from_slice(str_output.as_bytes()).unwrap();
+                serde_json::from_slice(str_output.as_bytes()).map_err(|err| {
+                    DependencyResolverError::ParseError {
+                        err,
+                        resolution: str_output.clone(),
+                    }
+                })?;
 
             let json = serde_json::to_string_pretty(&resolution).unwrap();
             fs::write(final_dir.join("Warp.signature"), json)
@@ -350,6 +394,9 @@ pub struct Archive {
 
     #[serde(default)]
     prefix: String,
+
+    #[serde(default)]
+    strip_prefix: Option<String>,
 }
 
 impl From<Archive> for RemoteWorkspaceConfig {
@@ -372,7 +419,6 @@ pub struct DependencyArchiveResolution {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DependencySignaturesResolution {
-    #[serde(default)]
     version: usize,
 
     #[serde(default)]

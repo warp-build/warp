@@ -1,5 +1,6 @@
 use super::*;
-use serde_derive::{Deserialize, Serialize};
+use serde::de::{self, MapAccess, Visitor};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::BufReader;
 use std::path::Path;
@@ -56,7 +57,7 @@ pub struct DependencyFile {
 
     #[builder(default)]
     #[serde(default)]
-    pub dependencies: BTreeMap<String, String>,
+    pub dependencies: BTreeMap<String, DependencyJson>,
 }
 
 impl DependencyFile {
@@ -81,5 +82,93 @@ impl DependencyFile {
         fs::write(&root.join(DEPENDENCIES_JSON), json)
             .await
             .map_err(DependencyFileError::IOError)
+    }
+}
+
+#[derive(Debug, Clone, Builder, Serialize)]
+pub struct DependencyJson {
+    #[builder(default)]
+    pub resolver: Option<Label>,
+    pub version: String,
+}
+
+impl DependencyJson {
+    pub fn builder() -> DependencyJsonBuilder {
+        DependencyJsonBuilder::default()
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(field_identifier, rename_all = "snake_case")]
+enum DependencyJsonField {
+    Resolver,
+    Version,
+}
+
+struct DependencyJsonVisitor;
+impl<'de> Visitor<'de> for DependencyJsonVisitor {
+    type Value = DependencyJson;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a string following the label syntax: :a, ./a, //a, https://hello/a")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Self::Value::builder()
+            .version(v.to_string())
+            .build()
+            .unwrap())
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Self::Value::builder().version(v).build().unwrap())
+    }
+
+    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+    where
+        M: MapAccess<'de>,
+    {
+        let mut resolver = None;
+        let mut version = None;
+
+        while let Some(key) = access.next_key()? {
+            match key {
+                DependencyJsonField::Version => {
+                    if version.is_some() {
+                        return Err(de::Error::duplicate_field("version"));
+                    }
+                    version = Some(access.next_value()?);
+                }
+                DependencyJsonField::Resolver => {
+                    if resolver.is_some() {
+                        return Err(de::Error::duplicate_field("resolver"));
+                    }
+                    resolver = Some(access.next_value()?);
+                }
+            }
+        }
+
+        let version = version.ok_or_else(|| de::Error::missing_field("version"))?;
+
+        Ok(Self::Value::builder()
+            .resolver(resolver)
+            .version(version)
+            .build()
+            .unwrap())
+    }
+}
+
+impl<'de> Deserialize<'de> for DependencyJson {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(DependencyJsonVisitor)
     }
 }
