@@ -70,7 +70,7 @@ impl TargetExecutor {
     ) -> Result<(TargetManifest, ValidationStatus), TargetExecutorError> {
         let build_started_at = chrono::Utc::now();
 
-        let lock = self
+        let _lock = self
             .store
             .lock(target)
             .await
