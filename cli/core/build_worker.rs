@@ -145,7 +145,7 @@ impl BuildWorker {
 
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
-                    self.label_registry.get(label),
+                        (*self.label_registry.get_label(label)).to_owned(),
                     BuildError::LabelResolverError(err),
                 ));
                 self.coordinator.signal_shutdown();
@@ -153,17 +153,16 @@ impl BuildWorker {
             }
 
             Ok(target) => {
-                let original_label = self.label_registry.get(label);
-                let actual_label = target.label.clone();
-                if original_label != actual_label {
-                    self.label_registry.update(label, actual_label);
+                let original_label = self.label_registry.get_label(label);
+                if *original_label != target.label {
+                    self.label_registry.update_label(label, &target.label);
                 }
                 target
             }
         };
 
         for dep in &target.runtime_deps {
-            let dep = self.label_registry.register(dep.clone());
+            let dep = self.label_registry.register_label(dep);
             self.build_queue
                 .queue(Task::build(dep))
                 .map_err(BuildWorkerError::QueueError)?;
@@ -236,14 +235,12 @@ impl BuildWorker {
                     .await
                     .map_err(BuildWorkerError::TargetPlannerError)?;
 
-                let final_label_id = self
-                    .label_registry
-                    .register(executable_target.label.clone());
-                let final_label = self.label_registry.get(final_label_id);
+                let final_label_id = self.label_registry.register_label(&executable_target.label);
+                let final_label = self.label_registry.get_label(final_label_id);
 
                 if manifest.cached {
                     self.event_channel.send(Event::CacheHit {
-                        label: final_label,
+                        label: (*final_label).clone(),
                         label_id: if final_label_id != label {
                             label
                         } else {
@@ -255,7 +252,8 @@ impl BuildWorker {
                         },
                     });
                 } else {
-                    self.event_channel.send(Event::TargetBuilt(final_label));
+                    self.event_channel
+                        .send(Event::TargetBuilt((*final_label).clone()));
                 }
 
                 self.build_results
@@ -282,7 +280,7 @@ impl BuildWorker {
     async fn requeue(&self, task: Task, deps: &[LabelId]) -> Result<(), BuildWorkerError> {
         if let Err(QueueError::DependencyCycle(err)) = self.build_queue.queue_deps(task, deps) {
             self.event_channel.send(Event::BuildError(
-                self.label_registry.get(task.label),
+                    (*self.label_registry.get_label(task.label)).to_owned(),
                 BuildError::BuildResultError(err),
             ));
             self.coordinator.signal_shutdown();

@@ -83,7 +83,7 @@ impl LabelResolver {
                 return Ok(target.value().clone());
             }
 
-            let label = self.label_registry.get(label_id);
+            let label = self.label_registry.get_label(label_id);
             if label.is_remote() {
                 if let Some(target) = self.find_as_toolchain(&label).await? {
                     self.save(label_id, target.clone());
@@ -109,7 +109,7 @@ impl LabelResolver {
                 return Ok(target);
             }
 
-            Err(LabelResolverError::TargetNotFound(label))
+            Err(LabelResolverError::TargetNotFound((*label).clone()))
         }
         .boxed_local()
     }

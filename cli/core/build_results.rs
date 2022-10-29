@@ -113,7 +113,7 @@ impl BuildResults {
 
         dag.extend_with_edges(edges)
             .map_err(|e| BuildResultError::DepGraphError {
-                label: self.label_registry.get(label),
+                label: (*self.label_registry.get_label(label)).to_owned(),
                 inner_error: e,
             })?;
 
@@ -147,7 +147,7 @@ impl BuildResults {
                 let (_manifest, node) = r.value();
                 node.runtime_deps
                     .iter()
-                    .map(|d| self.label_registry.register(d.label.clone()))
+                    .map(|d| self.label_registry.register_label(&d.label))
                     .collect::<Vec<LabelId>>()
             })
             .unwrap_or_default()
@@ -160,7 +160,7 @@ impl BuildResults {
                 let (_manifest, node) = r.value();
                 node.deps
                     .iter()
-                    .map(|d| self.label_registry.register(d.label.clone()))
+                    .map(|d| self.label_registry.register_label(&d.label))
                     .collect::<Vec<LabelId>>()
             })
             .unwrap_or_default()

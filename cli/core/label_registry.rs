@@ -30,8 +30,8 @@ impl LabelId {
 ///
 #[derive(Default, Debug, Clone)]
 pub struct LabelRegistry {
-    ids: DashMap<Label, LabelId>,
-    labels: DashMap<LabelId, Label>,
+    ids: DashMap<Arc<Label>, LabelId>,
+    labels: DashMap<LabelId, Arc<Label>>,
     register_lock: Arc<Mutex<()>>,
 }
 
@@ -48,14 +48,19 @@ impl LabelRegistry {
     /// If the label has already been registered, the same identifier is returned.
     ///
     #[tracing::instrument(name = "LabelRegistry::register", skip(self))]
-    pub fn register(&self, label: Label) -> LabelId {
+    pub fn register_label(&self, label: &Label) -> LabelId {
         let _lock = self.register_lock.lock().unwrap();
-        if let Some(id) = self.find(&label) {
+        if let Some(id) = self.find_label(label) {
             id
         } else {
+            let label = Arc::new(label.to_owned());
+            // self._labels.push(label);
+            // let label_idx = self._labels.len();
+
             let id = LabelId::next();
             self.ids.insert(label.clone(), id);
             self.labels.insert(id, label);
+
             id
         }
     }
@@ -63,19 +68,22 @@ impl LabelRegistry {
     /// Get a handle for a collection of labels. Behaves like `LabelRegistry::register`.
     ///
     #[tracing::instrument(name = "LabelRegistry::register", skip(self))]
-    pub fn register_many(&self, labels: &[Label]) -> Vec<LabelId> {
+    pub fn register_many_labels(&self, labels: &[Label]) -> Vec<LabelId> {
         let mut ids = vec![];
         for label in labels {
-            ids.push(self.register(label.clone()));
+            ids.push(self.register_label(label));
         }
         ids
     }
 
-    pub fn update(&self, id: LabelId, label: Label) {
-        let last_label = self.get(id);
-
-        let label = last_label.promote(label);
-
+    pub fn update_label(&self, id: LabelId, label: &Label) {
+        if let Some(found_id) = self.find_label(label) {
+            if id == found_id {
+                return;
+            }
+        }
+        let label = self.get_label(id).promote(label.to_owned());
+        let label = Arc::new(label);
         self.ids.insert(label.clone(), id);
         self.labels.insert(id, label);
     }
@@ -86,12 +94,12 @@ impl LabelRegistry {
     /// LabelId will be returned.
     ///
     #[tracing::instrument(name = "LabelRegistry::find", skip(self))]
-    pub fn find(&self, label: &Label) -> Option<LabelId> {
+    pub fn find_label(&self, label: &Label) -> Option<LabelId> {
         self.ids.get(label).map(|r| *r.value())
     }
 
     #[tracing::instrument(name = "LabelRegistry::get", skip(self))]
-    pub fn get(&self, id: LabelId) -> Label {
-        self.labels.get(&id).unwrap().clone()
+    pub fn get_label(&self, id: LabelId) -> Arc<Label> {
+        (*self.labels.get(&id).unwrap()).clone()
     }
 }

@@ -81,7 +81,7 @@ impl DependencyResolver {
             ("npmjs.com", "https://tools.warp.build/npm/resolver"),
         ] {
             let label = Label::new(resolver);
-            let label_id = this.label_registry.register(label);
+            let label_id = this.label_registry.register_label(&label);
             this.resolvers.insert(host.to_string(), label_id);
         }
 
@@ -95,10 +95,10 @@ impl DependencyResolver {
             return Ok(Some(target));
         }
 
-        let label = self.label_registry.get(label_id);
+        let label = self.label_registry.get_label(label_id);
         let dependency = self.dependency_manager.get(label_id).ok_or_else(|| {
             DependencyResolverError::UnspecifiedDependency {
-                dependency: label.clone(),
+                dependency: (*label).to_owned(),
             }
         })?;
 
@@ -139,7 +139,7 @@ impl DependencyResolver {
                 (manifest.clone(), target.clone())
             };
 
-        let label = self.label_registry.get(label);
+        let label = self.label_registry.get_label(label);
 
         // 2. Resolve dependency
 
@@ -181,7 +181,7 @@ impl DependencyResolver {
             serde_json::from_slice(&bytes).unwrap()
         } else {
             self.event_channel.send(Event::ResolvingDependency {
-                label: label.clone(),
+                label: (*label).to_owned(),
             });
             // 2.2. actually run the resolver to get the workspace contents
             let cmd = CommandRunner::builder()

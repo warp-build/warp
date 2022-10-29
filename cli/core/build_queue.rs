@@ -175,8 +175,12 @@ impl BuildQueue {
     #[tracing::instrument(name = "BuildQueue::queue", skip(self))]
     pub fn queue(&self, task: Task) -> Result<(), QueueError> {
         let label = task.label;
-        debug!("Queued {:?} {:#?}", label, self.label_registry.get(label));
-        if self.label_registry.get(label).is_all() {
+        debug!(
+            "Queued {:?} {:#?}",
+            label,
+            self.label_registry.get_label(label)
+        );
+        if self.label_registry.get_label(label).is_all() {
             return Err(QueueError::CannotQueueTargetAll);
         }
         if self.build_results.is_target_built(label)
@@ -239,7 +243,7 @@ impl BuildQueue {
                     for target in buildfile.targets {
                         if goal.includes(&target) {
                             let label = target.label.change_workspace(&self.workspace);
-                            let label = self.label_registry.register(label);
+                            let label = self.label_registry.register_label(&label);
                             self.queue(Task { label, goal })?;
                         }
                     }

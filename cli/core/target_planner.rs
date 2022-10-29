@@ -166,8 +166,8 @@ impl TargetPlanner {
     ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
         let mut manifests = FxHashSet::default();
 
-        let label = self.label_registry.register(label.clone());
-        let deps = self.label_registry.register_many(deps);
+        let label = self.label_registry.register_label(&label);
+        let deps = self.label_registry.register_many_labels(deps);
 
         let labels = if runtime {
             self._runtime_deps(label, &deps)?
@@ -187,9 +187,9 @@ impl TargetPlanner {
         label: LabelId,
         deps: &[LabelId],
     ) -> Result<Vec<LabelId>, TargetPlannerError> {
-        let target_label = self.label_registry.get(label);
-        let mut collected_labels: Vec<Label> = vec![];
-        let mut missing_labels: Vec<Label> = vec![];
+        let target_label = self.label_registry.get_label(label);
+        let mut collected_labels: Vec<Arc<Label>> = vec![];
+        let mut missing_labels: Vec<Arc<Label>> = vec![];
 
         let mut collected_deps: Vec<LabelId> = vec![];
         let mut missing_deps: Vec<LabelId> = vec![];
@@ -198,12 +198,12 @@ impl TargetPlanner {
         let mut visited: Vec<LabelId> = vec![];
 
         while let Some(dep) = pending.pop() {
-            let dep_label = self.label_registry.get(dep);
             if visited.contains(&dep) {
                 continue;
             }
             visited.push(dep);
 
+            let dep_label = self.label_registry.get_label(dep).to_owned();
             if self.build_results.has_manifest(dep) {
                 collected_deps.push(dep);
                 collected_labels.push(dep_label);

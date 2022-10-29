@@ -149,7 +149,7 @@ impl BuildExecutor {
 
         let targets: Vec<LabelId> = targets
             .iter()
-            .map(|t| self.label_registry.register(t.clone()))
+            .map(|t| self.label_registry.register_label(&t))
             .collect();
 
         if should_queue_everything {
