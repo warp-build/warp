@@ -13,6 +13,7 @@ use tracing::*;
 
 pub struct TargetExecutor {
     event_channel: Arc<EventChannel>,
+    build_results: Arc<BuildResults>,
     store: Arc<Store>,
 }
 
@@ -56,10 +57,15 @@ pub enum ValidationStatus {
 }
 
 impl TargetExecutor {
-    pub fn new(store: Arc<Store>, event_channel: Arc<EventChannel>) -> Self {
+    pub fn new(
+        store: Arc<Store>,
+        build_results: Arc<BuildResults>,
+        event_channel: Arc<EventChannel>,
+    ) -> Self {
         Self {
             store,
             event_channel,
+            build_results,
         }
     }
 
@@ -114,6 +120,7 @@ impl TargetExecutor {
             &store_path,
             env,
             target,
+            &self.build_results,
         );
 
         if manifest.is_valid {
@@ -133,15 +140,27 @@ impl TargetExecutor {
 
     fn shell_env(&self, store_path: &Path, target: &ExecutableTarget) -> BTreeMap<String, String> {
         let mut env = BTreeMap::default();
-        for toolchain in &target.toolchains {
+        for toolchain in target
+            .toolchains
+            .iter()
+            .flat_map(|l| self.build_results.get_manifest(*l))
+        {
             env.extend(toolchain.env.clone())
         }
 
-        for dep in &target.deps {
+        for dep in target
+            .deps
+            .iter()
+            .flat_map(|l| self.build_results.get_manifest(*l))
+        {
             env.extend(dep.env.clone())
         }
 
-        for dep in &target.transitive_deps {
+        for dep in target
+            .transitive_deps
+            .iter()
+            .flat_map(|l| self.build_results.get_manifest(*l))
+        {
             env.extend(dep.env.clone())
         }
 
@@ -156,15 +175,15 @@ impl TargetExecutor {
             .values()
             .clone()
             .into_iter()
-            .map(|p| store_path.join(p));
+            .map(|p| store_path.join(p).to_path_buf());
 
         let paths: FxHashSet<String> = target
             .toolchains
             .iter()
             .chain(target.transitive_deps.iter())
             .chain(target.deps.iter())
-            .flat_map(|d| d.provides.values())
-            .cloned()
+            .flat_map(|l| self.build_results.get_manifest(*l))
+            .flat_map(|d| d.provides.values().cloned().collect::<Vec<PathBuf>>())
             .chain(target_paths)
             .map(|p| p.parent().unwrap().to_str().unwrap().to_string())
             .collect();
@@ -186,10 +205,11 @@ impl TargetExecutor {
             .transitive_deps
             .iter()
             .chain(target.runtime_deps.iter())
+            .flat_map(|d| self.build_results.get_manifest(*d))
         {
             let dep_src = self
                 .store
-                .absolute_path_by_dep(dep)
+                .absolute_path_by_dep(dep.as_ref())
                 .await
                 .map_err(TargetExecutorError::StoreError)?;
 
@@ -258,8 +278,12 @@ TARGET = {:#?}
         target: &ExecutableTarget,
     ) -> Result<ValidationStatus, TargetExecutorError> {
         let node_inputs: FxHashSet<PathBuf> = target.srcs.iter().cloned().collect();
-        let deps_inputs: FxHashSet<PathBuf> =
-            target.deps.iter().flat_map(|n| n.outs.clone()).collect();
+        let deps_inputs: FxHashSet<PathBuf> = target
+            .deps
+            .iter()
+            .flat_map(|l| self.build_results.get_manifest(*l))
+            .flat_map(|n| n.outs.clone())
+            .collect();
 
         let inputs: FxHashSet<PathBuf> = node_inputs.union(&deps_inputs).cloned().collect();
 

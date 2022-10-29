@@ -94,8 +94,7 @@ impl TargetPlanner {
             target
                 .runtime_deps
                 .iter()
-                .cloned()
-                .map(TargetManifest::placeholder)
+                .map(|d| self.label_registry.register_label(&d))
                 .collect()
         };
 
@@ -122,6 +121,7 @@ impl TargetPlanner {
             &transitive_deps,
             &toolchains,
             exec_result,
+            &self.build_results,
         )
         .await
         .map_err(TargetPlannerError::ExecutableTargetError)
@@ -132,20 +132,17 @@ impl TargetPlanner {
         &self,
         target: &Target,
         rule: &Rule,
-    ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
+    ) -> Result<Vec<LabelId>, TargetPlannerError> {
         self._manifests(&target.label, &rule.toolchains, true, false)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_deps", skip(self))]
-    pub fn find_deps(&self, target: &Target) -> Result<Vec<TargetManifest>, TargetPlannerError> {
+    pub fn find_deps(&self, target: &Target) -> Result<Vec<LabelId>, TargetPlannerError> {
         self._manifests(&target.label, &target.deps, false, false)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_deps", skip(self))]
-    pub fn find_runtime_deps(
-        &self,
-        target: &Target,
-    ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
+    pub fn find_runtime_deps(&self, target: &Target) -> Result<Vec<LabelId>, TargetPlannerError> {
         self._manifests(&target.label, &target.runtime_deps, true, true)
     }
 
@@ -153,7 +150,7 @@ impl TargetPlanner {
     pub fn find_transitive_deps(
         &self,
         target: &Target,
-    ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
+    ) -> Result<Vec<LabelId>, TargetPlannerError> {
         self._manifests(&target.label, &target.deps, true, false)
     }
 
@@ -163,10 +160,8 @@ impl TargetPlanner {
         deps: &[Label],
         transitive: bool,
         runtime: bool,
-    ) -> Result<Vec<TargetManifest>, TargetPlannerError> {
-        let mut manifests = FxHashSet::default();
-
-        let label = self.label_registry.register_label(&label);
+    ) -> Result<Vec<LabelId>, TargetPlannerError> {
+        let label = self.label_registry.register_label(label);
         let deps = self.label_registry.register_many_labels(deps);
 
         let labels = if runtime {
@@ -175,11 +170,7 @@ impl TargetPlanner {
             self._deps(label, &deps, transitive)?
         };
 
-        for label in labels {
-            manifests.insert(self.build_results.get_manifest(label).unwrap());
-        }
-
-        Ok(manifests.into_iter().collect())
+        Ok(labels)
     }
 
     pub fn _runtime_deps(

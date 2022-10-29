@@ -66,7 +66,10 @@ impl InfoCommand {
         .await;
 
         if let Some((manifest, _target)) = result?.get(0) {
-            println!("{}", serde_json::to_value(manifest).unwrap());
+            println!(
+                "{}",
+                serde_json::to_value(manifest.as_ref().to_owned()).unwrap()
+            );
             return Ok(());
         }
 

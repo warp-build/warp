@@ -1,6 +1,7 @@
 use super::*;
 use futures::Future;
 use futures::FutureExt;
+use std::sync::Arc;
 use std::{path::PathBuf, pin::Pin, process::Stdio};
 use thiserror::*;
 use tokio::process::Command;
@@ -33,8 +34,8 @@ impl From<derive_builder::UninitializedFieldError> for CommandRunnerError {
 #[derive(Debug, Builder, Clone)]
 #[builder(build_fn(error = "CommandRunnerError"))]
 pub struct CommandRunner {
-    manifest: TargetManifest,
-    target: ExecutableTarget,
+    manifest: Arc<TargetManifest>,
+    target: Arc<ExecutableTarget>,
     cwd: PathBuf,
     args: Vec<String>,
     sandboxed: bool,

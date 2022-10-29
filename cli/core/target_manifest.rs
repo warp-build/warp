@@ -2,6 +2,7 @@ use super::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
@@ -108,6 +109,7 @@ impl TargetManifest {
         store_path: &Path,
         env: BTreeMap<String, String>,
         target: &ExecutableTarget,
+        build_results: &BuildResults,
     ) -> Self {
         let outs = if let ValidationStatus::Valid { outputs } = validation {
             outputs.clone()
@@ -124,29 +126,29 @@ impl TargetManifest {
         let deps = target
             .deps
             .iter()
-            .cloned()
-            .map(|d| (d.label.to_string(), d.hash))
+            .flat_map(|d| build_results.get_manifest(*d))
+            .map(|d| (d.label.to_string(), d.hash.to_string()))
             .collect();
 
         let runtime_deps = target
             .runtime_deps
             .iter()
-            .cloned()
-            .map(|d| (d.label.to_string(), d.hash))
+            .flat_map(|d| build_results.get_manifest(*d))
+            .map(|d| (d.label.to_string(), d.hash.to_string()))
             .collect();
 
         let transitive_deps = target
             .transitive_deps
             .iter()
-            .cloned()
-            .map(|d| (d.label.to_string(), d.hash))
+            .flat_map(|d| build_results.get_manifest(*d))
+            .map(|d| (d.label.to_string(), d.hash.to_string()))
             .collect();
 
         let toolchains = target
             .toolchains
             .iter()
-            .cloned()
-            .map(|d| (d.label.to_string(), d.hash))
+            .flat_map(|d| build_results.get_manifest(*d))
+            .map(|d| (d.label.to_string(), d.hash.to_string()))
             .collect();
 
         let build_completed_at = chrono::Utc::now();

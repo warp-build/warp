@@ -23,10 +23,10 @@ pub enum BuildResultError {
 /// This struct is used to keep track of what targets are _expected_ to be built,
 /// and which targets are _actually_ built (`computed_targets`).
 ///
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct BuildResults {
     // The shared state of what targets have been built across workers.
-    pub computed_targets: Arc<DashMap<LabelId, (TargetManifest, ExecutableTarget)>>,
+    pub computed_targets: Arc<DashMap<LabelId, (Arc<TargetManifest>, Arc<ExecutableTarget>)>>,
 
     pub expected_targets: Arc<DashMap<LabelId, ()>>,
 
@@ -49,7 +49,7 @@ impl BuildResults {
         }
     }
 
-    pub fn get_all_manifests(&self) -> Vec<TargetManifest> {
+    pub fn get_all_manifests(&self) -> Vec<Arc<TargetManifest>> {
         self.computed_targets
             .iter()
             .map(|e| e.value().0.clone())
@@ -81,7 +81,8 @@ impl BuildResults {
         target: ExecutableTarget,
     ) {
         self.missing_targets.remove(&label);
-        self.computed_targets.insert(label, (manifest, target));
+        self.computed_targets
+            .insert(label, (Arc::new(manifest), Arc::new(target)));
     }
 
     pub fn add_dependencies(
@@ -123,7 +124,7 @@ impl BuildResults {
     pub fn get_computed_target(
         &self,
         label: LabelId,
-    ) -> Option<(TargetManifest, ExecutableTarget)> {
+    ) -> Option<(Arc<TargetManifest>, Arc<ExecutableTarget>)> {
         self.computed_targets.get(&label).map(|r| r.value().clone())
     }
 
@@ -131,7 +132,7 @@ impl BuildResults {
         self.is_target_built(label)
     }
 
-    pub fn get_manifest(&self, label: LabelId) -> Option<TargetManifest> {
+    pub fn get_manifest(&self, label: LabelId) -> Option<Arc<TargetManifest>> {
         if let Some(r) = self.computed_targets.get(&label) {
             let (manifest, _node) = r.value();
             Some(manifest.clone())
@@ -145,10 +146,7 @@ impl BuildResults {
             .get(&label)
             .map(|r| {
                 let (_manifest, node) = r.value();
-                node.runtime_deps
-                    .iter()
-                    .map(|d| self.label_registry.register_label(&d.label))
-                    .collect::<Vec<LabelId>>()
+                node.runtime_deps.clone()
             })
             .unwrap_or_default()
     }
@@ -158,10 +156,7 @@ impl BuildResults {
             .get(&label)
             .map(|r| {
                 let (_manifest, node) = r.value();
-                node.deps
-                    .iter()
-                    .map(|d| self.label_registry.register_label(&d.label))
-                    .collect::<Vec<LabelId>>()
+                node.deps.clone()
             })
             .unwrap_or_default()
     }

@@ -32,6 +32,7 @@ impl LabelId {
 pub struct LabelRegistry {
     ids: DashMap<Arc<Label>, LabelId>,
     labels: DashMap<LabelId, Arc<Label>>,
+    manifests: DashMap<LabelId, Arc<TargetManifest>>,
     register_lock: Arc<Mutex<()>>,
 }
 
@@ -101,5 +102,11 @@ impl LabelRegistry {
     #[tracing::instrument(name = "LabelRegistry::get", skip(self))]
     pub fn get_label(&self, id: LabelId) -> Arc<Label> {
         (*self.labels.get(&id).unwrap()).clone()
+    }
+
+    pub fn register_target_manifest(&self, manifest: TargetManifest) -> LabelId {
+        let id = self.register_label(&manifest.label);
+        self.manifests.insert(id, Arc::new(manifest));
+        id
     }
 }

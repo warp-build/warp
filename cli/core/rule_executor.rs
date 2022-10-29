@@ -25,12 +25,14 @@ pub struct SharedRuleExecutorState {
     pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
     pub env_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
     pub rule_store: Arc<RuleStore>,
+    pub build_results: Arc<BuildResults>,
 }
 
 impl SharedRuleExecutorState {
-    pub fn new(rule_store: Arc<RuleStore>) -> Self {
+    pub fn new(rule_store: Arc<RuleStore>, build_results: Arc<BuildResults>) -> Self {
         Self {
             rule_store,
+            build_results,
             ..Self::default()
         }
     }
@@ -66,11 +68,12 @@ pub struct ComputeTargetProgram;
 
 impl ComputeTargetProgram {
     pub fn as_js_source(
+        build_results: Arc<BuildResults>,
         env: &ExecutionEnvironment,
         target: &Target,
-        deps: &[TargetManifest],
-        transitive_deps: &[TargetManifest],
-        runtime_deps: &[TargetManifest],
+        deps: &[LabelId],
+        transitive_deps: &[LabelId],
+        runtime_deps: &[LabelId],
         rule: &Rule,
         config: &RuleConfig,
     ) -> String {
@@ -78,6 +81,7 @@ impl ComputeTargetProgram {
 
         let deps: serde_json::Value = serde_json::Value::Array(
             deps.iter()
+                .flat_map(|dep| build_results.get_manifest(*dep))
                 .map(|dep| {
                     let mut map = serde_json::Map::new();
                     map.insert(
@@ -114,6 +118,7 @@ impl ComputeTargetProgram {
         let transitive_deps: serde_json::Value = serde_json::Value::Array(
             transitive_deps
                 .iter()
+                .flat_map(|dep| build_results.get_manifest(*dep))
                 .map(|dep| {
                     let mut map = serde_json::Map::new();
                     map.insert(
@@ -154,6 +159,7 @@ impl ComputeTargetProgram {
         let runtime_deps: serde_json::Value = serde_json::Value::Array(
             runtime_deps
                 .iter()
+                .flat_map(|dep| build_results.get_manifest(*dep))
                 .map(|dep| {
                     let mut map = serde_json::Map::new();
                     map.insert(
@@ -363,6 +369,7 @@ pub struct RuleExecutor {
     pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
     pub env_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
     pub run_script_map: Arc<DashMap<Label, RunScript>>,
+    pub build_results: Arc<BuildResults>,
 }
 
 impl RuleExecutor {
@@ -436,6 +443,7 @@ impl RuleExecutor {
             provides_map: shared_state.provides_map.clone(),
             env_map: shared_state.env_map.clone(),
             rule_map: shared_state.rule_map.clone(),
+            build_results: shared_state.build_results.clone(),
             run_script_map,
             runtime,
             loaded_rules: FxHashMap::default(),
@@ -590,9 +598,9 @@ impl RuleExecutor {
         env: &ExecutionEnvironment,
         rule: &Rule,
         target: &Target,
-        deps: &[TargetManifest],
-        transitive_deps: &[TargetManifest],
-        runtime_deps: &[TargetManifest],
+        deps: &[LabelId],
+        transitive_deps: &[LabelId],
+        runtime_deps: &[LabelId],
     ) -> Result<ExecutionResult, RuleExecutorError> {
         let config = ConfigExpander
             .expand(rule, target)
@@ -600,6 +608,7 @@ impl RuleExecutor {
             .map_err(RuleExecutorError::ConfigExpanderError)?;
 
         let compute_program = ComputeTargetProgram::as_js_source(
+            self.build_results.clone(),
             env,
             target,
             deps,

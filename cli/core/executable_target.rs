@@ -21,15 +21,15 @@ pub struct ExecutableTarget {
     pub actions: Vec<Action>,
 
     /// The dependencies this target needs to have in place
-    pub deps: Vec<TargetManifest>,
+    pub deps: Vec<LabelId>,
 
-    pub transitive_deps: Vec<TargetManifest>,
+    pub transitive_deps: Vec<LabelId>,
 
     /// Transitive Runtime Dependencies needed to execute this target
-    pub runtime_deps: Vec<TargetManifest>,
+    pub runtime_deps: Vec<LabelId>,
 
     /// Dependencies that need to be present but not copied into the cache
-    pub toolchains: Vec<TargetManifest>,
+    pub toolchains: Vec<LabelId>,
 
     pub srcs: FxHashSet<PathBuf>,
 
@@ -53,11 +53,12 @@ impl ExecutableTarget {
         env: &ExecutionEnvironment,
         rule: &Rule,
         target: &Target,
-        deps: &[TargetManifest],
-        runtime_deps: &[TargetManifest],
-        transitive_deps: &[TargetManifest],
-        toolchains: &[TargetManifest],
+        deps: &[LabelId],
+        runtime_deps: &[LabelId],
+        transitive_deps: &[LabelId],
+        toolchains: &[LabelId],
         exec_result: ExecutionResult,
+        build_results: &BuildResults,
     ) -> Result<Self, ExecutableTargetError> {
         let mut this = Self {
             target_plan_ended_at: exec_result.target_plan_ended_at,
@@ -77,13 +78,13 @@ impl ExecutableTarget {
             env: exec_result.env,
         };
 
-        this.ensure_outputs_are_safe()?;
-        this.recompute_hash(env).await;
+        this.ensure_outputs_are_safe(&build_results)?;
+        this.recompute_hash(env, build_results).await;
 
         Ok(this)
     }
 
-    async fn recompute_hash(&mut self, env: &ExecutionEnvironment) {
+    async fn recompute_hash(&mut self, env: &ExecutionEnvironment, build_results: &BuildResults) {
         let mut s = Sha256::new();
 
         s.update(self.label.to_string().as_bytes());
@@ -94,9 +95,17 @@ impl ExecutableTarget {
         srcs.dedup_by(|a, b| a == b);
         srcs.sort();
 
-        let deps = self.deps.iter().map(|d| d.hash.as_str());
+        let deps: Vec<String> = self
+            .deps
+            .iter()
+            .chain(self.transitive_deps.iter())
+            .flat_map(|d| build_results.get_manifest(*d))
+            .map(|d| d.hash.to_owned())
+            .collect();
+
         let mut seeds: Vec<&str> = deps
-            .chain(self.transitive_deps.iter().map(|d| d.hash.as_str()))
+            .iter()
+            .map(|d| d.as_str())
             .chain(self.outs.iter().map(|o| o.to_str().unwrap()))
             .chain(actions.iter().map(|a| a.as_str()))
             .chain(srcs.iter().map(|s| s.to_str().unwrap()))
@@ -129,11 +138,18 @@ impl ExecutableTarget {
         self.hash = format!("{:x}", s.finalize());
     }
 
-    fn ensure_outputs_are_safe(&mut self) -> Result<(), ExecutableTargetError> {
+    fn ensure_outputs_are_safe(
+        &mut self,
+        build_results: &BuildResults,
+    ) -> Result<(), ExecutableTargetError> {
         let output_set: FxHashSet<PathBuf> = self.outs.iter().cloned().collect();
 
-        let dep_output_set: FxHashSet<PathBuf> =
-            self.deps.iter().flat_map(|os| os.outs.clone()).collect();
+        let dep_output_set: FxHashSet<PathBuf> = self
+            .deps
+            .iter()
+            .flat_map(|l| build_results.get_manifest(*l))
+            .flat_map(|os| os.outs.clone())
+            .collect();
 
         if !output_set.is_disjoint(&dep_output_set) {
             let outputs = output_set

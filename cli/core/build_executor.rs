@@ -53,7 +53,7 @@ impl BuildExecutor {
         targets: &[Label],
         event_channel: Arc<EventChannel>,
         build_opts: BuildOpts,
-    ) -> Result<Vec<(TargetManifest, ExecutableTarget)>, BuildExecutorError> {
+    ) -> Result<Vec<(Arc<TargetManifest>, Arc<ExecutableTarget>)>, BuildExecutorError> {
         if targets.is_empty() {
             event_channel.send(Event::BuildCompleted(std::time::Instant::now()));
             return Ok(vec![]);
@@ -74,8 +74,11 @@ impl BuildExecutor {
             self.workspace.clone(),
             self.label_registry.clone(),
         ));
+
         let store = Arc::new(Store::new(&self.workspace, event_channel.clone()));
+
         let rule_store = Arc::new(RuleStore::new(&self.workspace));
+
         let label_resolver = Arc::new(LabelResolver::new(
             &self.workspace,
             store.clone(),
@@ -84,9 +87,17 @@ impl BuildExecutor {
             self.label_registry.clone(),
             dependency_manager.clone(),
         ));
-        let target_executor = Arc::new(TargetExecutor::new(store.clone(), event_channel.clone()));
 
-        let share_rule_executor_state = Arc::new(SharedRuleExecutorState::new(rule_store.clone()));
+        let target_executor = Arc::new(TargetExecutor::new(
+            store.clone(),
+            self.results.clone(),
+            event_channel.clone(),
+        ));
+
+        let share_rule_executor_state = Arc::new(SharedRuleExecutorState::new(
+            rule_store.clone(),
+            self.results.clone(),
+        ));
 
         let mut worker = BuildWorker::new(
             Role::MainWorker,
@@ -194,7 +205,7 @@ impl BuildExecutor {
         Ok(results)
     }
 
-    pub fn manifests(&self) -> Vec<TargetManifest> {
+    pub fn manifests(&self) -> Vec<Arc<TargetManifest>> {
         self.results.get_all_manifests()
     }
 }
