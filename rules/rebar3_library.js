@@ -35,7 +35,7 @@ rebar3 compile || status=$?
 
 # NOTE(@ostera): need to investigate more why but some libraries *need* 2 passes of rebar3 compile
 # to succeed.
-if [[ -d "./_build/default/lib/${name}" ]]; then
+if [[ ! -d "./_build/default/lib/${name}" ]]; then
   rebar3 compile || status=$?
 fi
 
