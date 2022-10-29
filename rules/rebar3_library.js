@@ -3,11 +3,10 @@ import Rebar3Toolchain from "https://pkgs.warp.build/toolchains/rebar3.js";
 import CMakeToolchain from "https://pkgs.warp.build/toolchains/cmake.js";
 
 const impl = (ctx) => {
-  const { label, name, deps, srcs } = ctx.cfg();
-  const cwd = Label.path(label);
+  const { cwd, label, name, deps, srcs } = ctx.cfg();
 
   ctx.action().declareOutputs([
-    `${cwd}/_build/default/lib/${name}`
+    `${cwd()}/_build/default/lib/${name}`
   ]);
 
   ctx.action().runShell({
@@ -18,7 +17,7 @@ export CPLUS_INCLUDE_PATH="$ERL_INCLUDE_PATH:$CPLUS_INCLUDE_PATH"
 export C_LIB_PATH="$ERL_LIB_PATH:$C_LIB_PATH"
 export CPLUS_LIB_PATH="$ERL_LIB_PATH:$CPLUS_LIB_PATH"
 
-cd ${cwd}
+cd ${cwd()}
 rm -rf _build
 
 maybe_copy() {
@@ -33,6 +32,12 @@ maybe_copy include;
 maybe_copy src;
 
 rebar3 compile || status=$?
+
+# NOTE(@ostera): need to investigate more why but some libraries *need* 2 passes of rebar3 compile
+# to succeed.
+if [[ -d "./_build/default/lib/${name}" ]]; then
+  rebar3 compile || status=$?
+fi
 
 if [ \${status:-0} -gt 1 ]; then
   echo "Rebar exited with status $status"
