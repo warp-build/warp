@@ -171,7 +171,7 @@ impl Command {
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), anyhow::Error> {
     Warp::from_args().run().await.map(|_| ())?;
     shutdown_tracer_provider();
