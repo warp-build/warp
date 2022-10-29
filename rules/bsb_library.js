@@ -9,15 +9,15 @@ const impl = ctx => {
 
   const cmi =
     resi.map(src => File.withExtension(src, CMI_EXT))
-        .map(src => File.changeRoot(src, `${cwd}/lib/bs`))
+    .map(src => `${cwd}/lib/bs/${src}`)
 
   const cmt =
     res.map(src => File.withExtension(src, CMT_EXT))
-        .map(src => File.changeRoot(src, `${cwd}/lib/bs`))
+    .map(src => `${cwd}/lib/bs/${src}`)
 
   const js =
     res.map(src => File.withExtension(src, JS_EXT))
-        .map(src => File.changeRoot(src, `${cwd}/lib/js`))
+    .map(src => `${cwd}/lib/js/${src}`)
 
   const merlin = `${cwd}/${MERLIN}`
 
