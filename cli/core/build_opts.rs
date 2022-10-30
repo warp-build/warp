@@ -22,4 +22,5 @@ pub struct BuildOpts {
     pub target_filter: TargetFilter,
     pub force_output_promotion: bool,
     pub concurrency_limit: usize,
+    pub experimental_file_mode: bool,
 }

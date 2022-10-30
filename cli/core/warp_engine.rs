@@ -31,6 +31,9 @@ pub enum WarpEngineError {
 #[derive(Debug, Clone, Builder)]
 pub struct WarpEngine {
     #[builder(default)]
+    build_executor: Option<BuildExecutor>,
+
+    #[builder(default)]
     pub current_user: String,
 
     #[builder(default)]
@@ -92,25 +95,33 @@ impl WarpEngine {
     }
 
     pub async fn execute(
-        &self,
+        &mut self,
         labels: &[Label],
         build_opts: BuildOpts,
-    ) -> Result<Vec<BuildResult>, WarpEngineError> {
+    ) -> Result<(), WarpEngineError> {
         if !self.initialized {
             return Err(WarpEngineError::ExecuteBeforeInitialize);
         }
 
-        let executor = BuildExecutor::new(
-            self.workspace.clone(),
-            self.event_channel.clone(),
-            build_opts,
-        )
-        .await
-        .map_err(WarpEngineError::BuildExecutorError)?;
+        self.build_executor = Some(
+            BuildExecutor::new(
+                self.workspace.clone(),
+                self.event_channel.clone(),
+                build_opts,
+            )
+            .await
+            .map_err(WarpEngineError::BuildExecutorError)?,
+        );
 
-        executor
+        self.build_executor
+            .as_ref()
+            .unwrap()
             .execute(labels)
             .await
             .map_err(WarpEngineError::BuildExecutorError)
+    }
+
+    pub fn get_results(&self) -> Vec<BuildResult> {
+        self.build_executor.as_ref().unwrap().get_results()
     }
 }

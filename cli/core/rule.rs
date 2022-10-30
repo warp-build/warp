@@ -5,8 +5,9 @@ use serde::Deserialize;
 
 pub type RuleName = String;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub enum RuleKind {
+    #[default]
     Build,
     Run,
     Test,
@@ -18,21 +19,23 @@ impl RuleKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub enum Pinned {
+    #[default]
     Pinned,
     Unpinned,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub enum Portability {
     Portable,
+    #[default]
     ArchitectureDependent,
 }
 
 /// A Rule defines what actions to take to perform some work.
 ///
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Rule {
     /// The name of this rule.
     ///

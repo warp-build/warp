@@ -432,6 +432,7 @@ impl RuleExecutor {
             module_loader: Some(Rc::new(NetModuleLoader {
                 rule_store: shared_state.rule_store.clone(),
             })),
+            v8_platform: Some(v8::Platform::new_single_threaded(false).make_shared()),
             extensions: vec![extension, deno_console::init()],
             ..Default::default()
         };

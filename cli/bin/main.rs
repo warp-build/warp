@@ -50,7 +50,8 @@ impl Warp {
             homepage: "https://warp.build".into(),
         });
 
-        if self.enable_tracing {
+        let enable_tracing = self.enable_tracing;
+        if enable_tracing {
             let tracer = opentelemetry_jaeger::new_pipeline()
                 .install_batch(opentelemetry::runtime::Tokio)?;
 
@@ -75,7 +76,7 @@ impl Warp {
 
         let root_span = trace_span!("Warp::run");
 
-        async move {
+        let results = async move {
             let result = self.start(t0).await;
 
             match result {
@@ -86,7 +87,13 @@ impl Warp {
             result
         }
         .instrument(root_span)
-        .await
+        .await;
+
+        if enable_tracing {
+            shutdown_tracer_provider();
+        }
+
+        results
     }
 
     #[tracing::instrument(name = "Warp::start")]
@@ -106,13 +113,13 @@ impl Warp {
             _ => (),
         };
 
-        let warp = warp.initialize().await?;
+        let mut warp = warp.initialize().await?;
 
         let result = self
             .cmd
             .take()
             .unwrap_or_else(|| Command::Build(BuildCommand::all()))
-            .run(&warp)
+            .run(&mut warp)
             .await;
 
         warp.shutdown().await?;
@@ -124,6 +131,7 @@ impl Warp {
 #[derive(StructOpt, Debug, Clone)]
 enum Command {
     Build(BuildCommand),
+    Hash(HashCommand),
     Info(InfoCommand),
     Init(InitCommand),
     Run(RunCommand),
@@ -134,9 +142,10 @@ enum Command {
 
 impl Command {
     #[tracing::instrument(name = "Command::run", skip(self, warp))]
-    async fn run(self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
+    async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
         match self {
             Command::Build(x) => x.run(warp).await,
+            Command::Hash(x) => x.run(warp).await,
             Command::Info(x) => x.run(warp).await,
             Command::Run(x) => x.run(warp).await,
             Command::Shell(x) => x.run(warp).await,
@@ -151,6 +160,5 @@ impl Command {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), anyhow::Error> {
     Warp::from_args().run().await.map(|_| ())?;
-    shutdown_tracer_provider();
     Ok(())
 }

@@ -1,6 +1,6 @@
 [package]
 name = "warp-build"
-version = "0.0.52"
+version = "0.0.53"
 authors = ["Leandro Ostera <leandro@abstractmachines.dev>"]
 description = "[beta] warp is a simple, fast, and correct build system for modern polyglot teams"
 edition = "2021"
@@ -20,6 +20,7 @@ crossbeam-channel = "0.4.0"
 crossterm = "0.23"
 dialoguer = "0.10.1"
 env_logger="0.9"
+dashmap = "5.2"
 futures = "0.3"
 fxhash = "0.2"
 guess_host_triple = "0.1"

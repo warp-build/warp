@@ -8,7 +8,7 @@ use thiserror::*;
 
 /// An ExecutableTarget is a self-contained description of how to build a target in a workspace.
 ///
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct ExecutableTarget {
     pub target_plan_started_at: chrono::DateTime<chrono::Utc>,
     pub target_plan_ended_at: chrono::DateTime<chrono::Utc>,
@@ -82,6 +82,13 @@ impl ExecutableTarget {
         this.recompute_hash(env, build_results).await;
 
         Ok(this)
+    }
+
+    pub fn placeholder(label: Label) -> Self {
+        Self {
+            label,
+            ..Default::default()
+        }
     }
 
     async fn recompute_hash(&mut self, env: &ExecutionEnvironment, build_results: &BuildResults) {

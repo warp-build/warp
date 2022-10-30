@@ -1,6 +1,34 @@
 use super::*;
 use std::sync::Arc;
 
+pub struct EventConsumer {
+    channel: Arc<crossbeam::deque::Injector<Event>>,
+    queue: crossbeam::deque::Worker<Event>,
+}
+
+impl EventConsumer {
+    pub fn fetch(&self) {
+        let _steal = self.channel.steal_batch(&self.queue);
+    }
+
+    pub fn pop(&self) -> Option<Event> {
+        self.queue.pop()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        let _steal = self.channel.steal_batch(&self.queue);
+        self.queue.is_empty()
+    }
+}
+
+impl Iterator for &EventConsumer {
+    type Item = Event;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pop()
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct EventChannel {
     bus: Arc<crossbeam::deque::Injector<Event>>,
@@ -19,11 +47,10 @@ impl EventChannel {
         self.bus.push(event)
     }
 
-    pub fn recv(&self) -> Option<Event> {
-        if let crossbeam::deque::Steal::Success(event) = self.bus.steal() {
-            Some(event)
-        } else {
-            None
+    pub fn consumer(&self) -> EventConsumer {
+        EventConsumer {
+            channel: self.bus.clone(),
+            queue: crossbeam::deque::Worker::new_fifo(),
         }
     }
 }

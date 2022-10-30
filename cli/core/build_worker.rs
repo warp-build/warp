@@ -1,14 +1,23 @@
 use super::Event;
 use super::*;
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::*;
+use tokio::fs;
+use tokio::io::AsyncReadExt;
 use tracing::*;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Role {
     MainWorker,
     HelperWorker(usize),
+}
+
+impl Role {
+    pub fn is_main_worker(&self) -> bool {
+        matches!(&self, Role::MainWorker)
+    }
 }
 
 #[derive(Error, Debug)]
@@ -93,7 +102,11 @@ impl BuildWorker {
         loop {
             // NOTE(@ostera): we don't want things to burn CPU cycles
             tokio::time::sleep(std::time::Duration::from_micros(100)).await;
-            let result = self.run().await;
+            let result = if self.build_opts.experimental_file_mode {
+                self.run_file_mode().await
+            } else {
+                self.run().await
+            };
             if result.is_err() {
                 self.coordinator.signal_shutdown();
                 self.finish();
@@ -104,7 +117,6 @@ impl BuildWorker {
                 break;
             }
         }
-
         Ok(())
     }
 
@@ -120,6 +132,43 @@ impl BuildWorker {
             self.event_channel
                 .send(Event::BuildCompleted(std::time::Instant::now()))
         }
+    }
+
+    #[tracing::instrument(name = "BuildWorker::run", skip(self))]
+    pub async fn run_file_mode(&mut self) -> Result<(), BuildWorkerError> {
+        // 1. Task is a file :)
+        if let Some(task) = self.build_queue.next() {
+            let label = self.label_registry.get_label(task.label);
+
+            // 2. Read file and hash it
+            // let mut f = std::fs::File::open(&label.path())
+            //     .unwrap_or_else(|_| panic!("ERR: {:?}", label.path()));
+            // let _ = std::io::copy(&mut f, &mut s).unwrap();
+            // let _hash = s.finalize();
+            let mut f = fs::File::open(&label.path())
+                .await
+                .unwrap_or_else(|_| panic!("ERR: {:?}", label.path()));
+            let mut buffer = Vec::with_capacity(2048);
+            f.read_to_end(&mut buffer).await.unwrap();
+            let mut s = Sha256::new();
+            s.update(buffer);
+
+            // 3. Print hash
+            let hash = format!("{:x}", s.finalize());
+            self.event_channel.send(Event::HashedLabel {
+                label: task.label,
+                hash,
+            });
+
+            self.build_results.add_computed_target(
+                task.label,
+                TargetManifest::placeholder(label.as_ref().clone()),
+                ExecutableTarget::placeholder(label.as_ref().clone()),
+            );
+
+            self.build_queue.ack(task);
+        }
+        Ok(())
     }
 
     #[tracing::instrument(name = "BuildWorker::run", skip(self))]
@@ -145,7 +194,7 @@ impl BuildWorker {
 
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
-                        (*self.label_registry.get_label(label)).to_owned(),
+                    (*self.label_registry.get_label(label)).to_owned(),
                     BuildError::LabelResolverError(err),
                 ));
                 self.coordinator.signal_shutdown();
@@ -280,7 +329,7 @@ impl BuildWorker {
     async fn requeue(&self, task: Task, deps: &[LabelId]) -> Result<(), BuildWorkerError> {
         if let Err(QueueError::DependencyCycle(err)) = self.build_queue.queue_deps(task, deps) {
             self.event_channel.send(Event::BuildError(
-                    (*self.label_registry.get_label(task.label)).to_owned(),
+                (*self.label_registry.get_label(task.label)).to_owned(),
                 BuildError::BuildResultError(err),
             ));
             self.coordinator.signal_shutdown();

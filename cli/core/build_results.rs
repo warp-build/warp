@@ -1,6 +1,7 @@
 use super::*;
 use daggy::{Dag, NodeIndex};
 use dashmap::DashMap;
+use dashmap::DashSet;
 use fxhash::*;
 use std::sync::Arc;
 use thiserror::*;
@@ -35,13 +36,15 @@ pub struct BuildResults {
     // The shared state of what targets have been built across workers.
     build_results: Arc<DashMap<LabelId, BuildResult>>,
 
-    expected_targets: Arc<DashMap<LabelId, ()>>,
+    expected_targets: Arc<DashSet<LabelId>>,
 
-    missing_targets: Arc<DashMap<LabelId, ()>>,
+    missing_targets: Arc<DashSet<LabelId>>,
 
     build_graph: Arc<DashMap<LabelId, Vec<LabelId>>>,
 
     label_registry: Arc<LabelRegistry>,
+
+    ready_marker: Arc<DashSet<bool>>,
 }
 
 impl BuildResults {
@@ -49,11 +52,20 @@ impl BuildResults {
     pub fn new(label_registry: Arc<LabelRegistry>) -> Self {
         Self {
             build_results: Arc::new(DashMap::new()),
-            expected_targets: Arc::new(DashMap::new()),
-            missing_targets: Arc::new(DashMap::new()),
+            expected_targets: Arc::new(DashSet::new()),
+            missing_targets: Arc::new(DashSet::new()),
             build_graph: Arc::new(DashMap::new()),
             label_registry,
+            ready_marker: Arc::new(DashSet::new()),
         }
+    }
+
+    pub fn mark_as_ready(&self) {
+        self.ready_marker.insert(true);
+    }
+
+    pub fn result_count(&self) -> usize {
+        self.build_results.len()
     }
 
     pub fn get_results(&self) -> Vec<BuildResult> {
@@ -69,7 +81,7 @@ impl BuildResults {
     // if it is empty to see if we're done.
     //
     pub fn has_all_expected_targets(&self) -> bool {
-        if self.expected_targets.is_empty() {
+        if self.ready_marker.is_empty() || self.expected_targets.is_empty() {
             return false;
         }
 
@@ -77,8 +89,8 @@ impl BuildResults {
     }
 
     pub fn add_expected_target(&self, label: LabelId) {
-        self.expected_targets.insert(label, ());
-        self.missing_targets.insert(label, ());
+        self.expected_targets.insert(label);
+        self.missing_targets.insert(label);
     }
 
     pub fn add_computed_target(

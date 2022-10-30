@@ -40,7 +40,7 @@ impl BuildCommand {
     }
 
     #[tracing::instrument(name = "BuildCommand::run", skip(warp))]
-    pub async fn run(self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
+    pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
         let label: Label = (&warp.workspace.aliases)
             .get(&self.label)
             .cloned()

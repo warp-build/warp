@@ -224,6 +224,10 @@ impl Label {
         LabelBuilder::default()
     }
 
+    pub fn all() -> Label {
+        Label::default()
+    }
+
     pub fn new(str: &str) -> Label {
         Self::builder().from_string(str).unwrap()
     }

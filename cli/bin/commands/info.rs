@@ -28,7 +28,7 @@ Example: //my/library:shell
 }
 
 impl InfoCommand {
-    pub async fn run(self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
+    pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
         let label: Label = (&warp.workspace.aliases)
             .get(&self.label)
             .cloned()
@@ -51,8 +51,9 @@ impl InfoCommand {
             status_reporter.run(&[label.clone()]),
         )
         .await;
+        result?;
 
-        if let Some(result) = result?.get(0) {
+        if let Some(result) = warp.get_results().get(0) {
             println!(
                 "{}",
                 serde_json::to_value(result.target_manifest.as_ref().to_owned()).unwrap()

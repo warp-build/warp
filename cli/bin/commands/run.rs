@@ -38,7 +38,7 @@ build their dependencies and exit.
 }
 
 impl RunCommand {
-    pub async fn run(self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
+    pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
         let label: Label = (&warp.workspace.aliases)
             .get(&self.label)
             .cloned()
@@ -62,11 +62,12 @@ impl RunCommand {
             status_reporter.run(&[label.clone()]),
         )
         .await;
+        result?;
 
         if let Some(BuildResult {
             target_manifest: manifest,
             executable_target: target,
-        }) = result?.get(0)
+        }) = warp.get_results().get(0)
         {
             let mut provides_env = manifest.env_map();
 

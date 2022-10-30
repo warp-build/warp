@@ -122,7 +122,7 @@ impl InitCommand {
 
         workspace_file.write(&warp.invocation_dir).await?;
 
-        let warp = warp.initialize().await?;
+        let mut warp = warp.initialize().await?;
 
         let lifters: Vec<Label> = toolchains.iter().cloned().flat_map(|t| t.lifter).collect();
         if !lifters.is_empty() {
@@ -138,7 +138,8 @@ impl InitCommand {
                 status_reporter.run(&lifters),
             )
             .await;
-            for build_result in lifters? {
+            lifters?;
+            for build_result in warp.get_results() {
                 CommandRunner::builder()
                     .cwd(warp.invocation_dir.to_path_buf())
                     .manifest(build_result.target_manifest)

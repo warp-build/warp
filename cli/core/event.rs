@@ -58,4 +58,8 @@ pub enum Event {
     TargetBuilt(Label),
     WorkerError(BuildWorkerError),
     EmptyWorkspace(std::time::Instant),
+    HashedLabel {
+        label: LabelId,
+        hash: String,
+    },
 }

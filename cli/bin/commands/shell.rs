@@ -23,7 +23,7 @@ pub struct ShellCommand {
 }
 
 impl ShellCommand {
-    pub async fn run(self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
+    pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
         let label = Label::builder()
             .with_workspace(&warp.workspace)
             .from_string("//...")
@@ -41,8 +41,9 @@ impl ShellCommand {
             status_reporter.run(&[label.clone()]),
         )
         .await;
+        result?;
 
-        let build_results = result?;
+        let build_results = warp.get_results();
 
         let mut shell_env = HashMap::new();
         for result in &build_results {
