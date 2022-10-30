@@ -4,7 +4,6 @@ mod reporter;
 use commands::*;
 use opentelemetry::global::shutdown_tracer_provider;
 use std::path::PathBuf;
-use std::sync::Arc;
 use structopt::StructOpt;
 use tokio::fs;
 use tracing::*;

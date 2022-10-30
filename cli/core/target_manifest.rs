@@ -2,7 +2,6 @@ use super::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;

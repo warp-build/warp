@@ -3,7 +3,6 @@ use anyhow::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::*;
-use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
 use warp_core::*;
@@ -32,7 +31,13 @@ impl ShellCommand {
 
         let status_reporter = StatusReporter::new(warp.event_channel.clone());
         let (result, ()) = futures::future::join(
-            warp.execute(&[label.clone()], BuildOpts::default()),
+            warp.execute(
+                &[label.clone()],
+                BuildOpts {
+                    concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
+                    ..Default::default()
+                },
+            ),
             status_reporter.run(&[label.clone()]),
         )
         .await;
@@ -91,9 +96,7 @@ impl ShellCommand {
         let mut proc = cmd.spawn().unwrap();
 
         let t1 = std::time::Instant::now();
-        let delta = t1
-            .saturating_duration_since(build_started.clone())
-            .as_millis();
+        let delta = t1.saturating_duration_since(*build_started).as_millis();
         debug!("Spawned program in {:?}ms", delta);
 
         trace!("Waiting on {:?}", &cmd);

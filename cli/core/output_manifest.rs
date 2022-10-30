@@ -28,7 +28,7 @@ pub struct OutputManifestHash {
 
 impl OutputManifestHash {
     #[tracing::instrument(name = "OutputManifestHash::find", skip(path))]
-    pub async fn find(label: &Label, path: &PathBuf) -> Result<Self, OutputManifestError> {
+    pub async fn find(label: &Label, path: &Path) -> Result<Self, OutputManifestError> {
         let mut file = fs::File::open(OutputManifest::_file(label, path))
             .await
             .map_err(OutputManifestError::IOError)?;
@@ -67,7 +67,7 @@ pub struct OutputManifest {
 
 impl OutputManifest {
     #[tracing::instrument(name = "OutputManifest::find", skip(path))]
-    pub async fn find(label: &Label, path: &PathBuf) -> Result<Self, OutputManifestError> {
+    pub async fn find(label: &Label, path: &Path) -> Result<Self, OutputManifestError> {
         let mut file = fs::File::open(OutputManifest::_file(label, path))
             .await
             .map_err(OutputManifestError::IOError)?;

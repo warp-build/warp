@@ -3,7 +3,6 @@ use anyhow::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::*;
-use std::sync::Arc;
 use structopt::StructOpt;
 use tracing::*;
 use warp_core::*;
@@ -161,9 +160,7 @@ impl RunCommand {
         let mut proc = cmd.spawn().unwrap();
 
         let t1 = std::time::Instant::now();
-        let delta = t1
-            .saturating_duration_since(build_started.clone())
-            .as_millis();
+        let delta = t1.saturating_duration_since(*build_started).as_millis();
         debug!("Spawned program in {:?}ms", delta);
 
         trace!("Waiting on {:?}", &cmd);

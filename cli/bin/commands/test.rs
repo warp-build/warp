@@ -1,7 +1,5 @@
 use crate::reporter::*;
 use anyhow::*;
-use std::path::Path;
-use std::sync::Arc;
 use structopt::StructOpt;
 use warp_core::*;
 

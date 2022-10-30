@@ -1,5 +1,4 @@
 use crate::reporter::*;
-use std::sync::Arc;
 use structopt::StructOpt;
 use warp_core::*;
 

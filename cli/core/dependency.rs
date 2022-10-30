@@ -1,7 +1,4 @@
 use super::*;
-use thiserror::*;
-use tokio::fs;
-use tracing::*;
 
 #[derive(Debug, Clone, Builder)]
 pub struct Dependency {
@@ -25,7 +22,7 @@ impl Dependency {
 
 #[derive(Debug, Clone, Default, Builder)]
 pub struct DependencySet {
-    dependencies: Vec<Dependency>,
+    pub dependencies: Vec<Dependency>,
 }
 
 impl DependencySet {

@@ -1,6 +1,6 @@
 use super::Event;
 use super::*;
-use dashmap::{DashMap, DashSet};
+use dashmap::DashSet;
 use futures::StreamExt;
 use std::sync::Arc;
 use thiserror::*;

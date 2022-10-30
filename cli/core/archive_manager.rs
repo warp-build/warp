@@ -295,7 +295,7 @@ impl ArchiveManager {
                     reader.copy_to_end_crc(&mut output, 65536).await?;
                 }
             }
-            Err(err) => {
+            Err(_err) => {
                 let file = fs::File::open(&archive).await?;
                 let decompress_stream =
                     GzipDecoder::new(futures::io::BufReader::new(file.compat()));
@@ -342,7 +342,7 @@ impl ArchiveManager {
                 } else {
                     match tar.unpack(&dst).await {
                         Ok(_) => (),
-                        Err(err) => {
+                        Err(_err) => {
                             let file = fs::File::open(&archive).await?;
                             let tar =
                                 async_tar::Archive::new(futures::io::BufReader::new(file.compat()));

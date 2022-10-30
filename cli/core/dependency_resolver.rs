@@ -376,9 +376,7 @@ trait WorkspaceT {
 }
 
 #[derive(Debug, Clone)]
-struct DependencyWorkspace {
-    label: Label,
-}
+struct DependencyWorkspace {}
 
 #[derive(Error, Debug)]
 pub enum DependencyWorkspaceError {

@@ -176,7 +176,7 @@ impl TargetExecutor {
             .values()
             .clone()
             .into_iter()
-            .map(|p| store_path.join(p).to_path_buf());
+            .map(|p| store_path.join(p));
 
         let paths: FxHashSet<String> = target
             .toolchains

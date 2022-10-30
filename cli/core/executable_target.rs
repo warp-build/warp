@@ -78,7 +78,7 @@ impl ExecutableTarget {
             env: exec_result.env,
         };
 
-        this.ensure_outputs_are_safe(&build_results)?;
+        this.ensure_outputs_are_safe(build_results)?;
         this.recompute_hash(env, build_results).await;
 
         Ok(this)

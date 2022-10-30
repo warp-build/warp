@@ -138,11 +138,9 @@ impl BuildResults {
     }
 
     pub fn get_manifest(&self, label: LabelId) -> Option<Arc<TargetManifest>> {
-        if let Some(r) = self.build_results.get(&label) {
-            Some((*r).target_manifest.clone())
-        } else {
-            None
-        }
+        self.build_results
+            .get(&label)
+            .map(|r| (*r).target_manifest.clone())
     }
 
     pub fn get_target_runtime_deps(&self, label: LabelId) -> Vec<LabelId> {
