@@ -12,6 +12,9 @@ pub enum WarpEngineError {
     #[error("This Warp Engine has already been initialized.")]
     AlreadyInitialized,
 
+    #[error("Can not execute a build before initializing the Warp Engine")]
+    ExecuteBeforeInitialize,
+
     #[error(transparent)]
     EnvError(std::io::Error),
 
@@ -20,6 +23,9 @@ pub enum WarpEngineError {
 
     #[error(transparent)]
     WorkspaceError(WorkspaceError),
+
+    #[error(transparent)]
+    BuildExecutorError(BuildExecutorError),
 }
 
 #[derive(Debug, Clone, Builder)]
@@ -87,14 +93,22 @@ impl WarpEngine {
         &self,
         labels: &[Label],
         build_opts: BuildOpts,
-    ) -> Result<Vec<BuildResult>, BuildExecutorError> {
+    ) -> Result<Vec<BuildResult>, WarpEngineError> {
+        if !self.initialized {
+            return Err(WarpEngineError::ExecuteBeforeInitialize);
+        }
+
         let executor = BuildExecutor::new(
             self.workspace.clone(),
             self.event_channel.clone(),
             build_opts,
         )
-        .await?;
+        .await
+        .map_err(WarpEngineError::BuildExecutorError)?;
 
-        executor.execute(labels).await
+        executor
+            .execute(labels)
+            .await
+            .map_err(WarpEngineError::BuildExecutorError)
     }
 }

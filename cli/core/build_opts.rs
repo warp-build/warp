@@ -21,4 +21,5 @@ pub struct BuildOpts {
     pub goal: Goal,
     pub target_filter: TargetFilter,
     pub force_output_promotion: bool,
+    pub concurrency_limit: usize,
 }

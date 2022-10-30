@@ -11,6 +11,7 @@ use thiserror::*;
 use tokio::fs;
 use tracing::*;
 
+#[derive(Debug, Clone)]
 pub struct TargetExecutor {
     event_channel: Arc<EventChannel>,
     build_results: Arc<BuildResults>,

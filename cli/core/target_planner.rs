@@ -1,5 +1,4 @@
 use super::*;
-use fxhash::FxHashSet;
 use std::sync::Arc;
 use thiserror::*;
 
@@ -26,10 +25,10 @@ pub enum TargetPlannerError {
     ExecutableTargetError(ExecutableTargetError),
 
     #[error(transparent)]
-    RuleExecutorError(RuleExecutorError),
+    RuleExecutorError(Box<RuleExecutorError>),
 
     #[error(transparent)]
-    RuleStoreError(RuleStoreError),
+    RuleStoreError(Box<RuleStoreError>),
 }
 
 impl TargetPlanner {
@@ -48,7 +47,7 @@ impl TargetPlanner {
             store,
             rule_store: share_rule_executor_state.rule_store.clone(),
             rule_executor: RuleExecutor::new(share_rule_executor_state)
-                .map_err(TargetPlannerError::RuleExecutorError)?,
+                .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))?,
             label_registry,
         })
     }
@@ -58,7 +57,7 @@ impl TargetPlanner {
         self.rule_executor
             .update_provide_map(target, &self.store)
             .await
-            .map_err(TargetPlannerError::RuleExecutorError)
+            .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))
     }
 
     #[tracing::instrument(name = "TargetPlanner::plan", skip(self, env))]
@@ -74,13 +73,13 @@ impl TargetPlanner {
             .rule_store
             .get(&target.rule_name)
             .await
-            .map_err(TargetPlannerError::RuleStoreError)?;
+            .map_err(|err| TargetPlannerError::RuleStoreError(Box::new(err)))?;
 
         let rule = self
             .rule_executor
             .load_rule(&rule_name, rule_file)
             .await
-            .map_err(TargetPlannerError::RuleExecutorError)?;
+            .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))?;
 
         let toolchains = self.find_toolchains(target, &rule)?;
 
@@ -94,7 +93,7 @@ impl TargetPlanner {
             target
                 .runtime_deps
                 .iter()
-                .map(|d| self.label_registry.register_label(&d))
+                .map(|d| self.label_registry.register_label(d))
                 .collect()
         };
 
@@ -110,7 +109,7 @@ impl TargetPlanner {
                 &runtime_deps,
             )
             .await
-            .map_err(TargetPlannerError::RuleExecutorError)?;
+            .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))?;
 
         ExecutableTarget::new(
             env,
@@ -178,7 +177,6 @@ impl TargetPlanner {
         label: LabelId,
         deps: &[LabelId],
     ) -> Result<Vec<LabelId>, TargetPlannerError> {
-        let target_label = self.label_registry.get_label(label);
         let mut collected_labels: Vec<Arc<Label>> = vec![];
         let mut missing_labels: Vec<Arc<Label>> = vec![];
 
@@ -195,7 +193,7 @@ impl TargetPlanner {
             visited.push(dep);
 
             let dep_label = self.label_registry.get_label(dep).to_owned();
-            if self.build_results.has_manifest(dep) {
+            if self.build_results.is_label_built(dep) {
                 collected_deps.push(dep);
                 collected_labels.push(dep_label);
                 let node_deps = self.build_results.get_target_runtime_deps(dep);
@@ -226,7 +224,7 @@ impl TargetPlanner {
         let mut missing_deps: Vec<LabelId> = vec![];
 
         for dep in deps {
-            if self.build_results.has_manifest(*dep) {
+            if self.build_results.is_label_built(*dep) {
                 collected_deps.push(*dep);
 
                 if transitive {

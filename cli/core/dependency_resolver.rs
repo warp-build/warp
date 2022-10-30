@@ -121,23 +121,30 @@ impl DependencyResolver {
         dependency: Dependency,
     ) -> Result<Option<Target>, DependencyResolverError> {
         // 1. build resolver
-        let (manifest, target) = self
+        let main_entry = self
             .build_results
-            .get_computed_target(resolver)
+            .get_build_result(resolver)
             .ok_or(DependencyResolverError::MissingResolver { resolver })?;
 
         // 1.1. if the dependency actually needs a separate resolver for analyzing the contents,
         //   lets make sure its ready.
-        let (override_manifest, override_target) =
-            if let Some(override_resolver) = dependency.resolver {
-                self.build_results
-                    .get_computed_target(override_resolver)
-                    .ok_or(DependencyResolverError::MissingResolver {
-                        resolver: override_resolver,
-                    })?
-            } else {
-                (manifest.clone(), target.clone())
-            };
+        let BuildResult {
+            target_manifest: override_manifest,
+            executable_target: override_target,
+        } = if let Some(override_resolver) = dependency.resolver {
+            self.build_results
+                .get_build_result(override_resolver)
+                .ok_or(DependencyResolverError::MissingResolver {
+                    resolver: override_resolver,
+                })?
+        } else {
+            main_entry.clone()
+        };
+
+        let BuildResult {
+            target_manifest: manifest,
+            executable_target: target,
+        } = main_entry;
 
         let label = self.label_registry.get_label(label);
 

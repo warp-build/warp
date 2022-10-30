@@ -18,21 +18,28 @@ pub enum BuildResultError {
     Unknown(anyhow::Error),
 }
 
+#[derive(Debug, Clone)]
+pub struct BuildResult {
+    pub target_manifest: Arc<TargetManifest>,
+
+    pub executable_target: Arc<ExecutableTarget>,
+}
+
 /// A collection of expectations and results from a build.
 ///
 /// This struct is used to keep track of what targets are _expected_ to be built,
-/// and which targets are _actually_ built (`computed_targets`).
+/// and which targets are _actually_ built (`build_results`).
 ///
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct BuildResults {
     // The shared state of what targets have been built across workers.
-    pub computed_targets: Arc<DashMap<LabelId, (Arc<TargetManifest>, Arc<ExecutableTarget>)>>,
+    build_results: Arc<DashMap<LabelId, BuildResult>>,
 
-    pub expected_targets: Arc<DashMap<LabelId, ()>>,
+    expected_targets: Arc<DashMap<LabelId, ()>>,
 
-    pub missing_targets: Arc<DashMap<LabelId, ()>>,
+    missing_targets: Arc<DashMap<LabelId, ()>>,
 
-    pub build_graph: Arc<DashMap<LabelId, Vec<LabelId>>>,
+    build_graph: Arc<DashMap<LabelId, Vec<LabelId>>>,
 
     label_registry: Arc<LabelRegistry>,
 }
@@ -41,7 +48,7 @@ impl BuildResults {
     #[tracing::instrument(name = "BuildResults::new")]
     pub fn new(label_registry: Arc<LabelRegistry>) -> Self {
         Self {
-            computed_targets: Arc::new(DashMap::new()),
+            build_results: Arc::new(DashMap::new()),
             expected_targets: Arc::new(DashMap::new()),
             missing_targets: Arc::new(DashMap::new()),
             build_graph: Arc::new(DashMap::new()),
@@ -49,10 +56,10 @@ impl BuildResults {
         }
     }
 
-    pub fn get_all_manifests(&self) -> Vec<Arc<TargetManifest>> {
-        self.computed_targets
+    pub fn get_results(&self) -> Vec<BuildResult> {
+        self.build_results
             .iter()
-            .map(|e| e.value().0.clone())
+            .map(|r| r.value().clone())
             .collect()
     }
 
@@ -81,8 +88,13 @@ impl BuildResults {
         target: ExecutableTarget,
     ) {
         self.missing_targets.remove(&label);
-        self.computed_targets
-            .insert(label, (Arc::new(manifest), Arc::new(target)));
+        self.build_results.insert(
+            label,
+            BuildResult {
+                target_manifest: Arc::new(manifest),
+                executable_target: Arc::new(target),
+            },
+        );
     }
 
     pub fn add_dependencies(
@@ -121,48 +133,34 @@ impl BuildResults {
         Ok(())
     }
 
-    pub fn get_computed_target(
-        &self,
-        label: LabelId,
-    ) -> Option<(Arc<TargetManifest>, Arc<ExecutableTarget>)> {
-        self.computed_targets.get(&label).map(|r| r.value().clone())
-    }
-
-    pub fn has_manifest(&self, label: LabelId) -> bool {
-        self.is_target_built(label)
+    pub fn get_build_result(&self, label: LabelId) -> Option<BuildResult> {
+        self.build_results.get(&label).map(|r| (*r).clone())
     }
 
     pub fn get_manifest(&self, label: LabelId) -> Option<Arc<TargetManifest>> {
-        if let Some(r) = self.computed_targets.get(&label) {
-            let (manifest, _node) = r.value();
-            Some(manifest.clone())
+        if let Some(r) = self.build_results.get(&label) {
+            Some((*r).target_manifest.clone())
         } else {
             None
         }
     }
 
     pub fn get_target_runtime_deps(&self, label: LabelId) -> Vec<LabelId> {
-        self.computed_targets
+        self.build_results
             .get(&label)
-            .map(|r| {
-                let (_manifest, node) = r.value();
-                node.runtime_deps.clone()
-            })
+            .map(|r| (*r).executable_target.runtime_deps.clone())
             .unwrap_or_default()
     }
 
     pub fn get_target_deps(&self, label: LabelId) -> Vec<LabelId> {
-        self.computed_targets
+        self.build_results
             .get(&label)
-            .map(|r| {
-                let (_manifest, node) = r.value();
-                node.deps.clone()
-            })
+            .map(|r| (*r).executable_target.deps.clone())
             .unwrap_or_default()
     }
 
-    pub fn is_target_built(&self, label: LabelId) -> bool {
-        self.computed_targets.contains_key(&label)
+    pub fn is_label_built(&self, label: LabelId) -> bool {
+        self.build_results.contains_key(&label)
     }
 }
 

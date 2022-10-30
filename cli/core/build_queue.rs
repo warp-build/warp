@@ -1,58 +1,10 @@
 use super::Event;
 use super::*;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use futures::StreamExt;
 use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
-
-#[derive(Default, Debug, Copy, Clone)]
-pub enum Goal {
-    #[default]
-    Build,
-    Test,
-    Run,
-}
-
-impl Goal {
-    pub fn includes(&self, target: &Target) -> bool {
-        match &self {
-            Goal::Test => target.rule_name.ends_with("_test"),
-            Goal::Build | Goal::Run => !target.rule_name.ends_with("_test"),
-        }
-    }
-
-    pub fn is_runnable(&self) -> bool {
-        matches!(self, Goal::Test | Goal::Run)
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Task {
-    pub label: LabelId,
-    pub goal: Goal,
-}
-
-impl Task {
-    pub fn run(label: LabelId) -> Self {
-        Self {
-            label,
-            goal: Goal::Run,
-        }
-    }
-    pub fn build(label: LabelId) -> Self {
-        Self {
-            label,
-            goal: Goal::Build,
-        }
-    }
-    pub fn test(label: LabelId) -> Self {
-        Self {
-            label,
-            goal: Goal::Test,
-        }
-    }
-}
 
 #[derive(Error, Debug)]
 pub enum QueueError {
@@ -79,10 +31,10 @@ pub struct BuildQueue {
     workspace: Workspace,
 
     /// Targets currently being built.
-    busy_targets: Arc<DashMap<LabelId, ()>>,
+    busy_targets: Arc<DashSet<LabelId>>,
 
     /// Targets currently being built.
-    in_queue_targets: Arc<DashMap<LabelId, ()>>,
+    in_queue_targets: Arc<DashSet<LabelId>>,
 
     /// The queue from which workers pull work.
     inner_queue: Arc<crossbeam::deque::Injector<Task>>,
@@ -97,29 +49,36 @@ pub struct BuildQueue {
     event_channel: Arc<EventChannel>,
 
     /// The labels that have been successfully queued.
-    all_queued_labels: Arc<DashMap<LabelId, ()>>,
+    all_queued_labels: Arc<DashSet<LabelId>>,
 
     label_registry: Arc<LabelRegistry>,
+
+    build_opts: BuildOpts,
 }
 
 impl BuildQueue {
-    #[tracing::instrument(name = "BuildQueue::new", skip(event_channel, build_results))]
+    #[tracing::instrument(
+        name = "BuildQueue::new",
+        skip(event_channel, build_results, label_registry)
+    )]
     pub fn new(
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
         workspace: Workspace,
         label_registry: Arc<LabelRegistry>,
+        build_opts: BuildOpts,
     ) -> BuildQueue {
         BuildQueue {
+            workspace,
+            busy_targets: Arc::new(DashSet::new()),
+            in_queue_targets: Arc::new(DashSet::new()),
             inner_queue: Arc::new(crossbeam::deque::Injector::new()),
             wait_queue: Arc::new(crossbeam::deque::Injector::new()),
-            in_queue_targets: Arc::new(DashMap::new()),
-            busy_targets: Arc::new(DashMap::new()),
-            all_queued_labels: Arc::new(DashMap::default()),
-            event_channel,
             build_results,
-            workspace,
+            event_channel,
+            all_queued_labels: Arc::new(DashSet::default()),
             label_registry,
+            build_opts,
         }
     }
 
@@ -143,14 +102,14 @@ impl BuildQueue {
             //
             // When the queue empties up, this will return a None, but otherwise
             // we'll go through a bunch of duplicates, discarding them.
-            if self.build_results.is_target_built(task.label)
-                || self.busy_targets.contains_key(&task.label)
+            if self.busy_targets.contains(&task.label)
+                || self.build_results.is_label_built(task.label)
             {
                 continue;
             }
 
             // But if it is yet to be built, we mark it as busy
-            self.busy_targets.insert(task.label, ());
+            self.busy_targets.insert(task.label);
             self.in_queue_targets.remove(&task.label);
             return Some(task);
         }
@@ -183,16 +142,16 @@ impl BuildQueue {
         if self.label_registry.get_label(label).is_all() {
             return Err(QueueError::CannotQueueTargetAll);
         }
-        if self.build_results.is_target_built(label)
-            || self.busy_targets.contains_key(&label)
-            || self.in_queue_targets.contains_key(&label)
+        if self.build_results.is_label_built(label)
+            || self.busy_targets.contains(&label)
+            || self.in_queue_targets.contains(&label)
         {
             return Ok(());
         }
         self.build_results.add_expected_target(label);
-        self.in_queue_targets.insert(label, ());
+        self.in_queue_targets.insert(label);
         self.inner_queue.push(task);
-        self.all_queued_labels.insert(label, ());
+        self.all_queued_labels.insert(label);
         Ok(())
     }
 
@@ -208,18 +167,14 @@ impl BuildQueue {
         Ok(())
     }
 
-    pub async fn queue_entire_workspace(
-        &self,
-        max_concurrency: usize,
-        goal: Goal,
-    ) -> Result<usize, QueueError> {
+    pub async fn queue_entire_workspace(&self) -> Result<usize, QueueError> {
         debug!("Queueing all targets...");
         self.event_channel.send(Event::QueueingWorkspace);
 
         let mut buildfiles = self
             .workspace
             .scanner()
-            .find_build_files(max_concurrency)
+            .find_build_files(self.build_opts.concurrency_limit)
             .await
             .map_err(QueueError::WorkspaceScannerError)?;
 
@@ -241,9 +196,10 @@ impl BuildQueue {
                 }
                 Ok(buildfile) => {
                     for target in buildfile.targets {
-                        if goal.includes(&target) {
+                        if self.build_opts.goal.includes(&target) {
                             let label = target.label.change_workspace(&self.workspace);
                             let label = self.label_registry.register_label(&label);
+                            let goal = self.build_opts.goal;
                             self.queue(Task { label, goal })?;
                         }
                     }

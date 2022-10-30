@@ -1,5 +1,4 @@
 use super::*;
-use anyhow::*;
 use fxhash::*;
 use std::convert::TryInto;
 use std::path::PathBuf;
@@ -18,6 +17,15 @@ pub enum WorkspaceError {
 
     #[error("{0}")]
     ValidationError(String),
+
+    #[error("Attempted to scan while building a Workspace before setting the right paths. This is a bug.")]
+    ScanBeforeSettingPaths,
+
+    #[error(transparent)]
+    ToolchainConfigError(RuleConfigError),
+
+    #[error(transparent)]
+    RemoteWorkspaceConfigError(RemoteWorkspaceFileError),
 }
 
 impl From<derive_builder::UninitializedFieldError> for WorkspaceError {
@@ -41,7 +49,7 @@ impl From<String> for WorkspaceError {
 /// * descriptions of all the Archives used to build the Targets
 ///
 #[derive(Clone, Debug, Builder)]
-#[builder(build_fn(error = "anyhow::Error"))]
+#[builder(build_fn(error = "WorkspaceError"))]
 pub struct Workspace {
     /// The name of this workspace.
     pub name: String,
@@ -112,7 +120,7 @@ impl Default for Workspace {
 }
 
 impl WorkspaceBuilder {
-    pub async fn from_file(&mut self, file: WorkspaceFile) -> Result<&mut Self, anyhow::Error> {
+    pub async fn from_file(&mut self, file: WorkspaceFile) -> Result<&mut Self, WorkspaceError> {
         self.name(file.workspace.name.clone());
 
         let mut ignore_patterns = vec![];
@@ -137,22 +145,32 @@ impl WorkspaceBuilder {
 
         let mut toolchains: FxHashMap<String, RuleConfig> = FxHashMap::default();
         for (name, config) in file.toolchains {
-            toolchains.insert(name.clone(), config.try_into()?);
+            toolchains.insert(
+                name.clone(),
+                config
+                    .try_into()
+                    .map_err(WorkspaceError::ToolchainConfigError)?,
+            );
         }
         self.toolchain_configs(toolchains);
 
         let mut remote_workspaces: FxHashMap<String, RemoteWorkspaceConfig> = FxHashMap::default();
         for (name, config) in file.remote_workspaces {
-            remote_workspaces.insert(name.clone(), config.try_into()?);
+            remote_workspaces.insert(
+                name.clone(),
+                config
+                    .try_into()
+                    .map_err(WorkspaceError::RemoteWorkspaceConfigError)?,
+            );
         }
         self.remote_workspace_configs(remote_workspaces);
 
         Ok(self)
     }
 
-    pub async fn find_rules_and_toolchains(&mut self) -> Result<&mut Self, anyhow::Error> {
+    pub async fn find_rules_and_toolchains(&mut self) -> Result<&mut Self, WorkspaceError> {
         if self.paths.is_none() {
-            return Err(anyhow::anyhow!("Attempted to scan while building a Workspace before setting the right paths. This is a bug."));
+            return Err(WorkspaceError::ScanBeforeSettingPaths);
         }
 
         let (local_rules, local_toolchains, global_rules) = {

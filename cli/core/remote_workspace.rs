@@ -119,7 +119,7 @@ impl From<RemoteWorkspaceConfig> for RemoteWorkspaceFile {
 }
 
 impl TryFrom<RemoteWorkspaceFile> for RemoteWorkspaceConfig {
-    type Error = WorkspaceFileError;
+    type Error = RemoteWorkspaceFileError;
 
     fn try_from(value: RemoteWorkspaceFile) -> Result<Self, Self::Error> {
         if value.path.is_some() {
@@ -146,8 +146,8 @@ impl TryFrom<RemoteWorkspaceFile> for RemoteWorkspaceConfig {
                 .map(|s| s.to_string())
                 .collect();
             if parts.len() != 2 {
-                return Err(WorkspaceFileError::RemoteWorkspaceError(
-                    RemoteWorkspaceFileError::MalformedGithubString(value.github.unwrap()),
+                return Err(RemoteWorkspaceFileError::MalformedGithubString(
+                    value.github.unwrap(),
                 ));
             }
 
@@ -169,8 +169,6 @@ impl TryFrom<RemoteWorkspaceFile> for RemoteWorkspaceConfig {
             });
         }
 
-        Err(WorkspaceFileError::RemoteWorkspaceError(
-            RemoteWorkspaceFileError::BadConfig(value),
-        ))
+        Err(RemoteWorkspaceFileError::BadConfig(value))
     }
 }
