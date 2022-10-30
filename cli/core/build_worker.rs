@@ -141,10 +141,6 @@ impl BuildWorker {
             let label = self.label_registry.get_label(task.label);
 
             // 2. Read file and hash it
-            // let mut f = std::fs::File::open(&label.path())
-            //     .unwrap_or_else(|_| panic!("ERR: {:?}", label.path()));
-            // let _ = std::io::copy(&mut f, &mut s).unwrap();
-            // let _hash = s.finalize();
             let mut f = fs::File::open(&label.path())
                 .await
                 .unwrap_or_else(|_| panic!("ERR: {:?}", label.path()));

@@ -112,8 +112,6 @@ impl LabelBuilder {
     ///
     #[tracing::instrument(name = "LabelBuilder::from_path")]
     pub fn from_path(&mut self, path: PathBuf) -> Result<Label, LabelBuilderError> {
-        let (kind, path) = self._clean_path(path);
-
         if self.name.is_none() {
             let name = path
                 .file_name()
@@ -124,8 +122,12 @@ impl LabelBuilder {
         }
 
         self.inner_label(InnerLabel::Local {
+            kind: if path.starts_with("/") {
+                LocalLabelKind::Absolute
+            } else {
+                LocalLabelKind::Relative
+            },
             path,
-            kind,
             promoted_from: None,
             associated_url: None,
         });

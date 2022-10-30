@@ -26,12 +26,12 @@ impl StatusReporter {
             let yellow = console::Style::new().yellow();
             let red_bold = console::Style::new().red().bold();
 
+            let style = ProgressStyle::default_bar()
+                .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
+                .progress_chars("# ");
+
             let pb = ProgressBar::new(100);
-            pb.set_style(
-                ProgressStyle::default_bar()
-                    .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
-                    .progress_chars("# "),
-            );
+            pb.set_style(style);
             pb.set_prefix("Building");
 
             let mut current_targets: FxHashSet<Label> = FxHashSet::default();
@@ -132,12 +132,8 @@ impl StatusReporter {
                         }
 
                         HashedLabel { label, hash } => {
-                            let line = format!(
-                                "{:>12} {} ({})",
-                                purple.apply_to("Hashed"),
-                                label.to_string(),
-                                hash
-                            );
+                            let line =
+                                format!("{:>12} {} ({})", purple.apply_to("Hashed"), label, hash);
                             hashed_count.insert(label);
                             pb.println(line);
                         }
@@ -272,13 +268,13 @@ impl StatusReporter {
                             )
                             } else {
                                 format!(
-                                "{:>12} multiple goals in {}ms ({} targets, {} cached, {} errors): \n  ->{}",
+                                "{:>12} multiple goals in {} ({} targets, {} cached, {} errors): \n  ->{}",
                                 if errored {
                                     red_bold.apply_to("Finished with errors")
                                 } else {
                                     green_bold.apply_to("Finished")
                                 },
-                                t1.saturating_duration_since(build_started).as_millis(),
+                                indicatif::HumanDuration(t1.saturating_duration_since(build_started)),
                                 target_count.len(),
                                 cache_hits.len(),
                                 error_count,

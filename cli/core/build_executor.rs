@@ -1,5 +1,6 @@
 use super::Event;
 use super::*;
+use futures::StreamExt;
 use std::sync::Arc;
 use thiserror::*;
 use tokio_util::task::LocalPoolHandle;
@@ -18,6 +19,9 @@ pub enum BuildExecutorError {
 
     #[error("Could not queue everything to be executed")]
     CannotRunEverything,
+
+    #[error(transparent)]
+    WorkspaceScannerError(WorkspaceScannerError),
 }
 
 /// A BuildExecutor orchestrates the build process.
@@ -73,10 +77,7 @@ impl BuildExecutor {
 
         let build_queue = Arc::new(BuildQueue::new(
             build_results.clone(),
-            event_channel.clone(),
-            workspace.clone(),
             label_registry.clone(),
-            build_opts,
         ));
 
         let artifact_store = Arc::new(Store::new(&workspace, event_channel.clone()));
@@ -258,7 +259,10 @@ impl BuildExecutor {
         let build_results = self.build_results.clone();
         let event_channel = self.event_channel.clone();
         let label_registry = self.label_registry.clone();
+
         let root = self.workspace.paths.workspace_root.clone();
+        let workspace = self.workspace.clone();
+        let workspace_scanner = self.workspace.scanner();
 
         self.worker_pool.spawn_pinned(move || async move {
             if build_opts.experimental_file_mode {
@@ -308,12 +312,48 @@ impl BuildExecutor {
                     }
                 }
             } else if should_queue_everything {
-                let queued_count = build_queue
-                    .queue_entire_workspace()
-                    .await
-                    .map_err(BuildExecutorError::QueueError)?;
+                event_channel.send(Event::QueueingWorkspace);
 
-                if queued_count == 0 {
+                let mut target_count = 0;
+                let mut buildfiles = workspace_scanner
+                    .find_build_files(build_opts.concurrency_limit)
+                    .await
+                    .map_err(BuildExecutorError::WorkspaceScannerError)?;
+
+                while let Some(Ok(buildfile_path)) = buildfiles.next().await {
+                    let label = Label::builder()
+                        .with_workspace(&workspace)
+                        .from_path(buildfile_path.clone())
+                        .unwrap();
+
+                    let buildfile = Buildfile::from_label(&label).await;
+
+                    match buildfile {
+                        Err(err) => {
+                            event_channel.send(Event::BadBuildfile(buildfile_path, err));
+                            continue;
+                        }
+                        Ok(buildfile) => {
+                            for target in buildfile.targets {
+                                if build_opts.goal.includes(&target) {
+                                    let label = target.label.change_workspace(&workspace);
+                                    let label = label_registry.register_label(&label);
+                                    let goal = build_opts.goal;
+
+                                    build_queue
+                                        .queue(Task { label, goal })
+                                        .map_err(BuildExecutorError::QueueError)?;
+
+                                    target_count += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                event_channel.send(Event::QueuedTargets(target_count as u64));
+
+                if target_count == 0 {
                     event_channel.send(Event::EmptyWorkspace(std::time::Instant::now()));
                     build_coordinator.signal_shutdown();
                 }
