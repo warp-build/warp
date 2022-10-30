@@ -9,8 +9,7 @@ use structopt::StructOpt;
 use tokio::fs;
 use tracing::*;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
-use warp_core::Event;
-use warp_core::*;
+use warp_core::WarpEngine;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -93,44 +92,31 @@ impl Warp {
 
     #[tracing::instrument(name = "Warp::start")]
     async fn start(&mut self, t0: std::time::Instant) -> Result<(), anyhow::Error> {
-        // NOTE(@ostera): save the current directory, to return to it when we're done building
         let cwd = fs::canonicalize(PathBuf::from(&".")).await.unwrap();
-        let current_user = self.user.clone().unwrap_or_else(whoami::username);
-        let warp_home = self.warp_home.clone();
 
-        let event_channel = Arc::new(EventChannel::new());
-        event_channel.send(Event::BuildStarted(t0));
+        let warp = WarpEngine::builder()
+            .start_time(t0)
+            .invocation_dir(cwd)
+            .warp_root(self.warp_home.clone())
+            .current_user(self.user.clone().unwrap_or_else(whoami::username))
+            .build()?;
 
         match &self.cmd {
-            Some(Command::Init(x)) => {
-                return x.run(t0, &cwd, current_user.clone(), event_channel).await
-            }
-            Some(Command::Setup(x)) => return x.run(current_user.clone(), event_channel).await,
+            Some(Command::Init(x)) => return x.run(&warp).await,
+            Some(Command::Setup(x)) => return x.run(&warp).await,
             _ => (),
         };
 
-        let (root, workspace_file) = WorkspaceFile::find_upwards(&cwd).await?;
-
-        std::env::set_current_dir(&root)?;
-
-        let paths = WorkspacePaths::new(&root, warp_home, current_user.clone())?;
-
-        let workspace = Workspace::builder()
-            .current_user(current_user)
-            .paths(paths)
-            .from_file(workspace_file)
-            .await
-            .unwrap()
-            .build()?;
+        let warp = warp.initialize().await?;
 
         let result = self
             .cmd
             .take()
             .unwrap_or_else(|| Command::Build(BuildCommand::all()))
-            .run(t0, &cwd, workspace, event_channel)
+            .run(&warp)
             .await;
 
-        std::env::set_current_dir(&cwd)?;
+        warp.shutdown().await?;
 
         result
     }
@@ -148,25 +134,16 @@ enum Command {
 }
 
 impl Command {
-    #[tracing::instrument(name = "Command::run", skip(self, workspace))]
-    async fn run(
-        self,
-        build_started: std::time::Instant,
-        cwd: &PathBuf,
-        workspace: Workspace,
-        event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
+    #[tracing::instrument(name = "Command::run", skip(self, warp))]
+    async fn run(self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
         match self {
-            Command::Build(x) => x.run(workspace, event_channel).await,
-            Command::Info(x) => x.run(workspace, event_channel).await,
-            Command::Init(x) => {
-                x.run(build_started, cwd, workspace.current_user, event_channel)
-                    .await
-            }
-            Command::Run(x) => x.run(build_started, cwd, workspace, event_channel).await,
-            Command::Setup(x) => x.run(workspace.current_user, event_channel).await,
-            Command::Shell(x) => x.run(build_started, cwd, workspace, event_channel).await,
-            Command::Test(x) => x.run(build_started, cwd, workspace, event_channel).await,
+            Command::Build(x) => x.run(warp).await,
+            Command::Info(x) => x.run(warp).await,
+            Command::Init(x) => x.run(warp).await,
+            Command::Run(x) => x.run(warp).await,
+            Command::Setup(x) => x.run(warp).await,
+            Command::Shell(x) => x.run(warp).await,
+            Command::Test(x) => x.run(warp).await,
         }
     }
 }

@@ -1,5 +1,5 @@
 use anyhow::*;
-use std::{process::Stdio, sync::Arc};
+use std::process::Stdio;
 use structopt::StructOpt;
 use tokio::process::Command;
 use warp_core::*;
@@ -13,11 +13,7 @@ use warp_core::*;
 pub struct SetupCommand {}
 
 impl SetupCommand {
-    pub async fn run(
-        &self,
-        user: String,
-        _event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
+    pub async fn run(&self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
         println!(
             r#"
 
@@ -28,7 +24,7 @@ To do this, we need sudo permissions to:
 2. Make sure the Warp volume mounts on start up on the right place (hint: /warp)
 
 "#,
-            user,
+            warp.current_user,
         );
 
         let setup_script = include_str!("./setup.sh");

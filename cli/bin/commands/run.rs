@@ -39,45 +39,24 @@ build their dependencies and exit.
 }
 
 impl RunCommand {
-    pub async fn run(
-        self,
-        build_started: std::time::Instant,
-        cwd: &PathBuf,
-        workspace: Workspace,
-        event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
-        let label: Label = (&workspace.aliases)
+    pub async fn run(self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
+        let label: Label = (&warp.workspace.aliases)
             .get(&self.label)
             .cloned()
             .unwrap_or_else(|| {
                 Label::builder()
-                    .with_workspace(&workspace)
+                    .with_workspace(&warp.workspace)
                     .from_string(&self.label)
                     .unwrap()
             });
 
-        debug!("Host: {}", guess_host_triple::guess_host_triple().unwrap());
-        debug!("Target: {:#?}", &label);
-
-        if label.is_all() {
-            print!(
-                "You can't run everything. Please specify a target like this: warp build //my/app"
-            );
-            return Ok(());
-        }
-
-        let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
-
-        let local_outputs_root = workspace.paths.local_outputs_root.clone();
-        let warp = BuildExecutor::from_workspace(workspace, worker_limit);
-
-        let status_reporter = StatusReporter::new(event_channel.clone());
+        let status_reporter = StatusReporter::new(warp.event_channel.clone());
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],
-                event_channel.clone(),
                 BuildOpts {
                     goal: Goal::Run,
+                    concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
                     ..BuildOpts::default()
                 },
             ),
@@ -85,7 +64,11 @@ impl RunCommand {
         )
         .await;
 
-        if let Some((manifest, target)) = result?.get(0) {
+        if let Some(BuildResult {
+            target_manifest: manifest,
+            executable_target: target,
+        }) = result?.get(0)
+        {
             let mut provides_env = manifest.env_map();
 
             if !self.args.is_empty() {
@@ -95,8 +78,8 @@ impl RunCommand {
                         &self.args[0], &path
                     );
                     return self.run_cmd(
-                        build_started,
-                        cwd,
+                        &warp.start_time,
+                        &warp.invocation_dir,
                         label,
                         path.to_path_buf(),
                         provides_env,
@@ -112,8 +95,8 @@ impl RunCommand {
                     &path
                 );
                 return self.run_cmd(
-                    build_started,
-                    cwd,
+                    &warp.start_time,
+                    &warp.invocation_dir,
                     label,
                     path.to_path_buf(),
                     provides_env,
@@ -122,17 +105,24 @@ impl RunCommand {
             }
 
             if let Some(RunScript { run_script, env }) = &target.run_script {
-                let path = local_outputs_root.join(&run_script);
+                let path = warp.workspace.paths.local_outputs_root.join(&run_script);
                 debug!("Running default run_script ({:?})", &path);
                 provides_env.extend(env.clone());
-                return self.run_cmd(build_started, cwd, label, path, provides_env, &self.args);
+                return self.run_cmd(
+                    &warp.start_time,
+                    &warp.invocation_dir,
+                    label,
+                    path,
+                    provides_env,
+                    &self.args,
+                );
             }
 
             if !self.args.is_empty() {
                 debug!("Running command in environment");
                 return self.run_cmd(
-                    build_started,
-                    cwd,
+                    &warp.start_time,
+                    &warp.invocation_dir,
                     label,
                     PathBuf::from(self.args[0].to_string()),
                     provides_env,
@@ -146,7 +136,7 @@ impl RunCommand {
 
     fn run_cmd(
         &self,
-        build_started: std::time::Instant,
+        build_started: &std::time::Instant,
         cwd: &PathBuf,
         label: Label,
         bin: PathBuf,
@@ -171,7 +161,9 @@ impl RunCommand {
         let mut proc = cmd.spawn().unwrap();
 
         let t1 = std::time::Instant::now();
-        let delta = t1.saturating_duration_since(build_started).as_millis();
+        let delta = t1
+            .saturating_duration_since(build_started.clone())
+            .as_millis();
         debug!("Spawned program in {:?}ms", delta);
 
         trace!("Waiting on {:?}", &cmd);

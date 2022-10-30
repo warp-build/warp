@@ -40,32 +40,26 @@ impl BuildCommand {
         }
     }
 
-    #[tracing::instrument(name = "BuildCommand::run", skip(workspace))]
-    pub async fn run(
-        self,
-        workspace: Workspace,
-        event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
-        let label: Label = (&workspace.aliases)
+    #[tracing::instrument(name = "BuildCommand::run", skip(warp))]
+    pub async fn run(self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
+        let label: Label = (&warp.workspace.aliases)
             .get(&self.label)
             .cloned()
             .unwrap_or_else(|| {
                 Label::builder()
-                    .with_workspace(&workspace)
+                    .with_workspace(&warp.workspace)
                     .from_string(&self.label)
                     .unwrap()
             });
 
-        let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
-
-        let warp = BuildExecutor::from_workspace(workspace, worker_limit);
-
-        let status_reporter = StatusReporter::new(event_channel.clone());
+        let status_reporter = StatusReporter::new(warp.event_channel.clone());
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],
-                event_channel.clone(),
-                BuildOpts::default(),
+                BuildOpts {
+                    concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
+                    ..Default::default()
+                },
             ),
             status_reporter.run(&[label]),
         )

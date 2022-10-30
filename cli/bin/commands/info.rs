@@ -1,6 +1,5 @@
 use crate::reporter::*;
 use anyhow::*;
-use std::sync::Arc;
 use structopt::StructOpt;
 use warp_core::*;
 
@@ -29,46 +28,34 @@ Example: //my/library:shell
 }
 
 impl InfoCommand {
-    pub async fn run(
-        self,
-        workspace: Workspace,
-        event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
-        let label: Label = (&workspace.aliases)
+    pub async fn run(self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
+        let label: Label = (&warp.workspace.aliases)
             .get(&self.label)
             .cloned()
             .unwrap_or_else(|| {
                 Label::builder()
-                    .with_workspace(&workspace)
+                    .with_workspace(&warp.workspace)
                     .from_string(&self.label)
                     .unwrap()
             });
 
-        if label.is_all() {
-            return Err(anyhow!(
-                "You can't run everything. Please specify a target like this: warp build //my/app"
-            ));
-        }
-
-        let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
-
-        let warp = BuildExecutor::from_workspace(workspace, worker_limit);
-
-        let status_reporter = StatusReporter::new(event_channel.clone());
+        let status_reporter = StatusReporter::new(warp.event_channel.clone());
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],
-                event_channel.clone(),
-                BuildOpts::default(),
+                BuildOpts {
+                    concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
+                    ..Default::default()
+                },
             ),
             status_reporter.run(&[label.clone()]),
         )
         .await;
 
-        if let Some((manifest, _target)) = result?.get(0) {
+        if let Some(result) = result?.get(0) {
             println!(
                 "{}",
-                serde_json::to_value(manifest.as_ref().to_owned()).unwrap()
+                serde_json::to_value(result.target_manifest.as_ref().to_owned()).unwrap()
             );
             return Ok(());
         }

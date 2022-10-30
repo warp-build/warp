@@ -24,47 +24,33 @@ pub struct ShellCommand {
 }
 
 impl ShellCommand {
-    pub async fn run(
-        self,
-        build_started: std::time::Instant,
-        cwd: &PathBuf,
-        workspace: Workspace,
-        event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
+    pub async fn run(self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
         let label = Label::builder()
-            .with_workspace(&workspace)
+            .with_workspace(&warp.workspace)
             .from_string("//...")
             .unwrap();
 
-        let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
-
-        let warp = BuildExecutor::from_workspace(workspace.clone(), worker_limit);
-
-        let status_reporter = StatusReporter::new(event_channel.clone());
+        let status_reporter = StatusReporter::new(warp.event_channel.clone());
         let (result, ()) = futures::future::join(
-            warp.execute(
-                &[label.clone()],
-                event_channel.clone(),
-                BuildOpts::default(),
-            ),
+            warp.execute(&[label.clone()], BuildOpts::default()),
             status_reporter.run(&[label.clone()]),
         )
         .await;
 
-        result?;
+        let build_results = result?;
 
         let mut shell_env = HashMap::new();
-        for manifest in warp.manifests() {
-            shell_env.extend(manifest.env_map());
+        for result in &build_results {
+            shell_env.extend(result.target_manifest.env_map());
         }
         shell_env.insert(
             "PROMPT".to_string(),
-            format!("warp ({}) =>", &workspace.name),
+            format!("warp ({}) =>", &warp.workspace.name),
         );
 
         self.run_cmd(
-            build_started,
-            cwd,
+            &warp.start_time,
+            &warp.invocation_dir,
             label,
             PathBuf::from("/bin/zsh"),
             shell_env,
@@ -74,7 +60,7 @@ impl ShellCommand {
 
     fn run_cmd(
         &self,
-        build_started: std::time::Instant,
+        build_started: &std::time::Instant,
         cwd: &PathBuf,
         label: Label,
         bin: PathBuf,
@@ -105,7 +91,9 @@ impl ShellCommand {
         let mut proc = cmd.spawn().unwrap();
 
         let t1 = std::time::Instant::now();
-        let delta = t1.saturating_duration_since(build_started).as_millis();
+        let delta = t1
+            .saturating_duration_since(build_started.clone())
+            .as_millis();
         debug!("Spawned program in {:?}ms", delta);
 
         trace!("Waiting on {:?}", &cmd);

@@ -25,25 +25,18 @@ pub struct InitCommand {
 }
 
 impl InitCommand {
-    pub async fn run(
-        &self,
-        build_started: std::time::Instant,
-        cwd: &PathBuf,
-        current_user: String,
-        event_channel: Arc<EventChannel>,
-    ) -> Result<(), anyhow::Error> {
+    pub async fn run(&self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
         let theme = dialoguer::theme::ColorfulTheme::default();
 
         println!(
             "\nWelcome {}, let's create a Workspace for your crew.\n",
-            current_user,
+            warp.current_user,
         );
 
-        let workspace_root = std::fs::canonicalize(PathBuf::from("."))?;
+        let paths = WorkspacePaths::new(&warp.invocation_dir, None, warp.current_user.clone())?;
 
-        let paths = WorkspacePaths::new(&workspace_root, None, current_user.clone())?;
-
-        let current_dir = workspace_root
+        let current_dir = warp
+            .invocation_dir
             .file_name()
             .unwrap()
             .to_str()
@@ -63,7 +56,8 @@ impl InitCommand {
             .interact()?
             == "yes";
 
-        let toolchains_registry = ToolchainsRegistry::fetch(&paths, event_channel.clone()).await?;
+        let toolchains_registry =
+            ToolchainsRegistry::fetch(&paths, warp.event_channel.clone()).await?;
 
         let chosen_toolchains = MultiSelect::with_theme(&theme)
             .items(
@@ -129,10 +123,10 @@ impl InitCommand {
             })
             .build()?;
 
-        workspace_file.write(&workspace_root).await?;
+        workspace_file.write(&warp.invocation_dir).await?;
 
         let workspace = Workspace::builder()
-            .current_user(current_user)
+            .current_user(warp.current_user.clone())
             .paths(paths)
             .from_file(workspace_file)
             .await
@@ -141,20 +135,23 @@ impl InitCommand {
 
         let lifters: Vec<Label> = toolchains.iter().cloned().flat_map(|t| t.lifter).collect();
         if !lifters.is_empty() {
-            let worker_limit = self.max_workers.unwrap_or_else(num_cpus::get);
-            let warp = BuildExecutor::from_workspace(workspace, worker_limit);
-
-            let status_reporter = StatusReporter::new(event_channel.clone());
+            let status_reporter = StatusReporter::new(warp.event_channel.clone());
             let (lifters, ()) = futures::future::join(
-                warp.execute(&lifters, event_channel.clone(), BuildOpts::default()),
+                warp.execute(
+                    &lifters,
+                    BuildOpts {
+                        concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
+                        ..BuildOpts::default()
+                    },
+                ),
                 status_reporter.run(&lifters),
             )
             .await;
-            for (manifest, target) in lifters? {
+            for build_result in lifters? {
                 CommandRunner::builder()
-                    .cwd(cwd.to_path_buf())
-                    .manifest(manifest)
-                    .target(target)
+                    .cwd(warp.invocation_dir.to_path_buf())
+                    .manifest(build_result.target_manifest)
+                    .target(build_result.executable_target)
                     .stream_outputs(true)
                     .sandboxed(false)
                     .args(vec![])
