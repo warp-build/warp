@@ -102,7 +102,7 @@ impl Warp {
             .build()?;
 
         match &self.cmd {
-            Some(Command::Init(x)) => return x.run(&warp).await,
+            Some(Command::Init(x)) => return x.run(warp).await,
             Some(Command::Setup(x)) => return x.run(&warp).await,
             _ => (),
         };
@@ -139,11 +139,12 @@ impl Command {
         match self {
             Command::Build(x) => x.run(warp).await,
             Command::Info(x) => x.run(warp).await,
-            Command::Init(x) => x.run(warp).await,
             Command::Run(x) => x.run(warp).await,
-            Command::Setup(x) => x.run(warp).await,
             Command::Shell(x) => x.run(warp).await,
             Command::Test(x) => x.run(warp).await,
+            Command::Init(_) | Command::Setup(_) => {
+                panic!("Init and Setup should be handled especially since they consume the Engine")
+            }
         }
     }
 }

@@ -1,10 +1,7 @@
 use anyhow::*;
 use dialoguer::{Input, MultiSelect};
-use std::collections::{BTreeMap, HashMap};
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::collections::BTreeMap;
 use structopt::StructOpt;
-use tracing::*;
 use warp_core::*;
 
 use crate::reporter::StatusReporter;
@@ -25,7 +22,7 @@ pub struct InitCommand {
 }
 
 impl InitCommand {
-    pub async fn run(&self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
+    pub async fn run(&self, warp: WarpEngine) -> Result<(), anyhow::Error> {
         let theme = dialoguer::theme::ColorfulTheme::default();
 
         println!(
@@ -125,13 +122,7 @@ impl InitCommand {
 
         workspace_file.write(&warp.invocation_dir).await?;
 
-        let workspace = Workspace::builder()
-            .current_user(warp.current_user.clone())
-            .paths(paths)
-            .from_file(workspace_file)
-            .await
-            .unwrap()
-            .build()?;
+        let warp = warp.initialize().await?;
 
         let lifters: Vec<Label> = toolchains.iter().cloned().flat_map(|t| t.lifter).collect();
         if !lifters.is_empty() {

@@ -81,6 +81,8 @@ impl WarpEngine {
             .build()
             .map_err(WarpEngineError::WorkspaceError)?;
 
+        self.initialized = true;
+
         Ok(self)
     }
 
