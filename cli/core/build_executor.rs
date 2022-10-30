@@ -1,9 +1,8 @@
 use super::Event;
 use super::*;
-use futures::StreamExt;
 use std::sync::Arc;
 use thiserror::*;
-use tokio::time::Instant;
+use tokio_util::task::LocalPoolHandle;
 use tracing::*;
 
 #[derive(Error, Debug)]
@@ -46,6 +45,8 @@ pub struct BuildExecutor {
     rule_store: Arc<RuleStore>,
 
     target_executor: Arc<TargetExecutor>,
+
+    worker_pool: LocalPoolHandle,
 
     /// The workspace this worker is currently executing.
     workspace: Workspace,
@@ -97,6 +98,8 @@ impl BuildExecutor {
             event_channel.clone(),
         ));
 
+        let worker_pool = LocalPoolHandle::new(build_opts.concurrency_limit + 1);
+
         Ok(BuildExecutor {
             artifact_store,
             build_coordinator,
@@ -110,6 +113,7 @@ impl BuildExecutor {
             rule_store,
             target_executor,
             workspace,
+            worker_pool,
         })
     }
 
@@ -121,183 +125,16 @@ impl BuildExecutor {
             return Ok(());
         }
 
-        let should_queue_everything = targets.iter().any(|t| t.is_all());
-        if should_queue_everything && self.build_opts.goal.is_run() {
-            self.event_channel
-                .send(Event::BuildCompleted(std::time::Instant::now()));
-            return Err(BuildExecutorError::CannotRunEverything);
-        }
-
-        let share_rule_executor_state = Arc::new(SharedRuleExecutorState::new(
-            self.rule_store.clone(),
-            self.build_results.clone(),
-        ));
+        let queuer_worker = self.spawn_queuer_worker(targets);
 
         let mut worker_tasks = vec![];
-        let worker_pool =
-            tokio_util::task::LocalPoolHandle::new(self.build_opts.concurrency_limit + 1);
-
         if self.build_opts.concurrency_limit > 0 {
             for worker_id in 1..self.build_opts.concurrency_limit {
-                let sub_worker_span = trace_span!("BuildExecutor::sub_worker");
-
-                let artifact_store = self.artifact_store.clone();
-                let build_coordinator = self.build_coordinator.clone();
-                let build_opts = self.build_opts;
-                let build_queue = self.build_queue.clone();
-                let build_results = self.build_results.clone();
-                let event_channel = self.event_channel.clone();
-                let label_registry = self.label_registry.clone();
-                let label_resolver = self.label_resolver.clone();
-                let target_executor = self.target_executor.clone();
-
-                let share_rule_executor_state = share_rule_executor_state.clone();
-
-                let thread = worker_pool.spawn_pinned(move || async move {
-                    let mut worker = BuildWorker::new(
-                        Role::HelperWorker(worker_id),
-                        build_coordinator,
-                        event_channel,
-                        build_queue,
-                        build_results,
-                        label_registry,
-                        label_resolver,
-                        target_executor,
-                        artifact_store,
-                        share_rule_executor_state,
-                        build_opts,
-                    )
-                    .map_err(BuildExecutorError::WorkerError)?;
-
-                    worker
-                        .setup_and_run()
-                        .instrument(sub_worker_span)
-                        .await
-                        .map_err(BuildExecutorError::WorkerError)
-                });
-                worker_tasks.push(thread);
+                worker_tasks.push(self.spawn_helper(worker_id));
             }
         }
 
-        let targets: Vec<LabelId> = targets
-            .iter()
-            .map(|t| self.label_registry.register_label(t))
-            .collect();
-
-        let build_coordinator = self.build_coordinator.clone();
-        let build_opts = self.build_opts;
-        let build_queue = self.build_queue.clone();
-        let build_results = self.build_results.clone();
-        let event_channel = self.event_channel.clone();
-        let label_registry = self.label_registry.clone();
-        let root = self.workspace.paths.workspace_root.clone();
-        let queuer_worker: tokio::task::JoinHandle<Result<(), BuildExecutorError>> = worker_pool
-            .spawn_pinned(move || async move {
-                if build_opts.experimental_file_mode {
-                    let skip_patterns = {
-                        let mut builder = globset::GlobSetBuilder::new();
-                        for pattern in &[
-                            "*target*",
-                            "*_build*",
-                            "*.warp*",
-                            "*warp-outputs*",
-                            "*.git*",
-                        ] {
-                            let glob = globset::Glob::new(pattern).unwrap();
-                            builder.add(glob);
-                        }
-                        builder.build().unwrap()
-                    };
-
-                    let mut dirs = vec![root.clone()];
-                    while let Some(dir) = dirs.pop() {
-                        let mut read_dir = tokio::fs::read_dir(&dir).await.unwrap();
-
-                        while let Ok(Some(entry)) = read_dir.next_entry().await {
-                            let path = entry.path().clone();
-
-                            if skip_patterns.is_match(&path) {
-                                continue;
-                            }
-
-                            let file_type = entry.metadata().await.unwrap().file_type();
-                            if file_type.is_dir() {
-                                dirs.push(path.clone());
-                                continue;
-                            };
-
-                            let path = path.strip_prefix(&root).unwrap().to_path_buf();
-
-                            let label = label_registry
-                                .register_label(&Label::builder().from_path(path).unwrap());
-
-                            build_queue
-                                .queue(Task {
-                                    label,
-                                    goal: build_opts.goal,
-                                })
-                                .unwrap();
-                        }
-                    }
-                } else if should_queue_everything {
-                    let queued_count = build_queue
-                        .queue_entire_workspace()
-                        .await
-                        .map_err(BuildExecutorError::QueueError)?;
-
-                    if queued_count == 0 {
-                        event_channel.send(Event::EmptyWorkspace(std::time::Instant::now()));
-                        build_coordinator.signal_shutdown();
-                    }
-                } else {
-                    for target in &targets {
-                        build_queue
-                            .queue(Task {
-                                label: *target,
-                                goal: build_opts.goal,
-                            })
-                            .map_err(BuildExecutorError::QueueError)?;
-                    }
-                }
-
-                build_results.mark_as_ready();
-
-                Ok(())
-            });
-
-        let main_worker_span = trace_span!("BuildExecutor::main_worker");
-        let artifact_store = self.artifact_store.clone();
-        let build_coordinator = self.build_coordinator.clone();
-        let build_opts = self.build_opts;
-        let build_queue = self.build_queue.clone();
-        let build_results = self.build_results.clone();
-        let event_channel = self.event_channel.clone();
-        let label_registry = self.label_registry.clone();
-        let label_resolver = self.label_resolver.clone();
-        let target_executor = self.target_executor.clone();
-        let share_rule_executor_state = share_rule_executor_state.clone();
-        let main_worker = worker_pool.spawn_pinned(move || async move {
-            let mut worker = BuildWorker::new(
-                Role::MainWorker,
-                build_coordinator.clone(),
-                event_channel.clone(),
-                build_queue.clone(),
-                build_results.clone(),
-                label_registry.clone(),
-                label_resolver.clone(),
-                target_executor.clone(),
-                artifact_store.clone(),
-                share_rule_executor_state.clone(),
-                build_opts,
-            )
-            .map_err(BuildExecutorError::WorkerError)?;
-
-            worker
-                .setup_and_run()
-                .instrument(main_worker_span)
-                .await
-                .map_err(BuildExecutorError::WorkerError)
-        });
+        let main_worker = self.spawn_main_worker();
 
         let (helper_results, main_result, queuer_result) = futures::future::join3(
             futures::future::join_all(worker_tasks),
@@ -317,5 +154,183 @@ impl BuildExecutor {
 
     pub fn get_results(&self) -> Vec<BuildResult> {
         self.build_results.get_results().to_vec()
+    }
+
+    fn spawn_helper(
+        &self,
+        worker_id: usize,
+    ) -> tokio::task::JoinHandle<Result<(), BuildExecutorError>> {
+        let sub_worker_span = trace_span!("BuildExecutor::sub_worker");
+
+        let artifact_store = self.artifact_store.clone();
+        let build_coordinator = self.build_coordinator.clone();
+        let build_opts = self.build_opts;
+        let build_queue = self.build_queue.clone();
+        let build_results = self.build_results.clone();
+        let event_channel = self.event_channel.clone();
+        let label_registry = self.label_registry.clone();
+        let label_resolver = self.label_resolver.clone();
+        let target_executor = self.target_executor.clone();
+
+        let shared_rule_executor_state = Arc::new(SharedRuleExecutorState::new(
+            self.rule_store.clone(),
+            self.build_results.clone(),
+        ));
+
+        self.worker_pool.spawn_pinned(move || async move {
+            let mut worker = BuildWorker::new(
+                Role::HelperWorker(worker_id),
+                build_coordinator,
+                event_channel,
+                build_queue,
+                build_results,
+                label_registry,
+                label_resolver,
+                target_executor,
+                artifact_store,
+                shared_rule_executor_state,
+                build_opts,
+            )
+            .map_err(BuildExecutorError::WorkerError)?;
+
+            worker
+                .setup_and_run()
+                .instrument(sub_worker_span)
+                .await
+                .map_err(BuildExecutorError::WorkerError)
+        })
+    }
+
+    fn spawn_main_worker(&self) -> tokio::task::JoinHandle<Result<(), BuildExecutorError>> {
+        let main_worker_span = trace_span!("BuildExecutor::main_worker");
+        let artifact_store = self.artifact_store.clone();
+        let build_coordinator = self.build_coordinator.clone();
+        let build_opts = self.build_opts;
+        let build_queue = self.build_queue.clone();
+        let build_results = self.build_results.clone();
+        let event_channel = self.event_channel.clone();
+        let label_registry = self.label_registry.clone();
+        let label_resolver = self.label_resolver.clone();
+        let target_executor = self.target_executor.clone();
+
+        let shared_rule_executor_state = Arc::new(SharedRuleExecutorState::new(
+            self.rule_store.clone(),
+            self.build_results.clone(),
+        ));
+
+        self.worker_pool.spawn_pinned(move || async move {
+            let mut worker = BuildWorker::new(
+                Role::MainWorker,
+                build_coordinator.clone(),
+                event_channel.clone(),
+                build_queue.clone(),
+                build_results.clone(),
+                label_registry.clone(),
+                label_resolver.clone(),
+                target_executor.clone(),
+                artifact_store.clone(),
+                shared_rule_executor_state,
+                build_opts,
+            )
+            .map_err(BuildExecutorError::WorkerError)?;
+
+            worker
+                .setup_and_run()
+                .instrument(main_worker_span)
+                .await
+                .map_err(BuildExecutorError::WorkerError)
+        })
+    }
+
+    fn spawn_queuer_worker(
+        &self,
+        targets: &[Label],
+    ) -> tokio::task::JoinHandle<Result<(), BuildExecutorError>> {
+        let should_queue_everything = targets.iter().any(|t| t.is_all());
+        let targets: Vec<LabelId> = targets
+            .iter()
+            .map(|t| self.label_registry.register_label(t))
+            .collect();
+
+        let build_coordinator = self.build_coordinator.clone();
+        let build_opts = self.build_opts;
+        let build_queue = self.build_queue.clone();
+        let build_results = self.build_results.clone();
+        let event_channel = self.event_channel.clone();
+        let label_registry = self.label_registry.clone();
+        let root = self.workspace.paths.workspace_root.clone();
+
+        self.worker_pool.spawn_pinned(move || async move {
+            if build_opts.experimental_file_mode {
+                let skip_patterns = {
+                    let mut builder = globset::GlobSetBuilder::new();
+                    for pattern in &[
+                        "*target*",
+                        "*_build*",
+                        "*.warp*",
+                        "*warp-outputs*",
+                        "*.git*",
+                    ] {
+                        let glob = globset::Glob::new(pattern).unwrap();
+                        builder.add(glob);
+                    }
+                    builder.build().unwrap()
+                };
+
+                let mut dirs = vec![root.clone()];
+                while let Some(dir) = dirs.pop() {
+                    let mut read_dir = tokio::fs::read_dir(&dir).await.unwrap();
+
+                    while let Ok(Some(entry)) = read_dir.next_entry().await {
+                        let path = entry.path().clone();
+
+                        if skip_patterns.is_match(&path) {
+                            continue;
+                        }
+
+                        let file_type = entry.metadata().await.unwrap().file_type();
+                        if file_type.is_dir() {
+                            dirs.push(path.clone());
+                            continue;
+                        };
+
+                        let path = path.strip_prefix(&root).unwrap().to_path_buf();
+
+                        let label = label_registry
+                            .register_label(&Label::builder().from_path(path).unwrap());
+
+                        build_queue
+                            .queue(Task {
+                                label,
+                                goal: build_opts.goal,
+                            })
+                            .unwrap();
+                    }
+                }
+            } else if should_queue_everything {
+                let queued_count = build_queue
+                    .queue_entire_workspace()
+                    .await
+                    .map_err(BuildExecutorError::QueueError)?;
+
+                if queued_count == 0 {
+                    event_channel.send(Event::EmptyWorkspace(std::time::Instant::now()));
+                    build_coordinator.signal_shutdown();
+                }
+            } else {
+                for target in &targets {
+                    build_queue
+                        .queue(Task {
+                            label: *target,
+                            goal: build_opts.goal,
+                        })
+                        .map_err(BuildExecutorError::QueueError)?;
+                }
+            }
+
+            build_results.mark_as_ready();
+
+            Ok(())
+        })
     }
 }
