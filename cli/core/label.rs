@@ -13,6 +13,82 @@ static COLON: char = ':';
 static DOT: char = '.';
 static WILDCARD: &str = "//...";
 
+/// A wildcard Label is a placeholder for all the labels (concrete and abstract), living
+/// under a 
+pub struct WildcardLabel {
+    /// The absolute path to the workspace where this label is pointing.
+    ///
+    workspace: PathBuf,
+
+    /// The prefix of this workspace to be used as a filter when queueing the entire workspace.
+    ///
+    prefix: Option<PathBuf>,
+}
+
+/// Local Labels are Labels that point to a specific file on disk.
+/// These may belong to the current or to another workspace.
+///
+pub struct LocalLabel {
+    /// The absolute path to the workspace where this file lives.
+    ///
+    workspace: PathBuf,
+
+    /// The relative path to the file from `workspace`
+    ///
+    file: PathBuf,
+
+    /// An optional Label from which the current label was promoted. Label promotion usually
+    /// happens when we grab an Remote Label and turn it into a Local label.
+    ///
+    promoted_from: Option<Box<RemoteLabel>>,
+
+    /// An associated URL, primarily used for printing concrete labels that have been
+    /// reparented to a new Workspace.
+    ///
+    /// In that case, the `file` path will not point to a path within the current workspace,
+    /// and printing it prefixed by `workspace` will yield long, scary paths like:
+    ///
+    /// ```
+    ///   "/warp/store/d688e48f34895dd351f3cb722b5531558eb47aaa22fd3f81cba3a614fc461306-e6a4dc99c0c9f17a6d4d865e40aefc409986f849/69487aa53056d26251dce8f828d4e986c7a765537bde51d296309aab0a95b5af/src/app_config.erl"
+    /// ```
+    ///
+    /// whereas a much cleaner path could be:
+    ///
+    /// ```
+    ///   "https://gitlab.com/leapsight/key_value/src/app_config.erl"
+    /// ```
+    ///
+    /// We put this together by using this `associated_url` field and the `file` field.
+    ///
+    associated_url: Option<Url>,
+}
+
+/// Target Labels are Labels that point to a specific Target within a Signature.
+///
+pub struct TargetLabel {
+    file_label: LocalLabel,
+}
+
+/// Remote Labels are Labels built from a URL. They may be 
+///
+pub struct RemoteLabel {
+    /// The URL used to create this label.
+    ///
+    url: String,
+
+    host: String,
+
+    prefix_hash: String,
+
+    path: String,
+}
+
+pub enum Label2 {
+    Wildcard(WildcardLabel),
+    Local(LocalLabel),
+    Remote(RemoteLabel),
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum LocalLabelKind {
     Relative,
