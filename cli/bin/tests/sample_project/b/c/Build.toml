@@ -1,8 +1,0 @@
-# [[erlang_library]]
-# name = "lib"
-# deps = [ "//a:lib", "//b:lib" ]
-# 
-# [[archive]]
-# name = "my_archive"
-# srcs = []
-# deps = [ ":lib", "//a:lib" ]

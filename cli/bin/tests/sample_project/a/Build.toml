@@ -1,7 +1,0 @@
-[[erlang_library]]
-name = "lib"
-
-[[erlang_application]]
-name = "a_app"
-app_src = "a.app.src"
-deps = [ ":lib" ]
