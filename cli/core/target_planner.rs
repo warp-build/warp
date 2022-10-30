@@ -6,7 +6,7 @@ pub struct TargetPlanner {
     build_results: Arc<BuildResults>,
     rule_store: Arc<RuleStore>,
     rule_executor: RuleExecutor,
-    store: Arc<Store>,
+    artifact_store: Arc<ArtifactStore>,
     label_registry: Arc<LabelRegistry>,
 }
 
@@ -34,17 +34,17 @@ pub enum TargetPlannerError {
 impl TargetPlanner {
     #[tracing::instrument(
         name = "TargetPlanner::new",
-        skip(build_results, store, share_rule_executor_state)
+        skip(build_results, artifact_store, share_rule_executor_state)
     )]
     pub fn new(
         build_results: Arc<BuildResults>,
-        store: Arc<Store>,
+        artifact_store: Arc<ArtifactStore>,
         share_rule_executor_state: Arc<SharedRuleExecutorState>,
         label_registry: Arc<LabelRegistry>,
     ) -> Result<Self, TargetPlannerError> {
         Ok(Self {
             build_results,
-            store,
+            artifact_store,
             rule_store: share_rule_executor_state.rule_store.clone(),
             rule_executor: RuleExecutor::new(share_rule_executor_state)
                 .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))?,
@@ -55,7 +55,7 @@ impl TargetPlanner {
     #[tracing::instrument(name = "TargetPlanner::update", skip(self, target))]
     pub async fn update(&mut self, target: &ExecutableTarget) -> Result<(), TargetPlannerError> {
         self.rule_executor
-            .update_provide_map(target, &self.store)
+            .update_provide_map(target, &self.artifact_store)
             .await
             .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))
     }

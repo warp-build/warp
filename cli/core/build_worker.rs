@@ -68,7 +68,7 @@ impl BuildWorker {
         label_registry: Arc<LabelRegistry>,
         label_resolver: Arc<LabelResolver>,
         target_executor: Arc<TargetExecutor>,
-        store: Arc<Store>,
+        artifact_store: Arc<ArtifactStore>,
         share_rule_executor_state: Arc<SharedRuleExecutorState>,
         build_opts: BuildOpts,
     ) -> Result<Self, BuildWorkerError> {
@@ -76,7 +76,7 @@ impl BuildWorker {
 
         let target_planner = TargetPlanner::new(
             build_results.clone(),
-            store,
+            artifact_store,
             share_rule_executor_state,
             label_registry.clone(),
         )
@@ -144,6 +144,7 @@ impl BuildWorker {
             let mut f = fs::File::open(&label.path())
                 .await
                 .unwrap_or_else(|_| panic!("ERR: {:?}", label.path()));
+
             let mut buffer = Vec::with_capacity(2048);
             f.read_to_end(&mut buffer).await.unwrap();
             let mut s = Sha256::new();
@@ -394,7 +395,7 @@ mod tests {
             w.clone(),
         ));
         let lr = Arc::new(LabelResolver::new(&w));
-        let s = Arc::new(Store::new(&w));
+        let s = Arc::new(ArtifactStore::new(&w));
         let te = Arc::new(TargetExecutor::new(s.clone(), ec.clone()));
         let rs = Arc::new(RuleStore::new(&w));
         let sres = Arc::new(SharedRuleExecutorState::new(rs.clone()));

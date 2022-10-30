@@ -43,12 +43,16 @@ pub struct RemoteWorkspaceResolver {
     archive_manager: ArchiveManager,
     workspaces: DashMap<String, Workspace>,
     targets: DashMap<Label, Target>,
-    store: Arc<Store>,
+    artifact_store: Arc<ArtifactStore>,
 }
 
 impl RemoteWorkspaceResolver {
     #[tracing::instrument(name = "RemoteWorkspaceResolver::new", skip(workspace))]
-    pub fn new(workspace: &Workspace, store: Arc<Store>, event_channel: Arc<EventChannel>) -> Self {
+    pub fn new(
+        workspace: &Workspace,
+        artifact_store: Arc<ArtifactStore>,
+        event_channel: Arc<EventChannel>,
+    ) -> Self {
         Self {
             root_workspace: workspace.clone(),
             remote_workspace_configs: {
@@ -62,7 +66,7 @@ impl RemoteWorkspaceResolver {
             targets: DashMap::new(),
             workspaces: DashMap::new(),
             archive_manager: ArchiveManager::new(workspace, event_channel),
-            store,
+            artifact_store,
         }
     }
 
@@ -156,7 +160,7 @@ impl RemoteWorkspaceResolver {
                 .build()
                 .unwrap();
 
-            self.store.register_workspace(&workspace);
+            self.artifact_store.register_workspace(&workspace);
 
             self.workspaces.insert(host.clone(), workspace.clone());
 

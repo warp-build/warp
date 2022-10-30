@@ -47,7 +47,7 @@ pub struct DependencyResolver {
     build_results: Arc<BuildResults>,
     label_registry: Arc<LabelRegistry>,
     event_channel: Arc<EventChannel>,
-    store: Arc<Store>,
+    artifact_store: Arc<ArtifactStore>,
     archive_manager: ArchiveManager,
 }
 
@@ -57,14 +57,14 @@ impl DependencyResolver {
         workspace: &Workspace,
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
-        store: Arc<Store>,
+        artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
         dependency_manager: Arc<DependencyManager>,
     ) -> Self {
         let this = Self {
             archive_manager: ArchiveManager::new(workspace, event_channel.clone()),
             build_results,
-            store,
+            artifact_store,
             targets: DashMap::new(),
             resolvers: DashMap::new(),
             event_channel,
@@ -174,7 +174,7 @@ impl DependencyResolver {
             )
         };
 
-        self.store
+        self.artifact_store
             .register_workspace_raw(final_dir.clone(), PathBuf::from(workspace_name));
 
         // -- interlude --

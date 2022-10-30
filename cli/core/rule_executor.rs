@@ -349,7 +349,7 @@ pub enum RuleExecutorError {
     RuleNotFound { rule_name: String },
 
     #[error(transparent)]
-    StoreError(StoreError),
+    ArtifactStoreError(ArtifactStoreError),
 }
 
 /// The Rule Execution Environment abstracts away the communication between the TargetManifest Graph
@@ -456,16 +456,19 @@ impl RuleExecutor {
         Ok(rule_executor)
     }
 
-    #[tracing::instrument(name = "RuleExecutor::update_provide_map", skip(self, node, store))]
+    #[tracing::instrument(
+        name = "RuleExecutor::update_provide_map",
+        skip(self, node, artifact_store)
+    )]
     pub async fn update_provide_map(
         &self,
         node: &ExecutableTarget,
-        store: &Store,
+        artifact_store: &ArtifactStore,
     ) -> Result<(), RuleExecutorError> {
-        let abs_node_path = store
+        let abs_node_path = artifact_store
             .absolute_path_by_node(node)
             .await
-            .map_err(RuleExecutorError::StoreError)?;
+            .map_err(RuleExecutorError::ArtifactStoreError)?;
 
         let provides = if let Some(provides) = self.provides_map.get(&node.label) {
             let mut new_provides = FxHashMap::default();

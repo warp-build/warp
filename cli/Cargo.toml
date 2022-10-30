@@ -1,0 +1,10 @@
+[workspace]
+members = [
+  "bin",
+  "core",
+]
+resolver="2"
+
+[profile.release]
+opt-level = 3
+lto = true

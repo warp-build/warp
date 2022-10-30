@@ -46,7 +46,7 @@ And try running the command again to see what the right `sha1` should be.
 impl LabelResolver {
     pub fn new(
         workspace: &Workspace,
-        store: Arc<Store>,
+        artifact_store: Arc<ArtifactStore>,
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
         label_registry: Arc<LabelRegistry>,
@@ -54,7 +54,7 @@ impl LabelResolver {
     ) -> Self {
         let remote_workspace_resolver = Arc::new(RemoteWorkspaceResolver::new(
             workspace,
-            store.clone(),
+            artifact_store.clone(),
             event_channel.clone(),
         ));
         Self {
@@ -63,7 +63,7 @@ impl LabelResolver {
                 workspace,
                 build_results,
                 event_channel,
-                store,
+                artifact_store,
                 label_registry.clone(),
                 dependency_manager,
             ),

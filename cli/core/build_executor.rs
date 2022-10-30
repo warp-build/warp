@@ -28,7 +28,7 @@ pub enum BuildExecutorError {
 ///
 #[derive(Builder, Clone, Debug)]
 pub struct BuildExecutor {
-    artifact_store: Arc<Store>,
+    artifact_store: Arc<ArtifactStore>,
 
     build_coordinator: Arc<BuildCoordinator>,
 
@@ -80,7 +80,7 @@ impl BuildExecutor {
             label_registry.clone(),
         ));
 
-        let artifact_store = Arc::new(Store::new(&workspace, event_channel.clone()));
+        let artifact_store = Arc::new(ArtifactStore::new(&workspace, event_channel.clone()));
 
         let rule_store = Arc::new(RuleStore::new(&workspace));
 

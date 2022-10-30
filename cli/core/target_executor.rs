@@ -15,13 +15,13 @@ use tracing::*;
 pub struct TargetExecutor {
     event_channel: Arc<EventChannel>,
     build_results: Arc<BuildResults>,
-    store: Arc<Store>,
+    artifact_store: Arc<ArtifactStore>,
 }
 
 #[derive(Error, Debug)]
 pub enum TargetExecutorError {
     #[error(transparent)]
-    StoreError(StoreError),
+    ArtifactStoreError(ArtifactStoreError),
 
     #[error("When building {label:?}, could not create directory {dst:?} at: {dst_parent:?}")]
     CouldNotCreateDir {
@@ -59,12 +59,12 @@ pub enum ValidationStatus {
 
 impl TargetExecutor {
     pub fn new(
-        store: Arc<Store>,
+        artifact_store: Arc<ArtifactStore>,
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
     ) -> Self {
         Self {
-            store,
+            artifact_store,
             event_channel,
             build_results,
         }
@@ -78,35 +78,35 @@ impl TargetExecutor {
         let build_started_at = chrono::Utc::now();
 
         let _lock = self
-            .store
+            .artifact_store
             .lock(target)
             .await
-            .map_err(TargetExecutorError::StoreError)?;
+            .map_err(TargetExecutorError::ArtifactStoreError)?;
 
-        if let StoreHitType::Hit(manifest) = self
-            .store
+        if let ArtifactStoreHitType::Hit(manifest) = self
+            .artifact_store
             .is_stored(target)
             .await
-            .map_err(TargetExecutorError::StoreError)?
+            .map_err(TargetExecutorError::ArtifactStoreError)?
         {
-            self.store
+            self.artifact_store
                 .promote_outputs(&manifest)
                 .await
-                .map_err(TargetExecutorError::StoreError)?;
+                .map_err(TargetExecutorError::ArtifactStoreError)?;
 
             return Ok((*manifest, ValidationStatus::Cached));
         }
 
-        self.store
+        self.artifact_store
             .clean(target)
             .await
-            .map_err(TargetExecutorError::StoreError)?;
+            .map_err(TargetExecutorError::ArtifactStoreError)?;
 
         let store_path = self
-            .store
+            .artifact_store
             .absolute_path_by_node(target)
             .await
-            .map_err(TargetExecutorError::StoreError)?;
+            .map_err(TargetExecutorError::ArtifactStoreError)?;
 
         let env = self.shell_env(&store_path, target);
 
@@ -125,15 +125,15 @@ impl TargetExecutor {
         );
 
         if manifest.is_valid {
-            self.store
+            self.artifact_store
                 .promote_outputs(&manifest)
                 .await
-                .map_err(TargetExecutorError::StoreError)?;
+                .map_err(TargetExecutorError::ArtifactStoreError)?;
 
-            self.store
+            self.artifact_store
                 .save(target, &manifest)
                 .await
-                .map_err(TargetExecutorError::StoreError)?;
+                .map_err(TargetExecutorError::ArtifactStoreError)?;
         }
 
         Ok((manifest, validation_result))
@@ -209,10 +209,10 @@ impl TargetExecutor {
             .flat_map(|d| self.build_results.get_manifest(*d))
         {
             let dep_src = self
-                .store
+                .artifact_store
                 .absolute_path_by_dep(dep.as_ref())
                 .await
-                .map_err(TargetExecutorError::StoreError)?;
+                .map_err(TargetExecutorError::ArtifactStoreError)?;
 
             for out in dep.outs.iter() {
                 let src = dep_src.join(&out);
