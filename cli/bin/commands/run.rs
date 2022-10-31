@@ -67,7 +67,10 @@ impl RunCommand {
         if let Some(BuildResult {
             target_manifest: manifest,
             executable_target: target,
-        }) = warp.get_results().get(0)
+        }) = warp
+            .get_results()
+            .iter()
+            .find(|br| br.target_manifest.label == label)
         {
             let mut provides_env = manifest.env_map();
 

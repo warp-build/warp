@@ -53,7 +53,11 @@ impl InfoCommand {
         .await;
         result?;
 
-        if let Some(result) = warp.get_results().get(0) {
+        if let Some(result) = warp
+            .get_results()
+            .iter()
+            .find(|br| br.target_manifest.label == label)
+        {
             println!(
                 "{}",
                 serde_json::to_value(result.target_manifest.as_ref().to_owned()).unwrap()
