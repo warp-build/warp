@@ -3,7 +3,7 @@ export const TS_EXT = ".ts";
 
 const impl = ctx => {
   const { host } = ctx.env();
-  const { version, sha1_aarch64, sha1_x86_64 } = ctx.cfg();
+  const { cwd, sha1_aarch64, toolchains, targets } = ctx.cfg();
 
   let arch = host.arch
   let sha1 = sha1_aarch64
@@ -21,10 +21,34 @@ const impl = ctx => {
   ctx.action().runShell({
     script: `
 
-RUSTUP_HOME=$(pwd)/.rustup
-./${rustup_init} -y --no-modify-path
+RUSTUP_HOME=$(pwd)/.rustup ./${rustup_init} -y --no-modify-path
 
 `
+  });
+
+  let outputs = [
+    `.rustup/settings.toml`,
+    ...toolchains.flatMap(t => [
+      `.rustup/toolchains/${t}/bin`,
+      `.rustup/toolchains/${t}/lib`,
+      `.rustup/toolchains/${t}/libexec`,
+    ])
+  ]
+
+  ctx.action().declareOutputs(outputs);
+
+  let root = `.rustup/toolchains/${toolchains[0]}/bin`;
+  ctx.provides({
+    "cargo": `${root}/cargo`,
+    "cargo-clippy": `${root}/cargo-clippy`,
+    "cargo-fmt": `${root}/cargo-fmt`,
+    "clippy-driver": `${root}/clippy-driver`,
+    "rust-gdb": `${root}/rust-gdb`,
+    "rust-gdbgui": `${root}/rust-gdbgui`,
+    "rust-lldb": `${root}/rust-lldb`,
+    "rustc": `${root}/rustc`,
+    "rustdoc": `${root}/rustdoc`,
+    "rustfmt": `${root}/rustfmt`,
   });
 };
 
@@ -33,7 +57,8 @@ export default Warp.Toolchain({
   mnemonic: "Rust",
   impl,
   cfg: {
-    version: string(),
+    toolchains: [string()],
+    targets: [string()],
     sha1_aarch64: string(),
   }
 });
