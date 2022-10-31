@@ -89,7 +89,7 @@ impl InitCommand {
                 let mut map = BTreeMap::new();
                 map.insert(
                     "erlang".to_string(),
-                    "https://pkgs.warp.build/toolchains/erlang".to_string(),
+                    "https://rules.warp.build/toolchains/erlang".to_string(),
                 );
                 map
             })

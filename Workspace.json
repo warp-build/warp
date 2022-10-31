@@ -26,16 +26,16 @@
     }
   },
   "aliases": {
-    "deno": "https://pkgs.warp.build/toolchains/deno",
-    "ruby": "https://pkgs.warp.build/toolchains/ruby",
-    "elixir": "https://pkgs.warp.build/toolchains/elixir",
-    "erlang": "https://pkgs.warp.build/toolchains/erlang",
-    "firefly": "https://pkgs.warp.build/toolchains/firefly",
-    "flyctl": "https://pkgs.warp.build/toolchains/flyctl",
-    "node": "https://pkgs.warp.build/toolchains/node",
-    "rescript": "https://pkgs.warp.build/toolchains/rescript",
-    "terraform": "https://pkgs.warp.build/toolchains/terraform",
-    "python": "https://pkgs.warp.build/toolchains/python"
+    "deno": "https://rules.warp.build/toolchains/deno",
+    "ruby": "https://rules.warp.build/toolchains/ruby",
+    "elixir": "https://rules.warp.build/toolchains/elixir",
+    "erlang": "https://rules.warp.build/toolchains/erlang",
+    "firefly": "https://rules.warp.build/toolchains/firefly",
+    "flyctl": "https://rules.warp.build/toolchains/flyctl",
+    "node": "https://rules.warp.build/toolchains/node",
+    "rescript": "https://rules.warp.build/toolchains/rescript",
+    "terraform": "https://rules.warp.build/toolchains/terraform",
+    "python": "https://rules.warp.build/toolchains/python"
   },
   "toolchains": {
     "git": {
