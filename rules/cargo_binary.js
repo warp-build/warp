@@ -1,18 +1,17 @@
 import RustToolchain from "https://rules.warp.build/toolchains/rust.js";
 
 const impl = ctx => {
-  const { cwd, label, name, src, bin } = ctx.cfg();
+  const { cwd, label, name, bin } = ctx.cfg();
 
-  const exe = `${cwd()}/target/debug/${name}`
+  const exe = `${cwd()}/target/debug/${bin}`
   ctx.action().declareOutputs([exe]);
   ctx.action().declareRunScript(exe);
 
-  const { cargo } = RustToolchain.provides()
   ctx.action().runShell({
     script: `#!/bin/bash
 
-cd ${cwd}
-${cargo} build --bin ${bin}
+cd ${cwd()}
+cargo build
 
 `,
   })
@@ -24,8 +23,8 @@ export default Warp.Rule({
   impl,
   cfg: {
     name: label(),
-    src: file(),
     bin: string(),
+    srcs: [file()],
     deps: [label()],
   },
   defaults: {
