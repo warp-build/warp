@@ -1,4 +1,4 @@
-import ErlangToolchain from "https://pkgs.warp.build/toolchains/erlang.js";
+import ErlangToolchain from "https://rules.warp.build/toolchains/erlang.js";
 
 export const BEAM_EXT = ".beam";
 export const EX_EXT = ".ex";
@@ -63,7 +63,7 @@ ${elixir_path}/bin/mix local.rebar --force
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/elixir",
+  name: "https://rules.warp.build/toolchains/elixir",
   mnemonic: "Elixir/OTP",
   impl,
   cfg: {

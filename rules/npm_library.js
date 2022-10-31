@@ -17,7 +17,7 @@ tar cf ${tarball} .
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/npm_library",
+  name: "https://rules.warp.build/rules/npm_library",
   mnemonic: "NpmLib",
   impl,
   cfg: {

@@ -1,4 +1,4 @@
-import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
+import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { name, deps, test, cases, cwd } = ctx.cfg();
@@ -31,7 +31,7 @@ ct_run \
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/erlang_test",
+  name: "https://rules.warp.build/rules/erlang_test",
   mnemonic: "ErlTest",
   impl,
   cfg: {

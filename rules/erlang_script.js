@@ -1,5 +1,5 @@
-import ErlangToolchain, { BEAM_EXT, HEADER_EXT } from "https://pkgs.warp.build/toolchains/erlang.js";
-import Rebar3Toolchain from "https://pkgs.warp.build/toolchains/rebar3.js";
+import ErlangToolchain, { BEAM_EXT, HEADER_EXT } from "https://rules.warp.build/toolchains/erlang.js";
+import Rebar3Toolchain from "https://rules.warp.build/toolchains/rebar3.js";
 
 const impl = (ctx) => {
   const { label, name, main, apps } = ctx.cfg();
@@ -173,7 +173,7 @@ mv ${File.filename(run)} ${run}
 
 export default Warp.Rule({
   runnable: true,
-  name: "https://pkgs.warp.build/rules/erlang_script",
+  name: "https://rules.warp.build/rules/erlang_script",
   mnemonic: "ErlScript",
   impl,
   cfg: {

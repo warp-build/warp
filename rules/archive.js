@@ -16,7 +16,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/archive",
+  name: "https://rules.warp.build/rules/archive",
   mnemonic: "Tar",
   impl,
   cfg: {

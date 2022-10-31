@@ -1,4 +1,4 @@
-import ErlangToolchain, {BEAM_EXT, ERL_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
+import ErlangToolchain, {BEAM_EXT, ERL_EXT} from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { label, name, deps, srcs, headers } = ctx.cfg();
@@ -39,7 +39,7 @@ make clean app
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/erlangmk_library",
+  name: "https://rules.warp.build/rules/erlangmk_library",
   mnemonic: "ErlMkLib",
   impl,
   cfg: {

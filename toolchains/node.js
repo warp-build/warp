@@ -35,7 +35,7 @@ const impl = (ctx) => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/node",
+  name: "https://rules.warp.build/toolchains/node",
   mnemonic: "Node",
   impl,
   cfg: {

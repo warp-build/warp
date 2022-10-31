@@ -1,6 +1,6 @@
-import { TAR_EXT } from "https://pkgs.warp.build/rules/archive.js";
-import ElixirToolchain, {EX_EXT} from "https://pkgs.warp.build/toolchains/elixir.js";
-import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
+import { TAR_EXT } from "https://rules.warp.build/rules/archive.js";
+import ElixirToolchain, {EX_EXT} from "https://rules.warp.build/toolchains/elixir.js";
+import ErlangToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { label, name, deps, srcs, modules, elixirc_opts} = ctx.cfg();
@@ -36,8 +36,8 @@ const impl = ctx => {
   ctx.action().declareOutputs(outputs);
 
   const transitiveDeps = ctx.transitiveDeps();
-  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://pkgs.warp.build/rules/elixir_library");
-  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://pkgs.warp.build/rules/mix_library");
+  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://rules.warp.build/rules/elixir_library");
+  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://rules.warp.build/rules/mix_library");
 
   const extraPaths = [
     ...mixLibraries
@@ -79,7 +79,7 @@ elixirc \
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/elixir_library",
+  name: "https://rules.warp.build/rules/elixir_library",
   mnemonic: "ExLibrary",
   impl,
   cfg: {

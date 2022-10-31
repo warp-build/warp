@@ -38,7 +38,7 @@ const impl = ctx => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/cmake",
+  name: "https://rules.warp.build/toolchains/cmake",
   mnemonic: "CMake",
   impl,
   cfg: {

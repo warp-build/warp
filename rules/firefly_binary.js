@@ -1,4 +1,4 @@
-import FireflyToolchain from "https://pkgs.warp.build/toolchains/firefly.js";
+import FireflyToolchain from "https://rules.warp.build/toolchains/firefly.js";
 
 const impl = ctx => {
   const { cwd, label, name, src, deps, opt_level } = ctx.cfg();
@@ -19,7 +19,7 @@ firefly compile ${File.parent(src)}
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/firefly_binary",
+  name: "https://rules.warp.build/rules/firefly_binary",
   mnemonic: "FireflyExe",
   impl,
   cfg: {

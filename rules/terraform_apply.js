@@ -1,4 +1,4 @@
-import TerraformToolchain from "https://pkgs.warp.build/toolchains/terraform.js";
+import TerraformToolchain from "https://rules.warp.build/toolchains/terraform.js";
 
 const impl = ctx => {
   const { label, name } = ctx.cfg();
@@ -22,7 +22,7 @@ ${TERRAFORM} apply
 
 export default Warp.Rule({
   runnable: true,
-  name: "https://pkgs.warp.build/rules/terraform_apply",
+  name: "https://rules.warp.build/rules/terraform_apply",
   mnemonic: "TerraformApply",
   impl,
   cfg: {

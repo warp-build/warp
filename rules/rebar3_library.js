@@ -1,6 +1,6 @@
-import ErlangToolchain, { BEAM_EXT } from "https://pkgs.warp.build/toolchains/erlang.js";
-import Rebar3Toolchain from "https://pkgs.warp.build/toolchains/rebar3.js";
-import CMakeToolchain from "https://pkgs.warp.build/toolchains/cmake.js";
+import ErlangToolchain, { BEAM_EXT } from "https://rules.warp.build/toolchains/erlang.js";
+import Rebar3Toolchain from "https://rules.warp.build/toolchains/rebar3.js";
+import CMakeToolchain from "https://rules.warp.build/toolchains/cmake.js";
 
 const impl = (ctx) => {
   const { cwd, label, name, deps, srcs } = ctx.cfg();
@@ -49,7 +49,7 @@ fi
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/rebar3_library",
+  name: "https://rules.warp.build/rules/rebar3_library",
   mnemonic: "Rebar3Lib",
   impl,
   cfg: {

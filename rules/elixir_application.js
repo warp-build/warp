@@ -1,5 +1,5 @@
-import ElixirToolchain, {EX_EXT} from "https://pkgs.warp.build/toolchains/elixir.js";
-import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
+import ElixirToolchain, {EX_EXT} from "https://rules.warp.build/toolchains/elixir.js";
+import ErlangToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { label, name, app_name, mod, apps} = ctx.cfg();
@@ -55,7 +55,7 @@ tar cf ${Label.path(label)}/${name}.ebin.tar ${Label.path(label)}/ebin
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/elixir_application",
+  name: "https://rules.warp.build/rules/elixir_application",
   mnemonic: "ExApp",
   impl,
   cfg: {

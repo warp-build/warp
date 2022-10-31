@@ -1,4 +1,4 @@
-import OpenSSLToolchain from "https://pkgs.warp.build/toolchains/openssl.js";
+import OpenSSLToolchain from "https://rules.warp.build/toolchains/openssl.js";
 
 export const HEADER_EXT = ".hrl";
 export const BEAM_EXT = ".beam";
@@ -62,7 +62,7 @@ make all install ${make_flags.join(" ")} || exit 1
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/erlang",
+  name: "https://rules.warp.build/toolchains/erlang",
   mnemonic: "Erlang/OTP",
   impl,
   cfg: {

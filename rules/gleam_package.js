@@ -1,5 +1,5 @@
-import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erlang.js"
-import GleamToolchain, {GLEAM_EXT} from "https://pkgs.warp.build/toolchains/gleam.js"
+import ErlangToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/erlang.js"
+import GleamToolchain, {GLEAM_EXT} from "https://rules.warp.build/toolchains/gleam.js"
 
 const impl = ctx => {
   const { label, name, deps } = ctx.cfg()
@@ -14,7 +14,7 @@ const impl = ctx => {
 }
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/gleam_package",
+  name: "https://rules.warp.build/rules/gleam_package",
   mnemonic: "GleamPackage",
   impl,
   cfg: {

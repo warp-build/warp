@@ -33,7 +33,7 @@ const impl = ctx => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/terraform",
+  name: "https://rules.warp.build/toolchains/terraform",
   mnemonic: "Terraform",
   impl,
   cfg: {

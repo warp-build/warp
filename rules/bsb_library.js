@@ -1,4 +1,4 @@
-import ReScriptToolchain, {MERLIN, JS_EXT, RES_EXT, RESI_EXT, CMT_EXT, CMI_EXT} from "https://pkgs.warp.build/toolchains/rescript.js";
+import ReScriptToolchain, {MERLIN, JS_EXT, RES_EXT, RESI_EXT, CMT_EXT, CMI_EXT} from "https://rules.warp.build/toolchains/rescript.js";
 
 const impl = ctx => {
   const { label, name, deps, srcs, } = ctx.cfg();
@@ -41,7 +41,7 @@ ${rescript} build
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/bsb_library",
+  name: "https://rules.warp.build/rules/bsb_library",
   mnemonic: "BsbLib",
   impl,
   cfg: {

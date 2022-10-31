@@ -44,7 +44,7 @@ make install -j
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/openssl",
+  name: "https://rules.warp.build/toolchains/openssl",
   mnemonic: "OpenSSL",
   impl,
   cfg: {

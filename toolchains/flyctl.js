@@ -37,7 +37,7 @@ const impl = ctx => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/flyctl",
+  name: "https://rules.warp.build/toolchains/flyctl",
   mnemonic: "FlyCtl",
   impl,
   cfg: {

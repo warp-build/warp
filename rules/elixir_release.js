@@ -1,5 +1,5 @@
-import ElixirToolchain, {EX_EXT} from "https://pkgs.warp.build/toolchains/elixir.js";
-import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
+import ElixirToolchain, {EX_EXT} from "https://rules.warp.build/toolchains/elixir.js";
+import ErlangToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { name, deps, } = ctx.cfg();
@@ -11,7 +11,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/elixir_release",
+  name: "https://rules.warp.build/rules/elixir_release",
   mnemonic: "ExRel",
   impl,
   cfg: {

@@ -1,4 +1,4 @@
-import NgrokToolchain from "https://pkgs.warp.build/toolchains/ngrok.js"
+import NgrokToolchain from "https://rules.warp.build/toolchains/ngrok.js"
 
 const impl = ctx => {
   const { label, args} = ctx.cfg()
@@ -12,7 +12,7 @@ const impl = ctx => {
 
 export default Warp.Rule({
   runnable: true,
-  name: "https://pkgs.warp.build/rules/ngrok_tunnel",
+  name: "https://rules.warp.build/rules/ngrok_tunnel",
   mnemonic: "NgrokTunel",
   impl,
   cfg: {

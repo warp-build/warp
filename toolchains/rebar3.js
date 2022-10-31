@@ -1,6 +1,6 @@
-import ErlangToolchain from "https://pkgs.warp.build/toolchains/erlang.js";
-import CMakeToolchain from "https://pkgs.warp.build/toolchains/cmake.js";
-import GitToolchain from "https://pkgs.warp.build/toolchains/git.js";
+import ErlangToolchain from "https://rules.warp.build/toolchains/erlang.js";
+import CMakeToolchain from "https://rules.warp.build/toolchains/cmake.js";
+import GitToolchain from "https://rules.warp.build/toolchains/git.js";
 
 const impl = (ctx) => {
   const { url, sha1 } = ctx.cfg();
@@ -21,7 +21,7 @@ const impl = (ctx) => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/rebar3",
+  name: "https://rules.warp.build/toolchains/rebar3",
   mnemonic: "Rebar3",
   impl,
   cfg: {

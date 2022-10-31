@@ -1,4 +1,4 @@
-import FlyCtlToolchain from "https://pkgs.warp.build/toolchains/flyctl.js";
+import FlyCtlToolchain from "https://rules.warp.build/toolchains/flyctl.js";
 
 const impl = ctx => {
   const { label, name } = ctx.cfg();
@@ -23,7 +23,7 @@ ${FLYCTL} launch
 
 export default Warp.Rule({
   runnable: true,
-  name: "https://pkgs.warp.build/rules/fly_launch",
+  name: "https://rules.warp.build/rules/fly_launch",
   mnemonic: "FlyLaunch",
   impl,
   cfg: {

@@ -1,4 +1,4 @@
-import DenoToolchain, {JS_EXT} from "https://pkgs.warp.build/toolchains/deno.js";
+import DenoToolchain, {JS_EXT} from "https://rules.warp.build/toolchains/deno.js";
 
 const impl = ctx => {
   const { label, name, deps, src, permissions } = ctx.cfg();
@@ -20,7 +20,7 @@ ${DENO} compile ${permissions.join(" ")} ${File.filename(src)}
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/deno_executable",
+  name: "https://rules.warp.build/rules/deno_executable",
   mnemonic: "DenoExe",
   impl,
   cfg: {

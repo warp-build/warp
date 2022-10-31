@@ -8,7 +8,7 @@ const impl = ctx => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/ngrok",
+  name: "https://rules.warp.build/toolchains/ngrok",
   mnemonic: "ngrok",
   impl,
   cfg: {

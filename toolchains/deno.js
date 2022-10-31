@@ -29,7 +29,7 @@ const impl = ctx => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/deno",
+  name: "https://rules.warp.build/toolchains/deno",
   mnemonic: "Deno",
   impl,
   cfg: {

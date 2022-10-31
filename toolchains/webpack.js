@@ -1,4 +1,4 @@
-import NodeToolchain from "https://pkgs.warp.build/toolchains/node.js";
+import NodeToolchain from "https://rules.warp.build/toolchains/node.js";
 
 const impl = (ctx) => {
   const { version } = ctx.cfg();
@@ -17,7 +17,7 @@ const impl = (ctx) => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/webpack",
+  name: "https://rules.warp.build/toolchains/webpack",
   mnemonic: "Webpack",
   impl,
   cfg: {

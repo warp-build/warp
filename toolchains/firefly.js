@@ -1,4 +1,4 @@
-import ErlangToolchain from "https://pkgs.warp.build/toolchains/erlang.js";
+import ErlangToolchain from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { version, release_date, sha1 } = ctx.cfg();
@@ -42,7 +42,7 @@ const impl = ctx => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/firefly",
+  name: "https://rules.warp.build/toolchains/firefly",
   mnemonic: "Firefly",
   impl,
   cfg: {

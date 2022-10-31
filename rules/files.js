@@ -4,7 +4,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/files",
+  name: "https://rules.warp.build/rules/files",
   mnemonic: "Files",
   impl,
   cfg: {

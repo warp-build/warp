@@ -1,4 +1,4 @@
-import ElixirToolchain from "https://pkgs.warp.build/toolchains/elixir.js";
+import ElixirToolchain from "https://rules.warp.build/toolchains/elixir.js";
 
 const impl = ctx => {
   const { name, deps, srcs, } = ctx.cfg();
@@ -7,7 +7,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/eex_library",
+  name: "https://rules.warp.build/rules/eex_library",
   mnemonic: "EExLib",
   impl,
   cfg: {

@@ -1,6 +1,6 @@
-import { TAR_EXT } from "https://pkgs.warp.build/rules/archive.js";
-import ElixirToolchain from "https://pkgs.warp.build/toolchains/elixir.js";
-import ErlangToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
+import { TAR_EXT } from "https://rules.warp.build/rules/archive.js";
+import ElixirToolchain from "https://rules.warp.build/toolchains/elixir.js";
+import ErlangToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { label, name, srcs, deps, args, dot_iex, elixirc_opts} = ctx.cfg();
@@ -57,7 +57,7 @@ chmod +x ${run}
 
 export default Warp.Rule({
   runnable: true,
-  name: "https://pkgs.warp.build/rules/iex_shell",
+  name: "https://rules.warp.build/rules/iex_shell",
   mnemonic: "IExShell",
   impl,
   cfg: {

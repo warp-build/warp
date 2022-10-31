@@ -39,7 +39,7 @@ const impl = (ctx) => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/git",
+  name: "https://rules.warp.build/toolchains/git",
   mnemonic: "Git",
   impl,
   cfg: {

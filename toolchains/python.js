@@ -1,4 +1,4 @@
-import OpenSSLToolchain from "https://pkgs.warp.build/toolchains/openssl.js";
+import OpenSSLToolchain from "https://rules.warp.build/toolchains/openssl.js";
 
 const impl = (ctx) => {
   const { version, sha1 } = ctx.cfg();
@@ -42,7 +42,7 @@ const impl = (ctx) => {
 };
 
 export default Warp.Toolchain({
-  name: "https://pkgs.warp.build/toolchains/python",
+  name: "https://rules.warp.build/toolchains/python",
   mnemonic: "Python",
   impl,
   cfg: {

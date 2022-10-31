@@ -1,5 +1,5 @@
-import NodeToolchain from "https://pkgs.warp.build/toolchains/node.js";
-import WebpackToolchain from "https://pkgs.warp.build/toolchains/webpack.js";
+import NodeToolchain from "https://rules.warp.build/toolchains/node.js";
+import WebpackToolchain from "https://rules.warp.build/toolchains/webpack.js";
 
 const impl = (ctx) => {
   const { cfg, srcs, output } = ctx.cfg();
@@ -14,7 +14,7 @@ const impl = (ctx) => {
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/webpack_bundle",
+  name: "https://rules.warp.build/rules/webpack_bundle",
   mnemonic: "Webpack Bundle",
   impl,
   cfg: {

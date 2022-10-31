@@ -1,4 +1,4 @@
-import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://pkgs.warp.build/toolchains/erlang.js";
+import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = ctx => {
   const { name, deps, srcs, headers, behaviors } = ctx.cfg();
@@ -53,7 +53,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/erlang_library",
+  name: "https://rules.warp.build/rules/erlang_library",
   mnemonic: "ErlLibrary",
   impl,
   cfg: {

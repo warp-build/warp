@@ -1,4 +1,4 @@
-import ElixirToolchain, {BEAM_EXT} from "https://pkgs.warp.build/toolchains/elixir.js";
+import ElixirToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/elixir.js";
 
 const impl = ctx => {
   const { name, deps, srcs, } = ctx.cfg();
@@ -11,7 +11,7 @@ const impl = ctx => {
 };
 
 export default Warp.Rule({
-  name: "https://pkgs.warp.build/rules/elixir_image",
+  name: "https://rules.warp.build/rules/elixir_image",
   mnemonic: "ExImage",
   impl,
   cfg: {
