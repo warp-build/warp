@@ -692,7 +692,7 @@ mod tests {
 
     #[test]
     fn parses_remote_label() {
-        let path = "https://pkgs.warp.build/toolchains/openssl";
+        let path = "https://rules.warp.build/toolchains/openssl";
         let l1 = Label::builder()
             .with_workspace(&Workspace::default())
             .from_string(path)
@@ -706,14 +706,14 @@ mod tests {
 
     #[test]
     fn can_turn_into_store_prefix() {
-        let path = "https://pkgs.warp.build/toolchains/openssl";
+        let path = "https://rules.warp.build/toolchains/openssl";
         let l1 = Label::builder()
             .with_workspace(&Workspace::default())
             .from_string(path)
             .unwrap();
         assert_eq!(
             l1.as_store_prefix(),
-            "6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build"
+            "6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-rules.warp.build"
         );
     }
 }

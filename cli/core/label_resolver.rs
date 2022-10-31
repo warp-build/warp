@@ -124,6 +124,8 @@ impl LabelResolver {
         &self,
         label: &Label,
     ) -> Result<Option<Target>, LabelResolverError> {
+        // Try to find a Signature file for this Label.
+
         let buildfile = Buildfile::from_label(label)
             .await
             .map_err(LabelResolverError::BuildfileError)?;

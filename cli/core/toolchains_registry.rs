@@ -8,7 +8,7 @@ use thiserror::*;
 use tokio::fs;
 use url::Url;
 
-pub const REMOTE_TOOLCHAINS_REGISTRY_URL: &str = "https://pkgs.warp.build/toolchains/registry.json";
+pub const REMOTE_TOOLCHAINS_REGISTRY_URL: &str = "https://rules.warp.build/toolchains/registry.json";
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ToolchainId {

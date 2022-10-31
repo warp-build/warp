@@ -7,7 +7,7 @@ use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
-const DEFAULT_RULE_URL: &str = "https://pkgs.warp.build/rules";
+const DEFAULT_RULE_URL: &str = "https://rules.warp.build/rules";
 
 #[derive(Debug, Default)]
 pub struct RuleStore {
@@ -175,8 +175,8 @@ impl RuleStore {
         // UUID to the file name. This means that the first time we pull in rules, some rules
         // will be downloaded twice and will be saved in two different files like this:
         //
-        // /warp/rules/<hash>-pkgs.warp.build/archive.js
-        // /warp/rules/<hash>-pkgs.warp.build/archive.a7b2edef-f67b-4642-ab0d-883ff43ba40a.js
+        // /warp/rules/<hash>-rules.warp.build/archive.js
+        // /warp/rules/<hash>-rules.warp.build/archive.a7b2edef-f67b-4642-ab0d-883ff43ba40a.js
         //
         // This is completely safe, but its ugly.
         //
