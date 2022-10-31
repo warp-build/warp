@@ -1,0 +1,20 @@
+[package]
+name = "parser"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+tree-sitter-erlang = "*"
+tree-sitter-swift = "*"
+tree-sitter-go = "*"
+tree-sitter-python = "*"
+tree-sitter-ruby = "*"
+tree-sitter-rust = "*"
+tree-sitter-javascript = "*"
+tree-sitter-typescript = "*"
+tree-sitter-ocaml = "*"
+tree-sitter = "=0.20.9"
+
+[[bin]]
+name = "parser"
+path = "main.rs"

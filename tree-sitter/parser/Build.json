@@ -1,0 +1,12 @@
+[
+  {
+    "name": "parser",
+    "bin": "parser",
+    "rule": "cargo_binary",
+    "srcs": [
+      "Cargo.toml",
+      "Cargo.lock",
+      "main.rs"
+    ]
+  }
+]
