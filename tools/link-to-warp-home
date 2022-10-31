@@ -1,0 +1,12 @@
+#!/bin/bash
+
+LOCAL_RULES=$(pwd)
+WARP_HOME_RULES="/warp/rules/https/rules.warp.build"
+
+rm -rf ${WARP_HOME_RULES}
+
+mkdir -p ${WARP_HOME_RULES}
+cd ${WARP_HOME_RULES}
+
+ln -sf ${LOCAL_RULES}/rules .
+ln -sf ${LOCAL_RULES}/toolchains .
