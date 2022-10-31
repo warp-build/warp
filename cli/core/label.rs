@@ -14,7 +14,7 @@ static DOT: char = '.';
 static WILDCARD: &str = "//...";
 
 /// A wildcard Label is a placeholder for all the labels (concrete and abstract), living
-/// under a 
+/// under a
 pub struct WildcardLabel {
     /// The absolute path to the workspace where this label is pointing.
     ///
@@ -69,7 +69,7 @@ pub struct TargetLabel {
     file_label: LocalLabel,
 }
 
-/// Remote Labels are Labels built from a URL. They may be 
+/// Remote Labels are Labels built from a URL. They may be
 ///
 pub struct RemoteLabel {
     /// The URL used to create this label.
@@ -188,6 +188,8 @@ impl LabelBuilder {
     ///
     #[tracing::instrument(name = "LabelBuilder::from_path")]
     pub fn from_path(&mut self, path: PathBuf) -> Result<Label, LabelBuilderError> {
+        let (kind, path) = self._clean_path(path);
+
         if self.name.is_none() {
             let name = path
                 .file_name()
@@ -198,12 +200,8 @@ impl LabelBuilder {
         }
 
         self.inner_label(InnerLabel::Local {
-            kind: if path.starts_with("/") {
-                LocalLabelKind::Absolute
-            } else {
-                LocalLabelKind::Relative
-            },
             path,
+            kind,
             promoted_from: None,
             associated_url: None,
         });
