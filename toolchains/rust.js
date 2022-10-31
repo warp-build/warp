@@ -3,7 +3,7 @@ export const TS_EXT = ".ts";
 
 const impl = ctx => {
   const { host } = ctx.env();
-  const { cwd, sha1_aarch64, toolchains, targets } = ctx.cfg();
+  const { cwd, sha1_aarch64, toolchains, targets, profile, components } = ctx.cfg();
 
   let arch = host.arch
   let sha1 = sha1_aarch64
@@ -21,7 +21,13 @@ const impl = ctx => {
   ctx.action().runShell({
     script: `
 
-RUSTUP_HOME=$(pwd)/.rustup ./${rustup_init} -y --no-modify-path
+export RUSTUP_HOME=$(pwd)/.rustup
+
+./${rustup_init} -y --no-modify-path \
+  --profile ${profile} \
+  --default-toolchain ${toolchains[0]} \
+  ${targets.map(t => `-t ${t}`).join("\ \n")}
+  ${components.map(c => `-c ${c}`).join("\ \n")}
 
 `
   });
@@ -57,8 +63,14 @@ export default Warp.Toolchain({
   mnemonic: "Rust",
   impl,
   cfg: {
+    profile: string(),
     toolchains: [string()],
     targets: [string()],
+    components: [string()],
     sha1_aarch64: string(),
-  }
+  },
+  defaults: {
+    components: [],
+    profile: "default",
+  },
 });
