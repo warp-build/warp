@@ -4,7 +4,7 @@
     "use_git_hooks": true
   },
   "aliases": {
-    "erlang": "https://pkgs.warp.build/toolchains/erlang"
+    "erlang": "https://rules.warp.build/toolchains/erlang"
   },
   "toolchains": {
     "cmake": {

@@ -110,8 +110,8 @@ handles_real_life_example_from_verl(_Config) ->
 
   ?assertMatch(
      [<<"../erlang/lifter/tests/fixtures/verl_SUITE.erl">>,
-      <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/common_test-1.23/include/ct.hrl">>,
-      <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/assert.hrl">>]
+      <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-rules.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/common_test-1.23/include/ct.hrl">>,
+      <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-rules.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/assert.hrl">>]
      , Includes).
 
 handles_real_life_example_from_emqx(_Config) ->
@@ -183,7 +183,7 @@ handles_real_life_example_from_emqx(_Config) ->
      [<<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
       <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>,
       <<"../erlang/lifter/tests/fixtures/includes/emqx_bpapi.hrl">>,
-      <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/ms_transform.hrl">>]
+      <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-rules.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/ms_transform.hrl">>]
      , Includes).
 
 handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
@@ -233,7 +233,7 @@ handles_real_life_example_from_emqx_with_parse_transforms(_Config) ->
        [<<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
         <<"../erlang/lifter/tests/fixtures/emqx_bpapi.hrl">>,
         <<"../erlang/lifter/tests/fixtures/includes/emqx.hrl">>,
-        <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/ms_transform.hrl">>],
+        <<"/warp/store/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-rules.warp.build/4a0758218cdd50e77098799caa7dfce67f56a69b88a273539e14470fb4af254d-erlang/otp_src_25.0/dist/lib/erlang/lib/stdlib-4.0/include/ms_transform.hrl">>],
        local_calls := [],name := emqx_bpapi,
        path :=
        <<"../erlang/lifter/tests/fixtures/emqx_bpapi.erl">>,
