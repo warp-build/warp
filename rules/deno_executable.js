@@ -8,12 +8,11 @@ const impl = ctx => {
   ctx.action().declareOutputs([bin]);
   ctx.action().declareRunScript(bin);
 
-  const { DENO } = DenoToolchain.provides()
   ctx.action().runShell({
     script: `#!/bin/bash
 
 cd ${cwd}
-${DENO} compile ${permissions.join(" ")} ${File.filename(src)}
+deno compile ${permissions.join(" ")} ${File.filename(src)}
 
 `,
   })

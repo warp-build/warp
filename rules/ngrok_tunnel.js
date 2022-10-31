@@ -5,7 +5,9 @@ const impl = ctx => {
   ctx.action().declareOutputs([])
   ctx.action().runShell({
     script: `#!/bin/bash -xe
-    ${NgrokToolchain.provides().NGROK} ${args.join(" ")}
+
+ngrok ${args.join(" ")}
+
     `
   })
 }

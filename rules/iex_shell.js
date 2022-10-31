@@ -5,8 +5,6 @@ import ErlangToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/erl
 const impl = ctx => {
   const { label, name, srcs, deps, args, dot_iex, elixirc_opts} = ctx.cfg();
 
-  const { iex } = ElixirToolchain.provides()
-
   const transitiveDeps = ctx.transitiveDeps()
 
   const extraPaths = transitiveDeps
@@ -38,7 +36,7 @@ ${
   })).join("\n")
 }
 
-${iex} \
+iex \
   ${args.join(" ")} \
   --dot-iex $(dirname "\${BASH_SOURCE[0]}")/${File.filename(dot_iex)} \
   ${extraPaths} -- $*

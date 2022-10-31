@@ -3,8 +3,6 @@ import FlyCtlToolchain from "https://rules.warp.build/toolchains/flyctl.js";
 const impl = ctx => {
   const { label, name } = ctx.cfg();
 
-  const { FLYCTL } = FlyCtlToolchain.provides()
-
   const run = `${Label.path(label)}/${name}.fly_launch`
 
   ctx.action().writeFile({
@@ -12,7 +10,7 @@ const impl = ctx => {
     data: `#!/bin/bash -e
 
 cd ${Label.path(label)}
-${FLYCTL} launch
+flyctl launch
 
 `
   })

@@ -21,15 +21,14 @@ const impl = ctx => {
     ...outputs
   ]);
 
-  const ERL_ENV = ErlangToolchain.provides();
   ctx.action().runShell({
     script: `#!/bin/bash
 
-export PATH="${ERL_ENV.ERL_ROOT}:$PATH"
-export C_INCLUDE_PATH="${ERL_ENV.INCLUDE_PATH}:$C_INCLUDE_PATH"
-export CPLUS_INCLUDE_PATH="${ERL_ENV.INCLUDE_PATH}:$CPLUS_INCLUDE_PATH"
-export C_LIB_PATH="${ERL_ENV.LIB_PATH}:$C_LIB_PATH"
-export CPLUS_LIB_PATH="${ERL_ENV.LIB_PATH}:$CPLUS_LIB_PATH"
+export PATH="\${ERL_ROOT}:$PATH"
+export C_INCLUDE_PATH="\${ERL_INCLUDE_PATH}:$C_INCLUDE_PATH"
+export CPLUS_INCLUDE_PATH="\${ERL_INCLUDE_PATH}:$CPLUS_INCLUDE_PATH"
+export C_LIB_PATH="\${ERL_LIB_PATH}:$C_LIB_PATH"
+export CPLUS_LIB_PATH="\${ERL_LIB_PATH}:$CPLUS_LIB_PATH"
 
 cd ${Label.path(label)}
 make clean app
