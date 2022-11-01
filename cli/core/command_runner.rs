@@ -1,6 +1,7 @@
 use super::*;
 use futures::Future;
 use futures::FutureExt;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::{path::PathBuf, pin::Pin, process::Stdio};
 use thiserror::*;
@@ -22,6 +23,12 @@ pub enum CommandRunnerError {
     InvalidUtf8Output {
         err: std::string::FromUtf8Error,
         label: Label,
+    },
+
+    #[error("Could not find run script {run_script:?} in {provides:#?}")]
+    MissingRunScript {
+        run_script: PathBuf,
+        provides: BTreeMap<String, PathBuf>,
     },
 }
 
@@ -58,7 +65,10 @@ impl CommandRunner {
                     .iter()
                     .find(|(_, path)| path.ends_with(run_script))
                     .map(|(_, path)| path.to_path_buf())
-                    .ok_or(CommandRunnerError::NothingToRun)?
+                    .ok_or_else(|| CommandRunnerError::MissingRunScript {
+                        run_script: run_script.to_path_buf(),
+                        provides: self.manifest.provides.clone(),
+                    })?
             } else {
                 return Err(CommandRunnerError::NothingToRun);
             };

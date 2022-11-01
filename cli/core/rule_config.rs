@@ -59,6 +59,18 @@ pub enum RuleConfigError {
         found: CfgValue,
         key: String,
     },
+
+    #[error(transparent)]
+    LabelError(LabelError),
+
+    #[error("Expected to find value of type {expected:?} but instead found {actual:?}")]
+    TypeMismatch {
+        expected: CfgValueType,
+        actual: serde_json::Value,
+    },
+
+    #[error("Value {value:?} is not of a supported type.")]
+    UnsupportedValueType { value: serde_json::Value },
 }
 
 #[derive(Debug, Clone, Default)]
@@ -126,8 +138,6 @@ impl RuleConfig {
             for el in elements {
                 if let CfgValue::Label(l) = el {
                     labels.push(l.clone());
-                } else if let CfgValue::String(s) = el {
-                    labels.push(Label::new(s));
                 } else {
                     return Err(RuleConfigError::UnexpectedValueTypeInList {
                         expected: CfgValueType::Label,
@@ -302,7 +312,7 @@ impl Serialize for CfgValue {
 }
 
 pub mod json_codecs {
-    use std::collections::BTreeMap;
+    use std::{collections::BTreeMap, convert::TryFrom};
 
     use super::*;
 
@@ -359,26 +369,41 @@ pub mod json_codecs {
         }
     }
 
-    impl From<(serde_json::Value, CfgValueType)> for CfgValue {
-        fn from(spec: (serde_json::Value, CfgValueType)) -> CfgValue {
-            let (json, type_) = spec;
-            match json {
+    impl TryFrom<(serde_json::Value, CfgValueType)> for CfgValue {
+        type Error = RuleConfigError;
+
+        fn try_from(
+            (mut json, type_): (serde_json::Value, CfgValueType),
+        ) -> Result<Self, Self::Error> {
+            match &mut json {
                 serde_json::Value::String(string) => match type_ {
-                    CfgValueType::String => CfgValue::String(string),
-                    CfgValueType::Label => CfgValue::Label(Label::new(&string)),
-                    CfgValueType::File => CfgValue::File(PathBuf::from(string)),
-                    CfgValueType::List(_) => panic!("Oops!"),
+                    CfgValueType::String => Ok(CfgValue::String(std::mem::take(string))),
+                    CfgValueType::Label => Ok(CfgValue::Label(
+                        string.parse().map_err(RuleConfigError::LabelError)?,
+                    )),
+                    CfgValueType::File => Ok(CfgValue::File(PathBuf::from(std::mem::take(string)))),
+                    CfgValueType::List(_) => Err(RuleConfigError::TypeMismatch {
+                        expected: type_.clone(),
+                        actual: json.clone(),
+                    }),
                 },
                 serde_json::Value::Array(parts) => match type_ {
-                    CfgValueType::List(element_type) => CfgValue::List(
-                        parts
-                            .iter()
-                            .map(|e| (e.clone(), *element_type.clone()).into())
-                            .collect(),
-                    ),
-                    _ => panic!("oops!"),
+                    CfgValueType::List(element_type) => {
+                        let mut ps = vec![];
+                        for part in parts {
+                            let p = (part.clone(), *element_type.clone()).try_into()?;
+                            ps.push(p);
+                        }
+                        Ok(CfgValue::List(ps))
+                    }
+                    _ => Err(RuleConfigError::TypeMismatch {
+                        expected: type_.clone(),
+                        actual: json.clone(),
+                    }),
                 },
-                _ => panic!("oops!"),
+                _ => Err(RuleConfigError::UnsupportedValueType {
+                    value: json.clone(),
+                }),
             }
         }
     }

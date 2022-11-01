@@ -24,6 +24,9 @@ pub enum ConfigExpanderError {
 
     #[error(transparent)]
     GlobError(glob::GlobError),
+
+    #[error(transparent)]
+    LabelError(LabelError),
 }
 
 impl ConfigExpander {
@@ -52,7 +55,10 @@ impl ConfigExpander {
             values.insert(key.to_string(), expanded_value);
         }
 
-        values.insert("name".to_string(), CfgValue::String(target.label.name()));
+        values.insert(
+            "name".to_string(),
+            CfgValue::String(target.label.name().to_string()),
+        );
 
         Ok(values)
     }
@@ -69,7 +75,10 @@ impl ConfigExpander {
                 self.expand_glob(label, path.to_str().unwrap())
             }
             (CfgValueType::File, CfgValue::String(path)) => self.expand_glob(label, path),
-            (CfgValueType::Label, CfgValue::String(name)) => Ok(CfgValue::Label(Label::new(name))),
+            (CfgValueType::Label, CfgValue::String(name)) => {
+                let label = name.parse().map_err(ConfigExpanderError::LabelError)?;
+                Ok(CfgValue::Label(label))
+            }
             (CfgValueType::Label, CfgValue::Label(label)) => Ok(CfgValue::Label(label.clone())),
             (CfgValueType::List(t), CfgValue::List(parts)) => {
                 self.expand_list(label, parts.to_vec(), t)
@@ -84,7 +93,8 @@ impl ConfigExpander {
 
     #[tracing::instrument(name = "ConfigExpander::expand_glob", skip(self))]
     pub fn expand_glob(&self, label: &Label, path: &str) -> Result<CfgValue, ConfigExpanderError> {
-        let path = label.workspace().join(label.path()).join(path);
+        let workspace = label.workspace().unwrap();
+        let path = workspace.join(label.path()).join(path);
         let path = path.to_str().unwrap();
         if path.contains('*') {
             let entries =
@@ -96,13 +106,13 @@ impl ConfigExpander {
             let mut files = vec![];
             for entry in entries {
                 let entry = entry.map_err(ConfigExpanderError::GlobError)?;
-                let entry = entry.strip_prefix(label.workspace()).unwrap().to_path_buf();
+                let entry = entry.strip_prefix(workspace).unwrap().to_path_buf();
                 files.push(CfgValue::File(entry));
             }
             Ok(CfgValue::List(files))
         } else {
             let path = PathBuf::from(path)
-                .strip_prefix(label.workspace())
+                .strip_prefix(workspace)
                 .unwrap()
                 .to_path_buf();
             Ok(CfgValue::File(path))

@@ -32,8 +32,10 @@ impl LabelId {
 pub struct LabelRegistry {
     ids: DashMap<Arc<Label>, LabelId>,
     labels: DashMap<LabelId, Arc<Label>>,
-    manifests: DashMap<LabelId, Arc<TargetManifest>>,
-    register_lock: Arc<Mutex<()>>,
+
+    // NOTE(@ostera): only used to serialize the calls to `register_label` and prevent registering
+    // the same label under two different ids.
+    _register_lock: Arc<Mutex<()>>,
 }
 
 #[derive(Error, Debug)]
@@ -49,15 +51,16 @@ impl LabelRegistry {
     /// If the label has already been registered, the same identifier is returned.
     ///
     #[tracing::instrument(name = "LabelRegistry::register", skip(self))]
-    pub fn register_label(&self, label: &Label) -> LabelId {
-        let _lock = self.register_lock.lock().unwrap();
+    pub fn register_label<L>(&self, label: L) -> LabelId
+    where
+        L: AsRef<Label> + std::fmt::Debug,
+    {
+        let label = label.as_ref();
+        let _lock = self._register_lock.lock().unwrap();
         if let Some(id) = self.find_label(label) {
             id
         } else {
             let label = Arc::new(label.to_owned());
-            // self._labels.push(label);
-            // let label_idx = self._labels.len();
-
             let id = LabelId::next();
             self.ids.insert(label.clone(), id);
             self.labels.insert(id, label);
@@ -77,14 +80,19 @@ impl LabelRegistry {
         ids
     }
 
-    pub fn update_label(&self, id: LabelId, label: &Label) {
-        if let Some(found_id) = self.find_label(label) {
+    pub fn update_label<L>(&self, id: LabelId, label: L)
+    where
+        L: Into<Label>,
+    {
+        let _lock = self._register_lock.lock().unwrap();
+        let label = label.into();
+        if let Some(found_id) = self.find_label(&label) {
             if id == found_id {
                 return;
             }
         }
-        let label = self.get_label(id).promote(label.to_owned());
         let label = Arc::new(label);
+
         self.ids.insert(label.clone(), id);
         self.labels.insert(id, label);
     }
@@ -102,11 +110,5 @@ impl LabelRegistry {
     #[tracing::instrument(name = "LabelRegistry::get", skip(self))]
     pub fn get_label(&self, id: LabelId) -> Arc<Label> {
         (*self.labels.get(&id).unwrap()).clone()
-    }
-
-    pub fn register_target_manifest(&self, manifest: TargetManifest) -> LabelId {
-        let id = self.register_label(&manifest.label);
-        self.manifests.insert(id, Arc::new(manifest));
-        id
     }
 }

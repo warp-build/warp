@@ -40,14 +40,13 @@ impl DependencyManager {
         let mut dependencies = BTreeMap::new();
 
         for (url, dep_json) in &dependency_file.dependencies {
-            let url = url::Url::parse(url).unwrap();
-            let label = Label::builder().from_url(&url).unwrap();
-            let label = label_registry.register_label(&label);
+            let label: Label = url::Url::parse(url).unwrap().into();
+            let label = label_registry.register_label(label);
 
             let resolver = dep_json
                 .resolver
                 .clone()
-                .map(|r| label_registry.register_label(&r));
+                .map(|r| label_registry.register_label(r));
 
             let version = dep_json.version.to_string();
 

@@ -86,7 +86,7 @@ impl ComputeTargetProgram {
                     let mut map = serde_json::Map::new();
                     map.insert(
                         "name".to_string(),
-                        serde_json::Value::String(dep.label.name()),
+                        serde_json::Value::String(dep.label.name().into()),
                     );
                     map.insert(
                         "label".to_string(),
@@ -123,7 +123,7 @@ impl ComputeTargetProgram {
                     let mut map = serde_json::Map::new();
                     map.insert(
                         "name".to_string(),
-                        serde_json::Value::String(dep.label.name()),
+                        serde_json::Value::String(dep.label.name().into()),
                     );
                     map.insert(
                         "ruleName".to_string(),
@@ -164,7 +164,7 @@ impl ComputeTargetProgram {
                     let mut map = serde_json::Map::new();
                     map.insert(
                         "name".to_string(),
-                        serde_json::Value::String(dep.label.name()),
+                        serde_json::Value::String(dep.label.name().into()),
                     );
                     map.insert(
                         "ruleName".to_string(),
@@ -352,13 +352,6 @@ pub enum RuleExecutorError {
     ArtifactStoreError(ArtifactStoreError),
 }
 
-/// The Rule Execution Environment abstracts away the communication between the TargetManifest Graph
-/// and the BuildScript rules.
-///
-/// It is responsible updating the RuleManager and the ToolchainManager, by detecting when new
-/// rules and toolchains are defined, as well as computing the actions and outputs that are
-/// expected of both rules and toolchains.
-///
 pub struct RuleExecutor {
     runtime: deno_core::JsRuntime,
     pub rule_map: Arc<DashMap<String, Rule>>,
@@ -470,7 +463,8 @@ impl RuleExecutor {
             .await
             .map_err(RuleExecutorError::ArtifactStoreError)?;
 
-        let provides = if let Some(provides) = self.provides_map.get(&node.label) {
+        let provides = if let Some(provides) = self.provides_map.get(&node.label.to_owned().into())
+        {
             let mut new_provides = FxHashMap::default();
             for (k, v) in provides.value() {
                 new_provides.insert(
@@ -483,7 +477,8 @@ impl RuleExecutor {
             FxHashMap::default()
         };
 
-        self.provides_map.insert(node.label.clone(), provides);
+        self.provides_map
+            .insert(node.label.clone().into(), provides);
 
         Ok(())
     }

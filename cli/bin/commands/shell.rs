@@ -24,10 +24,7 @@ pub struct ShellCommand {
 
 impl ShellCommand {
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
-        let label = Label::builder()
-            .with_workspace(&warp.workspace)
-            .from_string("//...")
-            .unwrap();
+        let label = Label::all();
 
         let status_reporter = StatusReporter::new(warp.event_channel.clone());
         let (result, ()) = futures::future::join(

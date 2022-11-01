@@ -13,7 +13,7 @@ pub struct ExecutableTarget {
     pub target_plan_started_at: chrono::DateTime<chrono::Utc>,
     pub target_plan_ended_at: chrono::DateTime<chrono::Utc>,
 
-    pub label: Label,
+    pub label: LocalLabel,
     pub hash: String,
     pub rule: Rule,
 
@@ -46,6 +46,9 @@ pub struct ExecutableTarget {
 pub enum ExecutableTargetError {
     #[error("The following outputs conflict with dependency outputs: {outputs:?}")]
     ConflictingOutputs { outputs: Vec<PathBuf> },
+
+    #[error("Can not create executable target with non-local label: {label:#?}")]
+    NonLocalLabel { label: Label },
 }
 
 impl ExecutableTarget {
@@ -60,6 +63,14 @@ impl ExecutableTarget {
         exec_result: ExecutionResult,
         build_results: &BuildResults,
     ) -> Result<Self, ExecutableTargetError> {
+        let label = target
+            .label
+            .get_local()
+            .ok_or_else(|| ExecutableTargetError::NonLocalLabel {
+                label: target.label.clone(),
+            })?
+            .to_owned();
+
         let mut this = Self {
             target_plan_ended_at: exec_result.target_plan_ended_at,
             target_plan_started_at: exec_result.target_plan_started_at,
@@ -67,7 +78,7 @@ impl ExecutableTarget {
             deps: deps.to_vec(),
             runtime_deps: runtime_deps.to_vec(),
             hash: "".to_string(),
-            label: target.label.clone(),
+            label,
             outs: exec_result.outs,
             rule: rule.clone(),
             run_script: exec_result.run_script,
@@ -84,7 +95,7 @@ impl ExecutableTarget {
         Ok(this)
     }
 
-    pub fn placeholder(label: Label) -> Self {
+    pub fn placeholder(label: LocalLabel) -> Self {
         Self {
             label,
             ..Default::default()

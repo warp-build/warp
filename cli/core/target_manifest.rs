@@ -171,7 +171,7 @@ impl TargetManifest {
             env,
             hash: target.hash.clone(),
             is_valid: matches!(&validation, ValidationStatus::Valid { .. }),
-            label: target.label.clone(),
+            label: target.label.clone().into(),
             outs,
             provides,
             rule_name: target.rule.name.clone(),

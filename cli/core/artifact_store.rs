@@ -102,6 +102,7 @@ impl ArtifactStore {
         self.workspace_prefixes.insert(prefix, root);
     }
 
+    // TODO(@ostera): this should be part of the WorkspaceManager
     pub fn register_workspace(&self, workspace: &Workspace) {
         self.workspace_prefixes.insert(
             workspace.paths.workspace_root.clone(),
@@ -109,22 +110,33 @@ impl ArtifactStore {
         );
     }
 
-    pub fn _store_key(&self, hash: &str, label: &Label) -> ArtifactStoreKey {
-        if label.is_remote() {
-            format!("{}/{}-{}", label.as_store_prefix(), hash, label.name())
+    pub fn _store_key<L>(&self, hash: &str, label: L) -> ArtifactStoreKey
+    where
+        L: AsRef<Label>,
+    {
+        let label = label.as_ref();
+        let label = label.get_local().unwrap();
+        if let Some(remote) = label.promoted_from() {
+            format!(
+                "{}-{}/{}-{}",
+                remote.prefix_hash,
+                remote.host,
+                hash,
+                label.name()
+            )
         } else {
             self.workspace_prefixes
-                .get(&label.workspace())
+                .get(label.workspace())
                 .unwrap()
                 .join(hash)
-                .to_str()
-                .unwrap()
+                .to_string_lossy()
                 .to_string()
         }
     }
 
     pub fn store_key(&self, node: &ExecutableTarget) -> ArtifactStoreKey {
-        self._store_key(&node.hash, &node.label)
+        let label: Label = node.label.to_owned().into();
+        self._store_key(&node.hash, &label)
     }
 
     pub fn store_key_for_dep(&self, manifest: &TargetManifest) -> ArtifactStoreKey {

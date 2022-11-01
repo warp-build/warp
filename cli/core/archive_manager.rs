@@ -107,7 +107,7 @@ impl ArchiveManager {
         file_ext: &str,
     ) -> Result<(PathBuf, String), ArchiveManagerError> {
         self.event_channel.send(Event::ArchiveDownloading {
-            label: Label::new(url.as_ref()),
+            label: url.to_owned().into(),
             url: url.to_string(),
         });
 
@@ -202,8 +202,7 @@ impl ArchiveManager {
         actual_hash: &str,
     ) -> Result<(), ArchiveManagerError> {
         if let Some(expected) = expected_hash {
-            self.event_channel
-                .send(Event::ArchiveVerifying(Label::new(url.as_ref())));
+            self.event_channel.send(Event::ArchiveVerifying(url.into()));
             if expected != actual_hash {
                 return Err(ArchiveManagerError::HashMismatch {
                     url: url.clone(),

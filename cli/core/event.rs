@@ -32,10 +32,7 @@ pub enum Event {
     },
     ArchiveUnpacking(Label),
     ArchiveVerifying(Label),
-    ResolvingDependency {
-        label: Label,
-    },
-    BadBuildfile(PathBuf, BuildfileError),
+    BadBuildfile(PathBuf, SignatureError),
     BuildCompleted(std::time::Instant),
     BuildError(Label, BuildError),
     BuildStarted(std::time::Instant),
@@ -48,18 +45,25 @@ pub enum Event {
         label_id: LabelId,
         worker_id: usize,
     },
+    EmptyWorkspace(std::time::Instant),
     ErrorLoadingRule(String, BuildWorkerError),
+    GeneratingSignature {
+        label: Label,
+    },
+    HashedLabel {
+        label: LabelId,
+        src_hash: String,
+        ast_hash: String,
+    },
     PreparingActions {
         label: Label,
         action_count: u64,
     },
     QueuedTargets(u64),
     QueueingWorkspace,
+    ResolvingDependency {
+        label: Label,
+    },
     TargetBuilt(Label),
     WorkerError(BuildWorkerError),
-    EmptyWorkspace(std::time::Instant),
-    HashedLabel {
-        label: LabelId,
-        hash: String,
-    },
 }

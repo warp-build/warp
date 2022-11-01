@@ -251,18 +251,18 @@ TARGET = {:#?}
         target: &ExecutableTarget,
     ) -> Result<(), TargetExecutorError> {
         self.event_channel.send(Event::PreparingActions {
-            label: target.label.clone(),
+            label: target.label.clone().into(),
             action_count: target.actions.len().try_into().unwrap(),
         });
 
         for action in &target.actions {
             self.event_channel.send(Event::ActionRunning {
-                label: target.label.clone(),
+                label: target.label.clone().into(),
                 action: action.clone(),
             });
             action
                 .run(
-                    target.label.clone(),
+                    target.label.clone().into(),
                     store_path,
                     env,
                     self.event_channel.clone(),
@@ -377,7 +377,7 @@ TARGET = {:#?}
     #[tracing::instrument(name = "TargetExecutor::copy_file", skip(self))]
     async fn copy_file(
         &self,
-        label: &Label,
+        label: &LocalLabel,
         src: &PathBuf,
         dst: &PathBuf,
     ) -> Result<(), TargetExecutorError> {
@@ -385,7 +385,7 @@ TARGET = {:#?}
             fs::create_dir_all(dst_parent)
                 .await
                 .map_err(|_| TargetExecutorError::CouldNotCreateDir {
-                    label: label.clone(),
+                    label: label.clone().into(),
                     dst: dst.clone(),
                     dst_parent: dst_parent.to_path_buf(),
                 })
@@ -397,7 +397,7 @@ TARGET = {:#?}
             Err(err) if err.kind() == std::io::ErrorKind::InvalidInput => (),
             Err(err) => {
                 return Err(TargetExecutorError::CouldNotCopy {
-                    label: label.clone(),
+                    label: label.clone().into(),
                     src: src.clone(),
                     dst: dst.clone(),
                     err,

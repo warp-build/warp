@@ -26,13 +26,13 @@ pub fn op_label_path(label: Label) -> Result<String, AnyError> {
     Ok(if path.is_empty() {
         ".".to_string()
     } else {
-        path
+        path.replace("./", "")
     })
 }
 
 #[op]
 pub fn op_label_name(label: Label) -> Result<String, AnyError> {
-    Ok(label.name())
+    Ok(label.name().to_string())
 }
 
 #[op]
@@ -171,7 +171,7 @@ pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Re
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FetchProvides {
-    label: String,
+    label: Label,
 }
 
 #[op]
@@ -182,10 +182,9 @@ pub fn op_ctx_fetch_provides(
     let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
     let provides_map = &inner_state.provides_map;
 
-    let label = Label::builder().from_string(&args.label).unwrap();
-    let provides = match provides_map.get(&label) {
+    let provides = match provides_map.get(&args.label) {
         None => {
-            panic!("Undefined provides for label: {:?}", &label)
+            panic!("Undefined provides for label: {:?}", &args.label)
         }
         Some(provides) => provides.clone(),
     };

@@ -1,11 +1,8 @@
 use super::Event;
 use super::*;
-use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::*;
-use tokio::fs;
-use tokio::io::AsyncReadExt;
 use tracing::*;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -61,6 +58,7 @@ pub struct BuildWorker {
 impl BuildWorker {
     pub fn new(
         role: Role,
+        workspace: Workspace,
         coordinator: Arc<BuildCoordinator>,
         event_channel: Arc<EventChannel>,
         build_queue: Arc<BuildQueue>,
@@ -101,12 +99,8 @@ impl BuildWorker {
     pub async fn setup_and_run(&mut self) -> Result<(), BuildWorkerError> {
         loop {
             // NOTE(@ostera): we don't want things to burn CPU cycles
-            tokio::time::sleep(std::time::Duration::from_micros(100)).await;
-            let result = if self.build_opts.experimental_file_mode {
-                self.run_file_mode().await
-            } else {
-                self.run().await
-            };
+            // tokio::time::sleep(std::time::Duration::from_micros(100)).await;
+            let result = self.run().await;
             if result.is_err() {
                 self.coordinator.signal_shutdown();
                 self.finish();
@@ -135,57 +129,21 @@ impl BuildWorker {
     }
 
     #[tracing::instrument(name = "BuildWorker::run", skip(self))]
-    pub async fn run_file_mode(&mut self) -> Result<(), BuildWorkerError> {
-        // 1. Task is a file :)
-        if let Some(task) = self.build_queue.next() {
-            let label = self.label_registry.get_label(task.label);
-
-            // 2. Read file and hash it
-            let mut f = fs::File::open(&label.path())
-                .await
-                .unwrap_or_else(|_| panic!("ERR: {:?}", label.path()));
-
-            let mut buffer = Vec::with_capacity(2048);
-            f.read_to_end(&mut buffer).await.unwrap();
-            let mut s = Sha256::new();
-            s.update(buffer);
-
-            // 3. Print hash
-            let hash = format!("{:x}", s.finalize());
-            self.event_channel.send(Event::HashedLabel {
-                label: task.label,
-                hash,
-            });
-
-            self.build_results.add_computed_target(
-                task.label,
-                TargetManifest::placeholder(label.as_ref().clone()),
-                ExecutableTarget::placeholder(label.as_ref().clone()),
-            );
-
-            self.build_queue.ack(task);
-        }
-        Ok(())
-    }
-
-    #[tracing::instrument(name = "BuildWorker::run", skip(self))]
     pub async fn run(&mut self) -> Result<(), BuildWorkerError> {
-        if let Some(task) = self.build_queue.next() {
-            let result = self.run_target(task).await;
+        let next_task = self.build_queue.next();
 
-            result?;
+        if next_task.is_none() {
+            return Ok(());
         }
-        Ok(())
-    }
 
-    #[tracing::instrument(name = "BuildWorker::run_target", skip(self))]
-    pub async fn run_target(&mut self, task: Task) -> Result<(), BuildWorkerError> {
+        let task = next_task.unwrap();
         let label = task.label;
 
         let target = match self.label_resolver.resolve(label).await {
             Err(LabelResolverError::DependencyResolverError(
                 DependencyResolverError::MissingResolver { resolver },
             )) => {
+                println!("missing resolver: {:#?}", &resolver);
                 return self.requeue(task, &[resolver]).await;
             }
 
@@ -201,14 +159,15 @@ impl BuildWorker {
             Ok(target) => {
                 let original_label = self.label_registry.get_label(label);
                 if *original_label != target.label {
-                    self.label_registry.update_label(label, &target.label);
+                    self.label_registry
+                        .update_label(label, target.label.clone());
                 }
                 target
             }
         };
 
         for dep in &target.runtime_deps {
-            let dep = self.label_registry.register_label(dep);
+            let dep = self.label_registry.register_label(dep.to_owned());
             self.build_queue
                 .queue(Task::build(dep))
                 .map_err(BuildWorkerError::QueueError)?;
@@ -216,7 +175,7 @@ impl BuildWorker {
 
         let executable_target = match self
             .target_planner
-            .plan(&self.build_opts, &self.env, &target)
+            .plan(&self.build_opts, &self.env, label, &target)
             .await
         {
             Err(TargetPlannerError::MissingDependencies { deps, .. }) => {
@@ -236,7 +195,7 @@ impl BuildWorker {
         };
 
         self.event_channel.send(Event::BuildingTarget {
-            label: target.label.clone(),
+            label: target.label.clone().into(),
             rule_mnemonic: executable_target.rule.mnemonic.to_string(),
         });
 
@@ -247,7 +206,7 @@ impl BuildWorker {
         {
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
-                    executable_target.label.clone(),
+                    executable_target.label.clone().into(),
                     BuildError::TargetExecutorError(err),
                 ));
 
@@ -263,9 +222,9 @@ impl BuildWorker {
                 },
             )) => {
                 self.event_channel.send(Event::BuildError(
-                    executable_target.label.clone(),
+                    executable_target.label.clone().into(),
                     BuildError::BuildWorkerError(BuildWorkerError::TargetFailedValidation {
-                        label: executable_target.label.clone(),
+                        label: executable_target.label.clone().into(),
                         expected_but_missing,
                         unexpected_but_present,
                         expected_and_present,
@@ -281,7 +240,8 @@ impl BuildWorker {
                     .await
                     .map_err(BuildWorkerError::TargetPlannerError)?;
 
-                let final_label_id = self.label_registry.register_label(&executable_target.label);
+                let tmp_label: Label = executable_target.label.to_owned().into();
+                let final_label_id = self.label_registry.register_label(tmp_label);
                 let final_label = self.label_registry.get_label(final_label_id);
 
                 if manifest.cached {

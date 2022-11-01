@@ -1,45 +1,105 @@
 use super::*;
-use serde::de::{self, MapAccess, Visitor};
+use serde::de::{EnumAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::path::PathBuf;
+use std::borrow::Cow;
+use std::convert::TryFrom;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use thiserror::*;
-use tokio::fs;
 use tracing::*;
 use url::Url;
 
-static COLON: char = ':';
-static DOT: char = '.';
-static WILDCARD: &str = "//...";
+#[derive(Error, Debug)]
+pub enum LabelError {
+    #[error(transparent)]
+    WorkerError(build_worker::BuildWorkerError),
+
+    #[error(transparent)]
+    QueueError(build_queue::QueueError),
+
+    #[error(transparent)]
+    BuilderError(derive_builder::UninitializedFieldError),
+}
+
+impl From<derive_builder::UninitializedFieldError> for LabelError {
+    fn from(err: derive_builder::UninitializedFieldError) -> Self {
+        Self::BuilderError(err)
+    }
+}
 
 /// A wildcard Label is a placeholder for all the labels (concrete and abstract), living
 /// under a
+#[derive(
+    Builder, Default, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[builder(build_fn(name = "build", error = "LabelError"))]
 pub struct WildcardLabel {
     /// The absolute path to the workspace where this label is pointing.
     ///
+    #[builder(default)]
     workspace: PathBuf,
 
     /// The prefix of this workspace to be used as a filter when queueing the entire workspace.
     ///
-    prefix: Option<PathBuf>,
+    #[builder(default)]
+    prefix: PathBuf,
+}
+
+impl WildcardLabel {
+    pub fn builder() -> WildcardLabelBuilder {
+        WildcardLabelBuilder::default()
+    }
+}
+
+impl WildcardLabelBuilder {
+    pub fn build_label(&self) -> Result<Label, LabelError> {
+        Ok(Label::Wildcard(self.build().unwrap()))
+    }
+}
+
+impl ToString for WildcardLabel {
+    fn to_string(&self) -> String {
+        if self.prefix.to_string_lossy().is_empty() {
+            "//...".to_string()
+        } else {
+            format!("//{}/...", self.prefix.to_string_lossy())
+        }
+    }
+}
+
+impl AsRef<Path> for WildcardLabel {
+    fn as_ref(&self) -> &Path {
+        &self.prefix
+    }
 }
 
 /// Local Labels are Labels that point to a specific file on disk.
 /// These may belong to the current or to another workspace.
 ///
+#[derive(
+    Builder, Default, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
+#[builder(build_fn(name = "build", error = "LabelError"))]
 pub struct LocalLabel {
     /// The absolute path to the workspace where this file lives.
     ///
+    /// We expected `workspace` to be a prefix of `file`.
+    ///
+    #[builder(default = r#"PathBuf::from(".")"#)]
     workspace: PathBuf,
 
-    /// The relative path to the file from `workspace`
+    /// The relative path to the file from `workspace`.
+    ///
+    /// We expected `workspace` to be a prefix of `file`.
     ///
     file: PathBuf,
 
     /// An optional Label from which the current label was promoted. Label promotion usually
     /// happens when we grab an Remote Label and turn it into a Local label.
     ///
+    #[builder(default)]
+    #[serde(default)]
     promoted_from: Option<Box<RemoteLabel>>,
 
     /// An associated URL, primarily used for printing concrete labels that have been
@@ -60,458 +120,448 @@ pub struct LocalLabel {
     ///
     /// We put this together by using this `associated_url` field and the `file` field.
     ///
+    #[builder(default)]
+    #[serde(default)]
     associated_url: Option<Url>,
 }
 
-/// Target Labels are Labels that point to a specific Target within a Signature.
-///
-pub struct TargetLabel {
-    file_label: LocalLabel,
+impl LocalLabel {
+    pub fn builder() -> LocalLabelBuilder {
+        LocalLabelBuilder::default()
+    }
+
+    pub fn set_workspace<W: Into<PathBuf>>(&mut self, w: W) {
+        self.workspace = w.into();
+    }
+
+    pub fn hash(&self) -> usize {
+        fxhash::hash(&self.file.to_string_lossy())
+    }
+
+    pub fn workspace(&self) -> &Path {
+        &self.workspace
+    }
+
+    pub fn name(&self) -> Cow<'_, str> {
+        self.file.file_name().unwrap().to_string_lossy()
+    }
+
+    pub fn promoted_from(&self) -> Option<RemoteLabel> {
+        self.promoted_from.as_ref().map(|r| r.as_ref().to_owned())
+    }
+}
+
+impl LocalLabelBuilder {
+    pub fn build_label(&self) -> Result<Label, LabelError> {
+        Ok(Label::Local(self.build().unwrap()))
+    }
+}
+
+impl ToString for LocalLabel {
+    fn to_string(&self) -> String {
+        if let Some(url) = &self.associated_url {
+            return format!("{}/{}", url, self.file.to_string_lossy());
+        }
+
+        if let Some(remote) = &self.promoted_from {
+            return remote.to_string();
+        }
+
+        format!("{}", self.file.to_string_lossy())
+    }
+}
+
+impl AsRef<Path> for LocalLabel {
+    fn as_ref(&self) -> &Path {
+        &self.file
+    }
 }
 
 /// Remote Labels are Labels built from a URL. They may be
 ///
+#[derive(Default, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct RemoteLabel {
     /// The URL used to create this label.
     ///
     url: String,
 
-    host: String,
+    pub(crate) host: String,
 
-    prefix_hash: String,
+    pub(crate) prefix_hash: String,
 
-    path: String,
+    pub(crate) path: PathBuf,
 }
 
-pub enum Label2 {
-    Wildcard(WildcardLabel),
-    Local(LocalLabel),
-    Remote(RemoteLabel),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum LocalLabelKind {
-    Relative,
-    Absolute,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum InnerLabel {
-    Wildcard,
-    Local {
-        kind: LocalLabelKind,
-        path: PathBuf,
-        #[serde(default)]
-        promoted_from: Option<Box<InnerLabel>>,
-        #[serde(default)]
-        associated_url: Option<Url>,
-    },
-    Remote {
-        url: String,
-        host: String,
-        prefix_hash: String,
-        path: String,
-    },
-}
-
-impl Default for InnerLabel {
-    fn default() -> Self {
-        InnerLabel::Wildcard
-    }
-}
-
-#[derive(Default, Builder, Clone, Debug, PartialOrd, Ord, Serialize)]
-#[builder(build_fn(error = "LabelBuilderError"))]
-pub struct Label {
-    #[builder(default)]
-    workspace: String,
-
-    #[builder(default)]
-    inner_label: InnerLabel,
-
-    #[builder(default)]
-    name: String,
-}
-
-#[derive(Error, Debug)]
-pub enum LabelBuilderError {
-    #[error(transparent)]
-    WorkerError(build_worker::BuildWorkerError),
-
-    #[error(transparent)]
-    QueueError(build_queue::QueueError),
-}
-
-impl LabelBuilder {
-    #[tracing::instrument(name = "LabelBuilder::with_workspace")]
-    pub fn with_workspace(&mut self, workspace: &Workspace) -> &mut Self {
-        self.workspace(workspace.paths.workspace_root.to_str().unwrap().to_string());
-        self
+impl RemoteLabel {
+    pub fn url_str(&self) -> Cow<'_, str> {
+        Cow::from(&self.url)
     }
 
-    /// Turn a URL into a Label.
-    ///
-    /// When doing so, the path of the URL will become the Path that we will use to find things
-    /// within the remote workspace.
-    ///
-    #[tracing::instrument(name = "LabelBuilder::from_url")]
-    pub fn from_url(&mut self, url: &Url) -> Result<Label, LabelBuilderError> {
-        let raw_url = url.to_string();
-
-        // TODO(@ostera): actually validate that we have a path with at least one segment
-        let mut s = Sha256::new();
-        s.update(url[..url::Position::BeforePath].as_bytes());
-        for path in url.path_segments().unwrap().rev().skip(1) {
-            s.update(path.as_bytes());
-        }
-        let prefix_hash = format!("{:x}", s.finalize());
-
-        let name = url.path_segments().unwrap().last().unwrap().to_string();
-        let host = url.host_str().unwrap().to_string();
-        let path = format!(".{}", url.path());
-
-        self.name(name);
-        self.inner_label(InnerLabel::Remote {
-            url: raw_url,
-            host,
-            prefix_hash,
-            path,
-        });
-
-        self.build()
-    }
-
-    /// Turn a Path into a label.
-    ///
-    /// When doing this, the final stem of a path will become the name of the target
-    /// if no name is set yet.
-    ///
-    #[tracing::instrument(name = "LabelBuilder::from_path")]
-    pub fn from_path(&mut self, path: PathBuf) -> Result<Label, LabelBuilderError> {
-        let (kind, path) = self._clean_path(path);
-
-        if self.name.is_none() {
-            let name = path
-                .file_name()
-                .and_then(|f| f.to_str())
-                .map(|f| f.to_string())
-                .unwrap_or_default();
-            self.name(name);
-        }
-
-        self.inner_label(InnerLabel::Local {
-            path,
-            kind,
-            promoted_from: None,
-            associated_url: None,
-        });
-
-        self.build()
-    }
-
-    /// Parse a String into a Label. This will attempt to:
-    ///
-    /// 1. parse the String as a URL first
-    /// 2. handle wildcard labels
-    /// 3. deal with override target names (`a:b` notation)
-    ///
-    #[tracing::instrument(name = "LabelBuilder::from_string")]
-    pub fn from_string(&mut self, str: &str) -> Result<Label, LabelBuilderError> {
-        if let Ok(url) = Url::parse(str) {
-            return self.from_url(&url);
-        }
-
-        if str.eq(WILDCARD) {
-            self.name("".to_string());
-            self.inner_label(InnerLabel::Wildcard);
-            return self.build();
-        }
-
-        // NOTE(@ostera): we are specifying a label within this bulid target,
-        // that we should override.
-        //
-        // else we will just use the same label as the filename.
-        //
-        let (path, name) = if str.contains(COLON) {
-            let parts: Vec<&str> = str.split(COLON).collect();
-            (parts[0].to_string(), parts[1].to_string())
-        } else {
-            let name = PathBuf::from(str)
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .to_string();
-
-            (str.to_string(), name)
-        };
-        self.name(name);
-
-        let path = path.replace("//", "/");
-
-        self.from_path(PathBuf::from(path))
-    }
-
-    fn _clean_path(&self, path: PathBuf) -> (LocalLabelKind, PathBuf) {
-        let path = if path.ends_with(BUILDFILE) {
-            path.parent().unwrap().to_path_buf()
-        } else {
-            path
-        };
-
-        let path = PathBuf::from(path.to_str().unwrap().replace("/./", "/"));
-
-        let mut stripped = false;
-        let path = if path.is_absolute() {
-            stripped = true;
-            path.strip_prefix(&self.workspace.clone().unwrap_or_default())
-                .map(|p| p.to_path_buf())
-                .unwrap_or_else(|_| path.clone())
-        } else {
-            path
-        };
-
-        if path.starts_with("/") {
-            (
-                LocalLabelKind::Absolute,
-                PathBuf::from(path.to_str().unwrap().replacen('/', "", 1)),
-            )
-        } else if stripped {
-            (LocalLabelKind::Absolute, path)
-        } else {
-            (LocalLabelKind::Relative, path)
-        }
-    }
-}
-
-impl std::fmt::Debug for LabelBuilder {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("LabelBuilder")
-            .field("workspace", &self.workspace)
-            .field("inner_label", &self.inner_label)
-            .field("name", &self.name)
-            .finish()
-    }
-}
-
-impl Label {
-    #[tracing::instrument(name = "Label::builder")]
-    pub fn builder() -> LabelBuilder {
-        LabelBuilder::default()
-    }
-
-    pub fn all() -> Label {
-        Label::default()
-    }
-
-    pub fn new(str: &str) -> Label {
-        Self::builder().from_string(str).unwrap()
-    }
-
-    pub fn name(&self) -> String {
-        self.name.to_string()
+    pub fn url(&self) -> url::Url {
+        self.url.parse().unwrap()
     }
 
     pub fn hash(&self) -> usize {
-        match &self.inner_label {
-            InnerLabel::Wildcard => 0,
-            InnerLabel::Local { path, .. } => {
-                fxhash::hash(&format!("{}:{}", &path.to_str().unwrap(), &self.name))
+        fxhash::hash(&self.url)
+    }
+
+    pub fn name(&self) -> Cow<'_, str> {
+        self.path.file_name().unwrap().to_string_lossy()
+    }
+
+    /// Turn a RemoteLabel into a LocalLabel by using the URL to create a path to a remote
+    /// workspace.
+    ///
+    /// For Remote Rules and Toolchains, this is a synthetic path that is never used.
+    ///
+    /// For Remote Workspaces, this is the path where we will end up downloading and extracting
+    /// contents.
+    ///
+    fn to_local<P>(&self, workspace: P) -> LocalLabel
+    where
+        P: AsRef<WorkspacePaths> + Clone,
+    {
+        let path = self.path.to_string_lossy().to_string();
+
+        let url_as_path = self.url.replace("://", "/");
+        let paths = workspace.as_ref();
+        let workspace = paths.global_workspaces_path.join(url_as_path);
+        let workspace = workspace.to_string_lossy();
+        let workspace = workspace.strip_suffix(&path).unwrap();
+
+        let path = path.strip_prefix('/').unwrap();
+
+        LocalLabel::builder()
+            .workspace(workspace.into())
+            .file(path.into())
+            .promoted_from(Some(Box::new(self.to_owned())))
+            .build()
+            .unwrap()
+    }
+}
+
+impl ToString for RemoteLabel {
+    fn to_string(&self) -> String {
+        self.url.to_string()
+    }
+}
+
+impl From<&url::Url> for RemoteLabel {
+    fn from(val: &url::Url) -> Self {
+        val.to_owned().into()
+    }
+}
+
+impl From<url::Url> for RemoteLabel {
+    fn from(val: url::Url) -> Self {
+        let mut s = Sha256::new();
+        s.update(val[..url::Position::BeforePath].as_bytes());
+        for path in val.path_segments().unwrap().rev().skip(1) {
+            s.update(path.as_bytes());
+        }
+
+        RemoteLabel {
+            url: val.to_string(),
+            host: val.host_str().unwrap().to_string(),
+            prefix_hash: format!("{:x}", s.finalize()),
+            path: PathBuf::from(val.path()),
+        }
+    }
+}
+
+impl AsRef<Path> for RemoteLabel {
+    fn as_ref(&self) -> &Path {
+        &self.path
+    }
+}
+
+/// Abstract Labels are labels generated on the fly from reading a Signature file or from
+/// generating a Signature out of a Local label.
+///
+#[derive(Builder, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[builder(build_fn(name = "build", error = "LabelError"))]
+pub struct AbstractLabel {
+    workspace: PathBuf,
+    path: PathBuf,
+    name: String,
+}
+
+impl AbstractLabel {
+    pub fn builder() -> AbstractLabelBuilder {
+        AbstractLabelBuilder::default()
+    }
+
+    pub fn set_workspace<W: Into<PathBuf>>(&mut self, w: W) {
+        self.workspace = w.into();
+    }
+
+    pub fn set_path<W: Into<PathBuf>>(&mut self, w: W) {
+        self.path = w.into();
+    }
+
+    pub fn workspace(&self) -> &Path {
+        &self.workspace
+    }
+
+    pub fn name(&self) -> Cow<'_, str> {
+        Cow::from(&self.name)
+    }
+
+    pub fn hash(&self) -> usize {
+        fxhash::hash(&self.path)
+    }
+}
+
+impl AbstractLabelBuilder {
+    pub fn build_label(&self) -> Result<Label, LabelError> {
+        Ok(Label::Abstract(self.build().unwrap()))
+    }
+}
+
+impl ToString for AbstractLabel {
+    fn to_string(&self) -> String {
+        format!("{}:{}", self.path.to_string_lossy(), self.name)
+    }
+}
+
+impl AsRef<Path> for AbstractLabel {
+    fn as_ref(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl From<LocalLabel> for AbstractLabel {
+    fn from(l: LocalLabel) -> Self {
+        let path = l.file.parent().unwrap().to_path_buf();
+        let name = l.file.file_name().unwrap().to_string_lossy().to_string();
+
+        AbstractLabel::builder()
+            .workspace(l.workspace().into())
+            .path(path)
+            .name(name)
+            .build()
+            .unwrap()
+    }
+}
+
+#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash, Serialize)]
+pub enum Label {
+    Wildcard(WildcardLabel),
+    Local(LocalLabel),
+    Remote(RemoteLabel),
+    Abstract(AbstractLabel),
+}
+
+/// Constructors and Setters
+impl Label {
+    #[tracing::instrument(name = "Label::local_builder")]
+    pub fn local_builder() -> LocalLabelBuilder {
+        LocalLabel::builder()
+    }
+
+    #[tracing::instrument(name = "Label::wildcard_builder")]
+    pub fn wildcard_builder() -> WildcardLabelBuilder {
+        WildcardLabel::builder()
+    }
+
+    #[tracing::instrument(name = "Label::wildcard_builder")]
+    pub fn abstract_builder() -> AbstractLabelBuilder {
+        AbstractLabel::builder()
+    }
+
+    #[tracing::instrument(name = "Label::all")]
+    pub fn all() -> Self {
+        Self::default()
+    }
+
+    pub fn set_workspace<W: Into<PathBuf>>(&mut self, w: W) {
+        match self {
+            Label::Abstract(l) => l.set_workspace(w),
+            Label::Local(l) => l.set_workspace(w),
+            _ => (),
+        }
+    }
+
+    pub fn set_path<W: Into<PathBuf>>(&mut self, w: W) {
+        match self {
+            Label::Abstract(l) => l.set_path(w),
+            _ => (),
+        }
+    }
+
+    pub fn to_local<P>(&self, workspace: P) -> Option<Label>
+    where
+        P: AsRef<WorkspacePaths> + Clone,
+    {
+        match &self {
+            Label::Remote(r) => Some(r.to_local(workspace).into()),
+            Label::Local(_) => Some(self.to_owned()),
+            _ => None,
+        }
+    }
+
+    pub fn to_abstract(&self) -> Option<Label> {
+        match &self {
+            Label::Local(l) => {
+                let abstract_label: AbstractLabel = l.to_owned().into();
+                Some(abstract_label.into())
             }
-            InnerLabel::Remote { url, .. } => fxhash::hash(&url),
+            Label::Abstract(_) => Some(self.to_owned()),
+            _ => None,
+        }
+    }
+}
+
+/// Accessors for Labels
+impl Label {
+    pub fn hash(&self) -> usize {
+        match &self {
+            Label::Wildcard(_) => 0,
+            Label::Local(l) => l.hash(),
+            Label::Remote(r) => r.hash(),
+            Label::Abstract(a) => a.hash(),
         }
     }
 
-    pub fn url(&self) -> Url {
-        match &self.inner_label {
-            InnerLabel::Remote { url, .. } => url.parse().unwrap(),
-            _ => panic!("Tried to get a URl out of a local label: {:?}", self),
+    pub fn name(&self) -> Cow<'_, str> {
+        match &self {
+            Label::Wildcard(_) => Cow::from(""),
+            Label::Local(l) => l.name(),
+            Label::Remote(r) => r.name(),
+            Label::Abstract(a) => a.name(),
         }
     }
 
-    pub fn workspace(&self) -> PathBuf {
-        PathBuf::from(&self.workspace)
-    }
-
-    pub fn path(&self) -> PathBuf {
-        match &self.inner_label {
-            InnerLabel::Wildcard => PathBuf::from(DOT.to_string()),
-            InnerLabel::Local { path, .. } => path.to_path_buf(),
-            InnerLabel::Remote { path, .. } => PathBuf::from(path.to_string()),
+    pub fn workspace(&self) -> Option<&Path> {
+        match &self {
+            Label::Local(l) => Some(l.workspace()),
+            Label::Abstract(l) => Some(l.workspace()),
+            _ => None,
         }
     }
 
-    pub async fn is_file(&self) -> bool {
-        if let Ok(meta) = fs::metadata(self.workspace().join(self.path()).join(self.name())).await {
-            meta.is_file()
-        } else {
-            false
+    pub fn path(&self) -> &Path {
+        match &self {
+            Label::Wildcard(w) => w.as_ref(),
+            Label::Local(l) => l.as_ref(),
+            Label::Remote(r) => r.as_ref(),
+            Label::Abstract(a) => a.as_ref(),
         }
+    }
+
+    pub fn extension(&self) -> Option<String> {
+        self.path()
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext.to_string())
+    }
+
+    pub fn is_file(&self) -> bool {
+        matches!(&self, Self::Local(_))
     }
 
     pub fn is_all(&self) -> bool {
-        matches!(self.inner_label, InnerLabel::Wildcard)
+        matches!(&self, Self::Wildcard(_))
     }
 
-    pub fn is_local(&self) -> bool {
-        matches!(self.inner_label, InnerLabel::Local { .. })
+    pub fn is_abstract(&self) -> bool {
+        matches!(&self, Self::Abstract(_))
     }
 
     pub fn is_remote(&self) -> bool {
-        matches!(self.inner_label, InnerLabel::Remote { .. })
+        matches!(&self, Self::Remote(_))
     }
 
-    pub fn is_relative(&self) -> bool {
-        matches!(
-            &self.inner_label,
-            InnerLabel::Local {
-                kind: LocalLabelKind::Relative,
-                ..
-            }
-        )
-    }
-
-    #[tracing::instrument(name = "Label::change_workspace", skip(workspace))]
-    pub fn change_workspace(&self, workspace: &Workspace) -> Self {
-        match &self.inner_label {
-            InnerLabel::Wildcard => Label::default(),
-            InnerLabel::Local { path, .. } => Self::builder()
-                .name(self.name())
-                .with_workspace(workspace)
-                .from_path(path.to_path_buf())
-                .unwrap(),
-            InnerLabel::Remote { url, .. } => Self::builder()
-                .name(self.name())
-                .with_workspace(workspace)
-                .from_url(&Url::parse(url).unwrap())
-                .unwrap(),
+    pub fn get_abstract(&self) -> Option<&AbstractLabel> {
+        match &self {
+            Label::Abstract(a) => Some(a),
+            _ => None,
         }
     }
 
-    pub fn as_store_prefix(&self) -> String {
-        match &self.inner_label {
-            InnerLabel::Remote {
-                host, prefix_hash, ..
-            } => format!("{}-{}", prefix_hash, host),
-            _ => panic!("We can't turn a non-remote label into a cache prefix!"),
+    pub fn get_remote(&self) -> Option<&RemoteLabel> {
+        match &self {
+            Label::Remote(r) => Some(r),
+            _ => None,
         }
     }
 
-    pub fn with_associated_url(&self, url: Url) -> Label {
-        let this = self.clone();
-        match &self.inner_label {
-            InnerLabel::Local {
-                kind,
-                path,
-                promoted_from,
-                ..
-            } => Self {
-                inner_label: InnerLabel::Local {
-                    kind: kind.clone(),
-                    path: path.clone(),
-                    associated_url: Some(url),
-                    promoted_from: promoted_from.clone(),
-                },
-                ..this
-            },
-            _ => this,
-        }
-    }
-
-    pub fn promote(&self, promotion: Label) -> Label {
-        match (&self.inner_label, &promotion.inner_label) {
-            (
-                remote @ InnerLabel::Remote { .. },
-                InnerLabel::Local {
-                    kind,
-                    path,
-                    associated_url,
-                    ..
-                },
-            ) => Self {
-                inner_label: InnerLabel::Local {
-                    kind: kind.clone(),
-                    path: path.clone(),
-                    associated_url: associated_url.clone(),
-                    promoted_from: Some(Box::new(remote.clone())),
-                },
-                ..promotion
-            },
-            _ => promotion,
+    pub fn get_local(&self) -> Option<&LocalLabel> {
+        match &self {
+            Label::Local(l) => Some(l),
+            _ => None,
         }
     }
 }
 
-impl Eq for Label {}
-
-impl PartialEq for Label {
-    fn eq(&self, other: &Self) -> bool {
-        self.hash() == other.hash()
+impl Default for Label {
+    fn default() -> Self {
+        Self::Wildcard(WildcardLabel::default())
     }
 }
 
-impl std::hash::Hash for Label {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.hash().hash(state);
+impl AsRef<Label> for Label {
+    fn as_ref(&self) -> &Label {
+        self
     }
 }
 
 impl ToString for Label {
     fn to_string(&self) -> String {
-        let body = self.inner_label.to_string();
-
-        match &self.inner_label {
-            InnerLabel::Local {
-                promoted_from: None,
-                ..
-            } => format!("{}:{}", body, self.name),
-            _ => body,
+        match &self {
+            Label::Wildcard(l) => l.to_string(),
+            Label::Local(l) => l.to_string(),
+            Label::Remote(l) => l.to_string(),
+            Label::Abstract(l) => l.to_string(),
         }
     }
 }
 
-impl ToString for InnerLabel {
-    fn to_string(&self) -> String {
-        match &self {
-            InnerLabel::Wildcard => WILDCARD.to_string(),
-            InnerLabel::Local {
-                promoted_from: Some(remote),
-                ..
-            } => remote.to_string(),
-            InnerLabel::Local {
-                associated_url,
-                path,
-                ..
-            } => {
-                let path = path.to_str().unwrap();
-                let path = if path == "." { "" } else { path }.replace("./", "");
-                if let Some(url) = associated_url {
-                    let mut url = url.clone();
-                    url.set_path(&path);
-                    url.to_string()
-                } else {
-                    format!("//{}", path)
-                }
-            }
-            InnerLabel::Remote { url, .. } => url.to_string(),
-        }
+impl From<AbstractLabel> for Label {
+    fn from(val: AbstractLabel) -> Self {
+        Label::Abstract(val)
+    }
+}
+
+impl From<LocalLabel> for Label {
+    fn from(val: LocalLabel) -> Self {
+        Label::Local(val)
+    }
+}
+
+impl From<RemoteLabel> for Label {
+    fn from(val: RemoteLabel) -> Self {
+        Label::Remote(val)
+    }
+}
+
+impl From<&url::Url> for Label {
+    fn from(val: &url::Url) -> Self {
+        Label::Remote(val.into())
+    }
+}
+
+impl From<url::Url> for Label {
+    fn from(val: url::Url) -> Self {
+        Label::Remote(val.into())
     }
 }
 
 impl FromStr for Label {
-    type Err = LabelBuilderError;
+    type Err = LabelError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::builder().from_string(s)
-    }
-}
+        if let Ok(url) = s.parse::<url::Url>() {
+            return Ok(url.into());
+        }
 
-#[derive(Deserialize)]
-#[serde(field_identifier, rename_all = "snake_case")]
-enum LabelField {
-    Name,
-    InnerLabel,
-    Workspace,
+        if s.starts_with("//") && s.ends_with("...") {
+            let prefix = s.replace("//", "/").replace("...", "");
+            return Self::wildcard_builder().prefix(prefix.into()).build_label();
+        }
+
+        Self::local_builder().file(s.into()).build_label()
+    }
 }
 
 struct LabelVisitor;
@@ -536,47 +586,28 @@ impl<'de> Visitor<'de> for LabelVisitor {
         Ok(FromStr::from_str(&v).unwrap())
     }
 
-    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
     where
-        M: MapAccess<'de>,
+        A: serde::de::MapAccess<'de>,
     {
-        let mut workspace = None;
-        let mut inner_label = None;
-        let mut name = None;
+        let key: String = map
+            .next_key()?
+            .ok_or_else(|| serde::de::Error::custom("Found an empty map"))?;
 
-        while let Some(key) = access.next_key()? {
-            match key {
-                LabelField::Name => {
-                    if name.is_some() {
-                        return Err(de::Error::duplicate_field("name"));
-                    }
-                    name = Some(access.next_value()?);
-                }
-                LabelField::InnerLabel => {
-                    if inner_label.is_some() {
-                        return Err(de::Error::duplicate_field("inner_label"));
-                    }
-                    inner_label = Some(access.next_value()?);
-                }
-                LabelField::Workspace => {
-                    if workspace.is_some() {
-                        return Err(de::Error::duplicate_field("workspace"));
-                    }
-                    workspace = access.next_value()?;
-                }
+        let label = match key.as_str() {
+            "Wildcard" => Label::Wildcard(map.next_value()?),
+            "Local" => Label::Local(map.next_value()?),
+            "Abstract" => Label::Abstract(map.next_value()?),
+            "Remote" => Label::Remote(map.next_value()?),
+            _ => {
+                return Err(serde::de::Error::custom(format!(
+                    "Do not know how to deserialize label of kind '{}'",
+                    key
+                )))
             }
-        }
+        };
 
-        let name = name.ok_or_else(|| de::Error::missing_field("name"))?;
-        let inner_label = inner_label.ok_or_else(|| de::Error::missing_field("inner_label"))?;
-        let workspace = workspace.ok_or_else(|| de::Error::missing_field("inner_label"))?;
-
-        Ok(Self::Value::builder()
-            .name(name)
-            .inner_label(inner_label)
-            .workspace(workspace)
-            .build()
-            .unwrap())
+        Ok(label)
     }
 }
 
@@ -593,125 +624,9 @@ impl<'de> Deserialize<'de> for Label {
 mod tests {
     use super::*;
 
-    fn make_workspace(root: &str) -> Workspace {
-        Workspace {
-            paths: WorkspacePaths {
-                workspace_root: PathBuf::from(root),
-                ..Default::default()
-            },
-            ..Default::default()
-        }
-    }
-
     #[test]
-    fn parses_wildcard_path() {
-        let path = "//...";
-        let l1 = Label::builder()
-            .with_workspace(&Workspace::default())
-            .from_string(path)
-            .unwrap();
-        assert_eq!("//...", l1.to_string());
-        assert!(!l1.is_local());
-        assert!(!l1.is_remote());
-        assert!(l1.is_all());
-    }
-
-    #[test]
-    fn parses_local_paths() {
-        let path = ":hello";
-        let l1 = Label::builder()
-            .with_workspace(&Workspace::default())
-            .from_string(path)
-            .unwrap();
-        assert_eq!("//:hello", l1.to_string());
-        assert!(l1.is_local());
-        assert!(!l1.is_remote());
-        assert!(!l1.is_all());
-    }
-
-    #[test]
-    fn parses_relative_paths_with_implicit_target() {
-        let path = "./hello";
-        let l1 = Label::builder()
-            .with_workspace(&Workspace::default())
-            .from_string(path)
-            .unwrap();
-        assert_eq!("//hello:hello", l1.to_string());
-        assert!(l1.is_local());
-        assert!(!l1.is_remote());
-        assert!(!l1.is_all());
-
-        let path = "./hello";
-        let l1 = Label::builder()
-            .with_workspace(&make_workspace("/test/workspace"))
-            .from_string(path)
-            .unwrap();
-        assert_eq!("//test/workspace/hello:hello", l1.to_string());
-        assert!(l1.is_local());
-        assert!(!l1.is_remote());
-        assert!(!l1.is_all());
-    }
-
-    #[test]
-    fn parses_relative_paths_with_explicit_target() {
-        let path = "./hello:world";
-        let l1 = Label::builder()
-            .with_workspace(&Workspace::default())
-            .from_string(path)
-            .unwrap();
-        assert_eq!("//hello:world", l1.to_string());
-        assert!(l1.is_local());
-        assert!(!l1.is_remote());
-        assert!(!l1.is_all());
-    }
-
-    #[test]
-    fn parses_absolute_paths() {
-        let path = "//hello/world:bin";
-        let l1 = Label::builder()
-            .with_workspace(&Workspace::default())
-            .from_string(path)
-            .unwrap();
-        assert_eq!("//hello/world:bin", l1.to_string());
-        assert!(l1.is_local());
-        assert!(!l1.is_remote());
-        assert!(!l1.is_all());
-
-        let path = "//hello/world:bin";
-        let l1 = Label::builder()
-            .with_workspace(&make_workspace("/test/workspace"))
-            .from_string(path)
-            .unwrap();
-        assert_eq!("//test/workspace/hello/world:hello", l1.to_string());
-        assert!(l1.is_local());
-        assert!(!l1.is_remote());
-        assert!(!l1.is_all());
-    }
-
-    #[test]
-    fn parses_remote_label() {
-        let path = "https://rules.warp.build/toolchains/openssl";
-        let l1 = Label::builder()
-            .with_workspace(&Workspace::default())
-            .from_string(path)
-            .unwrap();
-        assert!(l1.is_remote());
-        assert_eq!(l1.name(), "openssl");
-        assert!(
-            matches!(l1.inner_label, InnerLabel::Remote { prefix_hash, .. } if prefix_hash == "6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e")
-        );
-    }
-
-    #[test]
-    fn can_turn_into_store_prefix() {
-        let path = "https://rules.warp.build/toolchains/openssl";
-        let l1 = Label::builder()
-            .with_workspace(&Workspace::default())
-            .from_string(path)
-            .unwrap();
-        assert_eq!(
-            l1.as_store_prefix(),
-            "6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-rules.warp.build"
-        );
+    fn parse_from_string_url() {
+        let label: Label = serde_json::from_str("https://hello.world").unwrap();
+        dbg!(label);
     }
 }

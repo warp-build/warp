@@ -41,15 +41,13 @@ impl BuildCommand {
 
     #[tracing::instrument(name = "BuildCommand::run", skip(warp))]
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
-        let label: Label = (&warp.workspace.aliases)
-            .get(&self.label)
-            .cloned()
-            .unwrap_or_else(|| {
-                Label::builder()
-                    .with_workspace(&warp.workspace)
-                    .from_string(&self.label)
-                    .unwrap()
-            });
+        let label: Label = if let Some(label) = (&warp.workspace.aliases).get(&self.label) {
+            label.clone()
+        } else {
+            let mut label: Label = self.label.parse()?;
+            label.set_workspace(&warp.workspace.paths.workspace_root);
+            label
+        };
 
         let status_reporter = StatusReporter::new(warp.event_channel.clone());
         let (result, ()) = futures::future::join(

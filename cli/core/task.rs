@@ -9,10 +9,13 @@ pub enum Goal {
 }
 
 impl Goal {
-    pub fn includes(&self, target: &Target) -> bool {
+    pub fn includes<T>(&self, t: T) -> bool
+    where
+        T: AsRef<RuleName>,
+    {
         match &self {
-            Goal::Test => target.rule_name.ends_with("_test"),
-            Goal::Build | Goal::Run => !target.rule_name.ends_with("_test"),
+            Goal::Test => t.as_ref().ends_with("_test"),
+            Goal::Build | Goal::Run => !t.as_ref().ends_with("_test"),
         }
     }
 

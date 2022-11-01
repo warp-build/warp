@@ -1,8 +1,10 @@
 use super::Event;
 use super::*;
 use futures::StreamExt;
+use std::io::BufReader;
 use std::sync::Arc;
 use thiserror::*;
+use tokio::fs;
 use tokio_util::task::LocalPoolHandle;
 use tracing::*;
 
@@ -13,6 +15,9 @@ pub enum BuildExecutorError {
 
     #[error(transparent)]
     QueueError(build_queue::QueueError),
+
+    #[error(transparent)]
+    LabelError(LabelError),
 
     #[error(transparent)]
     DependencyManagerError(DependencyManagerError),
@@ -84,6 +89,20 @@ impl BuildExecutor {
 
         let rule_store = Arc::new(RuleStore::new(&workspace));
 
+        let signature_store = Arc::new(SignatureStore::new(
+            build_results.clone(),
+            event_channel.clone(),
+            artifact_store.clone(),
+            label_registry.clone(),
+        ));
+
+        let source_manager = Arc::new(SourceManager::new(
+            build_results.clone(),
+            event_channel.clone(),
+            artifact_store.clone(),
+            label_registry.clone(),
+        ));
+
         let label_resolver = Arc::new(LabelResolver::new(
             &workspace,
             artifact_store.clone(),
@@ -91,6 +110,9 @@ impl BuildExecutor {
             event_channel.clone(),
             label_registry.clone(),
             dependency_manager.clone(),
+            source_manager.clone(),
+            signature_store.clone(),
+            build_opts,
         ));
 
         let target_executor = Arc::new(TargetExecutor::new(
@@ -172,6 +194,7 @@ impl BuildExecutor {
         let label_registry = self.label_registry.clone();
         let label_resolver = self.label_resolver.clone();
         let target_executor = self.target_executor.clone();
+        let workspace = self.workspace.clone();
 
         let shared_rule_executor_state = Arc::new(SharedRuleExecutorState::new(
             self.rule_store.clone(),
@@ -181,6 +204,7 @@ impl BuildExecutor {
         self.worker_pool.spawn_pinned(move || async move {
             let mut worker = BuildWorker::new(
                 Role::HelperWorker(worker_id),
+                workspace,
                 build_coordinator,
                 event_channel,
                 build_queue,
@@ -213,6 +237,7 @@ impl BuildExecutor {
         let label_registry = self.label_registry.clone();
         let label_resolver = self.label_resolver.clone();
         let target_executor = self.target_executor.clone();
+        let workspace = self.workspace.clone();
 
         let shared_rule_executor_state = Arc::new(SharedRuleExecutorState::new(
             self.rule_store.clone(),
@@ -222,14 +247,15 @@ impl BuildExecutor {
         self.worker_pool.spawn_pinned(move || async move {
             let mut worker = BuildWorker::new(
                 Role::MainWorker,
-                build_coordinator.clone(),
-                event_channel.clone(),
-                build_queue.clone(),
-                build_results.clone(),
-                label_registry.clone(),
-                label_resolver.clone(),
-                target_executor.clone(),
-                artifact_store.clone(),
+                workspace,
+                build_coordinator,
+                event_channel,
+                build_queue,
+                build_results,
+                label_registry,
+                label_resolver,
+                target_executor,
+                artifact_store,
                 shared_rule_executor_state,
                 build_opts,
             )
@@ -292,16 +318,20 @@ impl BuildExecutor {
                             continue;
                         }
 
-                        let file_type = entry.metadata().await.unwrap().file_type();
-                        if file_type.is_dir() {
+                        if tokio::fs::read_dir(&path).await.is_ok() {
                             dirs.push(path.clone());
                             continue;
                         };
 
                         let path = path.strip_prefix(&root).unwrap().to_path_buf();
 
-                        let label = label_registry
-                            .register_label(&Label::builder().from_path(path).unwrap());
+                        let label = Label::local_builder()
+                            .workspace(root.clone())
+                            .file(path)
+                            .build_label()
+                            .map_err(BuildExecutorError::LabelError)?;
+
+                        let label = label_registry.register_label(label);
 
                         build_queue
                             .queue(Task {
@@ -321,12 +351,9 @@ impl BuildExecutor {
                     .map_err(BuildExecutorError::WorkspaceScannerError)?;
 
                 while let Some(Ok(buildfile_path)) = buildfiles.next().await {
-                    let label = Label::builder()
-                        .with_workspace(&workspace)
-                        .from_path(buildfile_path.clone())
-                        .unwrap();
-
-                    let buildfile = Buildfile::from_label(&label).await;
+                    let buildfile =
+                        SignaturesFile::read(&buildfile_path, &workspace.paths.workspace_root)
+                            .await;
 
                     match buildfile {
                         Err(err) => {
@@ -334,10 +361,9 @@ impl BuildExecutor {
                             continue;
                         }
                         Ok(buildfile) => {
-                            for target in buildfile.targets {
-                                if build_opts.goal.includes(&target) {
-                                    let label = target.label.change_workspace(&workspace);
-                                    let label = label_registry.register_label(&label);
+                            for signature in buildfile.signatures {
+                                if build_opts.goal.includes(&signature) {
+                                    let label = label_registry.register_label(signature.name);
                                     let goal = build_opts.goal;
 
                                     build_queue

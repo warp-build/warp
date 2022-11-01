@@ -1,27 +1,31 @@
+use super::Event;
 use super::*;
 use dashmap::DashMap;
 use futures::Future;
 use futures::FutureExt;
 use fxhash::*;
+use std::path::PathBuf;
 use std::{pin::Pin, sync::Arc};
 use thiserror::*;
 use tracing::*;
 
 #[derive(Debug)]
 pub struct LabelResolver {
+    build_opts: BuildOpts,
+    dependency_resolver: DependencyResolver,
+    label_registry: Arc<LabelRegistry>,
+    remote_workspace_resolver: Arc<RemoteWorkspaceResolver>,
     resolved_labels: DashMap<LabelId, Target>,
     toolchain_configs: FxHashMap<String, RuleConfig>,
-    remote_workspace_resolver: Arc<RemoteWorkspaceResolver>,
-    dependency_resolver: DependencyResolver,
-
-    label_registry: Arc<LabelRegistry>,
+    source_manager: Arc<SourceManager>,
+    signature_store: Arc<SignatureStore>,
+    event_channel: Arc<EventChannel>,
+    workspace: Workspace,
+    artifact_store: Arc<ArtifactStore>,
 }
 
 #[derive(Error, Debug)]
 pub enum LabelResolverError {
-    #[error(transparent)]
-    BuildfileError(BuildfileError),
-
     #[error(r#"Remote label {:?} needs to be configured in the Workspace.toml - you can do that by adding this:
 
 [toolchains.{}]
@@ -41,6 +45,9 @@ And try running the command again to see what the right `sha1` should be.
 
     #[error(transparent)]
     DependencyResolverError(DependencyResolverError),
+
+    #[error(transparent)]
+    SignatureError(SignatureError),
 }
 
 impl LabelResolver {
@@ -51,25 +58,37 @@ impl LabelResolver {
         event_channel: Arc<EventChannel>,
         label_registry: Arc<LabelRegistry>,
         dependency_manager: Arc<DependencyManager>,
+        source_manager: Arc<SourceManager>,
+        signature_store: Arc<SignatureStore>,
+        build_opts: BuildOpts,
     ) -> Self {
         let remote_workspace_resolver = Arc::new(RemoteWorkspaceResolver::new(
             workspace,
             artifact_store.clone(),
             event_channel.clone(),
         ));
+
+        let dependency_resolver = DependencyResolver::new(
+            workspace,
+            build_results,
+            event_channel.clone(),
+            artifact_store.clone(),
+            label_registry.clone(),
+            dependency_manager,
+        );
+
         Self {
-            toolchain_configs: workspace.toolchain_configs.clone(),
-            dependency_resolver: DependencyResolver::new(
-                workspace,
-                build_results,
-                event_channel,
-                artifact_store,
-                label_registry.clone(),
-                dependency_manager,
-            ),
+            artifact_store,
+            build_opts,
+            dependency_resolver,
+            event_channel,
+            label_registry,
             remote_workspace_resolver,
             resolved_labels: DashMap::default(),
-            label_registry,
+            signature_store,
+            source_manager,
+            toolchain_configs: workspace.toolchain_configs.clone(),
+            workspace: workspace.clone(),
         }
     }
 
@@ -84,6 +103,7 @@ impl LabelResolver {
             }
 
             let label = self.label_registry.get_label(label_id);
+
             if label.is_remote() {
                 if let Some(target) = self.find_as_toolchain(&label).await? {
                     self.save(label_id, target.clone());
@@ -104,9 +124,19 @@ impl LabelResolver {
                         return Err(err);
                     }
                 }
-            } else if let Some(target) = self.find_in_local_workspace(&label).await? {
+            }
+
+            if label.is_file() {
+                let target = self.find_as_file(label_id, &label).await?;
                 self.save(label_id, target.clone());
                 return Ok(target);
+            }
+
+            if label.is_abstract() {
+                if let Some(target) = self.find_in_local_workspace(&label).await? {
+                    self.save(label_id, target.clone());
+                    return Ok(target);
+                }
             }
 
             Err(LabelResolverError::TargetNotFound((*label).clone()))
@@ -125,24 +155,45 @@ impl LabelResolver {
         label: &Label,
     ) -> Result<Option<Target>, LabelResolverError> {
         // Try to find a Signature file for this Label.
+        let abstract_label = label.get_abstract().unwrap();
+        let buildfile_path = abstract_label
+            .workspace()
+            .join(&abstract_label)
+            .join(BUILDFILE);
 
-        let buildfile = Buildfile::from_label(label)
+        let buildfile = SignaturesFile::read(buildfile_path, abstract_label.workspace())
             .await
-            .map_err(LabelResolverError::BuildfileError)?;
+            .map_err(LabelResolverError::SignatureError)?;
 
-        let target = buildfile
-            .targets
+        let target: Option<Target> = buildfile
+            .signatures
             .iter()
-            .find(|t| t.label.name() == *label.name())
-            .cloned();
+            .find(|s| s.name.name() == *label.name())
+            .cloned()
+            .map(|s| s.into());
 
         Ok(target)
     }
 
     #[tracing::instrument(name = "LabelResolver::find_as_toolchain", skip(self))]
     async fn find_as_toolchain(&self, label: &Label) -> Result<Option<Target>, LabelResolverError> {
-        if let Some(config) = self.toolchain_configs.get(&label.name()) {
-            let target = Target::new(label.clone(), label.url().as_ref(), config.clone());
+        if let Some(config) = self.toolchain_configs.get(&label.name().to_string()) {
+            let target = Target::new(
+                label.to_local(&self.workspace).unwrap(),
+                &label.get_remote().unwrap().url_str(),
+                config.clone(),
+            );
+
+            // NOTE(@ostera): if a label was successfully lifted
+            if let Some(local) = target.label.get_local() {
+                if let Some(remote) = local.promoted_from() {
+                    self.artifact_store.register_workspace_raw(
+                        local.workspace().to_path_buf(),
+                        PathBuf::from(&remote.prefix_hash),
+                    );
+                };
+            };
+
             Ok(Some(target))
         } else {
             Ok(None)
@@ -175,6 +226,54 @@ impl LabelResolver {
             .map_err(LabelResolverError::DependencyResolverError)?;
 
         Ok(target)
+    }
+
+    #[tracing::instrument(name = "LabelResolver::find_as_file", skip(self))]
+    async fn find_as_file(
+        &self,
+        label_id: LabelId,
+        label: &Label,
+    ) -> Result<Target, LabelResolverError> {
+        self.event_channel.send(Event::GeneratingSignature {
+            label: label.to_owned(),
+        });
+
+        // 1. Register this label as a source file, and store its AST -- at this stage we will be
+        //    using tree-sitter to provide us with an very fast and accurate enough representation
+        //    of this program.
+        //
+        let source = self
+            .source_manager
+            .register_source(label_id, label)
+            .await
+            .unwrap();
+
+        // 2. Figure out what inside that AST we care about -- we need to know exactly which
+        //    signatures we are interested in, and since a source file can have more than one, we
+        //    generate a SourceSymbol by inspecting the label and the current goal.
+        //
+        let symbol = SourceSymbol::from_label_and_goal(label_id, label, self.build_opts.goal);
+
+        // 3. Use the symbol to split the source to the subtree we want to generate a signature
+        //    for.
+        //
+        let source_chunk = self
+            .source_manager
+            .get_source_chunk_by_symbol(source, &symbol)
+            .await
+            .unwrap() // chunker error
+            .unwrap(); // nothing found
+
+        // 4. Generate a signature for this symbol and this source chunk. This signature will
+        //    include all the information we need to build/test/run this chunk.
+        //
+        let signature = self
+            .signature_store
+            .generate_signature(label_id, label, &source_chunk, symbol)
+            .await
+            .unwrap();
+
+        Ok(signature.into())
     }
 }
 

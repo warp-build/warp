@@ -76,7 +76,7 @@ impl RemoteArtifactStore {
         &self,
         key: &ArtifactStoreKey,
         dst: &PathBuf,
-        label: &Label,
+        label: &LocalLabel,
     ) -> Result<(), ArtifactStoreError> {
         let dst_tarball = &dst.with_extension("tar.gz");
 
@@ -91,7 +91,7 @@ impl RemoteArtifactStore {
 
         if response.status() == 200 {
             self.event_channel.send(Event::ArchiveDownloading {
-                label: label.clone(),
+                label: label.to_owned().into(),
                 url: url.to_string(),
             });
 

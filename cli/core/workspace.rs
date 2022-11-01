@@ -26,6 +26,9 @@ pub enum WorkspaceError {
 
     #[error(transparent)]
     RemoteWorkspaceConfigError(RemoteWorkspaceFileError),
+
+    #[error(transparent)]
+    LabelError(LabelError),
 }
 
 impl From<derive_builder::UninitializedFieldError> for WorkspaceError {
@@ -108,6 +111,12 @@ impl Workspace {
     }
 }
 
+impl AsRef<WorkspacePaths> for Workspace {
+    fn as_ref(&self) -> &WorkspacePaths {
+        &self.paths
+    }
+}
+
 impl Default for Workspace {
     fn default() -> Self {
         let mut builder = Self::builder();
@@ -139,7 +148,10 @@ impl WorkspaceBuilder {
 
         let mut aliases: FxHashMap<String, Label> = FxHashMap::default();
         for (name, label) in file.aliases.clone() {
-            aliases.insert(format!("@{}", name), Label::new(&label));
+            aliases.insert(
+                format!("@{}", name),
+                label.parse().map_err(WorkspaceError::LabelError)?,
+            );
         }
         self.aliases(aliases);
 

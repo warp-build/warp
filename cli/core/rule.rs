@@ -141,7 +141,7 @@ impl<'de> Deserialize<'de> for Rule {
             let t = config
                 .get(k)
                 .ok_or_else(|| de::Error::custom(format!("Could not find type for key {:?}", k)))?;
-            let typed_value = (v.clone(), t.clone()).into();
+            let typed_value = (v.clone(), t.clone()).try_into().unwrap();
             default_cfg.insert(k.to_string(), typed_value);
         }
         let defaults = RuleConfig::new().with_defaults(default_cfg);
@@ -155,10 +155,7 @@ impl<'de> Deserialize<'de> for Rule {
                 ))
             })?
             .iter()
-            .map(|t| {
-                let string = t.as_str().unwrap();
-                Label::new(string)
-            })
+            .map(|t| t.as_str().unwrap().parse().unwrap())
             .collect();
 
         let kind = match rule_spec["kind"].as_str().unwrap_or("build") {

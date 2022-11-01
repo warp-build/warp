@@ -1,12 +1,12 @@
 use super::Event;
 use super::*;
 use dashmap::DashMap;
-use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
 use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tracing::*;
+use url::Url;
 
 #[derive(Error, Debug)]
 pub enum DependencyResolverError {
@@ -80,8 +80,8 @@ impl DependencyResolver {
             ("gitlab.com", "https://tools.warp.build/gitlab/resolver"),
             ("npmjs.com", "https://tools.warp.build/npm/resolver"),
         ] {
-            let label = Label::new(resolver);
-            let label_id = this.label_registry.register_label(&label);
+            let label: Label = Url::parse(resolver).unwrap().into();
+            let label_id = this.label_registry.register_label(label);
             this.resolvers.insert(host.to_string(), label_id);
         }
 
@@ -96,15 +96,19 @@ impl DependencyResolver {
         }
 
         let label = self.label_registry.get_label(label_id);
+        let remote_label = label.get_remote().unwrap();
+
         let dependency = self.dependency_manager.get(label_id).ok_or_else(|| {
             DependencyResolverError::UnspecifiedDependency {
-                dependency: (*label).to_owned(),
+                dependency: remote_label.to_owned().into(),
             }
         })?;
 
-        let host = label.url().host().unwrap().to_string();
-        if let Some(resolver) = self.resolvers.get(&host) {
-            if let Some(target) = self.resolve(*resolver, label_id, dependency).await? {
+        if let Some(resolver) = self.resolvers.get(&remote_label.host) {
+            if let Some(target) = self
+                .resolve(*resolver, label_id, remote_label, dependency)
+                .await?
+            {
                 self.targets.insert(label_id, target.clone());
                 return Ok(Some(target));
             }
@@ -118,6 +122,7 @@ impl DependencyResolver {
         &self,
         resolver: LabelId,
         label: LabelId,
+        remote_label: &RemoteLabel,
         dependency: Dependency,
     ) -> Result<Option<Target>, DependencyResolverError> {
         // 1. build resolver
@@ -146,15 +151,13 @@ impl DependencyResolver {
             executable_target: target,
         } = main_entry;
 
-        let label = self.label_registry.get_label(label);
-
         // 2. Resolve dependency
 
         // 2.1. create a workspace for this dependency
 
         // https://hex.pm/packages/proper -> become a workspace
         // let mut dep_workspace = DependencyWorkspace::from_label(label);
-        let url = label.url().to_string().replace("://", "/");
+        let url = remote_label.url_str().replace("://", "/");
 
         // WorkspaceManager.prepare_workspace(&mut dep_workspace).await?;
         let final_dir = self
@@ -188,7 +191,7 @@ impl DependencyResolver {
             serde_json::from_slice(&bytes).unwrap()
         } else {
             self.event_channel.send(Event::ResolvingDependency {
-                label: (*label).to_owned(),
+                label: remote_label.to_owned().into(),
             });
             // 2.2. actually run the resolver to get the workspace contents
             let cmd = CommandRunner::builder()
@@ -253,12 +256,10 @@ impl DependencyResolver {
                 .map_err(DependencyResolverError::CommandRunnerError)?;
 
             // parse it
-            let resolution: DependencySignaturesResolution =
-                serde_json::from_slice(str_output.as_bytes()).map_err(|err| {
-                    DependencyResolverError::ParseError {
-                        err,
-                        resolution: str_output.clone(),
-                    }
+            let resolution: GeneratedSignature = serde_json::from_slice(str_output.as_bytes())
+                .map_err(|err| DependencyResolverError::ParseError {
+                    err,
+                    resolution: str_output.clone(),
                 })?;
 
             let json = serde_json::to_string_pretty(&resolution).unwrap();
@@ -270,169 +271,15 @@ impl DependencyResolver {
         };
 
         // 4. Turn our new signature into a Target
-        let sig = resolution.signatures[0].clone();
-        let sig_label = Label::builder()
-            .name(sig.name.name())
-            .workspace(final_dir.to_str().unwrap().to_string())
-            .from_path(sig.name.path())
-            .unwrap();
+        let mut sig = resolution.signatures[0].clone();
 
-        let mut config = sig.config.clone();
-        config.insert("name".to_string(), CfgValue::Label(sig_label.clone()));
-        config.insert(
-            "deps".to_string(),
-            CfgValue::List(
-                sig.deps
-                    .iter()
-                    .map(|l| CfgValue::Label(l.clone()))
-                    .collect(),
-            ),
-        );
-        let target = Target::new(sig_label, &sig.rule, config);
+        // NOTE(@ostera): update label since the workspace should be the workspace we just downloaded
+        sig.name = {
+            let mut name = sig.name.to_abstract().unwrap();
+            name.set_workspace(final_dir);
+            name
+        };
 
-        Ok(Some(target))
+        Ok(Some(sig.into()))
     }
-}
-
-/// The Workspace Manager takes care of registering workspaces, ensuring they exist, and preparing
-/// the directory structure to set them up in different ways.
-///
-#[derive(Debug, Clone)]
-pub struct WorkspaceManager {
-    global_workspaces_path: PathBuf,
-}
-
-pub trait WorkspaceConfig: std::fmt::Debug {
-    fn path(&self) -> PathBuf;
-}
-
-#[derive(Error, Debug)]
-pub enum WorkspaceManagerError {
-    #[error("Could not ensure workspace at {path:?} due to: {err:?}")]
-    FileError { path: PathBuf, err: std::io::Error },
-
-    #[error("Could not create a download lock for workspace at {path:?}, due to: {err:?}")]
-    LockCreationError { path: PathBuf, err: std::io::Error },
-}
-
-impl WorkspaceManager {
-    pub fn new(workspace: &Workspace) -> Self {
-        Self {
-            global_workspaces_path: workspace.paths.global_workspaces_path.clone(),
-        }
-    }
-
-    pub async fn prepare_workspace(
-        &self,
-        config: &impl WorkspaceConfig,
-    ) -> Result<(), WorkspaceManagerError> {
-        if self.lock_exists(config).await {
-            return Ok(());
-        }
-
-        let final_dir = self._store_path(config);
-        fs::create_dir_all(&final_dir)
-            .await
-            .map_err(|err| WorkspaceManagerError::FileError {
-                path: final_dir.clone(),
-                err,
-            })?;
-
-        Ok(())
-    }
-
-    #[tracing::instrument(name = "WorkspaceManager::lock_exists", skip(self, config))]
-    async fn lock_exists(&self, config: &impl WorkspaceConfig) -> bool {
-        let warp_lock = self._warp_lock_path(config);
-        fs::metadata(&warp_lock).await.is_ok()
-    }
-
-    #[tracing::instrument(name = "WorkspaceManager::create_lock", skip(self, config))]
-    async fn create_lock(
-        &self,
-        config: &impl WorkspaceConfig,
-    ) -> Result<(), WorkspaceManagerError> {
-        let warp_lock = self._warp_lock_path(config);
-        fs::File::create(&warp_lock)
-            .await
-            .map(|_| ())
-            .map_err(|err| WorkspaceManagerError::LockCreationError {
-                path: warp_lock,
-                err,
-            })
-    }
-
-    fn _store_path(&self, config: &impl WorkspaceConfig) -> PathBuf {
-        self.global_workspaces_path.join(config.path())
-    }
-
-    fn _warp_lock_path(&self, config: &impl WorkspaceConfig) -> PathBuf {
-        self._store_path(config).join("Warp.lock")
-    }
-}
-
-trait WorkspaceT {
-    fn config(&self) -> Box<dyn WorkspaceConfig>;
-}
-
-#[derive(Debug, Clone)]
-struct DependencyWorkspace {}
-
-#[derive(Error, Debug)]
-pub enum DependencyWorkspaceError {
-    #[error("Could not create dependency workspace {file:?} due to: {err:?}")]
-    FileError { file: PathBuf, err: std::io::Error },
-}
-
-#[derive(Builder, Debug, Clone, Serialize, Deserialize)]
-pub struct Signature {
-    name: Label,
-
-    rule: RuleName,
-
-    #[serde(default)]
-    deps: Vec<Label>,
-
-    #[serde(flatten)]
-    config: RuleConfig,
-}
-
-#[derive(Builder, Debug, Clone, Serialize, Deserialize)]
-pub struct Archive {
-    url: url::Url,
-
-    #[serde(default)]
-    checksum: String,
-
-    #[serde(default)]
-    prefix: String,
-
-    #[serde(default)]
-    strip_prefix: Option<String>,
-}
-
-impl From<Archive> for RemoteWorkspaceConfig {
-    fn from(a: Archive) -> Self {
-        Self::UrlWorkspace {
-            url: a.url,
-            sha1: a.checksum,
-            prefix: a.prefix,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DependencyArchiveResolution {
-    #[serde(default)]
-    version: usize,
-
-    archive: Archive,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DependencySignaturesResolution {
-    version: usize,
-
-    #[serde(default)]
-    signatures: Vec<Signature>,
 }

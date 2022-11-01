@@ -58,7 +58,7 @@ impl StatusReporter {
                             current_targets.insert(label);
                             let current_targets_names = current_targets
                                 .iter()
-                                .map(|l| l.name())
+                                .map(|l| l.name().to_string())
                                 .collect::<Vec<String>>();
                             pb.set_message(format!(
                                 "Pending: {}",
@@ -131,9 +131,27 @@ impl StatusReporter {
                             action_count += ac as u64;
                         }
 
-                        HashedLabel { label, hash } => {
-                            let line =
-                                format!("{:>12} {} ({})", purple.apply_to("Hashed"), label, hash);
+                        GeneratingSignature { label } => {
+                            let line = format!(
+                                "{:>12} {}",
+                                purple.apply_to("Analyzing"),
+                                label.to_string(),
+                            );
+                            pb.println(line);
+                        }
+
+                        HashedLabel {
+                            label,
+                            src_hash,
+                            ast_hash,
+                        } => {
+                            let line = format!(
+                                "{:>12} {} (src={}, ast={})",
+                                purple.apply_to("Hashed"),
+                                label,
+                                src_hash,
+                                ast_hash,
+                            );
                             hashed_count.insert(label);
                             pb.println(line);
                         }
@@ -147,7 +165,7 @@ impl StatusReporter {
                             current_targets.remove(&label);
                             let current_targets_names = current_targets
                                 .iter()
-                                .map(|l| l.name())
+                                .map(|l| l.name().to_string())
                                 .collect::<Vec<String>>();
                             pb.set_message(format!(
                                 "Pending: {}",
@@ -167,7 +185,7 @@ impl StatusReporter {
                             current_targets.remove(&label);
                             let current_targets_names = current_targets
                                 .iter()
-                                .map(|l| l.name())
+                                .map(|l| l.name().to_string())
                                 .collect::<Vec<String>>();
                             pb.set_message(format!(
                                 "Pending: {}",

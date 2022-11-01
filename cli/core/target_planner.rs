@@ -65,6 +65,7 @@ impl TargetPlanner {
         &mut self,
         build_opts: &BuildOpts,
         env: &ExecutionEnvironment,
+        label: LabelId,
         target: &Target,
     ) -> Result<ExecutableTarget, TargetPlannerError> {
         let target_plan_started_at = chrono::Utc::now();
@@ -81,19 +82,19 @@ impl TargetPlanner {
             .await
             .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))?;
 
-        let toolchains = self.find_toolchains(target, &rule)?;
+        let toolchains = self.find_toolchains(label, target, &rule)?;
 
-        let deps = self.find_deps(target)?;
+        let deps = self.find_deps(label, target)?;
 
-        let transitive_deps = self.find_transitive_deps(target)?;
+        let transitive_deps = self.find_transitive_deps(label, target)?;
 
         let runtime_deps = if rule.kind.is_runnable() {
-            self.find_runtime_deps(target)?
+            self.find_runtime_deps(label, target)?
         } else {
             target
                 .runtime_deps
                 .iter()
-                .map(|d| self.label_registry.register_label(d))
+                .map(|d| self.label_registry.register_label(d.to_owned()))
                 .collect()
         };
 
@@ -129,38 +130,47 @@ impl TargetPlanner {
     #[tracing::instrument(name = "TargetPlanner::find_toolchains", skip(self))]
     pub fn find_toolchains(
         &self,
+        label: LabelId,
         target: &Target,
         rule: &Rule,
     ) -> Result<Vec<LabelId>, TargetPlannerError> {
-        self._manifests(&target.label, &rule.toolchains, true, false)
+        self._manifests(label, &rule.toolchains, true, false)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_deps", skip(self))]
-    pub fn find_deps(&self, target: &Target) -> Result<Vec<LabelId>, TargetPlannerError> {
-        self._manifests(&target.label, &target.deps, false, false)
+    pub fn find_deps(
+        &self,
+        label: LabelId,
+        target: &Target,
+    ) -> Result<Vec<LabelId>, TargetPlannerError> {
+        self._manifests(label, &target.deps, false, false)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_deps", skip(self))]
-    pub fn find_runtime_deps(&self, target: &Target) -> Result<Vec<LabelId>, TargetPlannerError> {
-        self._manifests(&target.label, &target.runtime_deps, true, true)
+    pub fn find_runtime_deps(
+        &self,
+        label: LabelId,
+        target: &Target,
+    ) -> Result<Vec<LabelId>, TargetPlannerError> {
+        self._manifests(label, &target.runtime_deps, true, true)
     }
 
     #[tracing::instrument(name = "TargetPlanner::find_transitive_deps", skip(self))]
     pub fn find_transitive_deps(
         &self,
+        label: LabelId,
         target: &Target,
     ) -> Result<Vec<LabelId>, TargetPlannerError> {
-        self._manifests(&target.label, &target.deps, true, false)
+        self._manifests(label, &target.deps, true, false)
     }
 
     pub fn _manifests(
         &self,
-        label: &Label,
+        label: LabelId,
         deps: &[Label],
         transitive: bool,
         runtime: bool,
     ) -> Result<Vec<LabelId>, TargetPlannerError> {
-        let label = self.label_registry.register_label(label);
         let deps = self.label_registry.register_many_labels(deps);
 
         let labels = if runtime {
@@ -177,9 +187,6 @@ impl TargetPlanner {
         label: LabelId,
         deps: &[LabelId],
     ) -> Result<Vec<LabelId>, TargetPlannerError> {
-        let mut collected_labels: Vec<Arc<Label>> = vec![];
-        let mut missing_labels: Vec<Arc<Label>> = vec![];
-
         let mut collected_deps: Vec<LabelId> = vec![];
         let mut missing_deps: Vec<LabelId> = vec![];
 
@@ -192,14 +199,11 @@ impl TargetPlanner {
             }
             visited.push(dep);
 
-            let dep_label = self.label_registry.get_label(dep).to_owned();
             if self.build_results.is_label_built(dep) {
                 collected_deps.push(dep);
-                collected_labels.push(dep_label);
                 let node_deps = self.build_results.get_target_runtime_deps(dep);
                 pending.extend(node_deps);
             } else {
-                missing_labels.push(dep_label);
                 missing_deps.push(dep);
             }
         }

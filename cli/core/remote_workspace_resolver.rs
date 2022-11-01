@@ -1,5 +1,6 @@
 use super::*;
 use dashmap::DashMap;
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::*;
@@ -33,6 +34,9 @@ or
 
     #[error(transparent)]
     ArchiveManagerError(ArchiveManagerError),
+
+    #[error(transparent)]
+    SignatureError(SignatureError),
 }
 
 #[derive(Debug)]
@@ -83,23 +87,27 @@ impl RemoteWorkspaceResolver {
             return Ok(Some(target));
         }
 
-        let mut url = label.url();
+        let remote_label = label.get_remote().unwrap();
+        let mut url = remote_label.url();
         url.set_path("");
 
         let workspace = self.find_workspace(label).await?;
 
-        let label = label.change_workspace(&workspace);
+        let mut local_label = label.get_local().unwrap().to_owned();
+        local_label.set_workspace(&workspace.paths.workspace_root);
 
-        let buildfile = Buildfile::from_label(&label)
+        let buildfile_path = local_label.workspace().join(&local_label).join(BUILDFILE);
+
+        let buildfile = SignaturesFile::read(buildfile_path, workspace.paths.workspace_root)
             .await
-            .map_err(LabelResolverError::BuildfileError)
-            .unwrap();
+            .map_err(RemoteWorkspaceResolverError::SignatureError)?;
 
-        let target = buildfile
-            .targets
+        let target: Option<Target> = buildfile
+            .signatures
             .iter()
-            .find(|t| t.label.name() == *label.name())
-            .map(|t| t.change_workspace(&workspace).with_associated_url(&url));
+            .find(|t| t.name.name() == *label.name())
+            .cloned()
+            .map(|s| s.into());
 
         if let Some(ref target) = target {
             self.targets.insert(label.clone(), target.clone());
@@ -126,20 +134,16 @@ impl RemoteWorkspaceResolver {
         &self,
         label: &Label,
     ) -> Result<Workspace, RemoteWorkspaceResolverError> {
-        let host = label
-            .url()
-            .host()
-            .ok_or_else(|| RemoteWorkspaceResolverError::UrlHadNoHost(label.url()))?
-            .to_string();
+        let remote_label = label.get_remote().unwrap();
 
-        if let Some(workspace) = self.workspaces.get(&host) {
+        if let Some(workspace) = self.workspaces.get(&remote_label.host) {
             Ok(workspace.clone())
-        } else if let Some(config) = self.remote_workspace_configs.get(&host) {
+        } else if let Some(config) = self.remote_workspace_configs.get(&remote_label.host) {
             self.ensure_workspace(&config).await?;
             // NOTE(@ostera): once we know that we have a workspace ready in this
             // folder, we can use the current label and _reparent it_ to use the
             // path to this workspace.
-            let label_path = format!(".{}", label.url().path());
+            let label_path = format!(".{}", &remote_label.path.to_string_lossy());
             let workspace_path = self._store_path(&config);
 
             let relative_label_path = workspace_path.join(&label_path);
@@ -162,12 +166,13 @@ impl RemoteWorkspaceResolver {
 
             self.artifact_store.register_workspace(&workspace);
 
-            self.workspaces.insert(host.clone(), workspace.clone());
+            self.workspaces
+                .insert(remote_label.host.clone(), workspace.clone());
 
             Ok(workspace)
         } else {
             Err(RemoteWorkspaceResolverError::MissingConfig(
-                host.to_string(),
+                remote_label.host.to_string(),
             ))
         }
     }
