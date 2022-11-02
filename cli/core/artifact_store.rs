@@ -2,9 +2,11 @@ use super::local_artifact_store::*;
 use super::remote_artifact_store::*;
 use super::*;
 use dashmap::DashMap;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::*;
+use tokio::fs;
 use tracing::*;
 
 pub type ArtifactStoreKey = String;
@@ -13,13 +15,35 @@ pub type ArtifactStoreKey = String;
 ///
 /// This lock file will be removed whenever the lock itself is out of scope / dropped.
 ///
+#[derive(Debug)]
 pub struct ArtifactStoreLock(PathBuf);
 
+#[derive(Error, Debug)]
+pub enum StoreLockError {
+    #[error(transparent)]
+    IOError(std::io::Error),
+
+    #[error("Key {0:?} is already locked.")]
+    LockedKey(PathBuf),
+}
+
 impl ArtifactStoreLock {
-    pub async fn try_lock(key: &PathBuf) -> Result<Self, std::io::Error> {
-        tokio::fs::create_dir_all(&key).await?;
-        let lock_file = key.join("Warp.lock");
-        tokio::fs::write(&lock_file, "lock").await?;
+    pub async fn try_lock(key: &Path) -> Result<Self, StoreLockError> {
+        let key = key.to_path_buf();
+        let lock_file = key.with_extension("lock");
+
+        if fs::metadata(&lock_file).await.is_ok() {
+            return Err(StoreLockError::LockedKey(lock_file));
+        }
+
+        fs::create_dir_all(&key)
+            .await
+            .map_err(StoreLockError::IOError)?;
+
+        fs::write(&lock_file, "locked")
+            .await
+            .map_err(StoreLockError::IOError)?;
+
         Ok(Self(lock_file))
     }
 }
@@ -62,6 +86,9 @@ pub enum ArtifactStoreError {
     },
 
     #[error(transparent)]
+    StoreLockError(StoreLockError),
+
+    #[error(transparent)]
     TargetManifestError(TargetManifestError),
 
     #[error(transparent)]
@@ -74,9 +101,6 @@ pub enum ArtifactStoreError {
         dst: PathBuf,
         err: std::io::Error,
     },
-
-    #[error("Could not lock store key: {key:?}, due to: {err:?}")]
-    LockError { key: PathBuf, err: std::io::Error },
 }
 
 impl ArtifactStore {
@@ -199,7 +223,7 @@ impl ArtifactStore {
         let key = self.absolute_path_by_node(node).await?;
         ArtifactStoreLock::try_lock(&key)
             .await
-            .map_err(|err| ArtifactStoreError::LockError { key, err })
+            .map_err(ArtifactStoreError::StoreLockError)
     }
 
     #[tracing::instrument(name = "ArtifactStore::clean", skip(node))]

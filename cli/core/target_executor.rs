@@ -77,13 +77,6 @@ impl TargetExecutor {
     ) -> Result<(TargetManifest, ValidationStatus), TargetExecutorError> {
         let build_started_at = chrono::Utc::now();
 
-        let _lock = self
-            .artifact_store
-            .lock(target)
-            .await
-            .map_err(TargetExecutorError::ArtifactStoreError)
-            .unwrap();
-
         if let ArtifactStoreHitType::Hit(manifest) = self
             .artifact_store
             .is_stored(target)

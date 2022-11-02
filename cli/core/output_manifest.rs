@@ -10,10 +10,16 @@ pub const BUILDSTAMP: &str = "output.json";
 
 #[derive(Error, Debug)]
 pub enum OutputManifestError {
-    #[error("Could not parse Manifest file: {0:?}")]
-    ParseError(serde_json::Error),
+    #[error(
+        "Could not parse Output Manifest file at {file:?} due to: {err:?}, full manifest:\n {json}"
+    )]
+    ParseError {
+        file: PathBuf,
+        err: serde_json::Error,
+        json: String,
+    },
 
-    #[error("Could not print Manifest file: {0:#?}")]
+    #[error("Could not print Output Manifest file: {0:#?}")]
     PrintError(serde_json::Error),
 
     #[error(transparent)]
@@ -29,7 +35,8 @@ pub struct OutputManifestHash {
 impl OutputManifestHash {
     #[tracing::instrument(name = "OutputManifestHash::find", skip(path))]
     pub async fn find(label: &Label, path: &Path) -> Result<Self, OutputManifestError> {
-        let mut file = fs::File::open(OutputManifest::_file(label, path))
+        let path = OutputManifest::_file(label, path);
+        let mut file = fs::File::open(&path)
             .await
             .map_err(OutputManifestError::IOError)?;
 
@@ -38,7 +45,11 @@ impl OutputManifestHash {
             .await
             .map_err(OutputManifestError::IOError)?;
 
-        serde_json::from_slice(&bytes).map_err(OutputManifestError::ParseError)
+        serde_json::from_slice(&bytes).map_err(|err| OutputManifestError::ParseError {
+            file: path,
+            err,
+            json: String::from_utf8(bytes).unwrap(),
+        })
     }
 
     #[tracing::instrument(name = "OutputManifestHash::write", skip(self))]
@@ -68,7 +79,8 @@ pub struct OutputManifest {
 impl OutputManifest {
     #[tracing::instrument(name = "OutputManifest::find", skip(path))]
     pub async fn find(label: &Label, path: &Path) -> Result<Self, OutputManifestError> {
-        let mut file = fs::File::open(OutputManifest::_file(label, path))
+        let path = OutputManifest::_file(label, path);
+        let mut file = fs::File::open(&path)
             .await
             .map_err(OutputManifestError::IOError)?;
 
@@ -77,7 +89,11 @@ impl OutputManifest {
             .await
             .map_err(OutputManifestError::IOError)?;
 
-        serde_json::from_slice(&bytes).map_err(OutputManifestError::ParseError)
+        serde_json::from_slice(&bytes).map_err(|err| OutputManifestError::ParseError {
+            file: path,
+            err,
+            json: String::from_utf8(bytes).unwrap(),
+        })
     }
 
     #[tracing::instrument(name = "OutputManifest::write", skip(self))]

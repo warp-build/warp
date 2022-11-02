@@ -155,7 +155,7 @@ impl LocalLabel {
     }
 
     pub fn hash(&self) -> usize {
-        fxhash::hash(&self.file.to_string_lossy())
+        fxhash::hash(&self)
     }
 
     pub fn workspace(&self) -> &Path {
@@ -276,7 +276,7 @@ impl RemoteLabel {
     }
 
     pub fn hash(&self) -> usize {
-        fxhash::hash(&self.url)
+        fxhash::hash(&self)
     }
 
     pub fn name(&self) -> Option<Cow<'_, str>> {
@@ -408,7 +408,7 @@ impl AbstractLabel {
     }
 
     pub fn hash(&self) -> usize {
-        fxhash::hash(&self.path)
+        fxhash::hash(&self)
     }
 
     /// Turn an AbstractLabel into a RemoteLabel.

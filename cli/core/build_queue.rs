@@ -1,6 +1,6 @@
 use super::*;
 use dashmap::DashSet;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use thiserror::*;
 use tracing::*;
 
@@ -45,6 +45,10 @@ pub struct BuildQueue {
     all_queued_labels: Arc<DashSet<LabelId>>,
 
     label_registry: Arc<LabelRegistry>,
+
+    // NOTE(@ostera): only used to serialize the calls to `next` and prevent fetching the same
+    // label twice.
+    _queue_lock: Arc<Mutex<()>>,
 }
 
 impl BuildQueue {
@@ -58,12 +62,14 @@ impl BuildQueue {
             build_results,
             all_queued_labels: Arc::new(DashSet::default()),
             label_registry,
+            _queue_lock: Arc::new(Mutex::new(())),
         }
     }
 
     #[tracing::instrument(name = "BuildQueue::next", skip(self))]
     pub fn next(&self) -> Option<Task> {
         loop {
+            let _lock = self._queue_lock.lock().unwrap();
             let task = if let crossbeam::deque::Steal::Success(task) = self.inner_queue.steal() {
                 task
             } else if self.busy_targets.is_empty() {
@@ -103,6 +109,11 @@ impl BuildQueue {
     pub fn nack(&self, task: Task) {
         self.busy_targets.remove(&task.label);
         self.wait_queue.push(task);
+    }
+
+    #[tracing::instrument(name = "BuildQueue::is_label_busy", skip(self))]
+    pub fn is_label_busy(&self, label: LabelId) -> bool {
+        self.busy_targets.contains(&label)
     }
 
     #[tracing::instrument(name = "BuildQueue::is_queue_empty", skip(self))]

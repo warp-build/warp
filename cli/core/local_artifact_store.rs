@@ -65,16 +65,16 @@ impl LocalArtifactStore {
         dst: &PathBuf,
     ) -> Result<(), ArtifactStoreError> {
         if let Ok(output_manifest) = OutputManifestHash::find(&manifest.label, dst).await {
-            info!(
-                "Comparing hashes: {} == {}",
-                output_manifest.hash, manifest.hash
-            );
             if output_manifest.hash == manifest.hash {
                 return Ok(());
             }
+
             // NOTE(@ostera): only if the hashes are different and we need to clean up do we
             // actually read the entire manifest.
-            let output_manifest = OutputManifest::find(&manifest.label, dst).await.unwrap();
+            let output_manifest = OutputManifest::find(&manifest.label, dst)
+                .await
+                .map_err(ArtifactStoreError::OutputManifestError)?;
+
             for out in output_manifest.outs {
                 let _ = fs::remove_file(&dst.join(out)).await;
             }

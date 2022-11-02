@@ -98,7 +98,7 @@ impl BuildWorker {
     pub async fn setup_and_run(&mut self) -> Result<(), BuildWorkerError> {
         loop {
             // NOTE(@ostera): we don't want things to burn CPU cycles
-            // tokio::time::sleep(std::time::Duration::from_micros(100)).await;
+            tokio::time::sleep(std::time::Duration::from_micros(10)).await;
             let result = self.run().await;
             if result.is_err() {
                 self.coordinator.signal_shutdown();
@@ -202,6 +202,11 @@ impl BuildWorker {
             .execute(&executable_target, &self.build_opts)
             .await
         {
+            // NOTE(@ostera): if someone else is already building this target, we'll postpone it.
+            Err(TargetExecutorError::ArtifactStoreError(ArtifactStoreError::StoreLockError(
+                StoreLockError::LockedKey(_key),
+            ))) => self.build_queue.nack(task),
+
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
                     executable_target.label.clone().into(),
