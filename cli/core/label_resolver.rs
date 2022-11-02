@@ -7,6 +7,7 @@ use fxhash::*;
 use std::path::PathBuf;
 use std::{pin::Pin, sync::Arc};
 use thiserror::*;
+use tokio::fs;
 use tracing::*;
 
 #[derive(Debug)]
@@ -203,9 +204,17 @@ impl LabelResolver {
             //
             let workspace_root = local_label.workspace();
             for dep in target.deps.iter_mut().chain(target.runtime_deps.iter_mut()) {
-                if dep.is_file() {
-                    *dep = dep.to_local(&workspace_root).unwrap()
-                };
+                if dep.is_remote() {
+                    continue;
+                }
+
+                if let Ok(meta) = fs::metadata(dep.path()).await {
+                    if meta.is_file() {
+                        *dep = dep.to_local(&workspace_root).unwrap()
+                    } else {
+                        *dep = dep.to_abstract().unwrap()
+                    }
+                }
             }
 
             // 5. Finally, since the target will have a label that is _abstract_, we will want to

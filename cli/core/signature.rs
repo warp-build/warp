@@ -125,6 +125,9 @@ impl SignaturesFile {
             };
             for dep in sig.deps.iter_mut().chain(sig.runtime_deps.iter_mut()) {
                 dep.set_workspace(&workspace_root);
+                if dep.path().starts_with("./") {
+                    dep.set_path(package_path.join(dep.path().to_string_lossy().replace("./", "")));
+                }
             }
         }
 

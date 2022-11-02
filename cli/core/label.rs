@@ -146,7 +146,17 @@ impl LocalLabel {
         LocalLabelBuilder::default()
     }
 
-    pub fn set_workspace<W: Into<PathBuf>>(&mut self, w: W) {
+    pub fn set_file<W>(&mut self, w: W)
+    where
+        W: Into<PathBuf>,
+    {
+        self.file = w.into();
+    }
+
+    pub fn set_workspace<W>(&mut self, w: W)
+    where
+        W: Into<PathBuf>,
+    {
         self.workspace = w.into();
     }
 
@@ -526,6 +536,7 @@ impl Label {
     {
         match self {
             Label::Abstract(l) => l.set_path(w),
+            Label::Local(l) => l.set_file(w),
             _ => (),
         }
     }
@@ -715,7 +726,7 @@ impl FromStr for Label {
             return Self::wildcard_builder().prefix(prefix.into()).build_label();
         }
 
-        let s = s.replace("//", "").replace("./", "");
+        let s = s.replace("//", "");
 
         let (file, name) = split_path(&s);
 
