@@ -1,12 +1,9 @@
 import RustToolchain from "https://rules.warp.build/toolchains/rust.js";
 
 const impl = ctx => {
-  const { label, name, bin } = ctx.cfg();
+  const { cwd, label, name, bin } = ctx.cfg();
 
-  let cwd = ctx.cfg().cwd()
-  if (cwd === "") { cwd = "." }
-
-  const exe = `target/debug/${bin}`
+  const exe = `${cwd()}/target/debug/${bin}`
   ctx.action().declareOutputs([exe]);
   ctx.action().declareRunScript(exe);
   ctx.provides({ [bin]: exe });
@@ -14,7 +11,7 @@ const impl = ctx => {
   ctx.action().runShell({
     script: `#!/bin/bash
 
-cd ${cwd}
+cd ${cwd()}
 cargo build
 
 `,
