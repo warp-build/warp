@@ -3109,6 +3109,7 @@ dependencies = [
  "async-compression",
  "async-stream",
  "async-tar",
+ "async-trait",
  "async_zip",
  "chrono",
  "crossbeam",

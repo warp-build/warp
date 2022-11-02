@@ -20,7 +20,7 @@ pub struct Archive {
     pub hash: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ArchiveManager {
     client: reqwest::Client,
     global_archives_root: PathBuf,
