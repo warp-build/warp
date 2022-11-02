@@ -1,3 +1,4 @@
+{"signatures": 
 [
   {
     "deps": [],
@@ -34,4 +35,4 @@
       "jsone_decode_tests.erl"
     ]
   }
-]
+]}

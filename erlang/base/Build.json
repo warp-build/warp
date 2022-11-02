@@ -1,4 +1,4 @@
-[
+{"signatures": [
   {
     "deps": [],
     "name": "str.erl",
@@ -104,4 +104,4 @@
       "hexpm.erl"
     ]
   }
-]
+]}

@@ -1,3 +1,4 @@
+{"signatures": 
 [
   {
     "deps": [
@@ -11,3 +12,4 @@
     "apps": ["kernel", "jsone"]
   }
 ]
+}

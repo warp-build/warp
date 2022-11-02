@@ -1,3 +1,4 @@
+{"signatures": 
 [
   {
     "deps": ["./includes"],
@@ -5,4 +6,4 @@
     "rule": "files",
     "srcs": [ "*.hrl", "*.erl", "rebar.config" ]
   }
-]
+]}

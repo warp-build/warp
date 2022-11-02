@@ -1,3 +1,4 @@
+{"signatures": 
 [
   {
     "deps": [],
@@ -155,4 +156,4 @@
     ],
     "test": "cerl_analyzer_SUITE.erl"
   }
-]
+]}

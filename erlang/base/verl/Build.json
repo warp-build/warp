@@ -1,6 +1,7 @@
+{"signatures": 
 [
   {
     "name": "verl",
     "rule": "rebar3_library"
   }
-]
+]}

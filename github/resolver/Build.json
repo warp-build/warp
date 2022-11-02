@@ -1,3 +1,4 @@
+{"signatures": 
 [
   {
     "deps": [
@@ -10,4 +11,4 @@
     "main": "main.erl",
     "apps": ["kernel", "jsone"]
   }
-]
+]}

@@ -1,14 +1,16 @@
-[
-  {
-    "deps": [
-      "//erlang/base/jsone",
-      "//erlang/base:hexpm.erl",
-      "//erlang/base:str.erl",
-      "//erlang/base:path.erl"
-    ],
-    "name": "resolver",
-    "rule": "erlang_script",
-    "main": "main.erl",
-    "apps": ["kernel", "jsone"]
-  }
-]
+{
+  "signatures": [
+    {
+      "deps": [
+        "//erlang/base/jsone",
+        "//erlang/base:hexpm.erl",
+        "//erlang/base:str.erl",
+        "//erlang/base:path.erl"
+      ],
+      "name": "resolver",
+      "rule": "erlang_script",
+      "main": "main.erl",
+      "apps": ["kernel", "jsone"]
+    }
+  ]
+}

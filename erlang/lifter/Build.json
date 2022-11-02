@@ -1,4 +1,4 @@
-[
+{"signatures": [
   {
     "runtime_deps": [
       "//erlang/lifter/bin:lifter_cli.erl"
@@ -8,4 +8,4 @@
     "main": "main.erl",
     "apps": ["kernel"]
   }
-]
+]}

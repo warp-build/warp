@@ -1,3 +1,4 @@
+{"signatures": 
 [
   {
     "name": "parser",
@@ -9,4 +10,4 @@
       "main.rs"
     ]
   }
-]
+]}
