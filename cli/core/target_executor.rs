@@ -81,7 +81,8 @@ impl TargetExecutor {
             .artifact_store
             .lock(target)
             .await
-            .map_err(TargetExecutorError::ArtifactStoreError)?;
+            .map_err(TargetExecutorError::ArtifactStoreError)
+            .unwrap();
 
         if let ArtifactStoreHitType::Hit(manifest) = self
             .artifact_store

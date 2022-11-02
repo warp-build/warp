@@ -58,7 +58,6 @@ pub struct BuildWorker {
 impl BuildWorker {
     pub fn new(
         role: Role,
-        workspace: Workspace,
         coordinator: Arc<BuildCoordinator>,
         event_channel: Arc<EventChannel>,
         build_queue: Arc<BuildQueue>,
@@ -143,7 +142,6 @@ impl BuildWorker {
             Err(LabelResolverError::DependencyResolverError(
                 DependencyResolverError::MissingResolver { resolver },
             )) => {
-                println!("missing resolver: {:#?}", &resolver);
                 return self.requeue(task, &[resolver]).await;
             }
 
@@ -195,7 +193,7 @@ impl BuildWorker {
         };
 
         self.event_channel.send(Event::BuildingTarget {
-            label: target.label.clone().into(),
+            label: target.label.clone(),
             rule_mnemonic: executable_target.rule.mnemonic.to_string(),
         });
 

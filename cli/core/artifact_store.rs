@@ -116,19 +116,16 @@ impl ArtifactStore {
     {
         let label = label.as_ref();
         let label = label.get_local().unwrap();
+
+        let name = label.name().map(|n| format!("-{}", n)).unwrap_or_default();
+
         if let Some(remote) = label.promoted_from() {
-            format!(
-                "{}-{}/{}-{}",
-                remote.prefix_hash,
-                remote.host,
-                hash,
-                label.name()
-            )
+            format!("{}-{}/{}{}", remote.prefix_hash, remote.host, hash, name)
         } else {
             self.workspace_prefixes
                 .get(label.workspace())
                 .unwrap()
-                .join(hash)
+                .join(&format!("{}{}", hash, name))
                 .to_string_lossy()
                 .to_string()
         }

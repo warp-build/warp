@@ -13,6 +13,9 @@ pub enum SignatureError {
 
     #[error("Could not print Signatures into JSON: {0:#?}")]
     PrintError(serde_json::Error),
+
+    #[error("Could not open file at {file:?} due to {err:?}")]
+    FileOpenError { file: PathBuf, err: std::io::Error },
 }
 
 #[derive(Builder, Debug, Clone, Serialize, Deserialize)]
@@ -100,7 +103,14 @@ impl SignaturesFile {
             .strip_prefix(&workspace_root)
             .unwrap();
 
-        let file = tokio::fs::File::open(&file).await.unwrap();
+        let file =
+            tokio::fs::File::open(&file)
+                .await
+                .map_err(|err| SignatureError::FileOpenError {
+                    file: file.to_path_buf(),
+                    err,
+                })?;
+
         let buffer = std::io::BufReader::new(file.into_std().await);
         let reader = json_comments::StripComments::new(buffer);
         let mut sig_file: Self =

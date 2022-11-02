@@ -1,6 +1,5 @@
 use super::*;
 use dashmap::DashMap;
-use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::*;
@@ -87,33 +86,48 @@ impl RemoteWorkspaceResolver {
             return Ok(Some(target));
         }
 
-        let remote_label = label.get_remote().unwrap();
-        let mut url = remote_label.url();
-        url.set_path("");
-
         let workspace = self.find_workspace(label).await?;
 
-        let mut local_label = label.get_local().unwrap().to_owned();
+        let mut local_label = label
+            .to_local(&workspace.paths.workspace_root)
+            .unwrap()
+            .get_local()
+            .unwrap()
+            .to_owned();
         local_label.set_workspace(&workspace.paths.workspace_root);
 
         let buildfile_path = local_label.workspace().join(&local_label).join(BUILDFILE);
 
-        let buildfile = SignaturesFile::read(buildfile_path, workspace.paths.workspace_root)
+        let buildfile = SignaturesFile::read(buildfile_path, &workspace.paths.workspace_root)
             .await
             .map_err(RemoteWorkspaceResolverError::SignatureError)?;
 
-        let target: Option<Target> = buildfile
+        let signature: Option<Signature> = buildfile
             .signatures
             .iter()
             .find(|t| t.name.name() == *label.name())
-            .cloned()
-            .map(|s| s.into());
+            .cloned();
 
-        if let Some(ref target) = target {
+        if let Some(s) = signature {
+            let mut target: Target = s.into();
+            target.label = local_label.into();
+
+            for dep in target.deps.iter_mut().chain(target.runtime_deps.iter_mut()) {
+                if dep.is_file() {
+                    *dep = {
+                        let mut d = dep.to_abstract().unwrap();
+                        d.set_workspace(&workspace.paths.workspace_root);
+                        d
+                    };
+                }
+            }
+
             self.targets.insert(label.clone(), target.clone());
+
+            return Ok(Some(target));
         }
 
-        Ok(target)
+        Ok(None)
     }
 
     fn _store_path(&self, config: &RemoteWorkspaceConfig) -> PathBuf {

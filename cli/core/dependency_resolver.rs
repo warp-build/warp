@@ -271,15 +271,27 @@ impl DependencyResolver {
         };
 
         // 4. Turn our new signature into a Target
-        let mut sig = resolution.signatures[0].clone();
+        let sig = resolution.signatures[0].clone();
+        let mut target: Target = sig.into();
 
-        // NOTE(@ostera): update label since the workspace should be the workspace we just downloaded
-        sig.name = {
-            let mut name = sig.name.to_abstract().unwrap();
-            name.set_workspace(final_dir);
-            name
-        };
+        // 5. The Target itself will have a label that is not pointing to the right workspace
+        //    (since it will be considered "local" to itself, but we are in a different workspace).
+        //
+        //    To fix this, we will turn it into a LocalLabel and set the workspace to the current
+        //    dependency workspace.
+        //
+        target.label = target.label.to_local(&final_dir).unwrap();
+        target.label.set_associated_url(remote_label.url());
+        /*
+        for dep in target.deps.iter_mut().chain(target.runtime_deps.iter_mut()) {
+            *dep = {
+                let mut d = dep.to_abstract().unwrap();
+                d.set_workspace(&final_dir);
+                d
+            };
+        }
+        */
 
-        Ok(Some(sig.into()))
+        Ok(Some(target))
     }
 }

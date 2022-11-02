@@ -1,10 +1,8 @@
 use super::Event;
 use super::*;
 use futures::StreamExt;
-use std::io::BufReader;
 use std::sync::Arc;
 use thiserror::*;
-use tokio::fs;
 use tokio_util::task::LocalPoolHandle;
 use tracing::*;
 
@@ -110,8 +108,8 @@ impl BuildExecutor {
             event_channel.clone(),
             label_registry.clone(),
             dependency_manager.clone(),
-            source_manager.clone(),
-            signature_store.clone(),
+            source_manager,
+            signature_store,
             build_opts,
         ));
 
@@ -121,7 +119,11 @@ impl BuildExecutor {
             event_channel.clone(),
         ));
 
-        let worker_pool = LocalPoolHandle::new(build_opts.concurrency_limit + 1);
+        let worker_pool = LocalPoolHandle::new({
+            let max = num_cpus::get();
+            let curr = build_opts.concurrency_limit + 2;
+            curr.min(max)
+        });
 
         Ok(BuildExecutor {
             artifact_store,
@@ -149,15 +151,21 @@ impl BuildExecutor {
         }
 
         let queuer_worker = self.spawn_queuer_worker(targets);
+        let main_worker = self.spawn_main_worker();
 
-        let mut worker_tasks = vec![];
-        if self.build_opts.concurrency_limit > 0 {
-            for worker_id in 1..self.build_opts.concurrency_limit {
-                worker_tasks.push(self.spawn_helper(worker_id));
-            }
+        // NOTE(@ostera): special case -- if we use the `-w0` flag, we run first the queuer, then
+        // the main worker, and we finish. No concurrency.
+        if self.build_opts.concurrency_limit == 0 {
+            queuer_worker.await.unwrap()?;
+            main_worker.await.unwrap()?;
+            return Ok(());
         }
 
-        let main_worker = self.spawn_main_worker();
+        // NOTE(@ostera): we are leaving 2 threads for the main worker and the queuer
+        let mut worker_tasks = vec![];
+        for worker_id in 2..self.worker_pool.num_threads() {
+            worker_tasks.push(self.spawn_helper(worker_id));
+        }
 
         let (helper_results, main_result, queuer_result) = futures::future::join3(
             futures::future::join_all(worker_tasks),
@@ -204,7 +212,6 @@ impl BuildExecutor {
         self.worker_pool.spawn_pinned(move || async move {
             let mut worker = BuildWorker::new(
                 Role::HelperWorker(worker_id),
-                workspace,
                 build_coordinator,
                 event_channel,
                 build_queue,
@@ -247,7 +254,6 @@ impl BuildExecutor {
         self.worker_pool.spawn_pinned(move || async move {
             let mut worker = BuildWorker::new(
                 Role::MainWorker,
-                workspace,
                 build_coordinator,
                 event_channel,
                 build_queue,
@@ -363,7 +369,7 @@ impl BuildExecutor {
                         Ok(buildfile) => {
                             for signature in buildfile.signatures {
                                 if build_opts.goal.includes(&signature) {
-                                    let label = label_registry.register_label(signature.name);
+                                    let label = label_registry.register_label(&signature.name);
                                     let goal = build_opts.goal;
 
                                     build_queue

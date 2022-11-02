@@ -37,7 +37,7 @@ And try running the command again to see what the right `sha1` should be.
         "#, .0.to_string(), .0.name())]
     RemoteLabelNeedsConfig(Label),
 
-    #[error("Could not find target: {0:?}")]
+    #[error("Could not find target: {}", .0.to_string())]
     TargetNotFound(Label),
 
     #[error(transparent)]
@@ -124,19 +124,15 @@ impl LabelResolver {
                         return Err(err);
                     }
                 }
-            }
-
-            if label.is_file() {
-                let target = self.find_as_file(label_id, &label).await?;
-                self.save(label_id, target.clone());
-                return Ok(target);
-            }
-
-            if label.is_abstract() {
+            } else if label.is_abstract() {
                 if let Some(target) = self.find_in_local_workspace(&label).await? {
                     self.save(label_id, target.clone());
                     return Ok(target);
                 }
+            } else if label.is_file() {
+                let target = self.find_as_file(label_id, &label).await?;
+                self.save(label_id, target.clone());
+                return Ok(target);
             }
 
             Err(LabelResolverError::TargetNotFound((*label).clone()))
@@ -149,37 +145,116 @@ impl LabelResolver {
         self.resolved_labels.insert(label, target);
     }
 
+    #[tracing::instrument(name = "LabelResolver::find_in_remote_workspaces", skip(self))]
+    async fn find_in_remote_workspaces(
+        &self,
+        label: &Label,
+    ) -> Result<Option<Target>, LabelResolverError> {
+        self.remote_workspace_resolver
+            .get(label)
+            .await
+            .map_err(LabelResolverError::RemoteWorkspaceResolverError)
+    }
+
+    #[tracing::instrument(name = "LabelResolver::find_with_dependency_resolver", skip(self))]
+    async fn find_with_dependency_resolver(
+        &self,
+        label_id: LabelId,
+    ) -> Result<Option<Target>, LabelResolverError> {
+        self.dependency_resolver
+            .get(label_id)
+            .await
+            .map_err(LabelResolverError::DependencyResolverError)
+    }
+
+    /// Finds a Target by its AbstractLabel in the Current Workspace.
+    ///
     #[tracing::instrument(name = "LabelResolver::find_in_local_workspace", skip(self))]
     async fn find_in_local_workspace(
         &self,
         label: &Label,
     ) -> Result<Option<Target>, LabelResolverError> {
-        // Try to find a Signature file for this Label.
+        // 1. Make sure we have an abstract label first. We want this because we expect this label
+        //    to be pointing a target within a Build.json file.
+        //
         let abstract_label = label.get_abstract().unwrap();
-        let buildfile_path = abstract_label
-            .workspace()
-            .join(&abstract_label)
-            .join(BUILDFILE);
 
-        let buildfile = SignaturesFile::read(buildfile_path, abstract_label.workspace())
+        // 2. But we want to work with a label to a local file, so we consume it into one.
+        //
+        let local_label: LocalLabel = abstract_label.to_owned().into();
+
+        // 3. Now we can read the Build.json with all the signatures.
+        //
+        let buildfile_path = local_label.workspace().join(&local_label).join(BUILDFILE);
+        let buildfile = SignaturesFile::read(buildfile_path, local_label.workspace())
             .await
             .map_err(LabelResolverError::SignatureError)?;
 
-        let target: Option<Target> = buildfile
+        let mut target: Option<Target> = buildfile
             .signatures
             .iter()
             .find(|s| s.name.name() == *label.name())
             .cloned()
             .map(|s| s.into());
 
+        if let Some(target) = &mut target {
+            // 4. If we find a specific target, we'll make sure to mark its dependencies as either
+            //    LocalLabels (if they point to files) or AbstractLabels (if they point to a dir
+            //    with a Build.json file)).
+            //
+            let workspace_root = local_label.workspace();
+            for dep in target.deps.iter_mut().chain(target.runtime_deps.iter_mut()) {
+                if dep.is_file() {
+                    *dep = dep.to_local(&workspace_root).unwrap()
+                };
+            }
+
+            // 5. Finally, since the target will have a label that is _abstract_, we will want to
+            //    turn it into a LocalLabel that is ready for building.
+            //
+            target.label = local_label.into();
+        }
+
         Ok(target)
     }
 
+    /// Find a RemoteLabel as a Toolchain.
+    ///
     #[tracing::instrument(name = "LabelResolver::find_as_toolchain", skip(self))]
     async fn find_as_toolchain(&self, label: &Label) -> Result<Option<Target>, LabelResolverError> {
-        if let Some(config) = self.toolchain_configs.get(&label.name().to_string()) {
+        let remote_label = label.get_remote().unwrap();
+
+        // NOTE(@ostera): this is a *HACK* because we want to use the name of the toolchain (say
+        // `erlang`) but the label for it is a URL (say
+        // `https://rules.warp.build/toolchains/erlang`).
+        //
+        // We *DO NOT* want this hack to go into the RemoteLabel, since RemoteLabels can be
+        // legitimately used for building everything within a file, or a specific target within it.
+        //
+        // For example, say we want to build `https://my.app/lib/a.go`. This URL turned into a
+        // label means: "fetch, analyze, and build all the signatures generated for a.go".
+        //
+        // The `name` of the label would be `None`.
+        //
+        // However, if we wanted to run a single test within it, we'd use the syntax
+        // `https://my.app/lib/a.go:testName`.
+        //
+        // The `name` of the label would be `Some("testName")`.
+        //
+        // And we do not want this meaning to be overloaded here.
+        //
+        let name = remote_label
+            .path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+
+        if let Some(config) = self.toolchain_configs.get(&name) {
             let target = Target::new(
-                label.to_local(&self.workspace).unwrap(),
+                label
+                    .to_local(&self.workspace.paths.workspace_root)
+                    .unwrap(),
                 &label.get_remote().unwrap().url_str(),
                 config.clone(),
             );
@@ -200,40 +275,15 @@ impl LabelResolver {
         }
     }
 
-    #[tracing::instrument(name = "LabelResolver::find_in_remote_workspaces", skip(self))]
-    async fn find_in_remote_workspaces(
-        &self,
-        label: &Label,
-    ) -> Result<Option<Target>, LabelResolverError> {
-        let target = self
-            .remote_workspace_resolver
-            .get(label)
-            .await
-            .map_err(LabelResolverError::RemoteWorkspaceResolverError)?;
-
-        Ok(target)
-    }
-
-    #[tracing::instrument(name = "LabelResolver::find_with_dependency_resolver", skip(self))]
-    async fn find_with_dependency_resolver(
-        &self,
-        label_id: LabelId,
-    ) -> Result<Option<Target>, LabelResolverError> {
-        let target = self
-            .dependency_resolver
-            .get(label_id)
-            .await
-            .map_err(LabelResolverError::DependencyResolverError)?;
-
-        Ok(target)
-    }
-
     #[tracing::instrument(name = "LabelResolver::find_as_file", skip(self))]
     async fn find_as_file(
         &self,
         label_id: LabelId,
         label: &Label,
     ) -> Result<Target, LabelResolverError> {
+        let local_label = label.get_local().unwrap();
+        dbg!(&local_label);
+
         self.event_channel.send(Event::GeneratingSignature {
             label: label.to_owned(),
         });
@@ -274,82 +324,5 @@ impl LabelResolver {
             .unwrap();
 
         Ok(signature.into())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tokio::fs;
-    use tokio::io::AsyncWriteExt;
-
-    fn root() -> PathBuf {
-        PathBuf::from(&env!("CARGO_MANIFEST_DIR")).join("tests")
-    }
-
-    async fn write_workspace() {
-        let path = root().join("workspace").join(WORKSPACE);
-        let buildfile = r#"
-[workspace]
-name = "test-workspace"
-        "#
-        .to_string();
-
-        fs::create_dir_all(path.parent().unwrap()).await.unwrap();
-        let mut file = fs::File::create(path).await.unwrap();
-        let _ = file.write(buildfile.as_bytes()).await.unwrap();
-    }
-
-    async fn write_buildfile(path: PathBuf) {
-        let path = root().join("workspace").join(path).join(BUILDFILE);
-        let buildfile = r#"
-[[rule1]]
-name = "pkg"
-        "#
-        .to_string();
-
-        fs::create_dir_all(path.parent().unwrap()).await.unwrap();
-        let mut file = fs::File::create(path).await.unwrap();
-        let _ = file.write(buildfile.as_bytes()).await.unwrap();
-    }
-
-    async fn resolver() -> LabelResolver {
-        let paths = WorkspacePaths::new(
-            &root().join("workspace"),
-            Some(root().to_str().unwrap().to_string()),
-            "test-user".to_string(),
-        )
-        .unwrap();
-
-        let workspace_file = WorkspaceFile::builder()
-            .workspace(
-                WorkspaceConfigFile::builder()
-                    .name("test-workspace".to_string())
-                    .build()
-                    .unwrap(),
-            )
-            .build()
-            .unwrap();
-
-        let workspace = Workspace::builder()
-            .current_user("test-user".to_string())
-            .paths(paths)
-            .from_file(workspace_file)
-            .await
-            .unwrap()
-            .build()
-            .unwrap();
-
-        LabelResolver::new(&workspace)
-    }
-
-    #[tokio::test]
-    async fn label_resolver_finds_local_targets() {
-        let label = Label::new("//hello/world:pkg");
-        write_workspace().await;
-        write_buildfile(label.path()).await;
-        let resolver = resolver().await;
-        let target = resolver.resolve(&label).await.unwrap();
-        assert_eq!(label.name(), target.label.name());
     }
 }
