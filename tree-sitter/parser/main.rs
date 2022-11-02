@@ -1,6 +1,12 @@
+use serde_derive::Serialize;
 use std::path::PathBuf;
-
 use tree_sitter::Parser;
+
+#[derive(Serialize)]
+struct ParseResult {
+    version: usize,
+    sexpr: String,
+}
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -17,7 +23,7 @@ usage:
         );
         return;
     }
-    let path = PathBuf::from(args.get(1).unwrap());
+    let path = PathBuf::from(args.get(2).unwrap());
 
     let source_code = std::fs::read_to_string(&path).unwrap();
 
@@ -37,5 +43,11 @@ usage:
         .unwrap();
     let tree = parser.parse(source_code, None).unwrap();
 
-    println!("{}", tree.root_node().to_sexp());
+    let json = serde_json::to_string_pretty(&ParseResult {
+        version: 0,
+        sexpr: tree.root_node().to_sexp(),
+    })
+    .unwrap();
+
+    println!("{}", json);
 }

@@ -4,16 +4,19 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+tree-sitter = "=0.20.9"
 tree-sitter-erlang = "*"
-tree-sitter-swift = "*"
 tree-sitter-go = "*"
+tree-sitter-javascript = "*"
+tree-sitter-ocaml = "*"
 tree-sitter-python = "*"
 tree-sitter-ruby = "*"
 tree-sitter-rust = "*"
-tree-sitter-javascript = "*"
+tree-sitter-swift = "*"
 tree-sitter-typescript = "*"
-tree-sitter-ocaml = "*"
-tree-sitter = "=0.20.9"
 
 [[bin]]
 name = "parser"
