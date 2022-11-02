@@ -169,6 +169,32 @@ impl LocalLabel {
     pub fn promoted_from(&self) -> Option<RemoteLabel> {
         self.promoted_from.as_ref().map(|r| r.as_ref().to_owned())
     }
+
+    /// Turn a LocalLabel into a RemoteLabel.
+    ///
+    /// This is used primarily when reading a RemoteWorkspace Label's Dependencies. It makes all
+    /// its file dependencies into URLs so that the RemoteWorkspaceResolver can pick them up
+    /// correctly.
+    ///
+    /// For example, the target `https://tools.warp.build/hexpm/resolver` relies on
+    /// `./erlang/base/str.erl` -- this second label points to a file, so it is a LocalLabel,
+    /// relative to the original Workspace from `tools.warp.build`.
+    ///
+    /// For us to find it, we need to turn `./erlang/base.str.erl` into
+    /// `https://tools.warp.build/erlang/base.str.erl`.
+    ///
+    fn to_remote(&self, mut base_url: Url) -> RemoteLabel {
+        base_url.set_path(
+            if let Some(name) = &self.name {
+                format!("{}:{}", &self.file.to_string_lossy(), name)
+            } else {
+                format!("{}", &self.file.to_string_lossy())
+            }
+            .as_ref(),
+        );
+
+        base_url.into()
+    }
 }
 
 impl LocalLabelBuilder {
@@ -181,7 +207,7 @@ impl ToString for LocalLabel {
     fn to_string(&self) -> String {
         let prefix = {
             if let Some(url) = &self.associated_url {
-                url.to_string()
+                format!("{}{}", url.host_str().unwrap(), url.path())
             } else if let Some(remote) = &self.promoted_from {
                 remote.to_string()
             } else {
@@ -217,7 +243,9 @@ impl From<AbstractLabel> for LocalLabel {
 
 /// Remote Labels are Labels built from a URL. They may be
 ///
-#[derive(Default, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Builder, Default, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub struct RemoteLabel {
     /// The URL used to create this label.
     ///
@@ -235,6 +263,10 @@ pub struct RemoteLabel {
 }
 
 impl RemoteLabel {
+    pub fn builder() -> RemoteLabelBuilder {
+        RemoteLabelBuilder::default()
+    }
+
     pub fn url_str(&self) -> Cow<'_, str> {
         Cow::from(&self.url)
     }
@@ -284,9 +316,25 @@ impl RemoteLabel {
     }
 }
 
+impl RemoteLabelBuilder {
+    pub fn build_label(&self) -> Result<Label, LabelError> {
+        Ok(Label::Remote(self.build().unwrap()))
+    }
+}
+
 impl ToString for RemoteLabel {
     fn to_string(&self) -> String {
-        self.url.to_string()
+        let path = self.path.to_string_lossy();
+        let name = if let Some(name) = &self.name {
+            if path.ends_with(name) {
+                "".to_string()
+            } else {
+                format!(":{}", name)
+            }
+        } else {
+            "".to_string()
+        };
+        format!("{}{}{}", &self.host, path, name)
     }
 }
 
@@ -361,6 +409,32 @@ impl AbstractLabel {
 
     pub fn hash(&self) -> usize {
         fxhash::hash(&self.path)
+    }
+
+    /// Turn an AbstractLabel into a RemoteLabel.
+    ///
+    /// This is used primarily when reading a RemoteWorkspace Label's Dependencies. It makes all
+    /// its file dependencies into URLs so that the RemoteWorkspaceResolver can pick them up
+    /// correctly.
+    ///
+    /// For example, the target `https://tools.warp.build/hexpm/resolver` relies on
+    /// `./erlang/base:my_lib` -- this second label points to a file, so it is a LocalLabel,
+    /// relative to the original Workspace from `tools.warp.build`.
+    ///
+    /// For us to find it, we need to turn `./erlang/base:my_lib` into
+    /// `https://tools.warp.build/erlang/base:my_lib`.
+    ///
+    fn to_remote(&self, mut base_url: Url) -> RemoteLabel {
+        base_url.set_path(
+            if self.path.ends_with(&self.name) {
+                format!("{}", &self.path.to_string_lossy())
+            } else {
+                format!("{}:{}", &self.path.to_string_lossy(), &self.name)
+            }
+            .as_ref(),
+        );
+
+        base_url.into()
     }
 }
 
@@ -468,6 +542,15 @@ impl Label {
                 l.set_workspace(workspace_root.as_ref());
                 Some(l)
             }
+            _ => None,
+        }
+    }
+
+    pub fn to_remote(&self, base_url: Url) -> Option<Label> {
+        match &self {
+            Label::Local(l) => Some(l.to_remote(base_url).into()),
+            Label::Abstract(a) => Some(a.to_remote(base_url).into()),
+            Label::Remote(_) => Some(self.to_owned()),
             _ => None,
         }
     }

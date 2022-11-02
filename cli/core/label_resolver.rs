@@ -192,9 +192,8 @@ impl LabelResolver {
 
         let mut target: Option<Target> = buildfile
             .signatures
-            .iter()
+            .into_iter()
             .find(|s| s.name.name() == *label.name())
-            .cloned()
             .map(|s| s.into());
 
         if let Some(target) = &mut target {
