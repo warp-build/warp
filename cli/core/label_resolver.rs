@@ -117,6 +117,11 @@ impl LabelResolver {
                         return Ok(target);
                     }
                     Ok(None) => (),
+                    Err(
+                        err @ LabelResolverError::RemoteWorkspaceResolverError(
+                            RemoteWorkspaceResolverError::SignatureError(_),
+                        ),
+                    ) => return Err(err),
                     Err(err) => {
                         if let Some(target) = self.find_with_dependency_resolver(label_id).await? {
                             self.save(label_id, target.clone());

@@ -107,11 +107,11 @@ impl RemoteWorkspaceResolver {
             .into_iter()
             .find(|t| t.name.name() == *label.name());
 
-        let url = label.get_remote().unwrap().url();
         if let Some(s) = signature {
             let mut target: Target = s.into();
             target.label = local_label.into();
 
+            let url = label.get_remote().unwrap().url();
             for dep in target.deps.iter_mut().chain(target.runtime_deps.iter_mut()) {
                 if dep.is_file() {
                     *dep = dep.to_remote(url.clone()).unwrap();
