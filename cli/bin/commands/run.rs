@@ -68,7 +68,7 @@ impl RunCommand {
         }) = warp
             .get_results()
             .iter()
-            .find(|br| br.target_manifest.label == label)
+            .find(|br| br.target_manifest.label.name() == label.name())
         {
             let mut provides_env = manifest.env_map();
 
