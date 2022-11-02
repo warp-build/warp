@@ -189,7 +189,7 @@ lift(WorkspaceRoot0) ->
 
   maps:foreach(fun (Path, BuildFile) ->
                     ?LOG_INFO("- ~s\n", [Path]),
-                    ok = file:write_file(Path, ?JSON(BuildFile))
+                    ok = file:write_file(Path, ?JSON(#{ signatures => BuildFile }))
                 end, Buildfiles),
 
   ?LOG_INFO("OK").
