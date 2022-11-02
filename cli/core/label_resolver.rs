@@ -1,4 +1,3 @@
-use super::Event;
 use super::*;
 use dashmap::DashMap;
 use futures::Future;
@@ -18,11 +17,10 @@ pub struct LabelResolver {
     remote_workspace_resolver: Arc<RemoteWorkspaceResolver>,
     resolved_labels: DashMap<LabelId, Target>,
     toolchain_configs: FxHashMap<String, RuleConfig>,
-    source_manager: Arc<SourceManager>,
-    signature_store: Arc<SignatureStore>,
     event_channel: Arc<EventChannel>,
     workspace: Workspace,
     artifact_store: Arc<ArtifactStore>,
+    source_resolver: SourceResolver,
 }
 
 #[derive(Error, Debug)]
@@ -78,6 +76,14 @@ impl LabelResolver {
             dependency_manager,
         );
 
+        let source_resolver = SourceResolver::new(
+            event_channel.clone(),
+            label_registry.clone(),
+            source_manager,
+            signature_store,
+            build_opts,
+        );
+
         Self {
             artifact_store,
             build_opts,
@@ -86,8 +92,7 @@ impl LabelResolver {
             label_registry,
             remote_workspace_resolver,
             resolved_labels: DashMap::default(),
-            signature_store,
-            source_manager,
+            source_resolver,
             toolchain_configs: workspace.toolchain_configs.clone(),
             workspace: workspace.clone(),
         }
@@ -111,7 +116,11 @@ impl LabelResolver {
                     return Ok(target);
                 }
 
-                match self.find_in_remote_workspaces(&label).await {
+                match self
+                    .remote_workspace_resolver
+                    .resolve(label_id, &label)
+                    .await
+                {
                     Ok(Some(target)) => {
                         self.save(label_id, target.clone());
                         return Ok(target);
@@ -123,7 +132,9 @@ impl LabelResolver {
                         ),
                     ) => return Err(err),
                     Err(err) => {
-                        if let Some(target) = self.find_with_dependency_resolver(label_id).await? {
+                        if let Some(target) =
+                            self.dependency_resolver.resolve(label_id, &label).await?
+                        {
                             self.save(label_id, target.clone());
                             return Ok(target);
                         }
@@ -136,7 +147,7 @@ impl LabelResolver {
                     return Ok(target);
                 }
             } else if label.is_file() {
-                let target = self.find_as_file(label_id, &label).await?;
+                let target = self.source_resolver.resolve(label_id, &label).await?;
                 self.save(label_id, target.clone());
                 return Ok(target);
             }
@@ -149,28 +160,6 @@ impl LabelResolver {
     #[tracing::instrument(name = "LabelResolver::save", skip(self))]
     fn save(&self, label: LabelId, target: Target) {
         self.resolved_labels.insert(label, target);
-    }
-
-    #[tracing::instrument(name = "LabelResolver::find_in_remote_workspaces", skip(self))]
-    async fn find_in_remote_workspaces(
-        &self,
-        label: &Label,
-    ) -> Result<Option<Target>, LabelResolverError> {
-        self.remote_workspace_resolver
-            .get(label)
-            .await
-            .map_err(LabelResolverError::RemoteWorkspaceResolverError)
-    }
-
-    #[tracing::instrument(name = "LabelResolver::find_with_dependency_resolver", skip(self))]
-    async fn find_with_dependency_resolver(
-        &self,
-        label_id: LabelId,
-    ) -> Result<Option<Target>, LabelResolverError> {
-        self.dependency_resolver
-            .get(label_id)
-            .await
-            .map_err(LabelResolverError::DependencyResolverError)
     }
 
     /// Finds a Target by its AbstractLabel in the Current Workspace.
@@ -286,56 +275,5 @@ impl LabelResolver {
         } else {
             Ok(None)
         }
-    }
-
-    #[tracing::instrument(name = "LabelResolver::find_as_file", skip(self))]
-    async fn find_as_file(
-        &self,
-        label_id: LabelId,
-        label: &Label,
-    ) -> Result<Target, LabelResolverError> {
-        let local_label = label.get_local().unwrap();
-        dbg!(&local_label);
-
-        self.event_channel.send(Event::GeneratingSignature {
-            label: label.to_owned(),
-        });
-
-        // 1. Register this label as a source file, and store its AST -- at this stage we will be
-        //    using tree-sitter to provide us with an very fast and accurate enough representation
-        //    of this program.
-        //
-        let source = self
-            .source_manager
-            .register_source(label_id, label)
-            .await
-            .unwrap();
-
-        // 2. Figure out what inside that AST we care about -- we need to know exactly which
-        //    signatures we are interested in, and since a source file can have more than one, we
-        //    generate a SourceSymbol by inspecting the label and the current goal.
-        //
-        let symbol = SourceSymbol::from_label_and_goal(label_id, label, self.build_opts.goal);
-
-        // 3. Use the symbol to split the source to the subtree we want to generate a signature
-        //    for.
-        //
-        let source_chunk = self
-            .source_manager
-            .get_source_chunk_by_symbol(source, &symbol)
-            .await
-            .unwrap() // chunker error
-            .unwrap(); // nothing found
-
-        // 4. Generate a signature for this symbol and this source chunk. This signature will
-        //    include all the information we need to build/test/run this chunk.
-        //
-        let signature = self
-            .signature_store
-            .generate_signature(label_id, label, &source_chunk, symbol)
-            .await
-            .unwrap();
-
-        Ok(signature.into())
     }
 }

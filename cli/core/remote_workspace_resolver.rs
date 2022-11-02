@@ -6,6 +6,19 @@ use thiserror::*;
 use tokio::fs;
 use tracing::*;
 
+/// A Label Resolver that handles turning references to external workspaces into buildable targets.
+///
+#[derive(Debug, Clone)]
+pub struct RemoteWorkspaceResolver {
+    archive_manager: ArchiveManager,
+    artifact_store: Arc<ArtifactStore>,
+    global_workspaces_path: PathBuf,
+    remote_workspace_configs: DashMap<String, RemoteWorkspaceConfig>,
+    root_workspace: Workspace,
+    targets: DashMap<Label, Target>,
+    workspaces: DashMap<String, Workspace>,
+}
+
 #[derive(Error, Debug)]
 pub enum RemoteWorkspaceResolverError {
     #[error("Can't resolve a workspace with a URL that has no host: {0:?}")]
@@ -38,17 +51,6 @@ or
     SignatureError(SignatureError),
 }
 
-#[derive(Debug)]
-pub struct RemoteWorkspaceResolver {
-    root_workspace: Workspace,
-    remote_workspace_configs: DashMap<String, RemoteWorkspaceConfig>,
-    global_workspaces_path: PathBuf,
-    archive_manager: ArchiveManager,
-    workspaces: DashMap<String, Workspace>,
-    targets: DashMap<Label, Target>,
-    artifact_store: Arc<ArtifactStore>,
-}
-
 impl RemoteWorkspaceResolver {
     #[tracing::instrument(name = "RemoteWorkspaceResolver::new", skip(workspace))]
     pub fn new(
@@ -79,14 +81,21 @@ impl RemoteWorkspaceResolver {
         self.remote_workspace_configs.insert(host, config);
     }
 
-    #[tracing::instrument(name = "RemoteWorkspaceResolver::get", skip(self))]
-    pub async fn get(&self, label: &Label) -> Result<Option<Target>, RemoteWorkspaceResolverError> {
+    #[tracing::instrument(name = "RemoteWorkspaceResolver::resolve", skip(self))]
+    pub async fn resolve(
+        &self,
+        label_id: LabelId,
+        label: &Label,
+    ) -> Result<Option<Target>, LabelResolverError> {
         if let Some(entry) = self.targets.get(label) {
             let target = entry.value().clone();
             return Ok(Some(target));
         }
 
-        let workspace = self.find_workspace(label).await?;
+        let workspace = self
+            .find_workspace(label)
+            .await
+            .map_err(LabelResolverError::RemoteWorkspaceResolverError)?;
 
         let mut local_label = label
             .to_local(&workspace.paths.workspace_root)
@@ -100,7 +109,8 @@ impl RemoteWorkspaceResolver {
 
         let buildfile = SignaturesFile::read(buildfile_path, &workspace.paths.workspace_root)
             .await
-            .map_err(RemoteWorkspaceResolverError::SignatureError)?;
+            .map_err(RemoteWorkspaceResolverError::SignatureError)
+            .map_err(LabelResolverError::RemoteWorkspaceResolverError)?;
 
         let signature: Option<Signature> = buildfile
             .signatures

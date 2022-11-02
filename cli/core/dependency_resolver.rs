@@ -8,6 +8,23 @@ use tokio::io::AsyncReadExt;
 use tracing::*;
 use url::Url;
 
+/// A Label Resolver that handles turning references to external dependencies (such as
+/// `https://hex.pm/packages/proper` and `https://github.com/warp-build/core`) into buildable
+/// targets.
+///
+#[derive(Debug, Clone)]
+pub struct DependencyResolver {
+    archive_manager: ArchiveManager,
+    artifact_store: Arc<ArtifactStore>,
+    build_results: Arc<BuildResults>,
+    dependency_manager: Arc<DependencyManager>,
+    event_channel: Arc<EventChannel>,
+    global_workspaces_path: PathBuf,
+    label_registry: Arc<LabelRegistry>,
+    resolvers: DashMap<String, LabelId>,
+    targets: DashMap<LabelId, Target>,
+}
+
 #[derive(Error, Debug)]
 pub enum DependencyResolverError {
     #[error("Can't resolve a dependency with a URL that has no host: {0:?}")]
@@ -33,22 +50,6 @@ pub enum DependencyResolverError {
 
     #[error(transparent)]
     ExtractionError(ArchiveManagerError),
-}
-
-#[derive(Debug)]
-pub struct DependencyResolver {
-    global_workspaces_path: PathBuf,
-
-    targets: DashMap<LabelId, Target>,
-    resolvers: DashMap<String, LabelId>,
-
-    dependency_manager: Arc<DependencyManager>,
-
-    build_results: Arc<BuildResults>,
-    label_registry: Arc<LabelRegistry>,
-    event_channel: Arc<EventChannel>,
-    artifact_store: Arc<ArtifactStore>,
-    archive_manager: ArchiveManager,
 }
 
 impl DependencyResolver {
@@ -88,26 +89,32 @@ impl DependencyResolver {
         this
     }
 
-    #[tracing::instrument(name = "DependencyResolver::get", skip(self))]
-    pub async fn get(&self, label_id: LabelId) -> Result<Option<Target>, DependencyResolverError> {
+    #[tracing::instrument(name = "DependencyResolver::resolve", skip(self))]
+    pub async fn resolve(
+        &self,
+        label_id: LabelId,
+        label: &Label,
+    ) -> Result<Option<Target>, LabelResolverError> {
         if let Some(entry) = self.targets.get(&label_id) {
             let target = entry.value().clone();
             return Ok(Some(target));
         }
 
-        let label = self.label_registry.get_label(label_id);
         let remote_label = label.get_remote().unwrap();
 
-        let dependency = self.dependency_manager.get(label_id).ok_or_else(|| {
-            DependencyResolverError::UnspecifiedDependency {
+        let dependency = self
+            .dependency_manager
+            .get(label_id)
+            .ok_or_else(|| DependencyResolverError::UnspecifiedDependency {
                 dependency: remote_label.to_owned().into(),
-            }
-        })?;
+            })
+            .map_err(LabelResolverError::DependencyResolverError)?;
 
         if let Some(resolver) = self.resolvers.get(&remote_label.host) {
             if let Some(target) = self
-                .resolve(*resolver, label_id, remote_label, dependency)
-                .await?
+                .do_resolve(*resolver, label_id, remote_label, dependency)
+                .await
+                .map_err(LabelResolverError::DependencyResolverError)?
             {
                 self.targets.insert(label_id, target.clone());
                 return Ok(Some(target));
@@ -117,8 +124,7 @@ impl DependencyResolver {
         Ok(None)
     }
 
-    #[tracing::instrument(name = "DependencyResolver::resolve", skip(self))]
-    async fn resolve(
+    async fn do_resolve(
         &self,
         resolver: LabelId,
         label: LabelId,
