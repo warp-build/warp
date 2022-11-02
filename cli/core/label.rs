@@ -215,13 +215,17 @@ impl LocalLabelBuilder {
 
 impl ToString for LocalLabel {
     fn to_string(&self) -> String {
+        let path = self.file.to_string_lossy();
+
         let prefix = {
             if let Some(url) = &self.associated_url {
                 format!("{}{}", url.host_str().unwrap(), url.path())
             } else if let Some(remote) = &self.promoted_from {
                 remote.to_string()
+            } else if path.starts_with("./") {
+                format!("{}", path)
             } else {
-                format!("./{}", self.file.to_string_lossy())
+                format!("./{}", path)
             }
         };
 
@@ -513,9 +517,8 @@ impl Label {
     }
 
     pub fn set_associated_url(&mut self, url: Url) {
-        match self {
-            Label::Local(l) => l.set_associated_url(url),
-            _ => (),
+        if let Label::Local(l) = self {
+            l.set_associated_url(url)
         }
     }
 

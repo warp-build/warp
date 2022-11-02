@@ -39,13 +39,12 @@ build their dependencies and exit.
 
 impl RunCommand {
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
-        let label: Label = if let Some(label) = (&warp.workspace.aliases).get(&self.label) {
+        let mut label: Label = if let Some(label) = (&warp.workspace.aliases).get(&self.label) {
             label.clone()
         } else {
-            let mut label: Label = self.label.parse()?;
-            label.set_workspace(&warp.workspace.paths.workspace_root);
-            label
+            self.label.parse()?
         };
+        label.set_workspace(&warp.workspace.paths.workspace_root);
 
         let status_reporter = StatusReporter::new(warp.event_channel.clone());
         let (result, ()) = futures::future::join(

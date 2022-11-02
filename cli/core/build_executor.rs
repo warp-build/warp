@@ -202,7 +202,6 @@ impl BuildExecutor {
         let label_registry = self.label_registry.clone();
         let label_resolver = self.label_resolver.clone();
         let target_executor = self.target_executor.clone();
-        let workspace = self.workspace.clone();
 
         let shared_rule_executor_state = Arc::new(SharedRuleExecutorState::new(
             self.rule_store.clone(),
@@ -244,7 +243,6 @@ impl BuildExecutor {
         let label_registry = self.label_registry.clone();
         let label_resolver = self.label_resolver.clone();
         let target_executor = self.target_executor.clone();
-        let workspace = self.workspace.clone();
 
         let shared_rule_executor_state = Arc::new(SharedRuleExecutorState::new(
             self.rule_store.clone(),
@@ -277,13 +275,10 @@ impl BuildExecutor {
 
     fn spawn_queuer_worker(
         &self,
-        targets: &[Label],
+        labels: &[Label],
     ) -> tokio::task::JoinHandle<Result<(), BuildExecutorError>> {
-        let should_queue_everything = targets.iter().any(|t| t.is_all());
-        let targets: Vec<LabelId> = targets
-            .iter()
-            .map(|t| self.label_registry.register_label(t))
-            .collect();
+        let should_queue_everything = labels.iter().any(|t| t.is_all());
+        let labels: Vec<Label> = labels.to_vec();
 
         let build_coordinator = self.build_coordinator.clone();
         let build_opts = self.build_opts;
@@ -390,10 +385,26 @@ impl BuildExecutor {
                     build_coordinator.signal_shutdown();
                 }
             } else {
-                for target in &targets {
+                for label in labels {
+                    let label = if label.is_file() {
+                        if let Ok(meta) = tokio::fs::metadata(label.path()).await {
+                            if meta.file_type().is_dir() {
+                                label.to_abstract().unwrap()
+                            } else {
+                                label.to_owned()
+                            }
+                        } else {
+                            label.to_owned()
+                        }
+                    } else {
+                        label.to_owned()
+                    };
+
+                    let label = label_registry.register_label(label);
+
                     build_queue
                         .queue(Task {
-                            label: *target,
+                            label,
                             goal: build_opts.goal,
                         })
                         .map_err(BuildExecutorError::QueueError)?;
