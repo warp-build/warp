@@ -17,7 +17,7 @@ fn main() {
 
 usage:
 
-  parser FILE
+  parser dump-ast FILE
 
         "#
         );
