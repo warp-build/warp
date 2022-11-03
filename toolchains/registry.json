@@ -23,7 +23,7 @@
     "24": {
       "sha1": "eb8794dd8b21284528d3236a59b1605dabba4d49",
       "version": "24.3.4.6",
-      "deps": { "openssl": "1.1.1q", "rebar3": "latest" },
+      "deps": { "openssl": "1.1.1q", "rebar3": "r24" },
       "lifter": "https://tools.warp.build/erlang/lifter"
     }
   },
@@ -37,6 +37,10 @@
     "latest": {
       "sha1": "7e281994851487caf5daa4a2c32b5a0cabdf7bdb",
       "deps": { "cmake": "3.24.2", "erlang": "25", "git": "2.38.1" }
+    },
+    "r24": {
+      "sha1": "7e281994851487caf5daa4a2c32b5a0cabdf7bdb",
+      "deps": { "cmake": "3.24.2", "erlang": "24", "git": "2.38.1" }
     }
   },
   "git": {
