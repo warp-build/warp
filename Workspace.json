@@ -26,8 +26,11 @@
       "version": "1.13"
     },
     "erlang": {
-      "sha1": "2bb7456ccb19cf83b07506744fb540ce4d66b257",
-      "version": "25.0"
+      "sha1": "eb8794dd8b21284528d3236a59b1605dabba4d49",
+      "version": "24.3.4.6"
+      // NOTE(@ostera): for some reason, 25.x on macOS ARM is about twice as slow
+      //"sha1": "c2d3464fb32b6f5562b6e094d32459adaa7b90cd",
+      //"version": "25.1.2"
     },
     "git": {
       "sha1": "fc5107c0cc41fc7ee870c360d67517cd0ee26d17",
