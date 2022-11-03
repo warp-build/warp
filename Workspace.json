@@ -83,8 +83,8 @@
       "version": "OpenSSL_1_1_1q"
     },
     "erlang": {
-      "sha1": "2bb7456ccb19cf83b07506744fb540ce4d66b257",
-      "version": "25.0"
+      "sha1": "eb8794dd8b21284528d3236a59b1605dabba4d49",
+      "version": "24.3.4.6"
     },
     "flyctl": {
       "sha1_aarch64": "bae0f096ec524ca5a85ec401b58444108e097218",
