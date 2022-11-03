@@ -4,7 +4,7 @@
       "sha1": "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa",
       "kind": "source",
       "version": "1.13",
-      "deps": { "erlang": "25.0" }
+      "deps": { "erlang": "25" }
     }
   },
   "openssl": {
@@ -36,7 +36,7 @@
   "rebar3": {
     "latest": {
       "sha1": "7e281994851487caf5daa4a2c32b5a0cabdf7bdb",
-      "deps": { "cmake": "3.24.2", "erlang": "25.0", "git": "2.38.1" }
+      "deps": { "cmake": "3.24.2", "erlang": "25", "git": "2.38.1" }
     }
   },
   "git": {
