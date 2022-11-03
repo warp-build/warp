@@ -14,9 +14,15 @@
     }
   },
   "erlang": {
-    "25.0": {
-      "sha1": "2bb7456ccb19cf83b07506744fb540ce4d66b257",
-      "version": "25.0",
+    "25": {
+      "sha1": "c2d3464fb32b6f5562b6e094d32459adaa7b90cd",
+      "version": "25.1.2",
+      "deps": { "openssl": "1.1.1q", "rebar3": "latest" },
+      "lifter": "https://tools.warp.build/erlang/lifter"
+    },
+    "24": {
+      "sha1": "eb8794dd8b21284528d3236a59b1605dabba4d49",
+      "version": "24.3.4.6",
       "deps": { "openssl": "1.1.1q", "rebar3": "latest" },
       "lifter": "https://tools.warp.build/erlang/lifter"
     }
