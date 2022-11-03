@@ -20,13 +20,23 @@ pub struct ShellCommand {
         long = "max-workers"
     )]
     max_workers: Option<usize>,
+
+    #[structopt(
+        help = r"Whether to show all the cache hit entries in the build output.",
+        long = "show-cache-hits"
+    )]
+    show_cache_hits: bool,
 }
 
 impl ShellCommand {
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
         let label = Label::all();
 
-        let status_reporter = StatusReporter::new(warp.event_channel.clone());
+        let status_reporter = StatusReporter::new(
+            warp.event_channel.clone(),
+            self.show_cache_hits,
+            Goal::Build,
+        );
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],

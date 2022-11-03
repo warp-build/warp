@@ -8,13 +8,21 @@ use warp_core::*;
 pub struct StatusReporter {
     event_consumer: EventConsumer,
     event_channel: Arc<EventChannel>,
+    show_cache_hits: bool,
+    goal: Goal,
 }
 
 impl StatusReporter {
-    pub fn new(event_channel: Arc<EventChannel>) -> StatusReporter {
+    pub fn new(
+        event_channel: Arc<EventChannel>,
+        show_cache_hits: bool,
+        goal: Goal,
+    ) -> StatusReporter {
         StatusReporter {
             event_consumer: event_channel.consumer(),
             event_channel,
+            show_cache_hits,
+            goal,
         }
     }
     pub async fn run(self, targets: &[Label]) {
@@ -131,10 +139,19 @@ impl StatusReporter {
                             action_count += ac as u64;
                         }
 
-                        GeneratingSignature { label } => {
+                        AnalyzingSource { label } => {
                             let line = format!(
                                 "{:>12} {}",
                                 purple.apply_to("Analyzing"),
+                                label.to_string(),
+                            );
+                            pb.println(line);
+                        }
+
+                        GeneratingSignature { label } => {
+                            let line = format!(
+                                "{:>12} {}",
+                                purple.apply_to("Generating"),
                                 label.to_string(),
                             );
                             pb.println(line);
@@ -157,11 +174,6 @@ impl StatusReporter {
                         }
 
                         CacheHit { label, .. } => {
-                            let line = format!(
-                                "{:>12} {}",
-                                blue_dim.apply_to("Cache-hit"),
-                                label.to_string(),
-                            );
                             current_targets.remove(&label);
                             let current_targets_names = current_targets
                                 .iter()
@@ -171,7 +183,16 @@ impl StatusReporter {
                                 "Pending: {}",
                                 current_targets_names.join(", ")
                             ));
-                            pb.println(line);
+
+                            if self.show_cache_hits {
+                                let line = format!(
+                                    "{:>12} {}",
+                                    blue_dim.apply_to("Cache-hit"),
+                                    label.to_string(),
+                                );
+                                pb.println(line);
+                            }
+
                             pb.inc(1);
                             cache_hits.insert(label);
                         }
@@ -262,28 +283,37 @@ impl StatusReporter {
                         BuildCompleted(t1) if self.event_consumer.is_empty() => {
                             let line = if targets.is_empty() {
                                 format!(
-                                    "{:>12} in {}ms ({} targets, {} cached, {} errors)",
+                                    "{:>12} in {}ms ({} built, {} cached{})",
                                     green_bold.apply_to("Nothing done"),
                                     t1.saturating_duration_since(build_started).as_millis(),
                                     target_count.len(),
                                     cache_hits.len(),
-                                    error_count,
+                                    if error_count > 0 {
+                                        format!(", {} errors", error_count)
+                                    } else {
+                                        "".into()
+                                    }
                                 )
                             } else if targets.len() == 1 {
                                 format!(
-                                "{:>12} {} in {}ms ({} targets, {} hashed, {} cached, {} errors)",
-                                if errored {
-                                    red_bold.apply_to("Finished with errors")
-                                } else {
-                                    green_bold.apply_to("Finished")
-                                },
-                                targets[0].to_string(),
-                                t1.saturating_duration_since(build_started).as_millis(),
-                                target_count.len(),
-                                hashed_count.len(),
-                                cache_hits.len(),
-                                error_count,
-                            )
+                                    "{:>12} {} in {}ms ({} built, {} cached{})",
+                                    if errored {
+                                        red_bold.apply_to("Finished with errors")
+                                    } else if self.goal.is_runnable() {
+                                        green_bold.apply_to("Running")
+                                    } else {
+                                        green_bold.apply_to("Finished")
+                                    },
+                                    targets[0].to_string(),
+                                    t1.saturating_duration_since(build_started).as_millis(),
+                                    target_count.len(),
+                                    cache_hits.len(),
+                                    if error_count > 0 {
+                                        format!(", {} errors", error_count)
+                                    } else {
+                                        "".into()
+                                    }
+                                )
                             } else {
                                 format!(
                                 "{:>12} multiple goals in {} ({} targets, {} cached, {} errors): \n  ->{}",

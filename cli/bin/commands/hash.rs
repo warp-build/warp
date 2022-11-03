@@ -20,7 +20,7 @@ pub struct HashCommand {
 impl HashCommand {
     #[tracing::instrument(name = "HashCommand::run", skip(warp))]
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
-        let status_reporter = StatusReporter::new(warp.event_channel.clone());
+        let status_reporter = StatusReporter::new(warp.event_channel.clone(), true, Goal::Build);
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[Label::all()],

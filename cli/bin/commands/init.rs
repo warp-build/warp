@@ -126,7 +126,8 @@ impl InitCommand {
 
         let lifters: Vec<Label> = toolchains.iter().cloned().flat_map(|t| t.lifter).collect();
         if !lifters.is_empty() {
-            let status_reporter = StatusReporter::new(warp.event_channel.clone());
+            let status_reporter =
+                StatusReporter::new(warp.event_channel.clone(), false, Goal::Build);
             let (lifters, ()) = futures::future::join(
                 warp.execute(
                     &lifters,

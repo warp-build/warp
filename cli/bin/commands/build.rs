@@ -29,12 +29,19 @@ Use //... to build the entire project.
         long = "max-workers"
     )]
     max_workers: Option<usize>,
+
+    #[structopt(
+        help = r"Whether to show all the cache hit entries in the build output.",
+        long = "show-cache-hits"
+    )]
+    show_cache_hits: bool,
 }
 
 impl BuildCommand {
     pub fn all() -> BuildCommand {
         BuildCommand {
             label: "//...".to_string(),
+            show_cache_hits: true,
             max_workers: None,
         }
     }
@@ -49,7 +56,11 @@ impl BuildCommand {
             label
         };
 
-        let status_reporter = StatusReporter::new(warp.event_channel.clone());
+        let status_reporter = StatusReporter::new(
+            warp.event_channel.clone(),
+            self.show_cache_hits,
+            Goal::Build,
+        );
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],

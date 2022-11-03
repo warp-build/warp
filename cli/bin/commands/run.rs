@@ -33,6 +33,12 @@ build their dependencies and exit.
     )]
     max_workers: Option<usize>,
 
+    #[structopt(
+        help = r"Whether to show all the cache hit entries in the build output.",
+        long = "show-cache-hits"
+    )]
+    show_cache_hits: bool,
+
     #[structopt(name = "ARGUMENTS")]
     args: Vec<String>,
 }
@@ -46,7 +52,8 @@ impl RunCommand {
         };
         label.set_workspace(&warp.workspace.paths.workspace_root);
 
-        let status_reporter = StatusReporter::new(warp.event_channel.clone());
+        let status_reporter =
+            StatusReporter::new(warp.event_channel.clone(), self.show_cache_hits, Goal::Run);
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],
