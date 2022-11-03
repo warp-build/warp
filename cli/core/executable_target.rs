@@ -124,6 +124,7 @@ impl ExecutableTarget {
             .deps
             .iter()
             .chain(self.transitive_deps.iter())
+            .chain(self.toolchains.iter())
             .flat_map(|d| build_results.get_manifest(*d))
             .map(|d| d.hash.to_owned())
             .collect();
