@@ -624,9 +624,16 @@ impl Label {
     pub fn path(&self) -> &Path {
         match &self {
             Label::Wildcard(w) => w.as_ref(),
-            Label::Local(l) => l.as_ref(),
             Label::Remote(r) => r.as_ref(),
             Label::Abstract(a) => a.as_ref(),
+            Label::Local(l) => {
+                let path = l.as_ref();
+                if path.is_file() {
+                    path.parent().unwrap()
+                } else {
+                    path
+                }
+            }
         }
     }
 

@@ -387,7 +387,9 @@ impl BuildExecutor {
             } else {
                 for label in labels {
                     let label = if label.is_file() {
-                        if let Ok(meta) = tokio::fs::metadata(label.path()).await {
+                        if let Ok(meta) =
+                            tokio::fs::metadata(label.get_local().unwrap().file()).await
+                        {
                             if meta.file_type().is_dir() {
                                 label.to_abstract().unwrap()
                             } else {

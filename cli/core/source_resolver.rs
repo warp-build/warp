@@ -38,7 +38,7 @@ impl SourceResolver {
         label_id: LabelId,
         label: &Label,
     ) -> Result<Target, LabelResolverError> {
-        let local_label = label.get_local().unwrap();
+        let _local_label = label.get_local().unwrap();
 
         // 1. Figure out what inside that AST we care about -- we need to know exactly which
         //    signatures we are interested in, and since a source file can have more than one, we
@@ -67,8 +67,6 @@ impl SourceResolver {
 
         for sig in signatures {
             if self.build_opts.goal.includes(&sig) && sig.name.name() == label.name() {
-                dbg!(&self.build_opts.goal);
-                dbg!(&sig);
                 return Ok(sig.into());
             }
         }

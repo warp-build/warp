@@ -227,7 +227,7 @@ impl SourceManager {
                 parser: self.label_registry.get_label(parser_id).as_ref().to_owned(),
             })?;
 
-        self.event_channel.send(Event::GeneratingSignature {
+        self.event_channel.send(Event::AnalyzingSource {
             label: label.to_owned().into(),
         });
 

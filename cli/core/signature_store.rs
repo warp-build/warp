@@ -75,7 +75,7 @@ impl SignatureStore {
 
         let generator = self
             .generators
-            .get(&label.extension().unwrap())
+            .get(&*local_label.extension())
             .map(|r| (*r))
             .ok_or_else(|| SignatureStoreError::UnknownSignature {
                 label: label.clone(),
@@ -127,6 +127,9 @@ impl SignatureStore {
             .into_iter()
             .map(|mut sig| {
                 sig.name.set_workspace(local_label.workspace());
+                for dep in sig.deps.iter_mut().chain(sig.runtime_deps.iter_mut()) {
+                    dep.set_workspace(local_label.workspace());
+                }
                 sig
             })
             .collect();

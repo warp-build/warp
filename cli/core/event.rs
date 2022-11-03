@@ -47,6 +47,9 @@ pub enum Event {
     },
     EmptyWorkspace(std::time::Instant),
     ErrorLoadingRule(String, BuildWorkerError),
+    AnalyzingSource {
+        label: Label,
+    },
     GeneratingSignature {
         label: Label,
     },
