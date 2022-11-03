@@ -33,6 +33,15 @@ ${
 
 export OTP_SMALL_BUILD OTP_TINY_BUILD
 
+unset ERL_LIBS
+unset ERL_FLAGS
+unset ERL_AFLAGS
+unset ERL_ZFLAGS
+
+if [[ ! -d "./configure" ]]; then
+    ./otp_build autoconf
+fi
+
 ./configure ${configure_flags.join(" ")} \
   --with-ssl=$OpenSSL_HOME \
   --prefix=$(pwd)/dist || exit 1
@@ -74,7 +83,18 @@ export default Warp.Toolchain({
   },
   defaults: {
     build_size: "full",
-    configure_flags: [],
+    configure_flags: [
+      "--disable-debug",
+      "--disable-silent-rules",
+      "--enable-dynamic-ssl-lib",
+      "--enable-hipe",
+      "--enable-shared-zlib",
+      "--enable-smp-support",
+      "--enable-threads",
+      "--without-javac",
+      "--enable-darwin-64bit",
+      "--enable-kernel-poll",
+    ],
     make_flags: [],
   },
   toolchains: [OpenSSLToolchain]
