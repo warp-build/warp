@@ -172,26 +172,10 @@ lift(WorkspaceRoot0) ->
   % 5. analyze all the sources to get their signatures
   {ok, Signatures} = source_analyzer:analyze(AllFiles, ModMap, IgnoreMods, IncludePaths),
 
-  % 6. generate warp signatures
-  % ?LOG_INFO("Writing Warp signature files..."),
-  % maps:foreach(fun (Path, WarpSig) ->
-  %                   ?LOG_INFO("- ~s\n", [Path]),
-  %                   ok = file:write_file(Path, ?JSON(WarpSig))
-  %               end, Signatures),
-
-  % 7. group and generate build files
-  ?LOG_INFO("Writing Build.json files..."),
-  Buildfiles = lists:foldl(
-                 fun ({Path, WarpSig}, Acc) ->
-                     BuildPath = path:join(path:dirname(Path), "Build.json"),
-                     LastTargets = maps:get(BuildPath, Acc, []), 
-                     maps:put(BuildPath, LastTargets ++ WarpSig, Acc)
-                 end, #{}, maps:to_list(Signatures)),
-
-  maps:foreach(fun (Path, BuildFile) ->
-                    ?LOG_INFO("- ~s\n", [Path]),
-                    ok = file:write_file(Path, ?JSON(#{ signatures => BuildFile }))
-                end, Buildfiles),
+  ?PRINT_JSON(#{
+                version => 0,
+                signatures => Signatures
+               }),
 
   ?LOG_INFO("OK").
 

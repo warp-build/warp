@@ -7,11 +7,7 @@
 -include_lib("compiler/src/core_parse.hrl").
 
 analyze(Files, ModMap, IgnoreModMap, IncludePaths) ->
-  Result = lists:foldl(fun (File, R) ->
-                           K = path:add_extension(File, "wsig"),
-                           V = analyze_one(File, ModMap, IgnoreModMap, IncludePaths),
-                           maps:put(K, V, R)
-                       end, #{}, Files),
+  Result = [ analyze_one(File, ModMap, IgnoreModMap, IncludePaths) || File <- Files ],
   ?LOG_INFO("Analyzed ~p files successfully.", [length(Files)]),
   {ok, Result}.
 
@@ -19,13 +15,11 @@ analyze_one(File0, ModMap, IgnoreModMap, IncludePaths) ->
   File = path:relativize(File0),
   ?LOG_INFO("Analyzing: ~s", [File]),
 
-
 	{ok, #{ File := SourceAnalysis}} = erl_analyzer:analyze([File], ModMap, IncludePaths),
   CompAnalysis = fun () ->
                      {ok, #{ File := Res }} = cerl_analyzer:analyze([File], IncludePaths),
                      Res
                  end,
-  
 
   Result =
     erlang_libraries(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
@@ -115,7 +109,7 @@ get_ct_cases(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnal
   IncludeDeps = includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis),
 
   [#{
-    name => Case,
+    name => <<File/binary, ":", (erlang:atom_to_binary(Case, utf8))/binary>>,
     test => path:filename(File),
     runtime_deps => deps_to_labels(ModDeps),
     deps => deps_to_labels(IncludeDeps), 
@@ -157,7 +151,7 @@ get_prop_tests(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAn
   IncludeDeps = includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis),
 
   [#{
-    name => Prop,
+    name => <<File/binary, ":", (erlang:atom_to_binary(Prop, utf8))/binary>>,
     test => path:filename(File),
     runtime_deps => deps_to_labels(ModDeps),
     deps => deps_to_labels(IncludeDeps), 

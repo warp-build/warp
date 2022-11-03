@@ -1,4 +1,4 @@
-%39
+%42
 -module(main).
 
 -mode(compile).
