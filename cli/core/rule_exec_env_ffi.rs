@@ -23,6 +23,7 @@ pub struct InnerState {
 #[op]
 pub fn op_label_path(label: Label) -> Result<String, AnyError> {
     let path = label.path().to_str().unwrap().to_string();
+
     Ok(if path.is_empty() {
         ".".to_string()
     } else {

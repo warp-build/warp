@@ -3,7 +3,18 @@ use super::*;
 use dashmap::DashMap;
 use std::{path::PathBuf, sync::Arc};
 use thiserror::*;
+use tokio::fs;
 use tracing::*;
+
+#[derive(Debug)]
+pub struct SignatureStore {
+    artifact_store: Arc<ArtifactStore>,
+    build_results: Arc<BuildResults>,
+    event_channel: Arc<EventChannel>,
+    generators: DashMap<String, LabelId>,
+    label_registry: Arc<LabelRegistry>,
+    signatures: DashMap<(LabelId, SourceId, SourceSymbol), Signature>,
+}
 
 #[derive(Error, Debug)]
 pub enum SignatureStoreError {
@@ -24,16 +35,6 @@ pub enum SignatureStoreError {
 
     #[error("No generator was registered for files of extension {}, so we can't generate a signature for {}", label.extension().unwrap(), label.to_string())]
     UnknownSignature { label: Label },
-}
-
-#[derive(Debug)]
-pub struct SignatureStore {
-    signatures: DashMap<(LabelId, SourceId, SourceSymbol), Signature>,
-    build_results: Arc<BuildResults>,
-    label_registry: Arc<LabelRegistry>,
-    event_channel: Arc<EventChannel>,
-    artifact_store: Arc<ArtifactStore>,
-    generators: DashMap<String, LabelId>,
 }
 
 impl SignatureStore {
@@ -68,9 +69,10 @@ impl SignatureStore {
         &self,
         label_id: LabelId,
         label: &Label,
-        source_chunk: &SourceId,
-        symbol: SourceSymbol,
-    ) -> Result<Signature, SignatureStoreError> {
+        source_chunk: &SourceFile,
+    ) -> Result<Vec<Signature>, SignatureStoreError> {
+        let local_label = label.get_local().unwrap();
+
         let generator = self
             .generators
             .get(&label.extension().unwrap())
@@ -89,36 +91,54 @@ impl SignatureStore {
             label: label.to_owned(),
         });
 
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let tmp_src = tmp_dir.path().join(local_label.file());
+        fs::create_dir_all(tmp_src.parent().unwrap()).await.unwrap();
+        fs::write(&tmp_src, &source_chunk.source).await.unwrap();
+
         // 2. run generator
         let cmd = CommandRunner::builder()
-            .cwd(PathBuf::from("."))
+            .cwd(tmp_dir.path().into())
             .manifest(generator.target_manifest.clone())
             .target(generator.executable_target.clone())
             .args(vec![
-                "generate-signatures".to_string(),
-                label.path().to_str().unwrap().to_string(),
+                "generate-signature".to_string(),
+                source_chunk.symbol.to_string(),
+                local_label.file().to_string_lossy().to_string(),
             ])
             .sandboxed(false)
             .stream_outputs(false)
             .build()
             .map_err(SignatureStoreError::CommandRunnerError)?;
 
-        let json = cmd
+        let result = cmd
             .run()
             .await
             .map_err(SignatureStoreError::CommandRunnerError)?;
 
-        let gen_sig: GeneratedSignature = serde_json::from_slice(json.as_bytes())
-            .map_err(|err| SignatureStoreError::ParseError { err, json })?;
+        let gen_sig: GeneratedSignature = serde_json::from_slice(result.stdout.as_bytes())
+            .map_err(|err| SignatureStoreError::ParseError {
+                err,
+                json: result.stdout.clone(),
+            })?;
 
-        gen_sig
+        let sigs: Vec<Signature> = gen_sig
             .signatures
-            .get(0)
-            .cloned()
-            .ok_or_else(|| SignatureStoreError::NoSignaturesFound {
-                label: label.clone(),
-                symbol,
+            .into_iter()
+            .map(|mut sig| {
+                sig.name.set_workspace(local_label.workspace());
+                sig
             })
+            .collect();
+
+        if sigs.is_empty() {
+            Err(SignatureStoreError::NoSignaturesFound {
+                label: label.clone(),
+                symbol: source_chunk.symbol.clone(),
+            })
+        } else {
+            Ok(sigs)
+        }
     }
 }
 

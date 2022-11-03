@@ -122,6 +122,7 @@ impl TargetPlanner {
             &toolchains,
             exec_result,
             &self.build_results,
+            &self.label_registry,
         )
         .await
         .map_err(TargetPlannerError::ExecutableTargetError)

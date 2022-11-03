@@ -64,11 +64,10 @@ impl RunCommand {
         if let Some(BuildResult {
             target_manifest: manifest,
             executable_target: target,
-        }) = warp
-            .get_results()
-            .iter()
-            .find(|br| br.target_manifest.label.name() == label.name())
-        {
+        }) = warp.get_results().iter().find(|br| {
+            br.executable_target.rule.kind.is_runnable()
+                && br.target_manifest.label.name() == label.name()
+        }) {
             let mut provides_env = manifest.env_map();
 
             if !self.args.is_empty() {

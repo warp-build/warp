@@ -47,6 +47,12 @@ And try running the command again to see what the right `sha1` should be.
 
     #[error(transparent)]
     SignatureError(SignatureError),
+
+    #[error(transparent)]
+    SourceManagerError(SourceManagerError),
+
+    #[error(transparent)]
+    SignatureStoreError(SignatureStoreError),
 }
 
 impl LabelResolver {

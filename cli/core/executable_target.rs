@@ -62,6 +62,7 @@ impl ExecutableTarget {
         toolchains: &[LabelId],
         exec_result: ExecutionResult,
         build_results: &BuildResults,
+        label_registry: &LabelRegistry,
     ) -> Result<Self, ExecutableTargetError> {
         let label = target
             .label
@@ -90,7 +91,8 @@ impl ExecutableTarget {
         };
 
         this.ensure_outputs_are_safe(build_results)?;
-        this.recompute_hash(env, build_results).await;
+        this.recompute_hash(env, build_results, label_registry)
+            .await;
 
         Ok(this)
     }
@@ -102,7 +104,12 @@ impl ExecutableTarget {
         }
     }
 
-    async fn recompute_hash(&mut self, env: &ExecutionEnvironment, build_results: &BuildResults) {
+    async fn recompute_hash(
+        &mut self,
+        env: &ExecutionEnvironment,
+        build_results: &BuildResults,
+        label_registry: &LabelRegistry,
+    ) {
         let mut s = Sha256::new();
 
         s.update(self.label.to_string().as_bytes());

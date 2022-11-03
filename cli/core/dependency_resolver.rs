@@ -215,16 +215,16 @@ impl DependencyResolver {
                 .build()
                 .map_err(DependencyResolverError::CommandRunnerError)?;
 
-            let str_output = cmd
+            let result = cmd
                 .run()
                 .await
                 .map_err(DependencyResolverError::CommandRunnerError)?;
 
             let resolution: DependencyArchiveResolution =
-                serde_json::from_slice(str_output.as_bytes()).map_err(|err| {
+                serde_json::from_slice(result.stdout.as_bytes()).map_err(|err| {
                     DependencyResolverError::ParseError {
                         err,
-                        resolution: str_output.clone(),
+                        resolution: result.stdout.clone(),
                     }
                 })?;
 
@@ -256,17 +256,19 @@ impl DependencyResolver {
                 .build()
                 .map_err(DependencyResolverError::CommandRunnerError)?;
 
-            let str_output = cmd
+            let result = cmd
                 .run()
                 .await
                 .map_err(DependencyResolverError::CommandRunnerError)?;
 
             // parse it
-            let resolution: GeneratedSignature = serde_json::from_slice(str_output.as_bytes())
-                .map_err(|err| DependencyResolverError::ParseError {
+            let resolution: GeneratedSignature = serde_json::from_slice(result.stdout.as_bytes())
+                .map_err(|err| {
+                DependencyResolverError::ParseError {
                     err,
-                    resolution: str_output.clone(),
-                })?;
+                    resolution: result.stdout.clone(),
+                }
+            })?;
 
             let json = serde_json::to_string_pretty(&resolution).unwrap();
             fs::write(final_dir.join("Warp.signature"), json)

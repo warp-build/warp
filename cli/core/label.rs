@@ -108,14 +108,14 @@ pub struct LocalLabel {
     /// multiple Targets.
     ///
     #[builder(default)]
-    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
 
     /// An optional Label from which the current label was promoted. Label promotion usually
     /// happens when we grab an Remote Label and turn it into a Local label.
     ///
     #[builder(default)]
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     promoted_from: Option<Box<RemoteLabel>>,
 
     /// An associated URL, primarily used for printing concrete labels that have been
@@ -137,7 +137,7 @@ pub struct LocalLabel {
     /// We put this together by using this `associated_url` field and the `file` field.
     ///
     #[builder(default)]
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     associated_url: Option<Url>,
 }
 
@@ -170,6 +170,17 @@ impl LocalLabel {
 
     pub fn workspace(&self) -> &Path {
         &self.workspace
+    }
+
+    pub fn file(&self) -> &Path {
+        &self.file
+    }
+
+    pub fn extension(&self) -> Cow<'_, str> {
+        self.file
+            .extension()
+            .map(|s| s.to_string_lossy())
+            .unwrap_or_default()
     }
 
     pub fn name(&self) -> Option<Cow<'_, str>> {
@@ -273,6 +284,7 @@ pub struct RemoteLabel {
 
     pub(crate) path: PathBuf,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     name: Option<String>,
 }
 

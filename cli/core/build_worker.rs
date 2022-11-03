@@ -145,6 +145,19 @@ impl BuildWorker {
                 return self.requeue(task, &[resolver]).await;
             }
 
+            Err(LabelResolverError::SourceManagerError(SourceManagerError::MissingParser {
+                parser_id,
+                ..
+            })) => {
+                return self.requeue(task, &[parser_id]).await;
+            }
+
+            Err(LabelResolverError::SignatureStoreError(
+                SignatureStoreError::MissingGenerator { generator, .. },
+            )) => {
+                return self.requeue(task, &[generator]).await;
+            }
+
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
                     (*self.label_registry.get_label(label)).to_owned(),

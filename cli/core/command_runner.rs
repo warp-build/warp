@@ -38,6 +38,13 @@ impl From<derive_builder::UninitializedFieldError> for CommandRunnerError {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct CommandResult {
+    pub stdout: String,
+    pub stderr: String,
+    pub status: i32,
+}
+
 #[derive(Debug, Builder, Clone)]
 #[builder(build_fn(error = "CommandRunnerError"))]
 pub struct CommandRunner {
@@ -55,7 +62,7 @@ impl CommandRunner {
     }
 
     #[tracing::instrument(name = "DependencyResolver::resolve", skip(self))]
-    pub fn run(self) -> Pin<Box<dyn Future<Output = Result<String, CommandRunnerError>>>> {
+    pub fn run(self) -> Pin<Box<dyn Future<Output = Result<CommandResult, CommandRunnerError>>>> {
         async move {
             let mut shell_env = self.manifest.env_map();
             let bin = if let Some(RunScript { run_script, env }) = &self.target.run_script {
@@ -118,14 +125,34 @@ impl CommandRunner {
                     label: self.manifest.label.clone(),
                 })?;
 
-            if cmd.status().await.unwrap().success() {
-                String::from_utf8(output.stdout)
-            } else {
-                String::from_utf8(output.stderr)
-            }
-            .map_err(|err| CommandRunnerError::InvalidUtf8Output {
-                err,
-                label: self.manifest.label.clone(),
+            let stdout = String::from_utf8(output.stdout).map_err(|err| {
+                CommandRunnerError::InvalidUtf8Output {
+                    err,
+                    label: self.manifest.label.clone(),
+                }
+            })?;
+
+            let stderr = String::from_utf8(output.stderr).map_err(|err| {
+                CommandRunnerError::InvalidUtf8Output {
+                    err,
+                    label: self.manifest.label.clone(),
+                }
+            })?;
+
+            let status: i32 = cmd
+                .status()
+                .await
+                .map_err(|err| CommandRunnerError::ExecutionError {
+                    err,
+                    label: self.manifest.label.clone(),
+                })?
+                .code()
+                .unwrap();
+
+            Ok(CommandResult {
+                stdout,
+                stderr,
+                status,
             })
         }
         .boxed_local()

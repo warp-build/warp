@@ -42,6 +42,7 @@ impl InfoCommand {
             warp.execute(
                 &[label.clone()],
                 BuildOpts {
+                    goal: Goal::Run,
                     concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
                     ..Default::default()
                 },
@@ -51,18 +52,14 @@ impl InfoCommand {
         .await;
         result?;
 
-        if let Some(result) = warp
+        let manifests: Vec<TargetManifest> = warp
             .get_results()
             .iter()
-            .find(|br| br.target_manifest.label.name() == label.name())
-        {
-            println!(
-                "{}",
-                serde_json::to_value(result.target_manifest.as_ref().to_owned()).unwrap()
-            );
-            return Ok(());
-        }
-
-        Err(anyhow!("There was no target to get info on."))
+            .filter(|br| br.target_manifest.label.name() == label.name())
+            .map(|br| (*br.target_manifest).clone())
+            .collect();
+        let json = serde_json::to_value(manifests)?;
+        println!("{}", json);
+        Ok(())
     }
 }

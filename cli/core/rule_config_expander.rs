@@ -92,13 +92,24 @@ impl ConfigExpander {
     }
 
     #[tracing::instrument(name = "ConfigExpander::expand_glob", skip(self))]
-    pub fn expand_glob(&self, label: &Label, path: &str) -> Result<CfgValue, ConfigExpanderError> {
+    pub fn expand_glob(
+        &self,
+        label: &Label,
+        cfg_path: &str,
+    ) -> Result<CfgValue, ConfigExpanderError> {
         let workspace = label.workspace().unwrap();
-        let path = workspace.join(label.path()).join(path);
-        let path = path.to_str().unwrap();
+        let path = {
+            let p = workspace.join(label.path());
+            let p = if p.ends_with(&cfg_path) {
+                p
+            } else {
+                p.join(cfg_path)
+            };
+            p.to_str().unwrap().to_string()
+        };
         if path.contains('*') {
             let entries =
-                glob::glob(path).map_err(|err| ConfigExpanderError::InvalidGlobPattern {
+                glob::glob(&path).map_err(|err| ConfigExpanderError::InvalidGlobPattern {
                     path: path.to_string(),
                     err,
                 })?;

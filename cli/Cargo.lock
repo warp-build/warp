@@ -2890,6 +2890,116 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter"
+version = "0.19.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad726ec26496bf4c083fff0f43d4eb3a2ad1bba305323af5ff91383c0b6ecac0"
+dependencies = [
+ "cc",
+ "regex",
+]
+
+[[package]]
+name = "tree-sitter"
+version = "0.20.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4423c784fe11398ca91e505cdc71356b07b1a924fc8735cfab5333afe3e18bc"
+dependencies = [
+ "cc",
+ "regex",
+]
+
+[[package]]
+name = "tree-sitter-erlang"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fa22bb1b6121884ddafedecd37362dca27dcff44604d3a69a7a012126ca9198"
+dependencies = [
+ "cc",
+ "tree-sitter 0.20.9",
+]
+
+[[package]]
+name = "tree-sitter-go"
+version = "0.19.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71967701c8214be4aa77e0260e98361e6fd71ceec1d9d03abb37a22c9f60d0ff"
+dependencies = [
+ "cc",
+ "tree-sitter 0.20.9",
+]
+
+[[package]]
+name = "tree-sitter-javascript"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2490fab08630b2c8943c320f7b63473cbf65511c8d83aec551beb9b4375906ed"
+dependencies = [
+ "cc",
+ "tree-sitter 0.20.9",
+]
+
+[[package]]
+name = "tree-sitter-ocaml"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d881da432193e7eea77c8973112d0f58f34d019e6b6be64c341b8e9214aaa07"
+dependencies = [
+ "cc",
+ "tree-sitter 0.19.5",
+]
+
+[[package]]
+name = "tree-sitter-python"
+version = "0.20.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dda114f58048f5059dcf158aff691dffb8e113e6d2b50d94263fd68711975287"
+dependencies = [
+ "cc",
+ "tree-sitter 0.20.9",
+]
+
+[[package]]
+name = "tree-sitter-ruby"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ac30cbb1560363ae76e1ccde543d6d99087421e228cc47afcec004b86bb711a"
+dependencies = [
+ "cc",
+ "tree-sitter 0.20.9",
+]
+
+[[package]]
+name = "tree-sitter-rust"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13470fafb7327a3acf96f5bc1013b5539a899a182f01c59b5af53f6b93195717"
+dependencies = [
+ "cc",
+ "tree-sitter 0.20.9",
+]
+
+[[package]]
+name = "tree-sitter-swift"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7fe0df6a792c4cd3066239195b65a322066c9ebbff58686a9de3e9ad9f25b510"
+dependencies = [
+ "cc",
+ "tree-sitter 0.20.9",
+]
+
+[[package]]
+name = "tree-sitter-typescript"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e8ed0ecb931cdff13c6a13f45ccd615156e2779d9ffb0395864e05505e6e86d"
+dependencies = [
+ "cc",
+ "tree-sitter 0.20.9",
+]
+
+[[package]]
 name = "try-lock"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3062,7 +3172,7 @@ dependencies = [
 
 [[package]]
 name = "warp-build"
-version = "0.0.56"
+version = "0.0.57"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3153,6 +3263,16 @@ dependencies = [
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
+ "tree-sitter 0.20.9",
+ "tree-sitter-erlang",
+ "tree-sitter-go",
+ "tree-sitter-javascript",
+ "tree-sitter-ocaml",
+ "tree-sitter-python",
+ "tree-sitter-ruby",
+ "tree-sitter-rust",
+ "tree-sitter-swift",
+ "tree-sitter-typescript",
  "url",
  "uuid 1.1.2",
  "v8",
