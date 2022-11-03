@@ -57,14 +57,14 @@ impl ParserResult {
     }
 }
 
-#[derive(Default, Debug, Clone, Hash)]
+#[derive(Default, Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct SourceFile {
     pub source: String,
     pub hash: SourceHash,
     pub symbol: SourceSymbol,
 }
 
-#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum SourceSymbol {
     #[default]
     All,
@@ -102,8 +102,8 @@ pub struct SourceManager {
     artifact_store: Arc<ArtifactStore>,
     build_results: Arc<BuildResults>,
     event_channel: Arc<EventChannel>,
+    global_signatures_path: PathBuf,
     label_registry: Arc<LabelRegistry>,
-
     parsers: DashMap<String, LabelId>,
     sources: DashMap<(LabelId, SourceHash, SourceSymbol), SourceFile>,
 }
@@ -139,10 +139,24 @@ pub enum SourceManagerError {
 
     #[error("Somehow we built a signature that we can't use")]
     BadSignature,
+
+    #[error("Could not write AST file at {file:?} due to {err:?}")]
+    AstWriteError { file: PathBuf, err: std::io::Error },
+
+    #[error("Could not read AST file at {file:?} due to {err:?}")]
+    AstReadError { file: PathBuf, err: std::io::Error },
+
+    #[error("Could not parse AST file at {file:?} due to {err:?}. Full AST:\n{ast}")]
+    AstParseError {
+        file: PathBuf,
+        err: serde_json::Error,
+        ast: String,
+    },
 }
 
 impl SourceManager {
     pub fn new(
+        workspace: &Workspace,
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
         artifact_store: Arc<ArtifactStore>,
@@ -174,6 +188,7 @@ impl SourceManager {
             label_registry,
             parsers,
             sources: DashMap::new(),
+            global_signatures_path: workspace.paths.global_signatures_path.clone(),
         }
     }
 
@@ -190,10 +205,34 @@ impl SourceManager {
             .await
             .map_err(SourceManagerError::HasherError)?;
 
-        let source_key = (label_id, hash, symbol.to_owned());
-        if let Some(source_file) = self.sources.get(&source_key) {
+        let fast_source_key = (label_id, hash.clone(), symbol.to_owned());
+        if let Some(source_file) = self.sources.get(&fast_source_key) {
             return Ok(source_file.to_owned());
         }
+
+        let source_key = (local_label, hash, symbol.to_owned());
+        let ast_path = self.ast_path(&source_key);
+        if let Ok(mut file) = fs::File::open(&ast_path).await {
+            let mut bytes = vec![];
+            file.read_to_end(&mut bytes)
+                .await
+                .map_err(|err| SourceManagerError::AstReadError {
+                    file: ast_path.clone(),
+                    err,
+                })?;
+
+            let source_file: SourceFile = serde_json::from_slice(&bytes).map_err(|err| {
+                SourceManagerError::AstParseError {
+                    file: ast_path.clone(),
+                    err,
+                    ast: String::from_utf8(bytes).unwrap(),
+                }
+            })?;
+
+            self.sources.insert(fast_source_key, source_file.clone());
+
+            return Ok(source_file);
+        };
 
         if let Some(parser) = self.parsers.get(&*local_label.extension()) {
             let source_file = match symbol {
@@ -203,7 +242,8 @@ impl SourceManager {
                         .await?
                 }
             };
-            self.sources.insert(source_key, source_file.clone());
+            self.save(&source_key, &source_file).await?;
+            self.sources.insert(fast_source_key, source_file.clone());
             return Ok(source_file);
         }
 
@@ -317,5 +357,37 @@ impl SourceManager {
             hash: parser_result.hash(),
             source,
         })
+    }
+
+    async fn save(
+        &self,
+        source_key: &(&LocalLabel, SourceHash, SourceSymbol),
+        source_file: &SourceFile,
+    ) -> Result<(), SourceManagerError> {
+        let ast_path = self.ast_path(source_key);
+
+        let json = serde_json::to_string_pretty(&source_file).unwrap();
+
+        fs::write(&ast_path, json)
+            .await
+            .map_err(|err| SourceManagerError::AstWriteError {
+                file: ast_path.clone(),
+                err,
+            })
+    }
+
+    fn ast_path(
+        &self,
+        (label, source_hash, symbol): &(&LocalLabel, SourceHash, SourceSymbol),
+    ) -> PathBuf {
+        self.global_signatures_path
+            .join(format!(
+                "{:x}-{}-{}-{}",
+                label.hash(),
+                source_hash,
+                label.name().unwrap(),
+                symbol.to_string(),
+            ))
+            .with_extension("ast")
     }
 }

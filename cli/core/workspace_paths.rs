@@ -39,6 +39,9 @@ pub struct WorkspacePaths {
     /// The location of global rules
     pub global_rules_root: PathBuf,
 
+    /// The location of all the generated signatures
+    pub global_signatures_path: PathBuf,
+
     /// The location of the Warp configuration overrides root for this workspace
     pub local_warp_root: PathBuf,
 
@@ -87,6 +90,8 @@ impl WorkspacePaths {
         let global_rules_root = warp_root.join("rules");
         let global_workspaces_path = warp_root.join("workspaces");
 
+        let global_signatures_path = warp_root.join("signatures").join(&workspace_name);
+
         let local_cache_root = global_cache_root.join(&workspace_name);
         let local_outputs_root = warp_root.join("outputs").join(&workspace_name);
 
@@ -101,6 +106,7 @@ impl WorkspacePaths {
             &global_archives_root,
             &global_cache_root,
             &global_rules_root,
+            &global_signatures_path,
             &global_workspaces_path,
             &local_outputs_root,
             &local_rules_root,
@@ -124,6 +130,7 @@ impl WorkspacePaths {
             global_cache_root,
             global_rules_root,
             global_workspaces_path,
+            global_signatures_path,
             local_warp_root,
             local_cache_root,
             local_outputs_root,

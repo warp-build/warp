@@ -65,9 +65,9 @@ impl SourceResolver {
             .await
             .map_err(LabelResolverError::SignatureStoreError)?;
 
-        for sig in signatures {
+        for sig in signatures.iter() {
             if self.build_opts.goal.includes(&sig) && sig.name.name() == label.name() {
-                return Ok(sig.into());
+                return Ok(sig.to_owned().into());
             }
         }
 

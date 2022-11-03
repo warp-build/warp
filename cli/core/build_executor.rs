@@ -88,6 +88,7 @@ impl BuildExecutor {
         let rule_store = Arc::new(RuleStore::new(&workspace));
 
         let signature_store = Arc::new(SignatureStore::new(
+            &workspace,
             build_results.clone(),
             event_channel.clone(),
             artifact_store.clone(),
@@ -95,6 +96,7 @@ impl BuildExecutor {
         ));
 
         let source_manager = Arc::new(SourceManager::new(
+            &workspace,
             build_results.clone(),
             event_channel.clone(),
             artifact_store.clone(),
