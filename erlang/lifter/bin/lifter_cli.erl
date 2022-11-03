@@ -5,6 +5,7 @@
 -export([analyze_files/2]).
 -export([find_rebar_dependencies/1]).
 -export([generate_signatures/1]).
+-export([generate_signature/2]).
 -export([lift/1]).
 -export([missing_deps/1]).
 -export([sort_deps/1]).
@@ -193,6 +194,18 @@ lift(WorkspaceRoot0) ->
                 end, Buildfiles),
 
   ?LOG_INFO("OK").
+
+%===================================================================================================
+% @doc Generate a Signature for a single source file.
+%===================================================================================================
+
+generate_signature("all", File0) ->
+  File = str:new(File0),
+  Signatures = source_analyzer:analyze_one(File, _ModMap=#{}, _IgnoreModMap=#{}, _IncludePaths=[]),
+  ?PRINT_JSON(#{
+                version => 0,
+                signatures => Signatures
+               }).
 
 %===================================================================================================
 % @doc Analyzes all sources.

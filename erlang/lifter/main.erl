@@ -1,3 +1,4 @@
+%8
 -module(main).
 
 -mode(compile).
@@ -10,14 +11,20 @@ main(Args) ->
   case Args of
     [] -> lifter_cli:lift(".");
     ["lift", Root] -> lifter_cli:lift(Root);
-    ["help"] -> show_help();
-    ["find-rebar-deps"] -> lifter_cli:find_rebar_dependencies(".");
-    ["find-rebar-deps" | Root] -> lifter_cli:find_rebar_dependencies(Root);
+
     ["analyze-file", File] -> lifter_cli:analyze_files(".", [File]);
     ["analyze-files" | Files] -> lifter_cli:analyze_files(".", Files);
-    ["sort-deps" | Files] -> lifter_cli:sort_deps(Files);
-    ["missing-deps" | Files] -> lifter_cli:missing_deps(Files);
+
+    ["find-rebar-deps"] -> lifter_cli:find_rebar_dependencies(".");
+    ["find-rebar-deps" | Root] -> lifter_cli:find_rebar_dependencies(Root);
+
+    ["generate-signature", Symbol, File] -> lifter_cli:generate_signature(Symbol, File);
     ["generate-signatures", Root] -> lifter_cli:generate_signatures(Root);
+
+    ["missing-deps" | Files] -> lifter_cli:missing_deps(Files);
+    ["sort-deps" | Files] -> lifter_cli:sort_deps(Files);
+
+    ["help"] -> show_help();
     _ -> show_help()
   end,
   timer:sleep(100).
@@ -38,6 +45,7 @@ Usage:
 * lifter
 * lifter lift ./path/to/dir
 * lifter generate-signatures ./path/to/dir
+* lifter generate-signature all ./path/to/file.erl
 
 Other commands:
 
@@ -46,6 +54,7 @@ Other commands:
 * lifter sort-deps a.erl b.erl c.erl
 * lifter missing-deps a.erl b.erl c.erl
 * lifter find-rebar-deps [./path/to/dir = $cwd]
+
 
 ">>]),
 	erlang:halt().

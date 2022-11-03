@@ -1,19 +1,21 @@
 -module(source_analyzer).
 
 -export([analyze/5]).
+-export([analyze_one/4]).
 
 -include_lib("kernel/include/logger.hrl").
 -include_lib("compiler/src/core_parse.hrl").
 
 analyze(Root, Files, ModMap, IgnoreModMap, IncludePaths) ->
   Result = lists:foldl(fun (File, R) ->
-                           {K, V} = do_analyze(Root, File, ModMap, IgnoreModMap, IncludePaths),
+                           K = path:add_extension(File, "wsig"),
+                           V = analyze_one(File, ModMap, IgnoreModMap, IncludePaths),
                            maps:put(K, V, R)
                        end, #{}, Files),
   ?LOG_INFO("Analyzed ~p files successfully.", [length(Files)]),
   {ok, Result}.
 
-do_analyze(Root, File, ModMap, IgnoreModMap, IncludePaths) ->
+analyze_one(File, ModMap, IgnoreModMap, IncludePaths) ->
   ?LOG_INFO("Analyzing: ~s", [File]),
 
 	{ok, #{ File := SourceAnalysis}} = erl_analyzer:analyze([File], ModMap, IncludePaths),
@@ -23,9 +25,42 @@ do_analyze(Root, File, ModMap, IgnoreModMap, IncludePaths) ->
     erlang_libraries(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
     ++ erlang_ct_suites(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
     ++ erlang_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
+    ++ erlang_script(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
     ++ [],
 
-  {path:add_extension(File, "wsig"), uniq(Result)}.
+  uniq(Result).
+
+%%--------------------------------------------------------------------------------------------------
+%% Analyzer for Erlang scripts
+%%--------------------------------------------------------------------------------------------------
+
+erlang_script(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
+  case str:ends_with(path:filename(File), ".erl") of
+    true -> get_erlang_script(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis);
+    false -> []
+  end.
+
+get_erlang_script(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
+  ModDeps = mods_from_analyses(File, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis),
+  IncludeDeps = includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis),
+
+  HasMain = lists:any(fun
+                        ({_Mod, main, 1}) -> true;
+                        (_Fn) -> false
+                      end, erl_analyzer:functions(SourceAnalysis)),
+
+  case HasMain of
+    false -> [];
+    true -> [#{
+               apps => [kernel],
+               deps => deps_to_labels(IncludeDeps), 
+               main => path:filename(File),
+               name => File,
+               rule => <<"erlang_script">>,
+               runtime_deps => deps_to_labels(ModDeps)
+              }]
+  end.
+
 
 %%--------------------------------------------------------------------------------------------------
 %% Analyzer for Erlang libraries
@@ -39,7 +74,7 @@ erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Comp
   IncludeDeps = includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis),
 
   [#{
-    name => path:filename(File),
+    name => File,
     srcs => [path:filename(File)],
     runtime_deps => deps_to_labels(ModDeps),
     deps => deps_to_labels(IncludeDeps), 
