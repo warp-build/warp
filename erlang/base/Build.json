@@ -50,7 +50,7 @@
     "deps": [],
     "name": "tempdir.erl",
     "rule": "erlang_library",
-    "runtime_deps": [],
+    "runtime_deps": ["./:path.erl"],
     "srcs": [
       "tempdir.erl"
     ]

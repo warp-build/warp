@@ -1,12 +1,12 @@
 -module(source_analyzer).
 
--export([analyze/5]).
+-export([analyze/4]).
 -export([analyze_one/4]).
 
 -include_lib("kernel/include/logger.hrl").
 -include_lib("compiler/src/core_parse.hrl").
 
-analyze(Root, Files, ModMap, IgnoreModMap, IncludePaths) ->
+analyze(Files, ModMap, IgnoreModMap, IncludePaths) ->
   Result = lists:foldl(fun (File, R) ->
                            K = path:add_extension(File, "wsig"),
                            V = analyze_one(File, ModMap, IgnoreModMap, IncludePaths),
@@ -15,11 +15,17 @@ analyze(Root, Files, ModMap, IgnoreModMap, IncludePaths) ->
   ?LOG_INFO("Analyzed ~p files successfully.", [length(Files)]),
   {ok, Result}.
 
-analyze_one(File, ModMap, IgnoreModMap, IncludePaths) ->
+analyze_one(File0, ModMap, IgnoreModMap, IncludePaths) ->
+  File = path:relativize(File0),
   ?LOG_INFO("Analyzing: ~s", [File]),
 
+
 	{ok, #{ File := SourceAnalysis}} = erl_analyzer:analyze([File], ModMap, IncludePaths),
-	{ok, #{ File := CompAnalysis}} = cerl_analyzer:analyze([File], IncludePaths),
+  CompAnalysis = fun () ->
+                     {ok, #{ File := Res }} = cerl_analyzer:analyze([File], IncludePaths),
+                     Res
+                 end,
+  
 
   Result =
     erlang_libraries(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
@@ -46,8 +52,6 @@ get_erlang_script(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Com
 
   HasMain = lists:any(fun
                         ({_Mod, main, 1}) -> true;
-                        ({_Mod, "main", 1}) -> true;
-                        ({_Mod, <<"main">>, 1}) -> true;
                         (_Fn) -> false
                       end, erl_analyzer:functions(SourceAnalysis)),
 
@@ -93,7 +97,9 @@ erlang_ct_suites(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompA
     false -> []
   end.
 
-get_ct_cases(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
+get_ct_cases(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysisFn) ->
+  CompAnalysis = CompAnalysisFn(),
+
   Cases = case CompAnalysis of
             #{ error := Err } ->
               ?LOG_ERROR("Error analyzing CommonTest cases for ~p:\n~p\n", [File, Err]),
@@ -137,7 +143,9 @@ erlang_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, Comp
     false -> []
   end.
 
-get_prop_tests(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
+get_prop_tests(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysisFn) ->
+  CompAnalysis = CompAnalysisFn(),
+
   Properties = case CompAnalysis of 
                  #{ error := _ } ->
                    [ Fn || {_Mod, Fn, _Arity} <- erl_analyzer:functions(SourceAnalysis) ];

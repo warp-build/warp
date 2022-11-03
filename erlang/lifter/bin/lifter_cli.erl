@@ -170,7 +170,7 @@ lift(WorkspaceRoot0) ->
                         end || P <- maps:keys(HeaderTable) ]),
 
   % 5. analyze all the sources to get their signatures
-  {ok, Signatures} = source_analyzer:analyze(WorkspaceRoot, AllFiles, ModMap, IgnoreMods, IncludePaths),
+  {ok, Signatures} = source_analyzer:analyze(AllFiles, ModMap, IgnoreMods, IncludePaths),
 
   % 6. generate warp signatures
   % ?LOG_INFO("Writing Warp signature files..."),
@@ -201,11 +201,13 @@ lift(WorkspaceRoot0) ->
 
 generate_signature("all", File0) ->
   File = str:new(File0),
+  ?LOG_INFO("Generating signature for ~p", [File]),
   Signatures = source_analyzer:analyze_one(File, _ModMap=#{}, _IgnoreModMap=#{}, _IncludePaths=[]),
   ?PRINT_JSON(#{
                 version => 0,
                 signatures => Signatures
-               }).
+               }),
+  ?LOG_INFO("OK").
 
 %===================================================================================================
 % @doc Analyzes all sources.
@@ -262,7 +264,7 @@ generate_signatures(WorkspaceRoot0) ->
                         end || P <- maps:keys(HeaderTable) ]),
 
   % 5. analyze all the sources to get their signatures
-  {ok, Signatures} = source_analyzer:analyze(WorkspaceRoot, AllFiles, ModMap, #{}, IncludePaths),
+  {ok, Signatures} = source_analyzer:analyze(AllFiles, ModMap, #{}, IncludePaths),
 
   % 6. generate warp signatures
   % ?LOG_INFO("Writing Warp signature files..."),

@@ -3,6 +3,7 @@
 -export([add_extension/2]).
 -export([contains/2]).
 -export([dirname/1]).
+-export([ensure/1]).
 -export([extension/1]).
 -export([filename/1]).
 -export([from_list/1]).
@@ -68,3 +69,5 @@ relativize(Path) ->
 -spec tail(Path :: t()) -> t().
 tail(Path) -> filename:join(tl(filename:split(Path))).
 
+-spec ensure(Path :: t()) -> ok.
+ensure(Path) -> filelib:ensure_dir(Path).
