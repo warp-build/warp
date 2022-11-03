@@ -35,9 +35,9 @@ analyze_one(File, ModMap, IgnoreModMap, IncludePaths) ->
 %%--------------------------------------------------------------------------------------------------
 
 erlang_script(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
-  case str:ends_with(path:filename(File), ".erl") of
-    true -> get_erlang_script(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis);
-    false -> []
+  case path:extension(File) of
+    <<".erl">> -> get_erlang_script(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis);
+    _ -> []
   end.
 
 get_erlang_script(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
@@ -46,6 +46,8 @@ get_erlang_script(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Com
 
   HasMain = lists:any(fun
                         ({_Mod, main, 1}) -> true;
+                        ({_Mod, "main", 1}) -> true;
+                        ({_Mod, <<"main">>, 1}) -> true;
                         (_Fn) -> false
                       end, erl_analyzer:functions(SourceAnalysis)),
 
