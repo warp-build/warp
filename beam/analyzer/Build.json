@@ -1,0 +1,8 @@
+{
+  "signatures": [
+    {
+      "name": "analyzer",
+      "rule": "mix_library"
+    }
+  ]
+}
