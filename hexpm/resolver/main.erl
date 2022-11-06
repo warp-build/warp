@@ -62,7 +62,7 @@ resolve(Url0, Vsn0) ->
 tools() -> [mix, make, rebar3].
 
 prepare(Root0, Pkg0) -> 
-  Root = path:new(Root0),
+  {ok, Root} = path:new(Root0),
   Pkg = str:new(Pkg0),
 	case file:consult(path:join(Root, "metadata.config")) of
 		{ok, Metadata} -> do_prepare_from_hex_metadata(Metadata, Root);
