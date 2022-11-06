@@ -108,6 +108,7 @@ impl Warp {
             .build()?;
 
         match &self.cmd {
+            Some(Command::New(x)) => return x.run(warp).await,
             Some(Command::Init(x)) => return x.run(warp).await,
             Some(Command::Setup(x)) => return x.run(&warp).await,
             _ => (),
@@ -134,6 +135,8 @@ enum Command {
     Hash(HashCommand),
     Info(InfoCommand),
     Init(InitCommand),
+    Lift(LiftCommand),
+    New(NewCommand),
     Run(RunCommand),
     Setup(SetupCommand),
     Shell(ShellCommand),
@@ -147,11 +150,12 @@ impl Command {
             Command::Build(x) => x.run(warp).await,
             Command::Hash(x) => x.run(warp).await,
             Command::Info(x) => x.run(warp).await,
+            Command::Lift(x) => x.run(warp).await,
             Command::Run(x) => x.run(warp).await,
             Command::Shell(x) => x.run(warp).await,
             Command::Test(x) => x.run(warp).await,
-            Command::Init(_) | Command::Setup(_) => {
-                panic!("Init and Setup should be handled especially since they consume the Engine")
+            Command::New(_) | Command::Init(_) | Command::Setup(_) => {
+                panic!("New, Init, and Setup should be handled especially since they consume the Engine")
             }
         }
     }

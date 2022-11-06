@@ -53,6 +53,7 @@ impl TestCommand {
             self.show_cache_hits,
             Goal::Build,
         );
+
         let (_results, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],

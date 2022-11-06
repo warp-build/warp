@@ -51,7 +51,7 @@ impl BuildCommand {
         let label: Label = if let Some(label) = (&warp.workspace.aliases).get(&self.label) {
             label.clone()
         } else {
-            let mut label: Label = self.label.parse()?;
+            let mut label: Label = self.label.replace("./", "").parse()?;
             label.set_workspace(&warp.workspace.paths.workspace_root);
             label
         };

@@ -46,12 +46,14 @@ impl InitCommand {
             .show_default(true)
             .interact_text()?;
 
+        /*
         let use_git_hooks: bool = Input::with_theme(&theme)
             .with_prompt("Should we run Warp before every commit?")
             .default("yes".to_string())
             .show_default(true)
             .interact()?
             == "yes";
+        */
 
         let toolchains_registry =
             ToolchainsRegistry::fetch(&paths, warp.event_channel.clone()).await?;
@@ -81,7 +83,6 @@ impl InitCommand {
 
         let workspace_config = WorkspaceConfigFile::builder()
             .name(workspace_name)
-            .use_git_hooks(use_git_hooks)
             .build()?;
 
         let workspace_file = WorkspaceFile::builder()
@@ -122,10 +123,9 @@ impl InitCommand {
 
         workspace_file.write(&warp.invocation_dir).await?;
 
-        let mut warp = warp.initialize().await?;
-
         let lifters: Vec<Label> = toolchains.iter().cloned().flat_map(|t| t.lifter).collect();
         if !lifters.is_empty() {
+            let mut warp = warp.initialize().await?;
             let status_reporter =
                 StatusReporter::new(warp.event_channel.clone(), false, Goal::Build);
             let (lifters, ()) = futures::future::join(
@@ -140,17 +140,40 @@ impl InitCommand {
             )
             .await;
             lifters?;
-            for build_result in warp.get_results() {
-                CommandRunner::builder()
+            for build_result in warp
+                .get_results()
+                .iter()
+                .filter(|br| br.executable_target.rule.kind.is_runnable())
+            {
+                let cmd_result = CommandRunner::builder()
                     .cwd(warp.invocation_dir.to_path_buf())
-                    .manifest(build_result.target_manifest)
-                    .target(build_result.executable_target)
+                    .manifest(build_result.target_manifest.clone())
+                    .target(build_result.executable_target.clone())
                     .stream_outputs(true)
                     .sandboxed(false)
                     .args(vec![])
                     .build()?
                     .run()
                     .await?;
+
+                let lifted_sigs: LiftedSignatures =
+                    serde_json::from_slice(cmd_result.stdout.as_bytes()).map_err(|err| {
+                        SignatureStoreError::ParseError {
+                            err,
+                            json: cmd_result.stdout.clone(),
+                        }
+                    })?;
+
+                for sig in lifted_sigs.signatures {
+                    let mut local_label: LocalLabel = sig.file.clone().into();
+                    local_label.set_workspace(&warp.invocation_dir);
+
+                    let source = sig.source.clone();
+
+                    warp.signature_store()
+                        .save(&local_label, &source, sig)
+                        .await?;
+                }
             }
         }
 

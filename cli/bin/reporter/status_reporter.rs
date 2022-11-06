@@ -316,18 +316,18 @@ impl StatusReporter {
                                 )
                             } else {
                                 format!(
-                                "{:>12} multiple goals in {} ({} targets, {} cached, {} errors): \n  ->{}",
-                                if errored {
-                                    red_bold.apply_to("Finished with errors")
-                                } else {
-                                    green_bold.apply_to("Finished")
-                                },
-                                indicatif::HumanDuration(t1.saturating_duration_since(build_started)),
-                                target_count.len(),
-                                cache_hits.len(),
-                                error_count,
-                                targets.iter().map(|l| l.to_string()).collect::<Vec<String>>().join("\n  ->"),
-                            )
+                                    "{:>12} multiple goals in {}ms ({} targets, {} cached, {} errors): \n{}",
+                                    if errored {
+                                        red_bold.apply_to("Finished with errors")
+                                    } else {
+                                        green_bold.apply_to("Finished")
+                                    },
+                                    t1.saturating_duration_since(build_started).as_millis(),
+                                    target_count.len(),
+                                    cache_hits.len(),
+                                    error_count,
+                                    targets.iter().map(|l| format!("{:>12} -> {}", "", l.to_string())).collect::<Vec<String>>().join("\n"),
+                                )
                             };
                             pb.println(line);
                             break 'main_loop;

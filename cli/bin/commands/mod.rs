@@ -1,16 +1,20 @@
-pub mod build;
-pub mod hash;
-pub mod info;
-pub mod init;
-pub mod run;
-pub mod setup;
-pub mod shell;
-pub mod test;
+mod build;
+mod hash;
+mod info;
+mod init;
+mod lift;
+mod new;
+mod run;
+mod setup;
+mod shell;
+mod test;
 
 pub use build::*;
 pub use hash::*;
 pub use info::*;
 pub use init::*;
+pub use lift::*;
+pub use new::*;
 pub use run::*;
 pub use setup::*;
 pub use shell::*;
