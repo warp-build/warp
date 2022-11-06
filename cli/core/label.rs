@@ -255,9 +255,16 @@ impl AsRef<Path> for LocalLabel {
     }
 }
 
+impl From<PathBuf> for LocalLabel {
+    fn from(file: PathBuf) -> Self {
+        let name = file.file_name().map(|s| s.to_string_lossy().to_string());
+        Self::builder().file(file).name(name).build().unwrap()
+    }
+}
+
 impl From<AbstractLabel> for LocalLabel {
     fn from(l: AbstractLabel) -> Self {
-        LocalLabel::builder()
+        Self::builder()
             .workspace(l.workspace().into())
             .file(l.path)
             .name(Some(l.name))
@@ -384,7 +391,7 @@ impl From<url::Url> for RemoteLabel {
 
         let name = name.or_else(|| Some(val.path_segments().unwrap().last().unwrap().to_string()));
 
-        RemoteLabel {
+        Self {
             url: val.to_string(),
             host: val.host_str().unwrap().to_string(),
             scheme: val.scheme().to_string(),
@@ -489,7 +496,7 @@ impl From<LocalLabel> for AbstractLabel {
             file_name.to_string_lossy().to_string()
         });
 
-        AbstractLabel::builder()
+        Self::builder()
             .workspace(l.workspace().into())
             .path(l.file)
             .name(name)
@@ -707,31 +714,31 @@ impl ToString for Label {
 
 impl From<AbstractLabel> for Label {
     fn from(val: AbstractLabel) -> Self {
-        Label::Abstract(val)
+        Self::Abstract(val)
     }
 }
 
 impl From<LocalLabel> for Label {
     fn from(val: LocalLabel) -> Self {
-        Label::Local(val)
+        Self::Local(val)
     }
 }
 
 impl From<RemoteLabel> for Label {
     fn from(val: RemoteLabel) -> Self {
-        Label::Remote(val)
+        Self::Remote(val)
     }
 }
 
 impl From<&url::Url> for Label {
     fn from(val: &url::Url) -> Self {
-        Label::Remote(val.into())
+        Self::Remote(val.into())
     }
 }
 
 impl From<url::Url> for Label {
     fn from(val: url::Url) -> Self {
-        Label::Remote(val.into())
+        Self::Remote(val.into())
     }
 }
 
