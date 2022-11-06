@@ -33,6 +33,7 @@ notify = "5.0.0-pre.15"
 num_cpus = "1"
 opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
 opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"]  }
+prost = "0.11.2"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -40,13 +41,12 @@ structopt = "0.3"
 termcolor = "1.1"
 tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7.4"
+tonic = "0.8.2"
+tonic-build = "0.8.2"
 tracing = { version = "0.1" }
 tracing-opentelemetry = "0.17"
 tracing-subscriber = "0.3"
 whoami = "1.2"
-tonic-build = "0.8.2"
-tonic = "0.8.2"
-prost = "0.11.2"
 
 [dev-dependencies]
 insta = "1.14"
