@@ -6,19 +6,19 @@ import ErlangToolchain from "https://rules.warp.build/toolchains/erlang.js";
 const impl = ctx => {
   const { cwd, name, deps, protos, flags, out_dir } = ctx.cfg();
 
+  let gen_dir = `${cwd()}/generated/elixir`;
   ctx.action().runShell({
     script: `#!/bin/bash
 
-cd ${cwd()}
-mkdir -p ./generated/elixir
+mkdir -p  ${gen_dir}
 protoc \
-  --elixir_out=inline_docs=true,one_file_per_module=true,gen_descriptors=true,plugins=grpc:./generated/elixir \
+  --elixir_out=inline_docs=true,one_file_per_module=true,gen_descriptors=true,plugins=grpc:${gen_dir} \
   ${protos.join(" ")}
 
 `,
   });
 
-  ctx.action().declareOutputs([`${cwd()}/generated/elixir`]);
+  ctx.action().declareOutputs([gen_dir]);
 };
 
 export default Warp.Rule({
