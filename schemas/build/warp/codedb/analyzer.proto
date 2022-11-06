@@ -1,0 +1,45 @@
+syntax = "proto3";
+package build.warp.codedb.analyzer;
+
+service AnalyzerService {
+  rpc GetInterestedExtensions(GetInterestedExtensionsRequest) returns (GetInterestedExtensionsResponse);
+
+  rpc AnalyzeFile(AnalyzeFileRequest) returns (AnalyzeFileResponse);
+}
+
+message GetInterestedExtensionsRequest {}
+
+message GetInterestedExtensionsResponse {
+  repeated string ext = 1;
+}
+
+message AnalyzeFileRequest {
+  string file = 1;
+}
+
+message FileRequirement {
+  string path = 1;
+}
+
+message ModuleRequirement {
+  string name = 1;
+}
+
+message SymbolRequirement {
+  string raw = 1;
+}
+
+message Requirement {
+  oneof requirement {
+    FileRequirement file = 1;
+    ModuleRequirement module = 2;
+    SymbolRequirement symbol = 3;
+  }
+}
+
+message AnalyzeFileResponse {
+  bool skipped = 1;
+  string file = 2;
+  repeated Requirement provides = 3;
+  repeated Requirement requires = 4;
+}
