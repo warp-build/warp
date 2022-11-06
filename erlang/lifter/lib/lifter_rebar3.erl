@@ -207,7 +207,7 @@ clean([{K, V}|Rest], Acc) -> clean(Rest, [{clean(K), clean(V)} | Acc]).
 
 download(Rebar3Config, WorkspaceRoot)  ->
   Root = path:join(WorkspaceRoot,<<"./.warp/_rebar_tmp">>),
-  filelib:ensure_path(Root),
+  path:ensure(Root),
 
   Rebar3File = [ {base_dir, "rebar3"} ] ++ maps:to_list(Rebar3Config),
 
@@ -232,7 +232,7 @@ write_terms(Filename, List) ->
 -spec download_and_flatten_dependencies(path:t(), t()) -> result:t(t(), term()).
 download_and_flatten_dependencies(WorkspaceRoot, Projects) ->
   Root = path:join(WorkspaceRoot,<<"./.warp/_rebar_tmp">>),
-  filelib:ensure_path(Root),
+  path:ensure(Root),
   ?LOG_INFO("Dowloading and flattening deps at ~p", [Root]),
   loop_flatten(Root, 0, Projects).
 
@@ -339,7 +339,7 @@ run_rebar(Cmd) ->
   ?LOG_INFO("Running `rebar3 " ++ Cmd ++"`...this could take a while!"),
 
   Output = os:cmd("rebar3 "++Cmd),
-  io:format("~s\n", [Output]),
+  ?LOG_INFO("~s\n", [Output]),
 
   ok.
 

@@ -21,9 +21,15 @@
 
 -opaque t() :: binary().
 
-new(Str) -> binary:list_to_bin([Str]).
+new(Str) ->
+  case (catch unsafe_new(Str)) of
+    {'ERROR', _} -> {error, invalid_input};
+    Bin -> {ok, Bin}
+  end.
 
--spec is_prefix(Prefix :: t(), Path :: t()) -> bool().
+unsafe_new(Str) -> erlang:iolist_to_binary([Str]).
+
+-spec is_prefix(Prefix :: t(), Path :: t()) -> boolean().
 is_prefix(Prefix, Path) -> strip_prefix(Prefix, Path) =/= Path.
 
 -spec nth_tail(Path :: t(), N :: non_neg_integer()) -> t().
@@ -38,26 +44,30 @@ strip_prefix(Prefix, Path) ->
             true -> str:new(string:replace(Replaced, "/", ""));
             false -> Replaced
           end,
-  new([ Final ]).
+  unsafe_new([ Final ]).
 
 join(A, B) -> from_list([A, B]).
 
-extension(Path) -> new(filename:extension(Path)).
+extension(Path) -> 
+  case (catch filename:extension(Path)) of
+    {'ERROR', _} -> {error, no_extension};
+    Ext -> {ok, Ext}
+  end.
 
-add_extension(Path, Ext) -> new([Path, ".", Ext]).
+add_extension(Path, Ext) -> unsafe_new([Path, ".", Ext]).
 
-filename(Path) -> new(filename:basename(Path)).
+filename(Path) -> unsafe_new(filename:basename(Path)).
 
-dirname(Path) -> new(filename:dirname(Path)).
+dirname(Path) -> unsafe_new(filename:dirname(Path)).
 
 contains(Path, Str) -> not (string:find(Path, Str) == nomatch).
 
-to_list(Path) -> [ new(Seg) || Seg <- filename:split(Path) ].
+to_list(Path) -> [ unsafe_new(Seg) || Seg <- filename:split(Path) ].
 
 to_string(Path) -> binary:bin_to_list(Path).
 
-from_list([]) -> new("");
-from_list(Ls) when is_list(Ls) -> new(filename:join(Ls)).
+from_list([]) -> unsafe_new("");
+from_list(Ls) when is_list(Ls) -> unsafe_new(filename:join(Ls)).
 
 -spec relativize(Path :: t()) -> t().
 relativize(Path) ->

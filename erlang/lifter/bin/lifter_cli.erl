@@ -2,16 +2,85 @@
 
 -include_lib("kernel/include/logger.hrl").
 
+-export([analyze/1]).
+-export([generate_signature/2]).
+-export([dump_ast/2]).
+
 -export([analyze_files/2]).
 -export([find_rebar_dependencies/1]).
 -export([generate_signatures/1]).
--export([generate_signature/2]).
 -export([lift/1]).
 -export([missing_deps/1]).
 -export([sort_deps/1]).
 
 -define(JSON(X), jsone:encode(X, [{indent, 2}, {space, 1}, native_utf8, native_forward_slash])).
 -define(PRINT_JSON(X), io:format("~s\n", [?JSON(X)])).
+
+
+%===================================================================================================
+% @doc Generate a Signature for a single source file.
+%===================================================================================================
+
+generate_signature('@all', File0) ->
+  File = str:new(File0),
+  ?LOG_INFO("Generating signature for ~p", [File]),
+  Signatures = source_analyzer:analyze_one(File, _ModMap=#{}, _IgnoreModMap=#{}, _IncludePaths=[]),
+  ?PRINT_JSON(#{
+                version => 0,
+                signatures => maps:get(signatures, Signatures, [])
+               }),
+  ?LOG_INFO("OK").
+
+%===================================================================================================
+% @doc Print out the AST for a specific symbol in a source file.
+%===================================================================================================
+
+dump_ast('@all', File0) ->
+  File = str:new(File0),
+  ?LOG_INFO("Printing out AST for ~p", [File]),
+  {ok, #{ File := Result }} = erl_analyzer:analyze([File], _ModMap=#{}, _IncludePaths=[]),
+  ?PRINT_JSON(#{
+                version => 0,
+                ast => str:new(io_lib:format("~p", [erl_analyzer:ast(Result)]))
+               }),
+  ?LOG_INFO("OK").
+
+%===================================================================================================
+% @doc Print out all the symbols and files that this file is dependant on, and
+% all the symbols that this file provides.
+%===================================================================================================
+
+analyze(File0) ->
+  case path:new(File0) of
+    {ok, File} -> analyze(path:extension(File), File);
+    {error, _} -> ?PRINT_JSON(unsupportedFileType)
+  end.
+
+analyze({ok, <<".erl">>}, File) -> do_analyze(File);
+analyze({ok, <<".hrl">>}, File) -> do_analyze(File);
+analyze(_Ext, _File) -> ?PRINT_JSON(unsupportedFileType).
+
+do_analyze(File) ->
+  ?LOG_INFO("Analyzing ~p", [File]),
+  {ok, #{ File := Result }} = erl_analyzer:analyze([File], _ModMap=#{}, _IncludePaths=[]),
+
+  Modules = [ #{ module => #{ name => Mod } } || Mod <- erl_analyzer:modules(Result)
+                                                         ++ erl_analyzer:parse_transforms(Result)
+                                                         ++ erl_analyzer:missing_modules(Result) ],
+
+  Files = [ #{ file => #{ path => Path } } || Path <- erl_analyzer:includes(Result)
+                                                       ++ erl_analyzer:missing_includes(Result) ],
+
+  ?PRINT_JSON(#{
+                analysis => #{ 
+                              provides => erl_analyzer:functions(Result),
+                              requires => Modules ++ Files
+                             }
+               }),
+  ?LOG_INFO("OK").
+
+
+
 
 %===================================================================================================
 % @doc Lift the current directory.
@@ -177,20 +246,6 @@ lift(WorkspaceRoot0) ->
                 signatures => Signatures
                }),
 
-  ?LOG_INFO("OK").
-
-%===================================================================================================
-% @doc Generate a Signature for a single source file.
-%===================================================================================================
-
-generate_signature("all", File0) ->
-  File = str:new(File0),
-  ?LOG_INFO("Generating signature for ~p", [File]),
-  Signatures = source_analyzer:analyze_one(File, _ModMap=#{}, _IgnoreModMap=#{}, _IncludePaths=[]),
-  ?PRINT_JSON(#{
-                version => 0,
-                signatures => Signatures
-               }),
   ?LOG_INFO("OK").
 
 %===================================================================================================

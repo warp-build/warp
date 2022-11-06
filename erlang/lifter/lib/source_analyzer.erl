@@ -11,8 +11,7 @@ analyze(Files, ModMap, IgnoreModMap, IncludePaths) ->
   ?LOG_INFO("Analyzed ~p files successfully.", [length(Files)]),
   {ok, Result}.
 
-analyze_one(File0, ModMap, IgnoreModMap, IncludePaths) ->
-  File = path:relativize(File0),
+analyze_one(File, ModMap, IgnoreModMap, IncludePaths) ->
   ?LOG_INFO("Analyzing: ~s", [File]),
 
 	{ok, #{ File := SourceAnalysis}} = erl_analyzer:analyze([File], ModMap, IncludePaths),
@@ -28,7 +27,24 @@ analyze_one(File0, ModMap, IgnoreModMap, IncludePaths) ->
     ++ erlang_script(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis)
     ++ [],
 
-  uniq(Result).
+  {ok, Sources} = file:read_file(File),
+  SourceHash = str:new(io_lib:format("~64.16.0b", [binary:decode_unsigned(crypto:hash(sha256, Sources))])),
+  AstHash = begin
+              Ast = erl_analyzer:ast(SourceAnalysis),
+              AstBin = str:new(io_lib:format("~p", [Ast])),
+              str:new(io_lib:format("~64.16.0b", [binary:decode_unsigned(crypto:hash(sha256, AstBin))]))
+            end,
+
+  #{ 
+    file => File,
+    source => #{ 
+                source => Sources,
+                source_hash => SourceHash,
+                ast_hash => AstHash,
+                symbol => <<"All">>
+               },
+    signatures => uniq(Result)
+  }.
 
 %%--------------------------------------------------------------------------------------------------
 %% Analyzer for Erlang scripts
@@ -196,7 +212,7 @@ deps_to_labels(Deps) -> uniq(lists:map(fun dep_to_label/1, Deps)).
 dep_to_label(Dep) when is_atom(Dep) -> erlang:atom_to_binary(Dep);
 dep_to_label(Dep = <<"https://", _Url/binary>>) -> Dep;
 dep_to_label(Dep = <<"http://", _Url/binary>>) -> Dep;
-dep_to_label(Dep) -> <<"//", (path:dirname(Dep))/binary, ":", (path:filename(Dep))/binary>>.
+dep_to_label(Dep) -> <<"//", Dep/binary>>.
 
 skip_std(Mods) ->
   lists:filtermap(fun

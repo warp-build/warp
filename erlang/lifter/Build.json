@@ -1,6 +1,6 @@
 {"signatures": [
   {
-    "runtime_deps": ["//erlang/lifter/bin:lifter_cli.erl"],
+    "runtime_deps": ["//erlang/lifter/bin:lifter_cli.erl", "//erlang/base:atom.erl"],
     "deps": [],
     "name": "lifter",
     "rule": "erlang_script",

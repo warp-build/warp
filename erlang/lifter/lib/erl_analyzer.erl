@@ -9,9 +9,14 @@
 -export([analyze/3]).
 
 -export([ast/1]).
--export([functions/1]).
--export([dependency_modules/1]).
 -export([dependency_includes/1]).
+-export([dependency_modules/1]).
+-export([functions/1]).
+-export([includes/1]).
+-export([missing_includes/1]).
+-export([missing_modules/1]).
+-export([modules/1]).
+-export([parse_transforms/1]).
 
 -export_type([mod_desc/0]).
 -export_type([err/0]).
@@ -35,8 +40,13 @@
 %% Setters / Getters
 %%--------------------------------------------------------------------------------------------------
 
-functions(#{ functions := Fns }) -> Fns.
 ast(#{ ast := Fn }) -> Fn().
+functions(#{ functions := Fns }) -> Fns.
+includes(#{ includes := X }) -> X.
+missing_includes(#{ missing_includes := X }) -> X.
+missing_modules(#{ missing_modules := X }) -> X.
+modules(#{ modules := X }) -> X.
+parse_transforms(#{ parse_transforms := X }) -> X.
 
 %%--------------------------------------------------------------------------------------------------
 %% API
@@ -68,7 +78,7 @@ do_analyze(Path, IncludePaths, ModMap) ->
 
   ParseTrans = parse_trans(Ast),
 
-  {Includes, MissingIncludes} = includes(Ast),
+  {Includes, MissingIncludes} = get_includes(Ast),
 
   Functions = case erl_stdlib:file_to_module(Path) of
                 {ok, ModName} -> all_functions(ModName, Ast);
@@ -144,7 +154,7 @@ mods(CurrPath, ModMap, Ast) ->
   {uniq(Mods), uniq(Missing)}.
 
 
-includes(Ast) ->
+get_includes(Ast) ->
   {Includes, Missing} = erl_visitor:walk(
     Ast,
     {_Includes = [], _Missing = []},

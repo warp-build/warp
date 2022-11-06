@@ -1,4 +1,4 @@
-%42
+%77
 -module(main).
 
 -mode(compile).
@@ -9,6 +9,16 @@
 main(Args) ->
   ok = setup(),
   case Args of
+
+    % New API
+    ["analyze", File] -> lifter_cli:analyze(File);
+
+    ["generate-signature", Symbol, File] -> lifter_cli:generate_signature(atom:new(Symbol), File);
+
+    ["dump-ast", Symbol, File] -> lifter_cli:dump_ast(atom:new(Symbol), File);
+
+
+    % Old API
     [] -> lifter_cli:lift(".");
     ["lift", Root] -> lifter_cli:lift(Root);
 
@@ -18,7 +28,6 @@ main(Args) ->
     ["find-rebar-deps"] -> lifter_cli:find_rebar_dependencies(".");
     ["find-rebar-deps" | Root] -> lifter_cli:find_rebar_dependencies(Root);
 
-    ["generate-signature", Symbol, File] -> lifter_cli:generate_signature(Symbol, File);
     ["generate-signatures", Root] -> lifter_cli:generate_signatures(Root);
 
     ["missing-deps" | Files] -> lifter_cli:missing_deps(Files);
@@ -27,7 +36,8 @@ main(Args) ->
     ["help"] -> show_help();
     _ -> show_help()
   end,
-  timer:sleep(100).
+  timer:sleep(100),
+  erlang:halt(0).
 
 setup() ->
   logger:set_primary_config(#{ level => all }),
@@ -46,6 +56,8 @@ Usage:
 * lifter lift ./path/to/dir
 * lifter generate-signatures ./path/to/dir
 * lifter generate-signature all ./path/to/file.erl
+* lifter dump-ast all ./path/to/file.erl
+* lifter dump-ast test=test-name ./path/to/file.erl
 
 Other commands:
 

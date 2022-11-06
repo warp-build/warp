@@ -1,6 +1,15 @@
 {"signatures": [
   {
     "deps": [],
+    "name": "atom.erl",
+    "rule": "erlang_library",
+    "runtime_deps": [],
+    "srcs": [
+      "atom.erl"
+    ]
+  },
+  {
+    "deps": [],
     "name": "str.erl",
     "rule": "erlang_library",
     "runtime_deps": [],
