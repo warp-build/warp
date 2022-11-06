@@ -43,6 +43,14 @@ pub enum SignatureStoreError {
 
     #[error("Could not read signature file at {file:?} due to {err:?}")]
     SignatureReadError { file: PathBuf, err: std::io::Error },
+
+    #[error("Failed to generate signature for {}. Generator exited with status {status}.\n\nStdout: {stdout}\n\nStderr: {stderr}", label.to_string())]
+    GeneratorError {
+        stdout: String,
+        stderr: String,
+        status: i32,
+        label: Label,
+    },
 }
 
 impl SignatureStore {
@@ -74,10 +82,13 @@ impl SignatureStore {
         }
     }
 
-    #[tracing::instrument(name = "SignatureStore::generate_signature", skip(self))]
+    #[tracing::instrument(
+        name = "SignatureStore::generate_signature",
+        skip(self, _label_id, source_chunk)
+    )]
     pub async fn generate_signature(
         &self,
-        label_id: LabelId,
+        _label_id: LabelId,
         label: &Label,
         source_chunk: &SourceFile,
     ) -> Result<Arc<Vec<Signature>>, SignatureStoreError> {
@@ -125,13 +136,14 @@ impl SignatureStore {
             });
 
             let tmp_dir = tempfile::TempDir::new().unwrap();
-            let tmp_src = tmp_dir.path().join(local_label.file());
+            let tmp_dir = tmp_dir.into_path();
+            let tmp_src = tmp_dir.as_path().join(local_label.file());
             fs::create_dir_all(tmp_src.parent().unwrap()).await.unwrap();
             fs::write(&tmp_src, &source_chunk.source).await.unwrap();
 
             // 2. run generator
             let cmd = CommandRunner::builder()
-                .cwd(tmp_dir.path().into())
+                .cwd(tmp_dir.as_path().into())
                 .manifest(generator.target_manifest.clone())
                 .target(generator.executable_target.clone())
                 .args(vec![
@@ -139,7 +151,7 @@ impl SignatureStore {
                     source_chunk.symbol.to_string(),
                     local_label.file().to_string_lossy().to_string(),
                 ])
-                .sandboxed(false)
+                .sandboxed(true)
                 .stream_outputs(false)
                 .build()
                 .map_err(SignatureStoreError::CommandRunnerError)?;
@@ -149,13 +161,22 @@ impl SignatureStore {
                 .await
                 .map_err(SignatureStoreError::CommandRunnerError)?;
 
+            if result.status != 0 {
+                return Err(SignatureStoreError::GeneratorError {
+                    stdout: result.stdout,
+                    stderr: result.stderr,
+                    status: result.status,
+                    label: local_label.to_owned().into(),
+                });
+            }
+
             let gen_sig: GeneratedSignature = serde_json::from_slice(result.stdout.as_bytes())
                 .map_err(|err| SignatureStoreError::ParseError {
                     err,
                     json: result.stdout.clone(),
                 })?;
 
-            self.save(local_label, source_chunk, result.stdout.as_bytes())
+            self._save(local_label, source_chunk, result.stdout.as_bytes())
                 .await?;
 
             gen_sig
@@ -185,7 +206,20 @@ impl SignatureStore {
         }
     }
 
-    async fn save(
+    pub async fn save<S>(
+        &self,
+        label: &LocalLabel,
+        source_chunk: &SourceFile,
+        signature: S,
+    ) -> Result<(), SignatureStoreError>
+    where
+        S: Into<GeneratedSignature>,
+    {
+        let json = serde_json::to_string_pretty(&signature.into()).unwrap();
+        self._save(label, source_chunk, json.as_bytes()).await
+    }
+
+    async fn _save(
         &self,
         label: &LocalLabel,
         source_chunk: &SourceFile,
@@ -206,7 +240,7 @@ impl SignatureStore {
             .join(format!(
                 "{:x}-{}-{}",
                 label.hash(),
-                source_chunk.hash,
+                source_chunk.ast_hash,
                 label.name().unwrap()
             ))
             .with_extension("wsig")

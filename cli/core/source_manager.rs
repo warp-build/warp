@@ -14,6 +14,7 @@ use tokio::io::AsyncReadExt;
 use url::Url;
 
 pub type SourceHash = String;
+pub type AstHash = String;
 
 #[derive(Default, Debug, Clone)]
 pub struct SourceHasher;
@@ -37,7 +38,7 @@ impl SourceHasher {
         let mut s = Sha256::new();
         s.update(&buffer);
         Ok((
-            String::from_utf8(buffer).unwrap(),
+            String::from_utf8_lossy(&buffer).to_string(),
             format!("{:x}", s.finalize()),
         ))
     }
@@ -46,13 +47,13 @@ impl SourceHasher {
 #[derive(Default, Debug, Clone, Hash, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ParserResult {
     version: usize,
-    sexpr: String,
+    ast: String,
 }
 
 impl ParserResult {
-    fn hash(&self) -> String {
+    fn hash(&self) -> AstHash {
         let mut s = Sha256::new();
-        s.update(&self.sexpr);
+        s.update(&self.ast);
         format!("{:x}", s.finalize())
     }
 }
@@ -60,28 +61,36 @@ impl ParserResult {
 #[derive(Default, Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct SourceFile {
     pub source: String,
-    pub hash: SourceHash,
     pub symbol: SourceSymbol,
+    pub ast_hash: AstHash,
+    pub source_hash: SourceHash,
 }
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum SourceSymbol {
     #[default]
     All,
-    Test(String),
+    Named(String),
 }
 
 impl SourceSymbol {
-    pub fn from_label_and_goal(label_id: LabelId, label: &Label, goal: Goal) -> Self {
-        Self::All
+    pub fn from_label_and_goal(label: &Label, goal: Goal) -> Self {
+        match goal {
+            Goal::Build => Self::All,
+            Goal::Run => Self::All,
+            Goal::Test => {
+                let name = label.name();
+                Self::Named(name.to_string())
+            }
+        }
     }
 }
 
 impl ToString for SourceSymbol {
     fn to_string(&self) -> String {
         match &self {
-            SourceSymbol::All => "all".to_string(),
-            SourceSymbol::Test(name) => format!("test={}", name),
+            SourceSymbol::All => "@all".to_string(),
+            SourceSymbol::Named(name) => name.to_string(),
         }
     }
 }
@@ -152,6 +161,14 @@ pub enum SourceManagerError {
         err: serde_json::Error,
         ast: String,
     },
+
+    #[error("Failed to analyze sources from {}. Analyzer exited with status {status}.\n\nStdout: {stdout}\n\nStderr: {stderr}", label.to_string())]
+    AnalyzerError {
+        stdout: String,
+        stderr: String,
+        status: i32,
+        label: Label,
+    },
 }
 
 impl SourceManager {
@@ -165,8 +182,8 @@ impl SourceManager {
         let parsers = DashMap::new();
 
         for (ext, parser) in &[
-            ("erl", "https://tools.warp.build/tree-sitter/parser"),
-            ("hrl", "https://tools.warp.build/tree-sitter/parser"),
+            ("erl", "https://tools.warp.build/erlang/lifter"),
+            ("hrl", "https://tools.warp.build/erlang/lifter"),
             ("go", "https://tools.warp.build/tree-sitter/parser"),
             ("js", "https://tools.warp.build/tree-sitter/parser"),
             ("py", "https://tools.warp.build/tree-sitter/parser"),
@@ -201,16 +218,16 @@ impl SourceManager {
         let local_label = label.get_local().unwrap();
 
         let path = local_label.file();
-        let (contents, hash) = SourceHasher::hash_source(path)
+        let (contents, source_hash) = SourceHasher::hash_source(path)
             .await
             .map_err(SourceManagerError::HasherError)?;
 
-        let fast_source_key = (label_id, hash.clone(), symbol.to_owned());
+        let fast_source_key = (label_id, source_hash.clone(), symbol.to_owned());
         if let Some(source_file) = self.sources.get(&fast_source_key) {
             return Ok(source_file.to_owned());
         }
 
-        let source_key = (local_label, hash, symbol.to_owned());
+        let source_key = (local_label, source_hash.clone(), symbol.to_owned());
         let ast_path = self.ast_path(&source_key);
         if let Ok(mut file) = fs::File::open(&ast_path).await {
             let mut bytes = vec![];
@@ -235,14 +252,10 @@ impl SourceManager {
         };
 
         if let Some(parser) = self.parsers.get(&*local_label.extension()) {
-            let source_file = match symbol {
-                SourceSymbol::All => self.dump_ast(local_label, *parser, contents).await?,
-                SourceSymbol::Test(name) => {
-                    self.dump_subtree(local_label, *parser, contents, name, symbol.to_owned())
-                        .await?
-                }
-            };
-            self.save(&source_key, &source_file).await?;
+            let source_file = self
+                .dump_ast(local_label, *parser, contents, source_hash, symbol.clone())
+                .await?;
+            self._save(&source_key, &source_file).await?;
             self.sources.insert(fast_source_key, source_file.clone());
             return Ok(source_file);
         }
@@ -252,11 +265,57 @@ impl SourceManager {
         })
     }
 
+    async fn dump_tree_sitter_ast(
+        &self,
+        label: &LocalLabel,
+        source: String,
+        source_hash: SourceHash,
+    ) -> Result<SourceFile, SourceManagerError> {
+        let mut parser = tree_sitter::Parser::new();
+        parser
+            .set_language(match &*label.extension() {
+                "hrl" | "erl" => tree_sitter_erlang::language(),
+                "go" => tree_sitter_go::language(),
+                "js" => tree_sitter_javascript::language(),
+                "py" => tree_sitter_python::language(),
+                "rs" => tree_sitter_rust::language(),
+                "swift" => tree_sitter_swift::language(),
+                "ts" => tree_sitter_typescript::language_typescript(),
+                "jsx" | "tsx" => tree_sitter_typescript::language_tsx(),
+                _ => {
+                    return Err(SourceManagerError::UnknownParser {
+                        label: label.clone().into(),
+                    })
+                }
+            })
+            .unwrap();
+
+        self.event_channel.send(Event::AnalyzingSource {
+            label: label.to_owned().into(),
+        });
+
+        let tree = parser.parse(&source, None).unwrap();
+
+        let parser_result = ParserResult {
+            version: 0,
+            ast: tree.root_node().to_sexp(),
+        };
+
+        Ok(SourceFile {
+            symbol: SourceSymbol::All,
+            ast_hash: parser_result.hash(),
+            source_hash,
+            source,
+        })
+    }
+
     async fn dump_ast(
         &self,
         label: &LocalLabel,
         parser_id: LabelId,
         source: String,
+        source_hash: SourceHash,
+        symbol: SourceSymbol,
     ) -> Result<SourceFile, SourceManagerError> {
         let parser = self
             .build_results
@@ -277,6 +336,7 @@ impl SourceManager {
             .target(parser.executable_target)
             .args(vec![
                 "dump-ast".to_string(),
+                symbol.to_string(),
                 label.file().to_string_lossy().to_string(),
             ])
             .sandboxed(false)
@@ -289,60 +349,14 @@ impl SourceManager {
             .await
             .map_err(SourceManagerError::CommandRunnerError)?;
 
-        let parser_result: ParserResult = serde_json::from_slice(result.stdout.as_bytes())
-            .map_err(|err| SourceManagerError::ParseError {
+        if result.status != 0 {
+            return Err(SourceManagerError::AnalyzerError {
+                stdout: result.stdout,
+                stderr: result.stderr,
+                status: result.status,
                 label: label.to_owned().into(),
-                parser: self.label_registry.get_label(parser_id).as_ref().to_owned(),
-                err,
-                ast: result.stdout.clone(),
-            })?;
-
-        Ok(SourceFile {
-            symbol: SourceSymbol::All,
-            hash: parser_result.hash(),
-            source,
-        })
-    }
-
-    async fn dump_subtree(
-        &self,
-        label: &LocalLabel,
-        parser_id: LabelId,
-        source: String,
-        symbol_name: &str,
-        symbol: SourceSymbol,
-    ) -> Result<SourceFile, SourceManagerError> {
-        let parser = self
-            .build_results
-            .get_build_result(parser_id)
-            .ok_or_else(|| SourceManagerError::MissingParser {
-                parser_id,
-                label: label.to_owned().into(),
-                parser: self.label_registry.get_label(parser_id).as_ref().to_owned(),
-            })?;
-
-        self.event_channel.send(Event::GeneratingSignature {
-            label: label.to_owned().into(),
-        });
-
-        let cmd = CommandRunner::builder()
-            .cwd(PathBuf::from("."))
-            .manifest(parser.target_manifest)
-            .target(parser.executable_target)
-            .args(vec![
-                "dump-subtree".to_string(),
-                label.file().to_string_lossy().to_string(),
-                symbol_name.to_string(),
-            ])
-            .sandboxed(false)
-            .stream_outputs(false)
-            .build()
-            .map_err(SourceManagerError::CommandRunnerError)?;
-
-        let result = cmd
-            .run()
-            .await
-            .map_err(SourceManagerError::CommandRunnerError)?;
+            });
+        }
 
         let parser_result: ParserResult = serde_json::from_slice(result.stdout.as_bytes())
             .map_err(|err| SourceManagerError::ParseError {
@@ -354,12 +368,29 @@ impl SourceManager {
 
         Ok(SourceFile {
             symbol,
-            hash: parser_result.hash(),
+            ast_hash: parser_result.hash(),
+            source_hash,
             source,
         })
     }
 
-    async fn save(
+    pub async fn save(
+        &self,
+        local_label: &LocalLabel,
+        source_file: &SourceFile,
+    ) -> Result<(), SourceManagerError> {
+        let (_, hash) = SourceHasher::hash_source(local_label.file())
+            .await
+            .map_err(SourceManagerError::HasherError)?;
+
+        self._save(
+            &(local_label, hash, source_file.symbol.clone()),
+            source_file,
+        )
+        .await
+    }
+
+    async fn _save(
         &self,
         source_key: &(&LocalLabel, SourceHash, SourceSymbol),
         source_file: &SourceFile,

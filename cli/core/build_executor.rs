@@ -51,6 +51,10 @@ pub struct BuildExecutor {
 
     rule_store: Arc<RuleStore>,
 
+    pub source_manager: Arc<SourceManager>,
+
+    pub signature_store: Arc<SignatureStore>,
+
     target_executor: Arc<TargetExecutor>,
 
     worker_pool: LocalPoolHandle,
@@ -110,8 +114,8 @@ impl BuildExecutor {
             event_channel.clone(),
             label_registry.clone(),
             dependency_manager.clone(),
-            source_manager,
-            signature_store,
+            source_manager.clone(),
+            signature_store.clone(),
             build_opts,
         ));
 
@@ -138,9 +142,11 @@ impl BuildExecutor {
             label_registry,
             label_resolver,
             rule_store,
+            signature_store,
+            source_manager,
             target_executor,
-            workspace,
             worker_pool,
+            workspace,
         })
     }
 
