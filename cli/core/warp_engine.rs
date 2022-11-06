@@ -124,4 +124,16 @@ impl WarpEngine {
     pub fn get_results(&self) -> Vec<BuildResult> {
         self.build_executor.as_ref().unwrap().get_results()
     }
+
+    pub fn source_manager(&self) -> Arc<SourceManager> {
+        self.build_executor.as_ref().unwrap().source_manager.clone()
+    }
+
+    pub fn signature_store(&self) -> Arc<SignatureStore> {
+        self.build_executor
+            .as_ref()
+            .unwrap()
+            .signature_store
+            .clone()
+    }
 }
