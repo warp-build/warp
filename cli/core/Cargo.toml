@@ -44,6 +44,8 @@ petgraph = "0.6"
 prost = "0.11.2"
 regex = "1"
 reqwest = { version = "0.11", features = ["stream", "json", "gzip"] }
+rocksdb = "0.19.0"
+rusqlite = "0.28.0"
 rust-crypto = "0.2"
 serde = "1.0"
 serde_derive = "1.0"

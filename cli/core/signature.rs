@@ -75,14 +75,47 @@ impl From<Signature> for Target {
     }
 }
 
+/// This is the schema for a signature generated on-demand.
+///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneratedSignature {
-    pub version: usize,
+    pub version: u32,
 
     #[serde(default)]
     pub signatures: Vec<Signature>,
 }
 
+impl From<LiftedSignature> for GeneratedSignature {
+    fn from(l: LiftedSignature) -> Self {
+        Self {
+            version: 0,
+            signatures: l.signatures,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LiftedSignature {
+    pub file: PathBuf,
+
+    pub source: SourceFile,
+
+    #[serde(default)]
+    pub signatures: Vec<Signature>,
+}
+
+/// This is the schema for a signature generated on-demand.
+///
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LiftedSignatures {
+    pub version: u32,
+
+    #[serde(default)]
+    pub signatures: Vec<LiftedSignature>,
+}
+
+/// This is the schema for a Build.json file.
+///
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignaturesFile {
     #[serde(default)]

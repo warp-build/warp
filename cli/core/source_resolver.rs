@@ -44,7 +44,7 @@ impl SourceResolver {
         //    signatures we are interested in, and since a source file can have more than one, we
         //    generate a SourceSymbol by inspecting the label and the current goal.
         //
-        let symbol = SourceSymbol::from_label_and_goal(label_id, label, self.build_opts.goal);
+        let symbol = SourceSymbol::from_label_and_goal(label, self.build_opts.goal);
 
         // 2. Use the symbol to split the source to the subtree we want to generate a signature
         //    for. at this stage we will be using tree-sitter to provide us with an very fast and
