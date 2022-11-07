@@ -7,35 +7,34 @@ const impl = (ctx) => {
 
   const transitiveDeps = ctx.transitiveDeps();
 
-  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://rules.warp.build/rules/elixir_library");
-  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://rules.warp.build/rules/mix_library");
-
-  const extraPaths = [
-    ...mixLibraries
-      .map((dep) => `${Label.path(dep.label)}/_build/prod/lib/${Label.name(dep.label)}/ebin`)
-      .unique(),
-    ...elixirLibraries
+  const elixirLibraries =
+    transitiveDeps
+      .filter(dep => dep.ruleName == "https://rules.warp.build/rules/elixir_library")
       .flatMap(dep =>
         dep.outs
           .filter((out) => out.endsWith(BEAM_EXT))
           .map((path) => File.parent(path))
           .unique()
-      ),
-  ]
-    .flatMap((path) => ["-pa", `warp-outputs/${path}`])
-    .join(" ");
+      );
 
-  mixLibraries.forEach((dep) => {
-    dep.outs.forEach((out) => {
-      if (out.endsWith(TAR_EXT)) {
-        ctx.action().exec({
-          cmd: "tar",
-          args: ["xf", File.filename(out)],
-          cwd: Label.path(dep.label),
-        });
-      }
-    });
-  });
+  const mixLibraries =
+    transitiveDeps
+    .filter(dep => 
+      (dep.ruleName == "https://rules.warp.build/rules/mix_library")
+      || (dep.ruleName == "https://rules.warp.build/rules/rebar3_library")
+      || (dep.ruleName == "https://rules.warp.build/rules/erlangmklibrary")
+    )
+    .map((dep) => `${Label.path(dep.label)}/_build/default/lib/${Label.name(dep.label)}/ebin`)
+    .unique();
+
+  const extraPaths = [
+    ...mixLibraries,
+    ...elixirLibraries
+  ]
+    .map((path) => ` -pa warp-outputs/${path} \\\n`)
+    .sort()
+    .unique()
+    .join("");
 
   const run = `${Label.path(label)}/${name}.run_script`;
 
@@ -45,37 +44,16 @@ const impl = (ctx) => {
     dst: run,
     data: `#!/bin/bash -e
 
-${mixLibraries
-  .flatMap((dep) => {
-    return dep.outs.flatMap((out) => {
-      if (out.endsWith(TAR_EXT)) {
-        return [
-          `cd warp-outputs/${Label.path(dep.label)}; tar xf ${File.filename(
-            out
-          )}; cd - > /dev/null;`,
-        ];
-      } else {
-        return [];
-      }
-    })
-  })
-  .join("\n")}
-
 elixir \
   ${extraPaths} \
   $(dirname "\${BASH_SOURCE[0]}")/${File.filename(main)} $*
 
 `,
   });
-  ctx.action().runShell({
-    needsTty: true,
-    script: `#!/bin/bash -xe
 
-chmod +x ${run}
-
-`,
-  });
-};
+  ctx.action().setPermissions({ file: run, executable: true });
+  ctx.provides({ [name]: run });
+}
 
 export default Warp.Rule({
   runnable: true,
