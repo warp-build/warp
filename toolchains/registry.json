@@ -8,6 +8,12 @@
       "deps": { "erlang": "25" }
     }
   },
+  "protobuf": {
+    "21.9": {
+      "version": "21.9",
+      "sha1": "18f9764dc65b8e294fe3f5781bb901b4794c96fe"
+    }
+  },
   "openssl": {
     "1.1.1q": {
       "sha1": "73118336c58ece2e3b87f1f933f8ba446e2bdc26",
