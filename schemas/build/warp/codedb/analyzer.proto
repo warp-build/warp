@@ -4,7 +4,7 @@ package build.warp.codedb;
 service AnalyzerService {
   rpc GetInterestedExtensions(GetInterestedExtensionsRequest) returns (GetInterestedExtensionsResponse);
 
-  rpc AnalyzeFile(AnalyzeFileRequest) returns (AnalyzeFileResponse);
+  rpc GetProvidedSymbols(GetProvidedSymbolsRequest) returns (GetProvidedSymbolsResponse);
 }
 
 message GetInterestedExtensionsRequest {}
@@ -13,36 +13,29 @@ message GetInterestedExtensionsResponse {
   repeated string ext = 1;
 }
 
-message AnalyzeFileRequest {
+message GetProvidedSymbolsRequest {
   string file = 1;
-  string symbol = 2;
+
+}
+message GetProvidedSymbolsResponse {
+  bool skipped = 1;
+  string file = 2;
+  repeated Requirement provides = 3;
 }
 
 message FileRequirement {
   string path = 1;
 }
 
-message ModuleRequirement {
-  string name = 1;
-}
-
 message SymbolRequirement {
   string raw = 1;
+  string kind = 2;
 }
 
 message Requirement {
   oneof requirement {
     FileRequirement file = 1;
-    ModuleRequirement module = 2;
     SymbolRequirement symbol = 3;
   }
 }
 
-message AnalyzeFileResponse {
-  bool skipped = 1;
-  string file = 2;
-  string symbol = 3;
-  repeated Requirement provides = 4;
-  repeated Requirement requires = 5;
-  string ast = 6;
-}

@@ -1,6 +1,8 @@
 syntax = "proto3";
 package build.warp.codedb;
 
+import "schemas/build/warp/codedb/analyzer.proto";
+
 service SignatureService {
   rpc GenerateSignature(GenerateSignatureRequest) returns (GenerateSignatureResponse);
 }
@@ -24,26 +26,6 @@ enum Status {
 message Signature {
   string label_name = 1;
   string rule_name = 2;
-  repeated Requirement deps = 2;
-  repeated Requirement runtime_deps = 2;
-}
-
-message FileRequirement {
-  string path = 1;
-}
-
-message ModuleRequirement {
-  string name = 1;
-}
-
-message SymbolRequirement {
-  string raw = 1;
-}
-
-message Requirement {
-  oneof requirement {
-    FileRequirement file = 1;
-    ModuleRequirement module = 2;
-    SymbolRequirement symbol = 3;
-  }
+  repeated Requirement deps = 3;
+  repeated Requirement runtime_deps = 4;
 }

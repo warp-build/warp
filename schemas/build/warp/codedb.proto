@@ -1,22 +1,2 @@
 syntax = "proto3";
 package build.warp.codedb;
-
-service CodeDB {
-  rpc RegisterSource(RegisterRequest) returns (RegisterResponse);
-}
-
-message RegisterRequest {
-  string file = 1;
-  repeated string provides = 2;
-  repeated string requires = 4;
-}
-
-message RegisterResponse {
-  Status status = 1;
-}
-
-enum Status {
-  STATUS_UNKNOWN = 0;
-  STATUS_OK = 1;
-  STATUS_ERR = 2;
-}
