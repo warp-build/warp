@@ -14,13 +14,13 @@ impl Goal {
         T: AsRef<RuleName>,
     {
         match &self {
-            Goal::Build => t.as_ref().ends_with("_library"),
             Goal::Test => t.as_ref().ends_with("_test"),
             Goal::Run => {
                 t.as_ref().ends_with("_script")
                     || t.as_ref().ends_with("_binary")
                     || t.as_ref().ends_with("_executable")
             }
+            Goal::Build => !t.as_ref().ends_with("_test"),
         }
     }
 
