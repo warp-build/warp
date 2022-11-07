@@ -15,7 +15,11 @@ defmodule Analyzer.Server do
 
   defp do_analyze_file(".erl", req), do: run_analysis(req)
   defp do_analyze_file(".hrl", req), do: run_analysis(req)
-  defp do_analyze_file(_, req), do: Build.Warp.Codedb.AnalyzeFileResponse.new(skipped: true, file: req.file)
+
+  defp do_analyze_file(_, req) do 
+    Logger.info("Skipping #{req.file}")
+    Build.Warp.Codedb.AnalyzeFileResponse.new(skipped: true, file: req.file)
+  end
 
   defp run_analysis(req) do
     Logger.info("Analyzing #{req.file}")
