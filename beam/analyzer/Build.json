@@ -10,16 +10,11 @@
       "name": "analyzer_service",
       "rule": "mix_library",
       "deps": [
-        "./:proto",
+        "//schemas:elixir",
         "https://hex.pm/packages/grpc",
         "https://hex.pm/packages/google_protos",
         "https://hex.pm/packages/protobuf"
       ]
-    },
-    {
-      "name": "proto",
-      "rule": "elixir_proto_library",
-      "protos": ["protos/build/warp/codedb/analyzer.proto"]
     }
   ]
 }
