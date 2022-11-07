@@ -27,7 +27,12 @@ pub fn op_label_path(label: Label) -> Result<String, AnyError> {
     Ok(if path.is_empty() {
         ".".to_string()
     } else {
-        path.replace("./", "")
+        let cleaned = path.replace("./", "");
+        if cleaned.ends_with('/') {
+            cleaned[0..cleaned.len() - 1].to_string()
+        } else {
+            cleaned
+        }
     })
 }
 
@@ -238,6 +243,36 @@ pub fn op_ctx_extract(state: &mut OpState, args: Extract) -> Result<(), AnyError
 
     let label = args.label;
     let action = Action::extract(args.src, args.dst);
+    let new_actions = if let Some(entry) = action_map.get(&label) {
+        let last_actions = entry.value();
+        let mut new_actions = vec![];
+        new_actions.extend(last_actions.to_vec());
+        new_actions.push(action);
+        new_actions
+    } else {
+        vec![action]
+    };
+
+    action_map.insert(label, new_actions);
+
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct VerifyChecksum {
+    label: Label,
+    file: PathBuf,
+    sha1: String,
+}
+
+#[op]
+pub fn op_ctx_verify_checksum(state: &mut OpState, args: VerifyChecksum) -> Result<(), AnyError> {
+    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let action_map = &inner_state.action_map;
+
+    let label = args.label;
+    let action = Action::verify_checksum(args.file, args.sha1);
     let new_actions = if let Some(entry) = action_map.get(&label) {
         let last_actions = entry.value();
         let mut new_actions = vec![];

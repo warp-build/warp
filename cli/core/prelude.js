@@ -106,6 +106,8 @@ Warp.Targets.compute = target => {
       setPermissions: ({file, executable}) => ffi("op_ctx_set_permissions", {label, file, executable}),
 
       writeFile: ({data, dst}) => ffi("op_ctx_actions_write_file", {label, data, dst}),
+
+      verifyChecksum: ({file, sha1}) => ffi("op_ctx_verify_checksum", {label, file, sha1}),
     }),
   };
 

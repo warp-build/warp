@@ -16,6 +16,7 @@ pub enum Action {
     Extract(ExtractAction),
     RunShell(RunShellAction),
     WriteFile(WriteFileAction),
+    VerifyChecksum(VerifyChecksumAction),
 }
 
 impl Action {
@@ -33,6 +34,10 @@ impl Action {
 
     pub fn copy(src: PathBuf, dst: PathBuf) -> Action {
         Action::Copy(CopyAction { src, dst })
+    }
+
+    pub fn verify_checksum(file: PathBuf, sha1: String) -> Action {
+        Action::VerifyChecksum(VerifyChecksumAction { file, sha1 })
     }
 
     pub fn download(url: String, sha1: String, output: PathBuf) -> Action {
@@ -78,6 +83,7 @@ impl Action {
             Action::WriteFile(a) => a.run(store_root).await,
             Action::RunShell(a) => a.run(store_root, env).await,
             Action::SetPermissions(a) => a.run(store_root).await,
+            Action::VerifyChecksum(a) => a.run(label, store_root, event_channel).await,
         }
     }
 }
