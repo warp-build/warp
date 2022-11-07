@@ -1,11 +1,11 @@
 use crate::reporter::StatusReporter;
+use dashmap::DashSet;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use tokio_util::task::LocalPoolHandle;
 use warp_core::*;
 
-pub mod analyzer {
-    tonic::include_proto!("build.warp.codedb.analyzer");
+pub mod codedb {
+    tonic::include_proto!("build.warp.codedb");
 }
 
 #[derive(StructOpt, Debug, Clone)]
@@ -28,7 +28,7 @@ impl LiftCommand {
         let toolchains_registry =
             ToolchainsRegistry::fetch(&warp.workspace.paths, warp.event_channel.clone()).await?;
 
-        let lifters: Vec<Label> = toolchains_registry
+        let lifters: DashSet<Label> = toolchains_registry
             .toolchains()
             .iter()
             .filter(|t| {
@@ -43,6 +43,7 @@ impl LiftCommand {
             })
             .flat_map(|t| t.lifter.clone())
             .collect();
+        let lifters: Vec<Label> = lifters.into_iter().collect();
 
         if !lifters.is_empty() {
             let status_reporter = StatusReporter::new(warp.event_channel.clone(), false, Goal::Run);
@@ -65,36 +66,36 @@ impl LiftCommand {
                 db.write_hello()?
             }
 
-            self.run_lifters(warp, db).await?;
+            self.run_lifters(lifters, warp, db).await?;
+        } else {
+            println!("Nothing to be done.")
         }
         Ok(())
     }
 
-    async fn run_lifters(&self, warp: &WarpEngine, db: CodeDb) -> Result<(), anyhow::Error> {
+    async fn run_lifters(
+        &self,
+        lifters: Vec<Label>,
+        warp: &WarpEngine,
+        db: CodeDb,
+    ) -> Result<(), anyhow::Error> {
         let cyan = console::Style::new().cyan().bold();
 
-        let files = self.list_files(warp).await?;
+        println!("{:>12} entire workspace...", cyan.apply_to("Scanning"),);
 
-        let root = warp.workspace.paths.workspace_root.clone();
+        let lifters: Vec<String> = lifters.iter().map(|l| l.to_string()).collect();
 
+        let mut clients = vec![];
         for (idx, build_result) in warp
             .get_results()
             .iter()
-            .filter(|br| br.executable_target.rule.kind.is_runnable())
+            .filter(|br| lifters.contains(&br.target_manifest.label.to_string()))
             .enumerate()
         {
             let port = 21000 + idx;
 
             let manifest = build_result.target_manifest.clone();
             let target = build_result.executable_target.clone();
-            let invocation_dir = warp.invocation_dir.clone();
-
-            println!(
-                "{:>12} starting lifter {} on port {}",
-                cyan.apply_to("Lifter"),
-                build_result.target_manifest.label.to_string(),
-                port
-            );
 
             let cmd_result = CommandRunner::builder()
                 .cwd(PathBuf::from("."))
@@ -106,39 +107,51 @@ impl LiftCommand {
                 .build()?
                 .spawn();
 
-            let conn_str = format!("http://0.0.0.0:{}", port);
-            let mut client =
-                analyzer::analyzer_service_client::AnalyzerServiceClient::connect(conn_str).await?;
+            println!(
+                "{:>12} started {} on port {}",
+                cyan.apply_to("Lifter"),
+                build_result.target_manifest.label.to_string(),
+                port
+            );
 
-            for (source_hash, source_file) in &files {
-                let analyze_time = std::time::Instant::now();
-                let request = analyzer::AnalyzeFileRequest {
-                    file: source_file.to_string_lossy().to_string(),
-                };
-                let response = client.analyze_file(request).await?.into_inner();
-                if !response.skipped {
-                    let mut local_label: LocalLabel = source_file.clone().into();
-                    local_label.set_workspace(&invocation_dir);
-
-                    db.save_analysis(source_file, source_hash).unwrap();
-
-                    println!(
-                        "{:>12} {} ({}ms)",
-                        "OK",
-                        &source_file.to_string_lossy(),
-                        analyze_time.elapsed().as_millis()
-                    );
+            let client = loop {
+                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                let conn_str = format!("http://0.0.0.0:{}", port);
+                let conn =
+                    codedb::analyzer_service_client::AnalyzerServiceClient::connect(conn_str).await;
+                if let Ok(conn) = conn {
+                    break conn;
                 }
-            }
-        }
-        Ok(())
-    }
+            };
 
-    async fn list_files(
-        &self,
-        warp: &WarpEngine,
-    ) -> Result<Vec<(SourceHash, PathBuf)>, anyhow::Error> {
+            clients.push(client)
+        }
+
+        if clients.is_empty() {
+            return Ok(());
+        }
+
         let root = warp.workspace.paths.workspace_root.clone();
+        let invocation_dir = warp.invocation_dir.clone();
+
+        let mut extensions = vec![];
+        for client in &mut clients {
+            let request = codedb::GetInterestedExtensionsRequest {};
+            let exts = client
+                .get_interested_extensions(request)
+                .await?
+                .into_inner();
+            extensions.extend(exts.ext)
+        }
+
+        let match_patterns = {
+            let mut builder = globset::GlobSetBuilder::new();
+            for ext in &extensions {
+                let glob = globset::Glob::new(&format!("*{}", ext)).unwrap();
+                builder.add(glob);
+            }
+            builder.build().unwrap()
+        };
 
         let skip_patterns = {
             let mut builder = globset::GlobSetBuilder::new();
@@ -156,7 +169,6 @@ impl LiftCommand {
             builder.build().unwrap()
         };
 
-        let mut paths = vec![];
         let mut dirs = vec![root.clone()];
         while let Some(dir) = dirs.pop() {
             let mut read_dir = tokio::fs::read_dir(&dir).await.unwrap();
@@ -173,128 +185,40 @@ impl LiftCommand {
                     continue;
                 };
 
+                if !match_patterns.is_match(&path) {
+                    continue;
+                }
+
                 let (_contents, hash) = SourceHasher::hash_source(&path).await?;
 
-                paths.push((hash, path))
+                for client in &mut clients {
+                    let analyze_time = std::time::Instant::now();
+                    let request = codedb::AnalyzeFileRequest {
+                        file: path
+                            .strip_prefix(&root)
+                            .unwrap()
+                            .to_string_lossy()
+                            .to_string(),
+                        symbol: "".into(),
+                    };
+                    let response = client.analyze_file(request).await?.into_inner();
+                    if !response.skipped {
+                        let mut local_label: LocalLabel = path.clone().into();
+                        local_label.set_workspace(&invocation_dir);
+
+                        db.save_analysis(&path, &hash).unwrap();
+
+                        println!(
+                            "{:>12} {} ({}ms)",
+                            "OK",
+                            &path.to_string_lossy(),
+                            analyze_time.elapsed().as_millis()
+                        );
+                    }
+                }
             }
         }
 
-        Ok(paths)
+        Ok(())
     }
-
-    /*
-        async fn analyze_all_files(&self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
-            let cyan = console::Style::new().cyan().bold();
-            let sources = self.list_files(warp).await?;
-
-            let worker_pool = LocalPoolHandle::new({
-                let max = num_cpus::get();
-                let curr = self.max_workers.unwrap_or_else(num_cpus::get);
-                curr.min(max)
-            });
-
-            for build_result in warp
-                .get_results()
-                .iter()
-                .filter(|br| br.executable_target.rule.kind.is_runnable())
-            {
-                println!(
-                    "{:>12} using {}",
-                    cyan.apply_to("Analyzing"),
-                    build_result.target_manifest.label.to_string()
-                );
-
-                let mut tasks = vec![];
-                for source_group in sources.chunks(worker_pool.num_threads()) {
-                    let manifest = build_result.target_manifest.clone();
-                    let target = build_result.executable_target.clone();
-                    let analyzer_label = build_result.target_manifest.label.clone();
-                    let invocation_dir = warp.invocation_dir.clone();
-
-                    let source_group = source_group.to_vec();
-
-                    let task = worker_pool.spawn_pinned(move || async move {
-                        for source_path in source_group {
-                            let analyze_time = std::time::Instant::now();
-
-                            let cmd_result = CommandRunner::builder()
-                                .cwd(PathBuf::from("."))
-                                .manifest(manifest.clone())
-                                .target(target.clone())
-                                .stream_outputs(false)
-                                .sandboxed(false)
-                                .args(vec![
-                                    "analyze".into(),
-                                    source_path.to_str().unwrap().to_string(),
-                                ])
-                                .build()?
-                                .run()
-                                .await?;
-
-                            if cmd_result.status != 0 {
-                                let err = anyhow::anyhow!("Failed to analyze {}. Analyzer {} exited with status {}.\n\nStdout: {}\n\nStderr: {}",
-                                    source_path.to_string_lossy(),
-                                    analyzer_label.to_string(),
-                                    cmd_result.status, cmd_result.stdout, cmd_result.stderr);
-                                return Err(err);
-                            }
-
-                            let resp: SourceAnalysisResponse =
-                                serde_json::from_slice(cmd_result.stdout.as_bytes())?;
-
-                            match resp {
-                                SourceAnalysisResponse::UnsupportedFileType => {
-                                    println!(
-                                        "{:>12} {} ({}ms)",
-                                        "SKIP",
-                                        &source_path.to_string_lossy(),
-                                        analyze_time.elapsed().as_millis()
-                                    );
-                                }
-
-                                SourceAnalysisResponse::Analysis(source_analysis) => {
-                                    let mut local_label: LocalLabel = source_path.clone().into();
-                                    local_label.set_workspace(&invocation_dir);
-                                    println!(
-                                        "{:>12} {} ({}ms)",
-                                        "OK",
-                                        &source_path.to_string_lossy(),
-                                        analyze_time.elapsed().as_millis()
-                                    );
-                                }
-                            }
-
-                            /*
-                               warp.source_manager()
-                               .save(&local_label, &lifted_sig.source)
-                               .await?;
-
-                               let source_file = std::mem::take(&mut lifted_sig.source);
-                               let mut gen_sig: GeneratedSignature = lifted_sig.into();
-
-                               for sig in gen_sig.signatures.iter_mut() {
-                               sig.name.set_workspace(&local_label.workspace());
-                               for dep in sig.deps.iter_mut().chain(sig.runtime_deps.iter_mut()) {
-                               dep.set_workspace(local_label.workspace());
-                               }
-                               }
-
-                               warp.signature_store()
-                               .save(&local_label, &source_file, gen_sig)
-                               .await?;
-                               */
-                        }
-                        Ok(())
-                    });
-                    tasks.push(task);
-                }
-
-                for task in futures::future::join_all(tasks).await {
-                    task.unwrap()?;
-                }
-            }
-
-            Ok(())
-        }
-    */
 }
