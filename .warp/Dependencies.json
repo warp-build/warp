@@ -1,5 +1,60 @@
 {
   "dependencies": {
+    "https://hex.pm/packages/grpc": {
+      "url": "https://hex.pm/packages/grpc",
+      "package": "grpc",
+      "version": "0.5"
+    },
+    "https://hex.pm/packages/cowboy": {
+      "url": "https://hex.pm/packages/cowboy",
+      "package": "cowboy",
+      "version": "2.9.0"
+    },
+    "https://hex.pm/packages/cowlib": {
+      "url": "https://hex.pm/packages/cowlib",
+      "package": "cowlib",
+      "version": "2.11.0"
+    },
+    "https://hex.pm/packages/google_protos": {
+      "url": "https://hex.pm/packages/google_protos",
+      "package": "google_protos",
+      "version": "0.3.0"
+    },
+    "https://hex.pm/packages/decimal": {
+      "url": "https://hex.pm/packages/decimal",
+      "package": "grpc_gun",
+      "version": "2.0.0"
+    },
+    "https://hex.pm/packages/jason": {
+      "url": "https://hex.pm/packages/jason",
+      "package": "grpc_gun",
+      "version": "1.4.0"
+    },
+    "https://hex.pm/packages/grpc_gun": {
+      "url": "https://hex.pm/packages/grpc_gun",
+      "package": "grpc_gun",
+      "version": "2.0.1"
+    },
+    "https://hex.pm/packages/grpc": {
+      "url": "https://hex.pm/packages/grpc",
+      "package": "grpc",
+      "version": "0.5.0"
+    },
+    "https://hex.pm/packages/gun": {
+      "url": "https://hex.pm/packages/gun",
+      "package": "gun",
+      "version": "2.0.1"
+    },
+    "https://hex.pm/packages/protobuf": {
+      "url": "https://hex.pm/packages/protobuf",
+      "package": "protobuf",
+      "version": "0.11.0"
+    },
+    "https://hex.pm/packages/ranch": {
+      "url": "https://hex.pm/packages/ranch",
+      "package": "ranch",
+      "version": "1.8.0"
+    },
     "https://hex.pm/packages/proper": {
       "url": "https://hex.pm/packages/proper",
       "package": "proper",

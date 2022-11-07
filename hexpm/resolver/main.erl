@@ -15,7 +15,8 @@ main(Args) ->
     ["resolve", Url, Ref, _Pkg] -> ?PRINT_JSON(resolve(Url, Ref));
     ["prepare", Root, _Url, _Ref, Pkg] -> ?PRINT_JSON(prepare(Root, Pkg));
     ["prepare"] -> ?PRINT_JSON(prepare(Cwd, path:filename(Cwd)));
-    ["help"] -> show_help()
+    ["help"] -> show_help();
+    [] -> show_help()
   end.
 
 setup() ->
@@ -37,7 +38,7 @@ show_help() ->
 Usage:
 
 * resolve <url> <version> <pkg-name>
-* analyze <root> <url> <version> <pkg-name>
+* prepare <root> <url> <version> <pkg-name>
 
 Examples:
 
@@ -45,7 +46,7 @@ Examples:
 
   resolve https://hex.pm/packages/proper 1.4.0 proper
 
-* analyze ./path/to/proper/sources https://hex.pm/packages/proper 1.4.0 proper
+* prepare ./path/to/proper/sources https://hex.pm/packages/proper 1.4.0 proper
 
 ">>]),
 	erlang:halt().

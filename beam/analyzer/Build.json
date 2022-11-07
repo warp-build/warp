@@ -1,8 +1,25 @@
 {
   "signatures": [
     {
+      "name": "run",
+      "rule": "elixir_script",
+      "main": "main.exs",
+      "deps": ["./:analyzer"]
+    },
+    {
       "name": "analyzer",
-      "rule": "mix_library"
+      "rule": "mix_library",
+      "deps": [
+        "./:proto",
+        "https://hex.pm/packages/grpc",
+        "https://hex.pm/packages/google_protos",
+        "https://hex.pm/packages/protobuf"
+      ]
+    },
+    {
+      "name": "proto",
+      "rule": "elixir_proto_library",
+      "protos": ["protos/build/warp/codedb/analyzer.proto"]
     }
   ]
 }

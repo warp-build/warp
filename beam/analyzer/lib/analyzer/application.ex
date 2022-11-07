@@ -4,12 +4,11 @@ defmodule Analyzer.Application do
   @moduledoc false
 
   use Application
+  require Logger
 
   @impl true
   def start(_type, _args) do
     children = [
-      # Starts a worker by calling: Analyzer.Worker.start_link(arg)
-      # {Analyzer.Worker, arg}
       {GRPC.Server.Supervisor, {Analyzer.Endpoint, 21000, start_server: true}}
     ]
 

@@ -3,13 +3,9 @@ defmodule Analyzer.Server do
 
   require Logger
 
-  def hello_world(req, _stream) do
-    Build.Warp.Codedb.Analyzer.HelloWorldResponse.new()
-  end
-
   def get_interested_extensions(request, _stream) do
     ext = [".hrl", ".erl", ".ex", ".exs", ".config", ".eex"]
-    Build.Warp.Codedb.Analyzer.InterestedExtensionsResponse.new(ext: ext)
+    Build.Warp.Codedb.Analyzer.GetInterestedExtensionsResponse.new(ext: ext)
   end
 
   def analyze_file(req, stream)  do
