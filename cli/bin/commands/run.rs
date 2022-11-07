@@ -72,8 +72,11 @@ impl RunCommand {
             target_manifest: manifest,
             executable_target: target,
         }) = warp.get_results().iter().find(|br| {
-            br.executable_target.rule.kind.is_runnable()
-                && br.target_manifest.label.name() == label.name()
+            let right_name = br.target_manifest.label.name() == label.name();
+            let is_executable_rule = br.executable_target.rule.kind.is_runnable();
+            let has_provides = !br.target_manifest.provides.is_empty();
+
+            right_name && (is_executable_rule || has_provides)
         }) {
             let mut provides_env = manifest.env_map();
 
