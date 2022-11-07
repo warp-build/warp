@@ -65,6 +65,12 @@ impl LocalArtifactStore {
         dst: &PathBuf,
     ) -> Result<(), ArtifactStoreError> {
         if let Ok(output_manifest) = OutputManifestHash::find(&manifest.label, dst).await {
+            debug!(
+                "Found output manifest for {} with hash {} (expected {})",
+                manifest.label.to_string(),
+                output_manifest.hash,
+                manifest.hash
+            );
             if output_manifest.hash == manifest.hash {
                 return Ok(());
             }
@@ -75,12 +81,20 @@ impl LocalArtifactStore {
                 .await
                 .map_err(ArtifactStoreError::OutputManifestError)?;
 
+            let mut rm_tasks = vec![];
             for out in output_manifest.outs {
-                let _ = fs::remove_file(&dst.join(out)).await;
+                rm_tasks.push(async move {
+                    let file = dst.join(out);
+                    fs::remove_file(&file).await?;
+                    Ok(())
+                });
+            }
+            for result in futures::future::join_all(rm_tasks).await {
+                result.map_err(ArtifactStoreError::IOError)?;
             }
         }
 
-        trace!("Promoting outputs for {}", manifest.label.to_string());
+        debug!("Promoting outputs for {}", manifest.label.to_string());
         let hash_path = self.cache_root.join(key);
 
         let mut outs: FxHashMap<PathBuf, PathBuf> = FxHashMap::default();
