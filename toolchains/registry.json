@@ -4,6 +4,7 @@
       "sha1": "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa",
       "kind": "source",
       "version": "1.13",
+      "analyzer": "https://tools.warp.build/beam/analyzer",
       "deps": { "erlang": "25" }
     }
   },
@@ -18,13 +19,13 @@
       "sha1": "c2d3464fb32b6f5562b6e094d32459adaa7b90cd",
       "version": "25.1.2",
       "deps": { "openssl": "1.1.1q", "rebar3": "latest" },
-      "lifter": "https://tools.warp.build/erlang/lifter"
+      "analyzer": "https://tools.warp.build/beam/analyzer"
     },
     "24": {
       "sha1": "eb8794dd8b21284528d3236a59b1605dabba4d49",
       "version": "24.3.4.6",
       "deps": { "openssl": "1.1.1q", "rebar3": "r24" },
-      "lifter": "https://tools.warp.build/erlang/lifter"
+      "analyzer": "https://tools.warp.build/beam/analyzer"
     }
   },
   "cmake": {
