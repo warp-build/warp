@@ -28,7 +28,17 @@ const impl = (ctx) => {
 
   const transitiveDeps = ctx.transitiveDeps();
   const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://rules.warp.build/rules/elixir_library");
-  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == RULE_NAME);
+  const mixLibraries =
+    transitiveDeps
+    .filter(dep => 
+      (dep.ruleName == "https://rules.warp.build/rules/mix_library")
+      || (dep.ruleName == "https://rules.warp.build/rules/rebar3_library")
+      || (dep.ruleName == "https://rules.warp.build/rules/erlangmklibrary")
+    );
+
+  const protobufLibraries =
+    transitiveDeps
+    .filter(dep => dep.ruleName == "https://rules.warp.build/rules/elixir_proto_library");
 
   ctx.action().runShell({
     env: { MIX_ENV: "default" },
@@ -36,7 +46,13 @@ const impl = (ctx) => {
 
 # NOTE(@ostera): handle protobuf libraries
 mkdir -p ${cwd()}/lib/generated/
-mv ${cwd()}/generated/elixir/* ${cwd()}/lib/generated/
+${
+  protobufLibraries.flatMap((dep) => {
+    return dep.outs.flatMap((out) => {
+      return `cp ${out} ${cwd()}/lib/generated/`
+    })
+  }).join("\n")
+}
 
 # NOTE(@ostera): handle raw elixir libraries
 ${
