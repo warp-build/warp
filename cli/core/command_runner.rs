@@ -64,99 +64,53 @@ impl CommandRunner {
         CommandRunnerBuilder::default()
     }
 
-    pub fn spawn(self) -> tokio::task::JoinHandle<Result<CommandResult, CommandRunnerError>> {
-        tokio::task::spawn(async move {
-            let mut shell_env = self.manifest.env_map();
-            let bin = if let Some(RunScript { run_script, env }) = &self.target.run_script {
-                shell_env.extend(env.clone());
-                self.manifest
-                    .provides
-                    .iter()
-                    .find(|(_, path)| path.ends_with(run_script))
-                    .map(|(_, path)| path.to_path_buf())
-                    .ok_or_else(|| CommandRunnerError::MissingRunScript {
-                        run_script: run_script.to_path_buf(),
-                        provides: self.manifest.provides.clone(),
-                    })?
-            } else {
-                return Err(CommandRunnerError::NothingToRun);
-            };
-
-            let mut cmd = Command::new(bin);
-
-            let extra_paths = shell_env
-                .get("PATH")
-                .cloned()
-                .unwrap_or_else(|| "".to_string());
-            shell_env.remove("PATH");
-            shell_env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
-
-            let tmpdir = tempfile::tempdir().unwrap();
-
-            let cwd = if self.sandboxed {
-                tmpdir.path().to_path_buf()
-            } else {
-                self.cwd.clone()
-            };
-
-            cmd.envs(&shell_env).args(&self.args).current_dir(&cwd);
-
-            if self.stream_outputs {
-                cmd.stdin(Stdio::inherit())
-                    .stderr(Stdio::inherit())
-                    .stdout(Stdio::inherit());
-            } else {
-                cmd.stdin(Stdio::null())
-                    .stderr(Stdio::null())
-                    .stdout(Stdio::null());
-            }
-
-            let mut proc = cmd.spawn().unwrap();
-            proc.wait()
-                .await
-                .map_err(|err| CommandRunnerError::ExecutionError {
-                    err,
-                    label: self.manifest.label.clone(),
-                })?;
-
-            let output = cmd
-                .output()
-                .await
-                .map_err(|err| CommandRunnerError::OutputError {
-                    err,
-                    label: self.manifest.label.clone(),
-                })?;
-
-            let stdout = String::from_utf8(output.stdout).map_err(|err| {
-                CommandRunnerError::InvalidUtf8Output {
-                    err,
-                    label: self.manifest.label.clone(),
-                }
-            })?;
-
-            let stderr = String::from_utf8(output.stderr).map_err(|err| {
-                CommandRunnerError::InvalidUtf8Output {
-                    err,
-                    label: self.manifest.label.clone(),
-                }
-            })?;
-
-            let status: i32 = cmd
-                .status()
-                .await
-                .map_err(|err| CommandRunnerError::ExecutionError {
-                    err,
-                    label: self.manifest.label.clone(),
+    pub fn spawn(self) -> Result<tokio::process::Child, CommandRunnerError> {
+        let mut shell_env = self.manifest.env_map();
+        let bin = if let Some(RunScript { run_script, env }) = &self.target.run_script {
+            shell_env.extend(env.clone());
+            self.manifest
+                .provides
+                .iter()
+                .find(|(_, path)| path.ends_with(run_script))
+                .map(|(_, path)| path.to_path_buf())
+                .ok_or_else(|| CommandRunnerError::MissingRunScript {
+                    run_script: run_script.to_path_buf(),
+                    provides: self.manifest.provides.clone(),
                 })?
-                .code()
-                .unwrap();
+        } else {
+            return Err(CommandRunnerError::NothingToRun);
+        };
 
-            Ok(CommandResult {
-                stdout,
-                stderr,
-                status,
-            })
-        })
+        let mut cmd = Command::new(bin);
+
+        let extra_paths = shell_env
+            .get("PATH")
+            .cloned()
+            .unwrap_or_else(|| "".to_string());
+        shell_env.remove("PATH");
+        shell_env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
+
+        let tmpdir = tempfile::tempdir().unwrap();
+
+        let cwd = if self.sandboxed {
+            tmpdir.path().to_path_buf()
+        } else {
+            self.cwd.clone()
+        };
+
+        cmd.envs(&shell_env).args(&self.args).current_dir(&cwd);
+
+        if self.stream_outputs {
+            cmd.stdin(Stdio::inherit())
+                .stderr(Stdio::inherit())
+                .stdout(Stdio::inherit());
+        } else {
+            cmd.stdin(Stdio::null())
+                .stderr(Stdio::null())
+                .stdout(Stdio::null());
+        }
+
+        Ok(cmd.spawn().unwrap())
     }
 
     #[tracing::instrument(name = "DependencyResolver::resolve", skip(self))]

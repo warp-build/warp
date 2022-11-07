@@ -85,6 +85,7 @@ impl LiftCommand {
 
         let lifters: Vec<String> = lifters.iter().map(|l| l.to_string()).collect();
 
+        let mut processes = vec![];
         let mut clients = vec![];
         for (idx, build_result) in warp
             .get_results()
@@ -97,7 +98,7 @@ impl LiftCommand {
             let manifest = build_result.target_manifest.clone();
             let target = build_result.executable_target.clone();
 
-            let cmd_result = CommandRunner::builder()
+            let process = CommandRunner::builder()
                 .cwd(PathBuf::from("."))
                 .manifest(manifest.clone())
                 .target(target.clone())
@@ -105,7 +106,9 @@ impl LiftCommand {
                 .sandboxed(false)
                 .args(vec!["start".into(), port.to_string()])
                 .build()?
-                .spawn();
+                .spawn()?;
+
+            processes.push(process);
 
             println!(
                 "{:>12} started {} on port {}",
@@ -193,12 +196,9 @@ impl LiftCommand {
 
                 for client in &mut clients {
                     let analyze_time = std::time::Instant::now();
+                    let path = path.strip_prefix(&root).unwrap().to_path_buf();
                     let request = codedb::AnalyzeFileRequest {
-                        file: path
-                            .strip_prefix(&root)
-                            .unwrap()
-                            .to_string_lossy()
-                            .to_string(),
+                        file: path.to_string_lossy().to_string(),
                         symbol: "".into(),
                     };
                     let response = client.analyze_file(request).await?.into_inner();
@@ -217,6 +217,10 @@ impl LiftCommand {
                     }
                 }
             }
+        }
+
+        for mut proc in processes {
+            proc.kill().await.unwrap()
         }
 
         Ok(())
