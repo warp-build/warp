@@ -1,0 +1,36 @@
+syntax = "proto3";
+package build.warp.codedb;
+
+service SignatureService {
+  rpc GenerateSignature(GenerateSignatureRequest) returns (GenerateSignatureResponse);
+}
+
+message GenerateSignatureRequest {
+  string file = 1;
+  string symbol = 2;
+}
+
+message GenerateSignatureResponse {
+  Status status = 1;
+  Signature signature = 2;
+}
+
+enum Status {
+  STATUS_UNKNOWN = 0;
+  STATUS_OK = 1;
+  STATUS_ERR = 2;
+}
+
+message Signature {
+  string label_name = 1;
+  string rule_name = 2;
+  repeated Dependency deps = 2;
+  repeated Dependency runtime_deps = 2;
+}
+
+message Dependency {
+  oneof dependency {
+      FileDependency file_dep = 1;
+      ModuleDependency file_dep = 1;
+  }
+}

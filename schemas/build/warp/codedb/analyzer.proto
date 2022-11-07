@@ -1,5 +1,5 @@
 syntax = "proto3";
-package build.warp.codedb.analyzer;
+package build.warp.codedb;
 
 service AnalyzerService {
   rpc GetInterestedExtensions(GetInterestedExtensionsRequest) returns (GetInterestedExtensionsResponse);
@@ -15,6 +15,7 @@ message GetInterestedExtensionsResponse {
 
 message AnalyzeFileRequest {
   string file = 1;
+  string symbol = 2;
 }
 
 message FileRequirement {
@@ -40,6 +41,8 @@ message Requirement {
 message AnalyzeFileResponse {
   bool skipped = 1;
   string file = 2;
-  repeated Requirement provides = 3;
-  repeated Requirement requires = 4;
+  string symbol = 3;
+  repeated Requirement provides = 4;
+  repeated Requirement requires = 5;
+  string ast = 6;
 }
