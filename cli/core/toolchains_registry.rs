@@ -100,14 +100,14 @@ impl ToolchainsRegistry {
                     },
 
                     lifter: object
-                        .get("lifter")
+                        .get("analyzer")
                         .and_then(|s| s.as_str())
                         .and_then(|s| s.parse::<Label>().ok()),
 
                     config: {
                         let mut object = object.clone();
                         object.remove("deps");
-                        object.remove("lifter");
+                        object.remove("analyzer");
                         let config = serde_json::Value::Object(object);
                         TryFrom::try_from(config.clone()).unwrap()
                     },
