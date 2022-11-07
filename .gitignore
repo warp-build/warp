@@ -7,3 +7,4 @@ lib/bs
 deps
 _build
 _rebar_tmp
+*.gif

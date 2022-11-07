@@ -1,0 +1,37 @@
+{
+  "workspace": {
+    "name": "hello_world",
+    "use_git_hooks": false
+  },
+  "aliases": {
+    "erlang": "https://rules.warp.build/toolchains/erlang"
+  },
+  "toolchains": {
+    "cmake": {
+      "sha1": "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
+      "version": "3.24.2"
+    },
+    "erlang": {
+      "sha1": "eb8794dd8b21284528d3236a59b1605dabba4d49",
+      "version": "24.3.4.6"
+    },
+    "git": {
+      "sha1": "fc5107c0cc41fc7ee870c360d67517cd0ee26d17",
+      "version": "2.38.1"
+    },
+    "openssl": {
+      "sha1": "73118336c58ece2e3b87f1f933f8ba446e2bdc26",
+      "version": "OpenSSL_1_1_1q"
+    },
+    "rebar3": {
+      "sha1": "7e281994851487caf5daa4a2c32b5a0cabdf7bdb"
+    }
+  },
+  "remote_workspaces": {
+    "tools.warp.build": {
+      "path": "../../../tools.warp.build",
+      "github": "warp-build/tools.warp.build",
+      "git_ref": "main"
+    }
+  }
+}
