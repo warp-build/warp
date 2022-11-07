@@ -1,6 +1,6 @@
 require Logger
 
-[host, port] = System.argv()
+["start", port] = System.argv()
 port = String.to_integer(port)
 
 {:ok, apps} = Application.ensure_all_started(:analyzer)
