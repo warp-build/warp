@@ -12,6 +12,7 @@ use tracing::*;
 pub struct RemoteWorkspaceResolver {
     archive_manager: ArchiveManager,
     artifact_store: Arc<ArtifactStore>,
+    dependency_manager: Arc<DependencyManager>,
     global_workspaces_path: PathBuf,
     remote_workspace_configs: DashMap<String, RemoteWorkspaceConfig>,
     root_workspace: Workspace,
@@ -49,6 +50,9 @@ or
 
     #[error(transparent)]
     SignatureError(SignatureError),
+
+    #[error(transparent)]
+    DependencyManagerError(DependencyManagerError),
 }
 
 impl RemoteWorkspaceResolver {
@@ -57,6 +61,7 @@ impl RemoteWorkspaceResolver {
         workspace: &Workspace,
         artifact_store: Arc<ArtifactStore>,
         event_channel: Arc<EventChannel>,
+        dependency_manager: Arc<DependencyManager>,
     ) -> Self {
         Self {
             root_workspace: workspace.clone(),
@@ -72,6 +77,7 @@ impl RemoteWorkspaceResolver {
             workspaces: DashMap::new(),
             archive_manager: ArchiveManager::new(workspace, event_channel),
             artifact_store,
+            dependency_manager,
         }
     }
 
@@ -185,6 +191,14 @@ impl RemoteWorkspaceResolver {
                 .unwrap();
 
             self.artifact_store.register_workspace(&workspace);
+
+            self.dependency_manager
+                .register_workspace(&workspace)
+                .await
+                .map_err(RemoteWorkspaceResolverError::DependencyManagerError)?;
+
+            // TODO(@ostera)
+            // self.toolchains_manager.register_workspace(&workspace);
 
             self.workspaces
                 .insert(remote_label.host.clone(), workspace.clone());

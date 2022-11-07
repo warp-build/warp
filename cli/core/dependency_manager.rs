@@ -1,12 +1,14 @@
 use super::*;
-use std::{collections::BTreeMap, sync::Arc};
+use dashmap::DashMap;
+use std::sync::Arc;
 use thiserror::*;
 use tokio::fs;
 use tracing::*;
 
 #[derive(Debug, Clone)]
 pub struct DependencyManager {
-    dependencies: BTreeMap<LabelId, Dependency>,
+    dependencies: DashMap<LabelId, Dependency>,
+    label_registry: Arc<LabelRegistry>,
 }
 
 #[derive(Error, Debug)]
@@ -37,7 +39,7 @@ impl DependencyManager {
             .map_err(DependencyManagerError::DependencyFileError)
             .unwrap();
 
-        let mut dependencies = BTreeMap::new();
+        let dependencies = DashMap::new();
 
         for (url, dep_json) in &dependency_file.dependencies {
             let label: Label = url::Url::parse(url).unwrap().into();
@@ -65,10 +67,25 @@ impl DependencyManager {
             dependencies.insert(label, dep);
         }
 
-        Ok(Self { dependencies })
+        Ok(Self {
+            dependencies,
+            label_registry,
+        })
     }
 
     pub fn get(&self, label: LabelId) -> Option<Dependency> {
-        self.dependencies.get(&label).cloned()
+        self.dependencies.get(&label).map(|r| (*r).clone())
+    }
+
+    // TODO(@ostera): this should be part of the WorkspaceManager
+    pub async fn register_workspace(
+        &self,
+        workspace: &Workspace,
+    ) -> Result<(), DependencyManagerError> {
+        let dependency_manager = Self::new(workspace, self.label_registry.clone()).await?;
+        for (label_id, dep) in dependency_manager.dependencies.into_iter() {
+            self.dependencies.insert(label_id, dep);
+        }
+        Ok(())
     }
 }
