@@ -16,7 +16,7 @@ pub struct LabelResolver {
     label_registry: Arc<LabelRegistry>,
     remote_workspace_resolver: Arc<RemoteWorkspaceResolver>,
     resolved_labels: DashMap<LabelId, Target>,
-    toolchain_configs: FxHashMap<String, RuleConfig>,
+    toolchain_manager: Arc<ToolchainManager>,
     event_channel: Arc<EventChannel>,
     workspace: Workspace,
     artifact_store: Arc<ArtifactStore>,
@@ -65,12 +65,15 @@ impl LabelResolver {
         dependency_manager: Arc<DependencyManager>,
         source_manager: Arc<SourceManager>,
         signature_store: Arc<SignatureStore>,
+        toolchain_manager: Arc<ToolchainManager>,
         build_opts: BuildOpts,
     ) -> Self {
         let remote_workspace_resolver = Arc::new(RemoteWorkspaceResolver::new(
             workspace,
             artifact_store.clone(),
             event_channel.clone(),
+            dependency_manager.clone(),
+            toolchain_manager.clone(),
         ));
 
         let dependency_resolver = DependencyResolver::new(
@@ -99,7 +102,7 @@ impl LabelResolver {
             remote_workspace_resolver,
             resolved_labels: DashMap::default(),
             source_resolver,
-            toolchain_configs: workspace.toolchain_configs.clone(),
+            toolchain_manager,
             workspace: workspace.clone(),
         }
     }
@@ -117,7 +120,7 @@ impl LabelResolver {
             let label = self.label_registry.get_label(label_id);
 
             if label.is_remote() {
-                if let Some(target) = self.find_as_toolchain(&label).await? {
+                if let Some(target) = self.find_as_toolchain(label_id, &label).await? {
                     self.save(label_id, target.clone());
                     return Ok(target);
                 }
@@ -229,42 +232,18 @@ impl LabelResolver {
     /// Find a RemoteLabel as a Toolchain.
     ///
     #[tracing::instrument(name = "LabelResolver::find_as_toolchain", skip(self))]
-    async fn find_as_toolchain(&self, label: &Label) -> Result<Option<Target>, LabelResolverError> {
-        let remote_label = label.get_remote().unwrap();
-
-        // NOTE(@ostera): this is a *HACK* because we want to use the name of the toolchain (say
-        // `erlang`) but the label for it is a URL (say
-        // `https://rules.warp.build/toolchains/erlang`).
-        //
-        // We *DO NOT* want this hack to go into the RemoteLabel, since RemoteLabels can be
-        // legitimately used for building everything within a file, or a specific target within it.
-        //
-        // For example, say we want to build `https://my.app/lib/a.go`. This URL turned into a
-        // label means: "fetch, analyze, and build all the signatures generated for a.go".
-        //
-        // The `name` of the label would be `None`.
-        //
-        // However, if we wanted to run a single test within it, we'd use the syntax
-        // `https://my.app/lib/a.go:testName`.
-        //
-        // The `name` of the label would be `Some("testName")`.
-        //
-        // And we do not want this meaning to be overloaded here.
-        //
-        let name = remote_label
-            .path
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .to_string();
-
-        if let Some(config) = self.toolchain_configs.get(&name) {
+    async fn find_as_toolchain(
+        &self,
+        label_id: LabelId,
+        label: &Label,
+    ) -> Result<Option<Target>, LabelResolverError> {
+        if let Some(config) = self.toolchain_manager.get(label_id) {
             let target = Target::new(
                 label
                     .to_local(&self.workspace.paths.workspace_root)
                     .unwrap(),
                 &label.get_remote().unwrap().url_str(),
-                config.clone(),
+                config,
             );
 
             // NOTE(@ostera): if a label was successfully lifted

@@ -20,6 +20,9 @@ pub enum BuildExecutorError {
     #[error(transparent)]
     DependencyManagerError(DependencyManagerError),
 
+    #[error(transparent)]
+    ToolchainManagerError(ToolchainManagerError),
+
     #[error("Could not queue everything to be executed")]
     CannotRunEverything,
 
@@ -57,6 +60,8 @@ pub struct BuildExecutor {
 
     target_executor: Arc<TargetExecutor>,
 
+    toolchain_manager: Arc<ToolchainManager>,
+
     worker_pool: LocalPoolHandle,
 
     /// The workspace this worker is currently executing.
@@ -75,6 +80,11 @@ impl BuildExecutor {
         let build_results = Arc::new(BuildResults::new(label_registry.clone()));
 
         let build_coordinator = Arc::new(BuildCoordinator::new());
+
+        let toolchain_manager = Arc::new(
+            ToolchainManager::new(&workspace, label_registry.clone())
+                .map_err(BuildExecutorError::ToolchainManagerError)?,
+        );
 
         let dependency_manager = Arc::new(
             DependencyManager::new(&workspace, label_registry.clone())
@@ -116,6 +126,7 @@ impl BuildExecutor {
             dependency_manager.clone(),
             source_manager.clone(),
             signature_store.clone(),
+            toolchain_manager.clone(),
             build_opts,
         ));
 
@@ -145,6 +156,7 @@ impl BuildExecutor {
             signature_store,
             source_manager,
             target_executor,
+            toolchain_manager,
             worker_pool,
             workspace,
         })
@@ -192,7 +204,7 @@ impl BuildExecutor {
     }
 
     pub fn get_results(&self) -> Vec<BuildResult> {
-        self.build_results.get_results().to_vec()
+        self.build_results.get_results()
     }
 
     fn spawn_helper(

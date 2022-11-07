@@ -84,6 +84,9 @@ impl DependencyManager {
     ) -> Result<(), DependencyManagerError> {
         let dependency_manager = Self::new(workspace, self.label_registry.clone()).await?;
         for (label_id, dep) in dependency_manager.dependencies.into_iter() {
+            if self.dependencies.contains_key(&label_id) {
+                continue;
+            }
             self.dependencies.insert(label_id, dep);
         }
         Ok(())

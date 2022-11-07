@@ -58,7 +58,7 @@ pub enum ArchiveManagerError {
     },
 
     #[error(
-        "Could not extract archive originating at {url:?} from {src:?} to {src:?}, due to: {err:?}"
+        "Could not extract archive originating at {} from {src:?} to {src:?}, due to: {err:?}", url.to_string()
     )]
     ExtractionError {
         url: Url,
