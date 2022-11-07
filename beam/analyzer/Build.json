@@ -1,13 +1,13 @@
 {
   "signatures": [
     {
-      "name": "run",
+      "name": "analyzer",
       "rule": "elixir_script",
       "main": "main.exs",
-      "deps": ["./:analyzer"]
+      "deps": ["./:analyzer_service"]
     },
     {
-      "name": "analyzer",
+      "name": "analyzer_service",
       "rule": "mix_library",
       "deps": [
         "./:proto",
