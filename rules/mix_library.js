@@ -5,55 +5,53 @@ import ErlangToolchain, { BEAM_EXT } from "https://rules.warp.build/toolchains/e
 const RULE_NAME = "https://rules.warp.build/rules/mix_library"
 
 const impl = (ctx) => {
-  const { label, name, deps, srcs, skip_deps, deps_args, compile_args } = ctx.cfg();
-  const cwd = Label.path(label);
+  const { cwd, label, name, deps, srcs, skip_deps, deps_args, compile_args } = ctx.cfg();
 
-  const appTarball = `${name}.app.tar`;
-  const outputs = [`${cwd}/${appTarball}`];
+  const outputs = [
+    `${cwd()}/_build/default/lib/${name}`,
+    `${cwd()}/deps`
+  ]
+  if (skip_deps === "false") {
+    outputs.push(`${cwd()}/mix.lock`);
+    outputs.push(`${cwd()}/_build/default/lib`);
+  }
   ctx.action().declareOutputs(outputs);
 
-  const depsGet =
-    skip_deps === "true"
-      ? ""
-      : `${MIX} deps.get --only \$MIX_ENV ${deps_args.join(" ")}`;
+  let depsGet = "";
+  if (skip_deps === "false") {
+    depsGet = `mix deps.get --only \$MIX_ENV ${deps_args.join(" ")}`;
+  }
+
+  if (skip_deps === "true") {
+    compile_args.push("--no-deps-check");
+  }
 
   const transitiveDeps = ctx.transitiveDeps();
   const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://rules.warp.build/rules/elixir_library");
   const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == RULE_NAME);
 
   ctx.action().runShell({
-    env: { MIX_ENV: "prod" },
+    env: { MIX_ENV: "default" },
     script: `
 
-${mixLibraries
-  .flatMap((dep) =>
-    dep.outs.flatMap((out) => {
-      if (out.endsWith(TAR_EXT)) {
-        return [`tar xf ${Label.path(dep.label)}/${File.filename(out)}`];
-      } else {
-        return [];
-      }
-    })
-  )
-  .join("\n")}
+# NOTE(@ostera): handle protobuf libraries
+mkdir -p ${cwd()}/lib/generated/
+mv ${cwd()}/generated/elixir/* ${cwd()}/lib/generated/
 
-# NOTE: since all mix libraries build tar artefacts that extract to a _build
-# and a deps folder, we can move that into the current library workspace
-if [ -d _build ]; then
-  mv _build ${cwd}
-fi
-if [ -d deps ]; then
-  mv deps ${cwd}
-fi
-cd ${cwd}
+# NOTE(@ostera): handle raw elixir libraries
+${
+  mixLibraries.flatMap((dep) => {
+    return `cp -R ${dep.name}/_build ${cwd()}/`
+  }).join("\n")
+}
 
+cd ${cwd()}
 ${depsGet}
 
 mkdir -p deps/${name}
 cp mix.exs deps/${name}/mix.exs
 
-mix compile --no-deps-check ${compile_args.join(" ")}
-tar cf ${appTarball} _build/prod/lib/${name} deps/${name}
+mix compile ${compile_args.join(" ")}
 
 `,
   });
