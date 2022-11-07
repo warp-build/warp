@@ -101,6 +101,9 @@ pub enum ArtifactStoreError {
         dst: PathBuf,
         err: std::io::Error,
     },
+
+    #[error("Could not remove stale output at {file:?} due to: {err:?}")]
+    StaleOutputRemovalError { err: std::io::Error, file: PathBuf },
 }
 
 impl ArtifactStore {

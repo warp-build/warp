@@ -72,6 +72,7 @@ impl LocalArtifactStore {
                 manifest.hash
             );
             if output_manifest.hash == manifest.hash {
+                debug!("Hashes match! Nothing to be removed");
                 return Ok(());
             }
 
@@ -81,16 +82,26 @@ impl LocalArtifactStore {
                 .await
                 .map_err(ArtifactStoreError::OutputManifestError)?;
 
+            debug!("Hashes do not match, removing old files...",);
+
             let mut rm_tasks = vec![];
-            for out in output_manifest.outs {
-                rm_tasks.push(async move {
-                    let file = dst.join(out);
-                    fs::remove_file(&file).await?;
-                    Ok(())
-                });
+            for out in &output_manifest.outs {
+                rm_tasks.push(async move { fs::remove_file(&dst.join(out)).await });
             }
-            for result in futures::future::join_all(rm_tasks).await {
-                result.map_err(ArtifactStoreError::IOError)?;
+            for (result, file) in futures::future::join_all(rm_tasks)
+                .await
+                .into_iter()
+                .zip(output_manifest.outs.iter())
+            {
+                match result {
+                    Err(err) if err.kind() == std::io::ErrorKind::NotFound => continue,
+                    _ => (),
+                }
+
+                result.map_err(|err| ArtifactStoreError::StaleOutputRemovalError {
+                    err,
+                    file: file.to_path_buf(),
+                })?;
             }
         }
 
