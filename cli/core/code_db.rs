@@ -20,12 +20,13 @@ pub enum CodeDbError {
 }
 
 impl CodeDb {
-    pub fn new(workspace: &Workspace) -> Result<Self, CodeDbError> {
+    pub async fn new(workspace: &Workspace) -> Result<Self, CodeDbError> {
         let db_path = workspace
             .paths
             .global_codedb_root
             .join(&workspace.paths.workspace_name);
 
+        tokio::fs::create_dir_all(&db_path).await.unwrap();
         let sql = rusqlite::Connection::open(db_path.join("warp.db"))
             .map_err(CodeDbError::SqliteError)?;
 
