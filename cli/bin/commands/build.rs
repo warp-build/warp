@@ -31,10 +31,28 @@ Use //... to build the entire project.
     max_workers: Option<usize>,
 
     #[structopt(
-        help = r"Whether to show all the cache hit entries in the build output.",
+        help = r"Whether to show all the cache hit entries in the build outputs.",
         long = "show-cache-hits"
     )]
     show_cache_hits: bool,
+
+    #[structopt(
+        help = r"EXPERIMENTAL: this flag will ignore the cache and always rebuild",
+        long = "experimental-stream-analyzer-outputs"
+    )]
+    experimental_stream_analyzer_outputs: bool,
+
+    #[structopt(
+        help = r"EXPERIMENTAL: this flag will ignore the cache and always rebuild",
+        long = "experimental-force-rebuild"
+    )]
+    experimental_force_rebuild: bool,
+
+    #[structopt(
+        help = r"EXPERIMENTAL: this flag will load all the files instead of the build files",
+        long = "experimental-file-mode"
+    )]
+    experimental_file_mode: bool,
 }
 
 impl BuildCommand {
@@ -43,12 +61,15 @@ impl BuildCommand {
             label: "//...".to_string(),
             show_cache_hits: true,
             max_workers: None,
+            experimental_force_rebuild: false,
+            experimental_file_mode: false,
+            experimental_stream_analyzer_outputs: false,
         }
     }
 
     #[tracing::instrument(name = "BuildCommand::run", skip(warp))]
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
-        let label: Label = if let Some(label) = (&warp.workspace.aliases).get(&self.label) {
+        let label: Label = if let Some(label) = warp.workspace.aliases.get(&self.label) {
             label.clone()
         } else {
             let mut label: Label = self.label.replace("./", "").parse()?;
@@ -66,6 +87,9 @@ impl BuildCommand {
                 &[label.clone()],
                 BuildOpts {
                     concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
+                    experimental_force_rebuild: self.experimental_force_rebuild,
+                    experimental_file_mode: self.experimental_file_mode,
+                    experimental_stream_analyzer_outputs: self.experimental_stream_analyzer_outputs,
                     ..Default::default()
                 },
             ),
