@@ -134,7 +134,7 @@ impl SignatureStore {
             .analyzer_service_manager
             .find_analyzer_for_local_label(local_label)
         {
-            let code_db = CodeDb::new(&self.workspace).unwrap();
+            let code_db = CodeDb::new(&self.workspace).await.unwrap();
 
             let mut analyzer_svc = self
                 .analyzer_service_manager

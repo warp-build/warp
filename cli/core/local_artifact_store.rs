@@ -131,6 +131,7 @@ impl LocalArtifactStore {
 
             match result {
                 Ok(_) => Ok(()),
+                Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
                 Err(err) => {
                     return Err(ArtifactStoreError::PromoteOutputError {
                         label: manifest.label.clone(),
