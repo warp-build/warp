@@ -27,7 +27,12 @@ const impl = (ctx) => {
   }
 
   const transitiveDeps = ctx.transitiveDeps();
-  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://rules.warp.build/rules/elixir_library");
+
+  const beamLibraries = transitiveDeps.filter(dep =>
+    (dep.ruleName == "https://rules.warp.build/rules/elixir_library")
+    || (dep.ruleName == "https://rules.warp.build/rules/erlang_library")
+  );
+
   const mixLibraries =
     transitiveDeps
     .filter(dep => 
@@ -54,10 +59,20 @@ ${
   }).join("\n")
 }
 
-# NOTE(@ostera): handle raw elixir libraries
+# NOTE(@ostera): handle other mix libraries
 ${
   mixLibraries.flatMap((dep) => {
     return `cp -R ${dep.name}/_build ${cwd()}/`
+  }).join("\n")
+}
+
+# NOTE(@ostera): handle raw beam libraries
+mkdir -p ${cwd()}/src
+${
+  beamLibraries.flatMap((dep) => {
+    return dep.outs.map((out) => {
+      return `cp -R ${out} ${cwd()}/src/`
+    });
   }).join("\n")
 }
 
