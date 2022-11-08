@@ -18,6 +18,12 @@ pub struct LiftCommand {
         long = "max-workers"
     )]
     max_workers: Option<usize>,
+    #[structopt(
+        help = r"EXPERIMENTAL: this flag will ignore the cache and always rebuild",
+        long = "experimental-stream-analyzer-outputs"
+    )]
+    experimental_stream_analyzer_outputs: bool,
+
 }
 
 impl LiftCommand {
@@ -57,7 +63,7 @@ impl LiftCommand {
             .await;
             results?;
 
-            let db = CodeDb::new(&warp.workspace)?;
+            let db = CodeDb::new(&warp.workspace).await?;
 
             self.run_lifters(lifters, warp, db).await?;
         } else {
@@ -94,7 +100,7 @@ impl LiftCommand {
                 .cwd(PathBuf::from("."))
                 .manifest(manifest.clone())
                 .target(target.clone())
-                .stream_outputs(false)
+                .stream_outputs(self.experimental_stream_analyzer_outputs)
                 .sandboxed(false)
                 .args(vec!["start".into(), port.to_string()])
                 .build()?
