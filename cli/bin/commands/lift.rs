@@ -1,12 +1,9 @@
+use crate::proto;
 use crate::reporter::StatusReporter;
 use dashmap::DashSet;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use warp_core::*;
-
-pub mod codedb {
-    tonic::include_proto!("build.warp.codedb");
-}
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -62,10 +59,6 @@ impl LiftCommand {
 
             let db = CodeDb::new(&warp.workspace)?;
 
-            if !db.has_key("hello-world") {
-                db.write_hello()?
-            }
-
             self.run_lifters(lifters, warp, db).await?;
         } else {
             println!("Nothing to be done.")
@@ -81,8 +74,6 @@ impl LiftCommand {
     ) -> Result<(), anyhow::Error> {
         let cyan = console::Style::new().cyan().bold();
 
-        println!("{:>12} entire workspace...", cyan.apply_to("Scanning"),);
-
         let lifters: Vec<String> = lifters.iter().map(|l| l.to_string()).collect();
 
         let mut processes = vec![];
@@ -94,6 +85,7 @@ impl LiftCommand {
             .enumerate()
         {
             let port = 21000 + idx;
+            let conn_str = format!("http://0.0.0.0:{}", port);
 
             let manifest = build_result.target_manifest.clone();
             let target = build_result.executable_target.clone();
@@ -119,9 +111,7 @@ impl LiftCommand {
 
             let client = loop {
                 tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-                let conn_str = format!("http://0.0.0.0:{}", port);
-                let conn =
-                    codedb::analyzer_service_client::AnalyzerServiceClient::connect(conn_str).await;
+                let conn = proto::build::warp::codedb::analyzer_service_client::AnalyzerServiceClient::connect(conn_str.clone()).await;
                 if let Ok(conn) = conn {
                     break conn;
                 }
@@ -139,7 +129,7 @@ impl LiftCommand {
 
         let mut extensions = vec![];
         for client in &mut clients {
-            let request = codedb::GetInterestedExtensionsRequest {};
+            let request = proto::build::warp::codedb::GetInterestedExtensionsRequest {};
             let exts = client
                 .get_interested_extensions(request)
                 .await?
@@ -161,7 +151,7 @@ impl LiftCommand {
             for pattern in &[
                 "*target*",
                 "*_build*",
-                "*.warp*",
+                "*/.warp*",
                 "*warp-outputs*",
                 "*.git*",
                 "*.DS_Store*",
@@ -171,6 +161,8 @@ impl LiftCommand {
             }
             builder.build().unwrap()
         };
+
+        println!("{:>12} entire workspace...", cyan.apply_to("Scanning"),);
 
         let mut dirs = vec![root.clone()];
         while let Some(dir) = dirs.pop() {
@@ -197,16 +189,34 @@ impl LiftCommand {
                 for client in &mut clients {
                     let analyze_time = std::time::Instant::now();
                     let path = path.strip_prefix(&root).unwrap().to_path_buf();
-                    let request = codedb::AnalyzeFileRequest {
+                    let request = proto::build::warp::codedb::GetProvidedSymbolsRequest {
                         file: path.to_string_lossy().to_string(),
-                        symbol: "".into(),
                     };
-                    let response = client.analyze_file(request).await?.into_inner();
+                    let response = client.get_provided_symbols(request).await?.into_inner();
                     if !response.skipped {
                         let mut local_label: LocalLabel = path.clone().into();
                         local_label.set_workspace(&invocation_dir);
+                        let label: Label = local_label.into();
 
-                        db.save_analysis(&path, &hash).unwrap();
+                        for req in response.provides {
+                            let req = req.requirement.unwrap();
+                            match req {
+                                proto::build::warp::codedb::requirement::Requirement::File(
+                                    file,
+                                ) => {
+                                    db.save_file(&label, &path, &hash, &file.path)
+                                        .await
+                                        .unwrap();
+                                }
+                                proto::build::warp::codedb::requirement::Requirement::Symbol(
+                                    symbol,
+                                ) => {
+                                    db.save_symbol(&label, &path, &hash, &symbol.raw, &symbol.kind)
+                                        .await
+                                        .unwrap();
+                                }
+                            }
+                        }
 
                         println!(
                             "{:>12} {} ({}ms)",
@@ -219,9 +229,7 @@ impl LiftCommand {
             }
         }
 
-        for mut proc in processes {
-            proc.kill().await.unwrap()
-        }
+        drop(processes);
 
         Ok(())
     }

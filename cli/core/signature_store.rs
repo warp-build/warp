@@ -9,13 +9,22 @@ use tracing::*;
 
 #[derive(Debug)]
 pub struct SignatureStore {
+    analyzer_service_manager: Arc<AnalyzerServiceManager>,
+
     artifact_store: Arc<ArtifactStore>,
+
     build_results: Arc<BuildResults>,
+
     event_channel: Arc<EventChannel>,
+
     generators: DashMap<String, LabelId>,
+
     global_signatures_path: PathBuf,
+
     label_registry: Arc<LabelRegistry>,
+
     signatures: DashMap<PathBuf, Arc<Vec<Signature>>>,
+    workspace: Workspace,
 }
 
 #[derive(Error, Debug)]
@@ -51,6 +60,12 @@ pub enum SignatureStoreError {
         status: i32,
         label: Label,
     },
+
+    #[error(transparent)]
+    AnalyzerServiceManagerError(AnalyzerServiceManagerError),
+
+    #[error(transparent)]
+    AnalyzerServiceError(tonic::Status),
 }
 
 impl SignatureStore {
@@ -60,6 +75,7 @@ impl SignatureStore {
         event_channel: Arc<EventChannel>,
         artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
+        analyzer_service_manager: Arc<AnalyzerServiceManager>,
     ) -> Self {
         let generators = DashMap::new();
         for (ext, generator) in &[
@@ -72,20 +88,18 @@ impl SignatureStore {
         }
 
         Self {
-            signatures: DashMap::default(),
+            analyzer_service_manager,
+            artifact_store,
             build_results,
             event_channel,
-            artifact_store,
-            label_registry,
             generators,
             global_signatures_path: workspace.paths.global_signatures_path.clone(),
+            label_registry,
+            signatures: DashMap::default(),
+            workspace: workspace.to_owned(),
         }
     }
 
-    #[tracing::instrument(
-        name = "SignatureStore::generate_signature",
-        skip(self, _label_id, source_chunk)
-    )]
     pub async fn generate_signature(
         &self,
         _label_id: LabelId,
@@ -114,6 +128,94 @@ impl SignatureStore {
                     err,
                     json: String::from_utf8(bytes).unwrap(),
                 })?;
+
+            gen_sig
+        } else if let Some(analyzer_id) = self
+            .analyzer_service_manager
+            .find_analyzer_for_local_label(local_label)
+        {
+            let code_db = CodeDb::new(&self.workspace).unwrap();
+
+            let mut analyzer_svc = self
+                .analyzer_service_manager
+                .start(analyzer_id)
+                .await
+                .map_err(SignatureStoreError::AnalyzerServiceManagerError)?;
+
+            self.event_channel.send(Event::GeneratingSignature {
+                label: label.to_owned(),
+            });
+
+            let request = proto::build::warp::codedb::GenerateSignatureRequest {
+                file: local_label.file().to_string_lossy().to_string(),
+            };
+            let response = analyzer_svc
+                .generate_signature(request)
+                .await
+                .map_err(SignatureStoreError::AnalyzerServiceError)?
+                .into_inner();
+
+            let mut signatures = vec![];
+            for sig in response.signatures {
+                let mut deps = vec![];
+                for dep in sig.deps {
+                    let req = dep.requirement.unwrap();
+                    match req {
+                        proto::build::warp::codedb::requirement::Requirement::File(file_req) => {
+                            /*
+                            let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                            deps.push(label)
+                            */
+                        }
+                        proto::build::warp::codedb::requirement::Requirement::Symbol(sym_req) => {
+                            let label = code_db
+                                .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                                .await
+                                .unwrap();
+                            deps.push(label)
+                        }
+                    }
+                }
+
+                let mut runtime_deps = vec![];
+                for dep in sig.runtime_deps {
+                    let req = dep.requirement.unwrap();
+                    match req {
+                        proto::build::warp::codedb::requirement::Requirement::File(file_req) => {
+                            /*
+                            let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                            deps.push(label)
+                            */
+                        }
+                        proto::build::warp::codedb::requirement::Requirement::Symbol(sym_req) => {
+                            let label = code_db
+                                .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                                .await
+                                .unwrap();
+                            runtime_deps.push(label)
+                        }
+                    }
+                }
+
+                let signature = Signature {
+                    name: sig.name.parse().unwrap(),
+                    rule: sig.rule,
+                    deps,
+                    runtime_deps,
+                    config: sig.config.map(|c| c.into()).unwrap_or_default(),
+                };
+
+                signatures.push(signature)
+            }
+
+            let gen_sig = GeneratedSignature {
+                version: 0,
+                signatures,
+            };
+
+            let json_gen_sig = serde_json::to_string_pretty(&gen_sig).unwrap();
+            self._save(local_label, source_chunk, json_gen_sig.as_bytes())
+                .await?;
 
             gen_sig
         } else {

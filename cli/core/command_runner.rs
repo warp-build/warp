@@ -110,7 +110,7 @@ impl CommandRunner {
                 .stdout(Stdio::null());
         }
 
-        Ok(cmd.spawn().unwrap())
+        Ok(cmd.kill_on_drop(true).spawn().unwrap())
     }
 
     #[tracing::instrument(name = "DependencyResolver::resolve", skip(self))]

@@ -139,6 +139,15 @@ impl StatusReporter {
                             action_count += ac as u64;
                         }
 
+                        StartedAnalyzer { label } => {
+                            let line = format!(
+                                "{:>12} {}",
+                                purple.apply_to("Started"),
+                                label.to_string(),
+                            );
+                            pb.println(line);
+                        }
+
                         AnalyzingSource { label } => {
                             let line = format!(
                                 "{:>12} {}",

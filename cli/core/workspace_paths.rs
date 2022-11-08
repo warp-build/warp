@@ -30,6 +30,9 @@ pub struct WorkspacePaths {
     /// The location of the global cache
     pub global_workspaces_path: PathBuf,
 
+    /// The location of all the code databases
+    pub global_codedb_root: PathBuf,
+
     /// The location of all the downloadable archives
     pub global_archives_root: PathBuf,
 
@@ -87,6 +90,7 @@ impl WorkspacePaths {
 
         let global_archives_root = warp_root.join("archives");
         let global_cache_root = warp_root.join("store");
+        let global_codedb_root = warp_root.join("codedb");
         let global_rules_root = warp_root.join("rules");
         let global_workspaces_path = warp_root.join("workspaces");
 
@@ -105,6 +109,7 @@ impl WorkspacePaths {
             &warp_root.join("home"),
             &global_archives_root,
             &global_cache_root,
+            &global_codedb_root,
             &global_rules_root,
             &global_signatures_path,
             &global_workspaces_path,
@@ -128,6 +133,7 @@ impl WorkspacePaths {
             current_user,
             global_archives_root,
             global_cache_root,
+            global_codedb_root,
             global_rules_root,
             global_workspaces_path,
             global_signatures_path,

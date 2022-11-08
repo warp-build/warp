@@ -239,7 +239,8 @@ impl PartialEq for TargetManifest {
 }
 
 mod serde_iso8601 {
-    use chrono::*;
+    use chrono::DateTime;
+    use chrono::Utc;
     use serde::{de::Visitor, Deserializer, Serializer};
 
     struct DateTimeVisitor;
@@ -277,7 +278,7 @@ mod serde_iso8601 {
 }
 
 mod serde_duration {
-    use chrono::*;
+    use chrono::Duration;
     use serde::{de::Visitor, Deserializer, Serializer};
 
     struct DurationVisitor;

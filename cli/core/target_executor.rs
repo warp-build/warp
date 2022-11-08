@@ -73,7 +73,7 @@ impl TargetExecutor {
     pub async fn execute(
         &self,
         target: &ExecutableTarget,
-        _build_opts: &BuildOpts,
+        build_opts: &BuildOpts,
     ) -> Result<(TargetManifest, ValidationStatus), TargetExecutorError> {
         let build_started_at = chrono::Utc::now();
 
@@ -88,7 +88,9 @@ impl TargetExecutor {
                 .await
                 .map_err(TargetExecutorError::ArtifactStoreError)?;
 
-            return Ok((*manifest, ValidationStatus::Cached));
+            if !build_opts.experimental_force_rebuild {
+                return Ok((*manifest, ValidationStatus::Cached));
+            }
         }
 
         self.artifact_store

@@ -127,6 +127,35 @@ impl RuleConfig {
         }
     }
 
+    pub fn get_string_list(&self, key: &str) -> Result<Vec<String>, RuleConfigError> {
+        let entry = self
+            .config
+            .get(key)
+            .ok_or_else(|| RuleConfigError::MissingKey(key.to_string()))?;
+
+        if let CfgValue::List(elements) = entry {
+            let mut labels = vec![];
+            for el in elements {
+                if let CfgValue::String(l) = el {
+                    labels.push(l.clone());
+                } else {
+                    return Err(RuleConfigError::UnexpectedValueTypeInList {
+                        expected: CfgValueType::String,
+                        found: el.clone(),
+                        key: key.to_string(),
+                    });
+                }
+            }
+            Ok(labels)
+        } else {
+            Err(RuleConfigError::KeyHadWrongType {
+                expected: CfgValueType::List(Box::new(CfgValueType::Label)),
+                found: entry.clone(),
+                key: key.to_string(),
+            })
+        }
+    }
+
     pub fn get_label_list(&self, key: &str) -> Result<Vec<Label>, RuleConfigError> {
         let entry = self
             .config
@@ -307,6 +336,42 @@ impl Serialize for CfgValue {
 
                 seq.end()
             }
+        }
+    }
+}
+
+impl From<proto::google::protobuf::Struct> for RuleConfig {
+    fn from(value: proto::google::protobuf::Struct) -> Self {
+        let mut config = FxHashMap::default();
+
+        for (key, value) in value.fields {
+            config.insert(key.to_string(), value.into());
+        }
+
+        RuleConfig { config }
+    }
+}
+
+impl From<proto::google::protobuf::Value> for CfgValue {
+    fn from(value: proto::google::protobuf::Value) -> Self {
+        use proto::google::protobuf::*;
+        match value.kind.unwrap() {
+            value::Kind::StringValue(s) => CfgValue::String(s),
+            value::Kind::ListValue(arr) => {
+                let mut elements = vec![];
+                for e in arr.values {
+                    let value = e.into();
+                    elements.extend(match value {
+                        CfgValue::List(subparts) => subparts,
+                        el => vec![el],
+                    })
+                }
+                CfgValue::List(elements)
+            }
+            value::Kind::NumberValue(val) => panic!("Numbers not supported: {:?}", val),
+            value::Kind::BoolValue(val) => panic!("Booleans not supported: {:?}", val),
+            value::Kind::StructValue(val) => panic!("Objects not supported: {:?}", val),
+            value::Kind::NullValue(_) => panic!("Null not supported"),
         }
     }
 }

@@ -158,6 +158,19 @@ impl BuildWorker {
                 return self.requeue(task, &[generator]).await;
             }
 
+            Err(LabelResolverError::SourceManagerError(
+                SourceManagerError::AnalyzerServiceManagerError(
+                    AnalyzerServiceManagerError::MissingService(service_id),
+                ),
+            ))
+            | Err(LabelResolverError::SignatureStoreError(
+                SignatureStoreError::AnalyzerServiceManagerError(
+                    AnalyzerServiceManagerError::MissingService(service_id),
+                ),
+            )) => {
+                return self.requeue(task, &[service_id]).await;
+            }
+
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
                     (*self.label_registry.get_label(label)).to_owned(),

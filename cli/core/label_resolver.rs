@@ -2,7 +2,6 @@ use super::*;
 use dashmap::DashMap;
 use futures::Future;
 use futures::FutureExt;
-use fxhash::*;
 use std::path::PathBuf;
 use std::{pin::Pin, sync::Arc};
 use thiserror::*;

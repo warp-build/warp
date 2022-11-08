@@ -108,12 +108,21 @@ impl Display for SourceId {
 
 #[derive(Clone, Debug)]
 pub struct SourceManager {
+    analyzer_service_manager: Arc<AnalyzerServiceManager>,
+
     artifact_store: Arc<ArtifactStore>,
+
     build_results: Arc<BuildResults>,
+
     event_channel: Arc<EventChannel>,
+
     global_signatures_path: PathBuf,
+
     label_registry: Arc<LabelRegistry>,
+
+    // TODO(@ostera): remove this! we should be
     parsers: DashMap<String, LabelId>,
+
     sources: DashMap<(LabelId, SourceHash, SourceSymbol), SourceFile>,
 }
 
@@ -169,6 +178,12 @@ pub enum SourceManagerError {
         status: i32,
         label: Label,
     },
+
+    #[error(transparent)]
+    AnalyzerServiceManagerError(AnalyzerServiceManagerError),
+
+    #[error(transparent)]
+    AnalyzerServiceError(tonic::Status),
 }
 
 impl SourceManager {
@@ -178,6 +193,7 @@ impl SourceManager {
         event_channel: Arc<EventChannel>,
         artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
+        analyzer_service_manager: Arc<AnalyzerServiceManager>,
     ) -> Self {
         let parsers = DashMap::new();
 
@@ -199,13 +215,14 @@ impl SourceManager {
         }
 
         Self {
+            analyzer_service_manager,
             artifact_store,
             build_results,
             event_channel,
+            global_signatures_path: workspace.paths.global_signatures_path.clone(),
             label_registry,
             parsers,
             sources: DashMap::new(),
-            global_signatures_path: workspace.paths.global_signatures_path.clone(),
         }
     }
 
@@ -218,7 +235,7 @@ impl SourceManager {
         let local_label = label.get_local().unwrap();
 
         let path = local_label.file();
-        let (contents, source_hash) = SourceHasher::hash_source(path)
+        let (_source_contents, source_hash) = SourceHasher::hash_source(path)
             .await
             .map_err(SourceManagerError::HasherError)?;
 
@@ -251,10 +268,52 @@ impl SourceManager {
             return Ok(source_file);
         };
 
-        if let Some(parser) = self.parsers.get(&*local_label.extension()) {
-            let source_file = self
-                .dump_ast(local_label, *parser, contents, source_hash, symbol.clone())
-                .await?;
+        if let Some(analyzer_id) = self
+            .analyzer_service_manager
+            .find_analyzer_for_local_label(local_label)
+        {
+            let mut analyzer_svc = self
+                .analyzer_service_manager
+                .start(analyzer_id)
+                .await
+                .map_err(SourceManagerError::AnalyzerServiceManagerError)?;
+
+            let request = proto::build::warp::codedb::GetAstRequest {
+                file: path.to_string_lossy().to_string(),
+                symbol: Some(proto::build::warp::codedb::Symbol {
+                    sym: Some(match symbol {
+                        SourceSymbol::All => proto::build::warp::codedb::symbol::Sym::All(true),
+                        SourceSymbol::Named(name) => {
+                            proto::build::warp::codedb::symbol::Sym::Named(name.to_string())
+                        }
+                    }),
+                }),
+            };
+
+            let response = analyzer_svc
+                .get_ast(request)
+                .await
+                .map_err(SourceManagerError::AnalyzerServiceError)?
+                .into_inner();
+
+            let resp_symbol = response.symbol.unwrap().sym.unwrap();
+
+            let source_file = SourceFile {
+                source: response.source,
+                symbol: match resp_symbol {
+                    proto::build::warp::codedb::symbol::Sym::All(_) => SourceSymbol::All,
+                    proto::build::warp::codedb::symbol::Sym::Named(name) => {
+                        SourceSymbol::Named(name)
+                    }
+                },
+                ast_hash: {
+                    let mut s = Sha256::new();
+                    s.update(&response.ast);
+                    format!("{:x}", s.finalize())
+                },
+                source_hash,
+            };
+
             self._save(&source_key, &source_file).await?;
             self.sources.insert(fast_source_key, source_file.clone());
             return Ok(source_file);
@@ -262,115 +321,6 @@ impl SourceManager {
 
         Err(SourceManagerError::UnknownParser {
             label: label.clone(),
-        })
-    }
-
-    async fn dump_tree_sitter_ast(
-        &self,
-        label: &LocalLabel,
-        source: String,
-        source_hash: SourceHash,
-    ) -> Result<SourceFile, SourceManagerError> {
-        let mut parser = tree_sitter::Parser::new();
-        parser
-            .set_language(match &*label.extension() {
-                "hrl" | "erl" => tree_sitter_erlang::language(),
-                "go" => tree_sitter_go::language(),
-                "js" => tree_sitter_javascript::language(),
-                "py" => tree_sitter_python::language(),
-                "rs" => tree_sitter_rust::language(),
-                "swift" => tree_sitter_swift::language(),
-                "ts" => tree_sitter_typescript::language_typescript(),
-                "jsx" | "tsx" => tree_sitter_typescript::language_tsx(),
-                _ => {
-                    return Err(SourceManagerError::UnknownParser {
-                        label: label.clone().into(),
-                    })
-                }
-            })
-            .unwrap();
-
-        self.event_channel.send(Event::AnalyzingSource {
-            label: label.to_owned().into(),
-        });
-
-        let tree = parser.parse(&source, None).unwrap();
-
-        let parser_result = ParserResult {
-            version: 0,
-            ast: tree.root_node().to_sexp(),
-        };
-
-        Ok(SourceFile {
-            symbol: SourceSymbol::All,
-            ast_hash: parser_result.hash(),
-            source_hash,
-            source,
-        })
-    }
-
-    async fn dump_ast(
-        &self,
-        label: &LocalLabel,
-        parser_id: LabelId,
-        source: String,
-        source_hash: SourceHash,
-        symbol: SourceSymbol,
-    ) -> Result<SourceFile, SourceManagerError> {
-        let parser = self
-            .build_results
-            .get_build_result(parser_id)
-            .ok_or_else(|| SourceManagerError::MissingParser {
-                parser_id,
-                label: label.to_owned().into(),
-                parser: self.label_registry.get_label(parser_id).as_ref().to_owned(),
-            })?;
-
-        self.event_channel.send(Event::AnalyzingSource {
-            label: label.to_owned().into(),
-        });
-
-        let cmd = CommandRunner::builder()
-            .cwd(PathBuf::from("."))
-            .manifest(parser.target_manifest)
-            .target(parser.executable_target)
-            .args(vec![
-                "dump-ast".to_string(),
-                symbol.to_string(),
-                label.file().to_string_lossy().to_string(),
-            ])
-            .sandboxed(false)
-            .stream_outputs(false)
-            .build()
-            .map_err(SourceManagerError::CommandRunnerError)?;
-
-        let result = cmd
-            .run()
-            .await
-            .map_err(SourceManagerError::CommandRunnerError)?;
-
-        if result.status != 0 {
-            return Err(SourceManagerError::AnalyzerError {
-                stdout: result.stdout,
-                stderr: result.stderr,
-                status: result.status,
-                label: label.to_owned().into(),
-            });
-        }
-
-        let parser_result: ParserResult = serde_json::from_slice(result.stdout.as_bytes())
-            .map_err(|err| SourceManagerError::ParseError {
-                label: label.to_owned().into(),
-                parser: self.label_registry.get_label(parser_id).as_ref().to_owned(),
-                err,
-                ast: result.stdout.clone(),
-            })?;
-
-        Ok(SourceFile {
-            symbol,
-            ast_hash: parser_result.hash(),
-            source_hash,
-            source,
         })
     }
 
@@ -416,8 +366,8 @@ impl SourceManager {
                 "{:x}-{}-{}-{}",
                 label.hash(),
                 source_hash,
-                label.name().unwrap(),
-                symbol.to_string(),
+                label.file().file_name().unwrap().to_string_lossy(),
+                symbol.to_string().replace('/', "_"),
             ))
             .with_extension("ast")
     }

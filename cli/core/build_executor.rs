@@ -34,6 +34,8 @@ pub enum BuildExecutorError {
 ///
 #[derive(Builder, Clone, Debug)]
 pub struct BuildExecutor {
+    analyzer_service_manager: Arc<AnalyzerServiceManager>,
+
     artifact_store: Arc<ArtifactStore>,
 
     build_coordinator: Arc<BuildCoordinator>,
@@ -101,12 +103,21 @@ impl BuildExecutor {
 
         let rule_store = Arc::new(RuleStore::new(&workspace));
 
+        let analyzer_service_manager = Arc::new(AnalyzerServiceManager::new(
+            &workspace,
+            label_registry.clone(),
+            build_results.clone(),
+            event_channel.clone(),
+            build_opts,
+        ));
+
         let signature_store = Arc::new(SignatureStore::new(
             &workspace,
             build_results.clone(),
             event_channel.clone(),
             artifact_store.clone(),
             label_registry.clone(),
+            analyzer_service_manager.clone(),
         ));
 
         let source_manager = Arc::new(SourceManager::new(
@@ -115,6 +126,7 @@ impl BuildExecutor {
             event_channel.clone(),
             artifact_store.clone(),
             label_registry.clone(),
+            analyzer_service_manager.clone(),
         ));
 
         let label_resolver = Arc::new(LabelResolver::new(
@@ -143,6 +155,7 @@ impl BuildExecutor {
         });
 
         Ok(BuildExecutor {
+            analyzer_service_manager,
             artifact_store,
             build_coordinator,
             build_opts,
@@ -300,6 +313,7 @@ impl BuildExecutor {
         let should_queue_everything = labels.iter().any(|t| t.is_all());
         let labels: Vec<Label> = labels.to_vec();
 
+        let analyzer_service_manager = self.analyzer_service_manager.clone();
         let build_coordinator = self.build_coordinator.clone();
         let build_opts = self.build_opts;
         let build_queue = self.build_queue.clone();
@@ -318,7 +332,7 @@ impl BuildExecutor {
                     for pattern in &[
                         "*target*",
                         "*_build*",
-                        "*.warp*",
+                        "*/.warp*",
                         "*warp-outputs*",
                         "*.git*",
                     ] {
@@ -346,12 +360,23 @@ impl BuildExecutor {
 
                         let path = path.strip_prefix(&root).unwrap().to_path_buf();
 
-                        let label = Label::local_builder()
+                        let local_label = Label::local_builder()
                             .workspace(root.clone())
+                            .name(Some(
+                                path.file_name().unwrap().to_string_lossy().to_string(),
+                            ))
                             .file(path)
-                            .build_label()
+                            .build()
                             .map_err(BuildExecutorError::LabelError)?;
 
+                        if analyzer_service_manager
+                            .find_analyzer_for_local_label(&local_label)
+                            .is_none()
+                        {
+                            continue;
+                        }
+
+                        let label: Label = local_label.into();
                         let label = label_registry.register_label(label);
 
                         build_queue

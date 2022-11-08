@@ -69,4 +69,7 @@ pub enum Event {
     },
     TargetBuilt(Label),
     WorkerError(BuildWorkerError),
+    StartedAnalyzer {
+        label: Label,
+    },
 }

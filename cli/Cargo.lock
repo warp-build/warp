@@ -378,6 +378,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
+name = "bincode"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f45e9417d87227c7a56d22e471c6206462cba514c7590c09aff4cf6d1ddcad"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "bindgen"
 version = "0.60.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2281,12 +2290,22 @@ dependencies = [
 
 [[package]]
 name = "prost"
+version = "0.10.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71adf41db68aa0daaefc69bb30bcd68ded9b9abaad5d1fbb6304c4fb390e083e"
+dependencies = [
+ "bytes 1.2.1",
+ "prost-derive 0.10.1",
+]
+
+[[package]]
+name = "prost"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0841812012b2d4a6145fae9a6af1534873c32aa67fff26bd09f8fa42c83f95a"
 dependencies = [
  "bytes 1.2.1",
- "prost-derive",
+ "prost-derive 0.11.2",
 ]
 
 [[package]]
@@ -2303,12 +2322,25 @@ dependencies = [
  "multimap",
  "petgraph",
  "prettyplease",
- "prost",
- "prost-types",
+ "prost 0.11.2",
+ "prost-types 0.11.2",
  "regex",
  "syn",
  "tempfile",
  "which",
+]
+
+[[package]]
+name = "prost-derive"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b670f45da57fb8542ebdbb6105a925fe571b67f9e7ed9f47a06a84e72b4e7cc"
+dependencies = [
+ "anyhow",
+ "itertools",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -2326,12 +2358,22 @@ dependencies = [
 
 [[package]]
 name = "prost-types"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d0a014229361011dc8e69c8a1ec6c2e8d0f2af7c91e3ea3f5b2170298461e68"
+dependencies = [
+ "bytes 1.2.1",
+ "prost 0.10.4",
+]
+
+[[package]]
+name = "prost-types"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "747761bc3dc48f9a34553bf65605cf6cb6288ba219f3450b4275dbd81539551a"
 dependencies = [
  "bytes 1.2.1",
- "prost",
+ "prost 0.11.2",
 ]
 
 [[package]]
@@ -3162,8 +3204,8 @@ dependencies = [
  "hyper-timeout",
  "percent-encoding",
  "pin-project",
- "prost",
- "prost-derive",
+ "prost 0.11.2",
+ "prost-derive 0.11.2",
  "tokio 1.21.2",
  "tokio-stream",
  "tokio-util",
@@ -3632,7 +3674,7 @@ dependencies = [
  "num_cpus",
  "opentelemetry",
  "opentelemetry-jaeger",
- "prost",
+ "prost 0.11.2",
  "serde",
  "serde_derive",
  "serde_json",
@@ -3660,6 +3702,7 @@ dependencies = [
  "async-tar",
  "async-trait",
  "async_zip",
+ "bincode",
  "chrono",
  "crossbeam",
  "daggy",
@@ -3684,7 +3727,8 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-jaeger",
  "petgraph",
- "prost",
+ "prost 0.11.2",
+ "prost-types 0.10.1",
  "regex",
  "reqwest",
  "rocksdb",
