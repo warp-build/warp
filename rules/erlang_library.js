@@ -27,7 +27,7 @@ const impl = ctx => {
 
   const outputs = behaviors
     .concat(srcsErl)
-    .map(erl => File.withExtension(erl, BEAM_EXT))
+    .flatMap(erl => [erl, File.withExtension(erl, BEAM_EXT)])
     .concat(srcsHrl);
 
   ctx.action().declareOutputs(outputs);
