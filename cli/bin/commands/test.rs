@@ -36,6 +36,11 @@ Use //... to build the entire project.
         long = "show-cache-hits"
     )]
     show_cache_hits: bool,
+    #[structopt(
+        help = r"EXPERIMENTAL: this flag will ignore the cache and always rebuild",
+        long = "experimental-stream-analyzer-outputs"
+    )]
+    experimental_stream_analyzer_outputs: bool,
 }
 
 impl TestCommand {
@@ -61,6 +66,7 @@ impl TestCommand {
                     goal: Goal::Test,
                     target_filter: TargetFilter::OnlyTests,
                     concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
+                    experimental_stream_analyzer_outputs: self.experimental_stream_analyzer_outputs,
                     ..Default::default()
                 },
             ),
