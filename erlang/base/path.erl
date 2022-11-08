@@ -34,8 +34,8 @@ is_prefix(Prefix, Path) -> strip_prefix(Prefix, Path) =/= Path.
 
 -spec nth_tail(Path :: t(), N :: non_neg_integer()) -> t().
 nth_tail(Path, N) when N > 0 ->
-  Parts = path:to_list(Path),
-  path:from_list(lists:nthtail(length(Parts) - N, Parts)).
+  Parts = to_list(Path),
+  from_list(lists:nthtail(length(Parts) - N, Parts)).
 
 -spec strip_prefix(Prefix :: t(), Path :: t()) -> t().
 strip_prefix(Prefix, Path) ->

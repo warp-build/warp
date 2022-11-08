@@ -1,7 +1,0 @@
-[[erlang_library]]
-name = "bin"
-deps = [
-  "//erlang/base",
-  "//erlang/base/jsone",
-  "//erlang/lifter/lib",
-]

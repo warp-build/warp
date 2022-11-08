@@ -1,5 +1,5 @@
-%% @doc The `erl_analyzer` analyzes a file by preprocessing and parsing it into Erlang Syntax Forms,
-%% and then analyzing those forms.
+%% @doc The `erl_analyzer` analyzes a file by preprocessing and parsing it into
+%% Erlang Syntax Forms, and then analyzing those forms.
 %%
 -module(erl_analyzer).
 
@@ -8,9 +8,13 @@
 -export([analyze/1]).
 -export([analyze/3]).
 
+-export([subtree/2]).
 -export([ast/1]).
 -export([dependency_includes/1]).
 -export([dependency_modules/1]).
+-export([exports/1]).
+-export([exported_functions/1]).
+-export([exported_types/1]).
 -export([functions/1]).
 -export([includes/1]).
 -export([missing_includes/1]).
@@ -18,18 +22,19 @@
 -export([modules/1]).
 -export([parse_transforms/1]).
 
--export_type([mod_desc/0]).
 -export_type([err/0]).
+-export_type([mod_desc/0]).
 -export_type([opts/0]).
 
 -opaque mod_desc() :: #{
-                        modules => [],
-                        includes => [],
+                        ast => fun(() -> term()),
+                        exports => #{ functions => [], types => [] },
                         functions => [],
+                        includes => [],
                         missing_includes => [],
                         missing_modules => [],
-                        parse_transforms => [],
-                        ast => fun(() -> term())
+                        modules => [],
+                        parse_transforms => []
                        }.
 
 -type err() :: {parse_error, term()}.
@@ -42,11 +47,87 @@
 
 ast(#{ ast := Fn }) -> Fn().
 functions(#{ functions := Fns }) -> Fns.
+exports(#{ exports := Ex }) -> Ex.
+exported_functions(#{ exports := #{ functions := Fns }}) -> Fns.
+exported_types(#{ exports := #{ types := Tys }}) -> Tys.
 includes(#{ includes := X }) -> X.
 missing_includes(#{ missing_includes := X }) -> X.
 missing_modules(#{ missing_modules := X }) -> X.
 modules(#{ modules := X }) -> X.
 parse_transforms(#{ parse_transforms := X }) -> X.
+
+%%--------------------------------------------------------------------------------------------------
+%% Tree Splitter
+%%--------------------------------------------------------------------------------------------------
+subtree(#{ ast := Fn }, all) -> {ok, Fn()};
+subtree(#{ ast := Fn }, {named, Sym}) -> 
+  Ast = Fn(), 
+  case get_symbol(Ast, Sym) of
+    none -> {error, {symbol_not_found, Sym}};
+    {some, Subtree} -> slice_tree(Ast, Subtree, Sym)
+  end.
+
+slice_tree(Ast, Symbol, Sym) ->
+  AllDeps = get_sym_deps_rec(Ast, Symbol),
+  Subtree = strip_tree(Ast, [Sym|AllDeps], []),
+  {ok, Subtree}.
+
+strip_tree([], _Symbols, Acc) -> lists:reverse(Acc);
+
+strip_tree([{attribute, Loc, export, Exports0}|Ast], Symbols, Acc) ->
+  Exports = lists:filter(fun (Export) -> lists:member(Export, Symbols) end, Exports0),
+  case Exports of
+    [] -> strip_tree(Ast, Symbols, Acc);
+    _  -> strip_tree(Ast, Symbols, [{attribute, Loc, export, Exports}|Acc])
+  end;
+
+strip_tree([Node={attribute, _ , _, _}|Ast], Symbols, Acc) -> strip_tree(Ast, Symbols, [Node|Acc]);
+
+strip_tree([Node={function, _Loc, Name, Arity, _Body}|Ast], Symbols, Acc) ->
+  case lists:member({Name, Arity}, Symbols) of
+    true -> strip_tree(Ast, Symbols, [Node|Acc]);
+    false -> strip_tree(Ast, Symbols, Acc)
+  end;
+
+strip_tree([Node|Ast], Symbols, Acc) ->
+  strip_tree(Ast, Symbols, [Node|Acc]).
+
+get_symbol(Ast, {Sym, Args}) ->
+  erl_visitor:walk(
+    Ast,
+    _Acc = none,
+    fun
+      (Ast={function, _Loc1, Name, Arity, _Body}, none)
+        when (Name =:= Sym) andalso (Arity =:= Args) -> {some, Ast};
+      (_Ast, Acc) -> Acc
+    end).
+
+get_sym_deps(Ast) ->
+  skip_prelude(uniq(erl_visitor:walk(
+                      Ast,
+                      _Acc = [], 
+                      fun
+                        (_Ast = {call, _Loc, {atom, _Loc2, Name}, Args}, Acc) ->
+                          [ {Name, length(Args)} | Acc ];
+                        (_Ast, Acc) ->
+                          Acc
+                      end))).
+
+get_sym_deps_rec(Ast, Symbol) ->
+  NewDeps = get_sym_deps(Symbol),
+  DepAsts = [ begin 
+                {some, DepAst} = get_symbol(Ast, Dep),
+                get_sym_deps_rec(Ast, DepAst)
+              end || Dep <- NewDeps ],
+  lists:flatten([NewDeps | DepAsts]).
+
+skip_prelude(Fns) ->
+	lists:filtermap(fun (Fn) ->
+											case erl_stdlib:is_prelude_function(Fn) of
+												true -> false;
+												false -> {true, Fn}
+											end
+									end, Fns).
 
 %%--------------------------------------------------------------------------------------------------
 %% API
@@ -80,20 +161,42 @@ do_analyze(Path, IncludePaths, ModMap) ->
 
   {Includes, MissingIncludes} = get_includes(Ast),
 
-  Functions = case erl_stdlib:file_to_module(Path) of
-                {ok, ModName} -> all_functions(ModName, Ast);
-                _ -> []
+  {Functions, Exports} = case erl_stdlib:file_to_module(Path) of
+                {ok, ModName} -> 
+                  {all_functions(ModName, Ast), all_exports(ModName, Ast)};
+                _ -> {[], #{ types => [], functions => [], extra => [] }}
               end,
 
   {Path, #{
            modules => Mods,
            includes => Includes,
            functions => Functions,
+           exports => Exports,
            missing_includes => MissingIncludes,
            missing_modules => MissingMods,
            parse_transforms => ParseTrans,
            ast => fun () -> Ast end
           }}.
+
+all_exports(ModName, Ast) ->
+  {ExportedFns, ExportedTypes} = erl_visitor:walk(
+    Ast,
+    _Acc = { _Fns = [], _Types = [] },
+    fun
+      (_Ast={attribute, _Loc1, export, Exports}, {Fns, Types}) ->
+        {Exports ++ Fns, Types};
+
+      (_Ast={attribute, _Loc1, export_type, TypeExports}, {Fns, Types}) ->
+        {Fns, TypeExports ++ Types};
+
+      (_Ast, Acc) ->
+        Acc
+    end),
+
+  #{
+    types => uniq([ {ModName, Name, Arity} || {Name, Arity} <- ExportedTypes ]),
+    functions => uniq([ {ModName, Name, Arity} || {Name, Arity} <- ExportedFns ])
+   }.
 
 all_functions(ModName, Ast) ->
   AllFns = uniq(erl_visitor:walk(

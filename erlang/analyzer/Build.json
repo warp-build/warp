@@ -1,0 +1,25 @@
+{
+  "signatures": [
+    {
+      "name": "erl_analyzer.erl",
+      "rule": "erlang_library",
+      "deps": [
+        "//erlang/base:erl_ast.erl",
+        "//erlang/base:erl_stdlib.erl",
+        "//erlang/base:erl_visitor.erl",
+        "./:source_tagger.erl"
+      ],
+      "srcs": [
+        "erl_analyzer.erl"
+      ]
+    },
+    {
+      "deps": [],
+      "name": "source_tagger.erl",
+      "rule": "erlang_library",
+      "runtime_deps": [],
+      "srcs": [
+        "source_tagger.erl"
+      ]
+    }]
+}

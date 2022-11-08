@@ -1,15 +1,14 @@
 {"signatures": 
 [
   {
-    "deps": [],
     "name": "cerl_analyzer.erl",
     "rule": "erlang_library",
-    "runtime_deps": [
+    "deps": [
       "//erlang/base:erl_ast.erl",
       "//erlang/base:path.erl",
       "//erlang/base:str.erl",
       "//erlang/base:tempdir.erl",
-      "//erlang/lifter/lib:source_tagger.erl"
+      "//erlang/analyzer:source_tagger.erl"
     ],
     "srcs": [
       "cerl_analyzer.erl"
@@ -26,39 +25,24 @@
   },
   {
     "deps": [],
-    "name": "erl_analyzer.erl",
-    "rule": "erlang_library",
-    "runtime_deps": [
-      "//erlang/base:erl_ast.erl",
-      "//erlang/base:erl_stdlib.erl",
-      "//erlang/base:erl_visitor.erl",
-      "//erlang/lifter/lib:source_tagger.erl"
-    ],
-    "srcs": [
-      "erl_analyzer.erl"
-    ]
-  },
-  {
-    "deps": [],
     "name": "lifter_depgraph.erl",
     "rule": "erlang_library",
     "runtime_deps": [
-      "//erlang/lifter/lib:erl_analyzer.erl"
+      "//erlang/analyzer:erl_analyzer.erl"
     ],
     "srcs": [
       "lifter_depgraph.erl"
     ]
   },
   {
-    "deps": [],
     "name": "source_analyzer.erl",
     "rule": "erlang_library",
-    "runtime_deps": [
+    "deps": [
       "//erlang/base:erl_stdlib.erl",
       "//erlang/base:path.erl",
       "//erlang/base:str.erl",
       "//erlang/lifter/lib:cerl_analyzer.erl",
-      "//erlang/lifter/lib:erl_analyzer.erl"
+      "//erlang/analyzer:erl_analyzer.erl"
     ],
     "srcs": [
       "source_analyzer.erl"
@@ -77,15 +61,6 @@
     ],
     "srcs": [
       "lifter_rebar3.erl"
-    ]
-  },
-  {
-    "deps": [],
-    "name": "source_tagger.erl",
-    "rule": "erlang_library",
-    "runtime_deps": [],
-    "srcs": [
-      "source_tagger.erl"
     ]
   }
 ]}

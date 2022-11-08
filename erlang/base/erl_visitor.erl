@@ -71,6 +71,11 @@ walk(Node={'bin', _Ln, Parts}, Acc, Fn) ->
     Fn(Node, Acc),
     Parts);
 
+walk(Node={'cons', _Ln, Head, Tail}, Acc, Fn) ->
+  Acc0 = Fn(Node, Acc),
+  Acc1 = Fn(Head, Acc0),
+  Fn(Tail, Acc1);
+
 walk(Node={'var', _Ln, _Name}, Acc, Fn) ->
   Fn(Node, Acc);
 
