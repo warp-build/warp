@@ -20,7 +20,8 @@ impl TargetFilter {
 pub struct BuildOpts {
     pub goal: Goal,
     pub target_filter: TargetFilter,
-    pub force_output_promotion: bool,
     pub concurrency_limit: usize,
     pub experimental_file_mode: bool,
+    pub experimental_force_rebuild: bool,
+    pub experimental_stream_analyzer_outputs: bool,
 }
