@@ -343,7 +343,7 @@ impl SignatureStore {
                 "{:x}-{}-{}",
                 label.hash(),
                 source_chunk.ast_hash,
-                label.name().unwrap()
+                label.name().unwrap().replace("/", "_")
             ))
             .with_extension("wsig")
     }
