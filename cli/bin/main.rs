@@ -1,3 +1,7 @@
+mod proto {
+    include!(concat!(env!("OUT_DIR"), "/_include.rs"));
+}
+
 mod commands;
 mod reporter;
 

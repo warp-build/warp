@@ -14,12 +14,15 @@ fn main() -> Result<(), anyhow::Error> {
     let mut isolate = JsRuntime::new(options);
 
     let snapshot = isolate.snapshot();
-    let snapshot_slice: &[u8] = &*snapshot;
+    let snapshot_slice: &[u8] = &snapshot;
     println!("Snapshot size: {}", snapshot_slice.len());
     std::fs::write(&snapshot_path, snapshot_slice).unwrap();
     println!("Snapshot written to: {} ", snapshot_path.display());
 
-    tonic_build::compile_protos("../../schemas/build/warp/codedb.proto")?;
+    tonic_build::configure()
+        .include_file("_include.rs")
+        .compile_well_known_types(true)
+        .compile(&["protos/build/warp/codedb/analyzer.proto"], &["protos"])?;
 
     Ok(())
 }

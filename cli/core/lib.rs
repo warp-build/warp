@@ -1,4 +1,9 @@
+mod proto {
+    include!(concat!(env!("OUT_DIR"), "/_include.rs"));
+}
+
 mod actions;
+mod analyzer_service_manager;
 mod api;
 mod archive;
 mod archive_manager;
@@ -54,6 +59,7 @@ mod workspace_paths;
 mod workspace_scanner;
 
 pub use actions::*;
+pub use analyzer_service_manager::*;
 pub use api::*;
 pub use archive::*;
 pub use archive_manager::*;
