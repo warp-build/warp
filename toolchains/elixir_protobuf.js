@@ -9,11 +9,12 @@ const impl = ctx => {
     script: `
 
 mix escript.install hex protobuf ${version} --force
+mv /warp/home/.mix/escripts/protoc-gen-elixir . 
 
 `
   })
 
-  const protoc_gen_elixir = "/warp/home/.mix/escripts/protoc-gen-elixir";
+  const protoc_gen_elixir = "protoc-gen-elixir";
   ctx.action().setPermissions({ file: protoc_gen_elixir, executable: true })
 
   ctx.action().declareOutputs([protoc_gen_elixir]);
