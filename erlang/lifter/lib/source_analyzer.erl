@@ -125,7 +125,7 @@ get_ct_cases(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnal
   IncludeDeps = includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis),
 
   [#{
-    name => <<File/binary, ":", (erlang:atom_to_binary(Case, utf8))/binary>>,
+    name => <<File/binary, ":", (erlang:atom_to_binary(Case, utf8))/binary, "/1">>,
     test => path:filename(File),
     runtime_deps => deps_to_labels(ModDeps),
     deps => deps_to_labels(IncludeDeps), 
