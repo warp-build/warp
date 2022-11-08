@@ -3,33 +3,155 @@ defmodule Analyzer.Server do
 
   require Logger
 
-  def get_interested_extensions(request, _stream) do
+  def get_interested_extensions(_request, _stream) do
     ext = [".hrl", ".erl", ".ex", ".exs", ".config", ".eex"]
     Build.Warp.Codedb.GetInterestedExtensionsResponse.new(ext: ext)
   end
 
-  def analyze_file(req, stream)  do
-    ext = Path.extname(req.file)
-    do_analyze_file(ext, req)
+  def generate_signature(req, _stream) do
+    Logger.info("Analyzing: #{req.file}")
+
+    cond do
+      Path.extname(req.file) in [".erl", ".hrl"] -> do_generate_signature(req)
+      true -> Build.Warp.Codedb.GenerateSignatureResponse.new( status: :STATUS_ERR)
+    end
   end
 
-  defp do_analyze_file(".erl", req), do: run_analysis(req)
-  defp do_analyze_file(".hrl", req), do: run_analysis(req)
+  def do_generate_signature(req) do
+    signatures = :source_analyzer.analyze_one(req.file, _ModMap=%{}, _IgnoreModMap=%{}, _IncludePaths=[])
 
-  defp do_analyze_file(_, req) do 
-    Logger.info("Skipping #{req.file}")
-    Build.Warp.Codedb.AnalyzeFileResponse.new(skipped: true, file: req.file)
+    signatures = :maps.get(:signatures, signatures, [])
+
+    gen_sig = %{
+      :version => 0,
+      :signatures => signatures
+    } |> Jason.encode!()
+
+    signatures = signatures
+      |> Enum.map(fn sig ->
+        deps = sig.deps
+               |> Enum.map(fn dep ->
+                 symbol = Build.Warp.Codedb.SymbolRequirement.new(
+                   raw: dep,
+                   kind: "module"
+                 )
+                 Build.Warp.Codedb.Requirement.new(requirement: {:symbol, symbol})
+               end)
+
+        runtime_deps = sig.runtime_deps
+               |> Enum.map(fn dep ->
+                 symbol = Build.Warp.Codedb.SymbolRequirement.new(
+                   raw: dep,
+                   kind: "module"
+                 )
+                 Build.Warp.Codedb.Requirement.new(requirement: {:symbol, symbol})
+               end)
+
+        Build.Warp.Codedb.Signature.new(
+          name: sig.name,
+          rule: sig.rule,
+          deps: deps,
+          runtime_deps: runtime_deps,
+        )
+      end)
+
+    IO.inspect(signatures)
+
+    Build.Warp.Codedb.GenerateSignatureResponse.new(
+      status: :STATUS_OK,
+      file: req.file,
+      json_signature: gen_sig,
+      signatures: signatures
+    )
   end
 
-  defp run_analysis(req) do
-    Logger.info("Analyzing #{req.file}")
+  def get_ast(req, _stream) do
+    Logger.info("Analyzing: #{req.file}")
+
+    cond do
+      Path.extname(req.file) in [".erl", ".hrl"] -> do_get_erl_ast(req)
+    end
+  end
+
+  def do_get_erl_ast(req) do
+    file = req.file
+    {:ok, %{ ^file => result }} = :erl_analyzer.analyze([file], _ModMap=%{}, _IncludePaths=[])
+
+    symbol = case req.symbol.sym do
+      { :all, true } -> :all
+      { :named, sym } -> 
+        [f, a] = 
+          case sym |> String.split("/") do
+            [sym] -> [sym, "0"]
+            fa -> fa
+          end
+            
+        { :named, {String.to_atom(f), String.to_integer(a)} }
+    end
+
+    {:ok, ast} = :erl_analyzer.subtree(result, symbol)
+    source = ast |> :erl_syntax.form_list |> :erl_prettypr.format(encoding: :utf8) |> :binary.list_to_bin
+
+    Build.Warp.Codedb.GetAstResponse.new(
+      status: :STATUS_OK,
+      file: file,
+      symbol: Build.Warp.Codedb.Symbol.new(sym: req.symbol.sym), 
+			ast: Kernel.inspect(ast),
+      source: source
+    )
+  end
+
+  def get_provided_symbols(req, _stream)  do
+    case Path.extname(req.file) do
+      ".erl" -> do_get_provided_symbols(req)
+      ".hrl" -> do_get_provided_symbols(req)
+      _ ->
+        Logger.info("Skipped #{req.file}")
+        Build.Warp.Codedb.GetProvidedSymbolsResponse.new(skipped: true, file: req.file)
+    end
+  end
+
+  defp do_get_provided_symbols(req) do
+    Logger.info("Analyzing: #{req.file}")
 
     file = req.file
     {:ok, %{ ^file => result }} = :erl_analyzer.analyze([file], _ModMap=%{}, _IncludePaths=[])
 
-    Build.Warp.Codedb.AnalyzeFileResponse.new(
-      file: req.file,
+    requirement =
+      case Path.extname(req.file) do
+        ".erl" -> 
+          {:ok, mod_name} = :erl_stdlib.file_to_module(req.file)
+          mod_name = mod_name |> Atom.to_string
+          {:symbol, Build.Warp.Codedb.SymbolRequirement.new(raw: mod_name, kind: "module")}
+
+        ".hrl" ->
+          {:file, Build.Warp.Codedb.FileRequirement.new(path: req.file)}
+      end
+
+    exported_fns = :erl_analyzer.exported_functions(result) |> Enum.map(fn {m,f,a} ->
+      symbol = Build.Warp.Codedb.SymbolRequirement.new(
+        raw: "#{Atom.to_string(m)}:#{Atom.to_string(f)}/#{a}",
+        kind: "function"
+      )
+      Build.Warp.Codedb.Requirement.new(requirement: {:symbol, symbol})
+    end)
+
+    exported_types = :erl_analyzer.exported_types(result) |> Enum.map(fn {m,f,a} ->
+      symbol = Build.Warp.Codedb.SymbolRequirement.new(
+        raw: "#{Atom.to_string(m)}:#{Atom.to_string(f)}/#{a}",
+        kind: "type"
+      )
+      Build.Warp.Codedb.Requirement.new(requirement: {:symbol, symbol})
+    end)
+
+    provides = [Build.Warp.Codedb.Requirement.new(requirement: requirement)]
+               ++ exported_fns
+               ++ exported_types
+
+    Build.Warp.Codedb.GetProvidedSymbolsResponse.new(
       skipped: false,
+      file: req.file,
+      provides: provides
     )
   end
 end
