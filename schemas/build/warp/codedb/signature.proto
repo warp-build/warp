@@ -17,12 +17,6 @@ message GenerateSignatureResponse {
   Signature signature = 2;
 }
 
-enum Status {
-  STATUS_UNKNOWN = 0;
-  STATUS_OK = 1;
-  STATUS_ERR = 2;
-}
-
 message Signature {
   string label_name = 1;
   string rule_name = 2;
