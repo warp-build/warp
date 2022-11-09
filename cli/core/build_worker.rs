@@ -138,7 +138,7 @@ impl BuildWorker {
         let task = next_task.unwrap();
         let label = task.label;
 
-        let target = match self.label_resolver.resolve(label).await {
+        let target = match self.label_resolver.resolve(label, task.goal).await {
             Err(LabelResolverError::DependencyResolverError(
                 DependencyResolverError::MissingResolver { resolver },
             )) => {

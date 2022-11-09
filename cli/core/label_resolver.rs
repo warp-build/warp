@@ -110,6 +110,7 @@ impl LabelResolver {
     pub fn resolve<'a>(
         &'a self,
         label_id: LabelId,
+        goal: Goal,
     ) -> Pin<Box<dyn Future<Output = Result<Target, LabelResolverError>> + 'a>> {
         async move {
             if let Some(target) = self.resolved_labels.get(&label_id) {
@@ -155,7 +156,7 @@ impl LabelResolver {
                     return Ok(target);
                 }
             } else if label.is_file() {
-                let target = self.source_resolver.resolve(label_id, &label).await?;
+                let target = self.source_resolver.resolve(label_id, &label, goal).await?;
                 self.save(label_id, target.clone());
                 return Ok(target);
             }

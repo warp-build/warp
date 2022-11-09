@@ -1,7 +1,6 @@
-use std::sync::Arc;
-
 use super::Event;
 use super::*;
+use std::sync::Arc;
 
 /// A Label resolver capable of analyzing the sources that a label points to, to understand how to
 /// build it.
@@ -37,6 +36,7 @@ impl SourceResolver {
         &self,
         label_id: LabelId,
         label: &Label,
+        goal: Goal,
     ) -> Result<Target, LabelResolverError> {
         let _local_label = label.get_local().unwrap();
 
@@ -44,7 +44,7 @@ impl SourceResolver {
         //    signatures we are interested in, and since a source file can have more than one, we
         //    generate a SourceSymbol by inspecting the label and the current goal.
         //
-        let symbol = SourceSymbol::from_label_and_goal(label, self.build_opts.goal);
+        let symbol = SourceSymbol::from_label_and_goal(label, goal);
 
         // 2. Use the symbol to split the source to the subtree we want to generate a signature
         //    for. at this stage we will be using tree-sitter to provide us with an very fast and
@@ -66,7 +66,7 @@ impl SourceResolver {
             .map_err(LabelResolverError::SignatureStoreError)?;
 
         for sig in signatures.iter() {
-            if self.build_opts.goal.includes(sig) && sig.name.name() == label.name() {
+            if goal.includes(sig) && sig.name.name() == label.name() {
                 return Ok(sig.to_owned().into());
             }
         }
