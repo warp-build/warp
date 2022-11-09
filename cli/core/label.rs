@@ -146,6 +146,13 @@ impl LocalLabel {
         LocalLabelBuilder::default()
     }
 
+    pub fn set_name<S>(&mut self, s: S)
+    where
+        S: Into<String>,
+    {
+        self.name = Some(s.into());
+    }
+
     pub fn set_file<W>(&mut self, w: W)
     where
         W: Into<PathBuf>,
@@ -174,6 +181,10 @@ impl LocalLabel {
 
     pub fn file(&self) -> &Path {
         &self.file
+    }
+
+    pub fn filename(&self) -> Cow<'_, str> {
+        self.file.file_name().unwrap().to_string_lossy()
     }
 
     pub fn extension(&self) -> Cow<'_, str> {
@@ -298,6 +309,13 @@ pub struct RemoteLabel {
 impl RemoteLabel {
     pub fn builder() -> RemoteLabelBuilder {
         RemoteLabelBuilder::default()
+    }
+
+    pub fn set_name<S>(&mut self, s: S)
+    where
+        S: Into<String>,
+    {
+        self.name = Some(s.into());
     }
 
     pub fn url_str(&self) -> Cow<'_, str> {
@@ -432,6 +450,13 @@ impl AbstractLabel {
         self.path = w.into();
     }
 
+    pub fn set_name<S>(&mut self, s: S)
+    where
+        S: Into<String>,
+    {
+        self.name = s.into();
+    }
+
     pub fn workspace(&self) -> &Path {
         &self.workspace
     }
@@ -538,6 +563,18 @@ impl Label {
     pub fn set_associated_url(&mut self, url: Url) {
         if let Label::Local(l) = self {
             l.set_associated_url(url)
+        }
+    }
+
+    pub fn set_name<S>(&mut self, s: S)
+    where
+        S: Into<String>,
+    {
+        match self {
+            Label::Abstract(l) => l.set_name(s),
+            Label::Local(l) => l.set_name(s),
+            Label::Remote(l) => l.set_name(s),
+            _ => (),
         }
     }
 

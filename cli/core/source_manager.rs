@@ -60,13 +60,17 @@ pub enum SourceSymbol {
 }
 
 impl SourceSymbol {
+    pub fn is_all(&self) -> bool {
+        matches!(&self, Self::All)
+    }
+
     pub fn from_label_and_goal(label: &Label, goal: Goal) -> Self {
         match goal {
             Goal::Build => Self::All,
             Goal::Run => Self::All,
             Goal::Test => {
                 let name = label.name();
-                let file_name = label.path().file_name().unwrap().to_string_lossy();
+                let file_name = label.get_local().unwrap().filename();
                 if name == file_name {
                     Self::All
                 } else {

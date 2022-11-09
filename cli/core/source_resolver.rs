@@ -65,6 +65,22 @@ impl SourceResolver {
             .await
             .map_err(LabelResolverError::SignatureStoreError)?;
 
+        if symbol.is_all() {
+            let meta_sig = Signature {
+                name: {
+                    let mut label = label.to_owned();
+                    label.set_name("@all");
+                    label
+                },
+                rule: "dummy".to_string(),
+                runtime_deps: signatures.iter().map(|s| s.name.clone()).collect(),
+                deps: vec![],
+                config: RuleConfig::default(),
+            }
+            .into();
+            return Ok(meta_sig);
+        }
+
         for sig in signatures.iter() {
             if goal.includes(sig) && sig.name.name() == label.name() {
                 return Ok(sig.to_owned().into());
