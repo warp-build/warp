@@ -80,6 +80,19 @@ impl AnalyzerServiceManager {
         }
     }
 
+    pub fn all_clients(&self) -> Vec<AnalyzerServiceClient> {
+        self.clients.iter().map(|e| (*e).clone()).collect()
+    }
+
+    pub async fn start_all_clients(
+        &self,
+    ) -> Result<Vec<AnalyzerServiceClient>, AnalyzerServiceManagerError> {
+        for analyzer_id in self.analyzers_by_extension.iter() {
+            self.start(*analyzer_id).await?;
+        }
+        Ok(self.all_clients())
+    }
+
     pub fn find_analyzer_for_local_label(&self, local_label: &LocalLabel) -> Option<LabelId> {
         let ext = local_label.extension();
         self.analyzers_by_extension.get(&*ext).map(|r| (*r))
@@ -116,7 +129,6 @@ impl AnalyzerServiceManager {
 
         let conn_str = format!("http://0.0.0.0:{}", port);
         let client = loop {
-            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
             let conn =
                 proto::build::warp::codedb::analyzer_service_client::AnalyzerServiceClient::connect(
                     conn_str.clone(),
@@ -125,6 +137,7 @@ impl AnalyzerServiceManager {
             if let Ok(conn) = conn {
                 break conn;
             }
+            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
         };
 
         self.event_channel.send(Event::StartedAnalyzer {
