@@ -1,3 +1,4 @@
+use super::*;
 use crate::reporter::*;
 use anyhow::*;
 use structopt::StructOpt;
@@ -24,23 +25,8 @@ Use //... to build the entire project.
     )]
     label: String,
 
-    #[structopt(
-        help = r"The amount of workers to use to execute any necessary build tasks.",
-        short = "w",
-        long = "max-workers"
-    )]
-    max_workers: Option<usize>,
-
-    #[structopt(
-        help = r"Whether to show all the cache hit entries in the build output.",
-        long = "show-cache-hits"
-    )]
-    show_cache_hits: bool,
-    #[structopt(
-        help = r"EXPERIMENTAL: this flag will ignore the cache and always rebuild",
-        long = "experimental-stream-analyzer-outputs"
-    )]
-    experimental_stream_analyzer_outputs: bool,
+    #[structopt(flatten)]
+    flags: Flags,
 }
 
 impl TestCommand {
@@ -55,20 +41,17 @@ impl TestCommand {
 
         let status_reporter = StatusReporter::new(
             warp.event_channel.clone(),
-            self.show_cache_hits,
+            self.flags.show_cache_hits,
             Goal::Build,
         );
 
         let (_results, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],
-                BuildOpts {
-                    goal: Goal::Test,
-                    target_filter: TargetFilter::OnlyTests,
-                    concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
-                    experimental_stream_analyzer_outputs: self.experimental_stream_analyzer_outputs,
-                    ..Default::default()
-                },
+                self.flags
+                    .into_build_opts()
+                    .with_goal(Goal::Build)
+                    .with_target_filter(TargetFilter::OnlyTests),
             ),
             status_reporter.run(&[label.clone()]),
         )

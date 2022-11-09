@@ -1,6 +1,5 @@
 #!/bin/bash -xe
 
-
 readonly CURRENT_USER=$(whoami)
 
 echo "Beginning setup for ${CURRENT_USER}..."

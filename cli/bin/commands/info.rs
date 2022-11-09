@@ -1,3 +1,4 @@
+use super::*;
 use crate::reporter::*;
 use anyhow::*;
 use structopt::StructOpt;
@@ -19,23 +20,13 @@ Example: //my/library:shell
 ")]
     label: String,
 
-    #[structopt(
-        help = r"The amount of workers to use to execute any necessary build tasks.",
-        short = "w",
-        long = "max-workers"
-    )]
-    max_workers: Option<usize>,
-
-    #[structopt(
-        help = r"Whether to show all the cache hit entries in the build output.",
-        long = "show-cache-hits"
-    )]
-    show_cache_hits: bool,
+    #[structopt(flatten)]
+    flags: Flags,
 }
 
 impl InfoCommand {
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
-        let label: Label = if let Some(label) = (&warp.workspace.aliases).get(&self.label) {
+        let label: Label = if let Some(label) = warp.workspace.aliases.get(&self.label) {
             label.clone()
         } else {
             let mut label: Label = self.label.parse()?;
@@ -45,17 +36,13 @@ impl InfoCommand {
 
         let status_reporter = StatusReporter::new(
             warp.event_channel.clone(),
-            self.show_cache_hits,
+            self.flags.show_cache_hits,
             Goal::Build,
         );
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],
-                BuildOpts {
-                    goal: Goal::Run,
-                    concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
-                    ..Default::default()
-                },
+                self.flags.into_build_opts().with_goal(Goal::Run),
             ),
             status_reporter.run(&[label.clone()]),
         )

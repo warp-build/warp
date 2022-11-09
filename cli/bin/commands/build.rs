@@ -1,3 +1,4 @@
+use super::*;
 use crate::reporter::*;
 use structopt::StructOpt;
 use warp_core::*;
@@ -23,47 +24,15 @@ Use //... to build the entire project.
     )]
     label: String,
 
-    #[structopt(
-        help = r"The amount of workers to use to execute any necessary build tasks.",
-        short = "w",
-        long = "max-workers"
-    )]
-    max_workers: Option<usize>,
-
-    #[structopt(
-        help = r"Whether to show all the cache hit entries in the build outputs.",
-        long = "show-cache-hits"
-    )]
-    show_cache_hits: bool,
-
-    #[structopt(
-        help = r"EXPERIMENTAL: this flag will ignore the cache and always rebuild",
-        long = "experimental-stream-analyzer-outputs"
-    )]
-    experimental_stream_analyzer_outputs: bool,
-
-    #[structopt(
-        help = r"EXPERIMENTAL: this flag will ignore the cache and always rebuild",
-        long = "experimental-force-rebuild"
-    )]
-    experimental_force_rebuild: bool,
-
-    #[structopt(
-        help = r"EXPERIMENTAL: this flag will load all the files instead of the build files",
-        long = "experimental-file-mode"
-    )]
-    experimental_file_mode: bool,
+    #[structopt(flatten)]
+    flags: Flags,
 }
 
 impl BuildCommand {
     pub fn all() -> BuildCommand {
         BuildCommand {
             label: "//...".to_string(),
-            show_cache_hits: true,
-            max_workers: None,
-            experimental_force_rebuild: false,
-            experimental_file_mode: false,
-            experimental_stream_analyzer_outputs: false,
+            flags: Flags::default(),
         }
     }
 
@@ -79,19 +48,13 @@ impl BuildCommand {
 
         let status_reporter = StatusReporter::new(
             warp.event_channel.clone(),
-            self.show_cache_hits,
+            self.flags.show_cache_hits,
             Goal::Build,
         );
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],
-                BuildOpts {
-                    concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
-                    experimental_force_rebuild: self.experimental_force_rebuild,
-                    experimental_file_mode: self.experimental_file_mode,
-                    experimental_stream_analyzer_outputs: self.experimental_stream_analyzer_outputs,
-                    ..Default::default()
-                },
+                self.flags.into_build_opts().with_goal(Goal::Build),
             ),
             status_reporter.run(&[label]),
         )

@@ -30,7 +30,10 @@ To do this, we need sudo permissions to:
         let setup_script = include_str!("./setup.sh");
         let mut cmd = Command::new("bash");
 
-        cmd.stdout(Stdio::piped()).args(&["-c", setup_script]);
+        cmd.stdin(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .args(&["-c", setup_script]);
 
         let output = cmd.output().await.expect("could not run bash :(");
 

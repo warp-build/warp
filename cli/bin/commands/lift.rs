@@ -1,3 +1,4 @@
+use super::*;
 use crate::proto;
 use crate::reporter::StatusReporter;
 use dashmap::DashSet;
@@ -12,18 +13,8 @@ use warp_core::*;
     about = "generates signatures for this entire workspace"
 )]
 pub struct LiftCommand {
-    #[structopt(
-        help = r"The amount of workers to use to execute any necessary build tasks.",
-        short = "w",
-        long = "max-workers"
-    )]
-    max_workers: Option<usize>,
-    #[structopt(
-        help = r"EXPERIMENTAL: this flag will ignore the cache and always rebuild",
-        long = "experimental-stream-analyzer-outputs"
-    )]
-    experimental_stream_analyzer_outputs: bool,
-
+    #[structopt(flatten)]
+    flags: Flags,
 }
 
 impl LiftCommand {
@@ -53,10 +44,7 @@ impl LiftCommand {
             let (results, ()) = futures::future::join(
                 warp.execute(
                     &lifters,
-                    BuildOpts {
-                        concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
-                        ..BuildOpts::default()
-                    },
+                    self.flags.into_build_opts().with_goal(Goal::Build),
                 ),
                 status_reporter.run(&lifters),
             )
@@ -100,7 +88,7 @@ impl LiftCommand {
                 .cwd(PathBuf::from("."))
                 .manifest(manifest.clone())
                 .target(target.clone())
-                .stream_outputs(self.experimental_stream_analyzer_outputs)
+                .stream_outputs(self.flags.experimental_stream_analyzer_outputs)
                 .sandboxed(false)
                 .args(vec!["start".into(), port.to_string()])
                 .build()?

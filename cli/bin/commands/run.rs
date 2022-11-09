@@ -1,3 +1,4 @@
+use super::*;
 use crate::reporter::*;
 use anyhow::*;
 use std::collections::HashMap;
@@ -26,18 +27,8 @@ build their dependencies and exit.
 ")]
     label: String,
 
-    #[structopt(
-        help = r"The amount of workers to use to execute any necessary build tasks.",
-        short = "w",
-        long = "max-workers"
-    )]
-    max_workers: Option<usize>,
-
-    #[structopt(
-        help = r"Whether to show all the cache hit entries in the build output.",
-        long = "show-cache-hits"
-    )]
-    show_cache_hits: bool,
+    #[structopt(flatten)]
+    flags: Flags,
 
     #[structopt(name = "ARGUMENTS")]
     args: Vec<String>,
@@ -52,16 +43,15 @@ impl RunCommand {
         };
         label.set_workspace(&warp.workspace.paths.workspace_root);
 
-        let status_reporter =
-            StatusReporter::new(warp.event_channel.clone(), self.show_cache_hits, Goal::Run);
+        let status_reporter = StatusReporter::new(
+            warp.event_channel.clone(),
+            self.flags.show_cache_hits,
+            Goal::Run,
+        );
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],
-                BuildOpts {
-                    goal: Goal::Run,
-                    concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
-                    ..BuildOpts::default()
-                },
+                self.flags.into_build_opts().with_goal(Goal::Run),
             ),
             status_reporter.run(&[label.clone()]),
         )

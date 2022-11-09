@@ -1,3 +1,4 @@
+use super::*;
 use crate::reporter::*;
 use anyhow::*;
 use std::collections::HashMap;
@@ -14,18 +15,8 @@ use warp_core::*;
     about = "Run a shell in this workspace"
 )]
 pub struct ShellCommand {
-    #[structopt(
-        help = r"The amount of workers to use to execute any necessary build tasks.",
-        short = "w",
-        long = "max-workers"
-    )]
-    max_workers: Option<usize>,
-
-    #[structopt(
-        help = r"Whether to show all the cache hit entries in the build output.",
-        long = "show-cache-hits"
-    )]
-    show_cache_hits: bool,
+    #[structopt(flatten)]
+    flags: Flags,
 }
 
 impl ShellCommand {
@@ -34,16 +25,13 @@ impl ShellCommand {
 
         let status_reporter = StatusReporter::new(
             warp.event_channel.clone(),
-            self.show_cache_hits,
+            self.flags.show_cache_hits,
             Goal::Build,
         );
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],
-                BuildOpts {
-                    concurrency_limit: self.max_workers.unwrap_or_else(num_cpus::get),
-                    ..Default::default()
-                },
+                self.flags.into_build_opts().with_goal(Goal::Build),
             ),
             status_reporter.run(&[label.clone()]),
         )
@@ -85,7 +73,7 @@ impl ShellCommand {
         let default_path = std::env::var("PATH").unwrap();
         println!("{:?}", &default_path);
 
-        let extra_paths = env.get("PATH").cloned().unwrap_or_else(|| "".to_string());
+        let extra_paths = env.get("PATH").cloned().unwrap_or_default();
         env.remove("PATH");
         env.insert(
             "PATH".to_string(),
