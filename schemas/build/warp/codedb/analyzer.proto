@@ -4,7 +4,7 @@ package build.warp.codedb;
 import "google/protobuf/struct.proto";
 
 service AnalyzerService {
-  rpc GetInterestedExtensions(GetInterestedExtensionsRequest) returns (GetInterestedExtensionsResponse);
+  rpc GetInterestedPaths(GetInterestedPathsRequest) returns (GetInterestedPathsResponse);
 
   rpc GetProvidedSymbols(GetProvidedSymbolsRequest) returns (GetProvidedSymbolsResponse);
 
@@ -58,10 +58,11 @@ message Symbol {
   }
 }
 
-message GetInterestedExtensionsRequest {}
+message GetInterestedPathsRequest {}
 
-message GetInterestedExtensionsResponse {
-  repeated string ext = 1;
+message GetInterestedPathsResponse {
+  repeated string build_files = 1;
+  repeated string test_files = 2;
 }
 
 message GetProvidedSymbolsRequest {
