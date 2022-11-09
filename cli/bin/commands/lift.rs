@@ -22,7 +22,7 @@ impl LiftCommand {
         let toolchains_registry =
             ToolchainsRegistry::fetch(&warp.workspace.paths, warp.event_channel.clone()).await?;
 
-        let lifters: DashSet<Label> = toolchains_registry
+        let analyzers: DashSet<Label> = toolchains_registry
             .toolchains()
             .iter()
             .filter(|t| {
@@ -35,47 +35,47 @@ impl LiftCommand {
                     false
                 }
             })
-            .flat_map(|t| t.lifter.clone())
+            .flat_map(|t| t.analyzer.clone())
             .collect();
-        let lifters: Vec<Label> = lifters.into_iter().collect();
+        let analyzers: Vec<Label> = analyzers.into_iter().collect();
 
-        if !lifters.is_empty() {
+        if !analyzers.is_empty() {
             let status_reporter = StatusReporter::new(warp.event_channel.clone(), false, Goal::Run);
             let (results, ()) = futures::future::join(
                 warp.execute(
-                    &lifters,
+                    &analyzers,
                     self.flags.into_build_opts().with_goal(Goal::Build),
                 ),
-                status_reporter.run(&lifters),
+                status_reporter.run(&analyzers),
             )
             .await;
             results?;
 
             let db = CodeDb::new(&warp.workspace).await?;
 
-            self.run_lifters(lifters, warp, db).await?;
+            self.run_analyzers(analyzers, warp, db).await?;
         } else {
             println!("Nothing to be done.")
         }
         Ok(())
     }
 
-    async fn run_lifters(
+    async fn run_analyzers(
         &self,
-        lifters: Vec<Label>,
+        analyzers: Vec<Label>,
         warp: &WarpEngine,
         db: CodeDb,
     ) -> Result<(), anyhow::Error> {
         let cyan = console::Style::new().cyan().bold();
 
-        let lifters: Vec<String> = lifters.iter().map(|l| l.to_string()).collect();
+        let analyzers: Vec<String> = analyzers.iter().map(|l| l.to_string()).collect();
 
         let mut processes = vec![];
         let mut clients = vec![];
         for (idx, build_result) in warp
             .get_results()
             .iter()
-            .filter(|br| lifters.contains(&br.target_manifest.label.to_string()))
+            .filter(|br| analyzers.contains(&br.target_manifest.label.to_string()))
             .enumerate()
         {
             let port = 21000 + idx;
@@ -98,7 +98,7 @@ impl LiftCommand {
 
             println!(
                 "{:>12} started {} on port {}",
-                cyan.apply_to("Lifter"),
+                cyan.apply_to("Analyzer"),
                 build_result.target_manifest.label.to_string(),
                 port
             );
@@ -123,12 +123,9 @@ impl LiftCommand {
 
         let mut extensions = vec![];
         for client in &mut clients {
-            let request = proto::build::warp::codedb::GetInterestedExtensionsRequest {};
-            let exts = client
-                .get_interested_extensions(request)
-                .await?
-                .into_inner();
-            extensions.extend(exts.ext)
+            let request = proto::build::warp::codedb::GetInterestedPathsRequest {};
+            let exts = client.get_interested_paths(request).await?.into_inner();
+            extensions.extend(exts.build_files)
         }
 
         let match_patterns = {
