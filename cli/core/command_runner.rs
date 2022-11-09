@@ -83,10 +83,7 @@ impl CommandRunner {
 
         let mut cmd = Command::new(bin);
 
-        let extra_paths = shell_env
-            .get("PATH")
-            .cloned()
-            .unwrap_or_else(|| "".to_string());
+        let extra_paths = shell_env.get("PATH").cloned().unwrap_or_default();
         shell_env.remove("PATH");
         shell_env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
 
@@ -134,10 +131,7 @@ impl CommandRunner {
 
             let mut cmd = Command::new(bin);
 
-            let extra_paths = shell_env
-                .get("PATH")
-                .cloned()
-                .unwrap_or_else(|| "".to_string());
+            let extra_paths = shell_env.get("PATH").cloned().unwrap_or_default();
             shell_env.remove("PATH");
             shell_env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
 
