@@ -1,6 +1,7 @@
 use super::Event;
 use super::*;
 use dashmap::DashMap;
+use std::collections::BTreeMap;
 use std::{path::PathBuf, sync::Arc};
 use thiserror::*;
 use tokio::fs;
@@ -214,6 +215,7 @@ impl SignatureStore {
             };
 
             let json_gen_sig = serde_json::to_string_pretty(&gen_sig).unwrap();
+
             self._save(local_label, source_chunk, json_gen_sig.as_bytes())
                 .await?;
 
@@ -284,17 +286,70 @@ impl SignatureStore {
             gen_sig
         };
 
-        let sigs: Vec<Signature> = gen_sig
-            .signatures
-            .into_iter()
-            .map(|mut sig| {
-                sig.name.set_workspace(local_label.workspace());
-                for dep in sig.deps.iter_mut().chain(sig.runtime_deps.iter_mut()) {
-                    dep.set_workspace(local_label.workspace());
+        // NOTE(@ostera): we support a small file called <filename>.warp that can contain hints for
+        // the build system. These are things that we can't tell by static analysis of the file,
+        // or that would otherwise be very tricky to reliably get.
+        //
+        let hints_path = PathBuf::from(format!("{}.warp", local_label.file().to_string_lossy()));
+        let hints: BTreeMap<String, RuleConfig> = if let Ok(mut file) =
+            fs::File::open(&hints_path).await
+        {
+            let mut bytes = vec![];
+            file.read_to_end(&mut bytes).await.map_err(|err| {
+                SignatureStoreError::SignatureReadError {
+                    file: sig_path.clone(),
+                    err,
                 }
-                sig
-            })
-            .collect();
+            })?;
+
+            let hints: BTreeMap<String, RuleConfig> =
+                serde_json::from_slice(&bytes).map_err(|err| SignatureStoreError::ParseError {
+                    err,
+                    json: String::from_utf8(bytes).unwrap(),
+                })?;
+
+            hints
+        } else {
+            BTreeMap::new()
+        };
+
+        let mut sigs: Vec<Signature> = vec![];
+
+        for mut sig in gen_sig.signatures.into_iter() {
+            sig.name.set_workspace(local_label.workspace());
+
+            // NOTE(@ostera): if there are any hints, we will put them at the back of the
+            // dependency and runtime dependency lists.
+            //
+            if let Some(cfg) = hints.get(&*sig.name.name()) {
+                let package_path = local_label.file().parent().unwrap();
+                for mut dep in cfg.get_label_list("deps").unwrap_or_default() {
+                    if dep.path().starts_with("./") {
+                        dep.set_path(
+                            package_path.join(dep.path().to_string_lossy().replace("./", "")),
+                        );
+                        dep = dep.to_abstract().unwrap();
+                    }
+                    sig.deps.push(dep);
+                }
+
+                for mut dep in cfg.get_label_list("runtime_deps").unwrap_or_default() {
+                    if dep.path().starts_with("./") {
+                        dep.set_path(
+                            package_path.join(dep.path().to_string_lossy().replace("./", "")),
+                        );
+                        dep = dep.to_abstract().unwrap();
+                    }
+                    sig.runtime_deps.push(dep);
+                }
+            };
+
+            for dep in sig.deps.iter_mut().chain(sig.runtime_deps.iter_mut()) {
+                dep.set_workspace(local_label.workspace());
+            }
+
+            sigs.push(sig)
+        }
 
         if sigs.is_empty() {
             Err(SignatureStoreError::NoSignaturesFound {
@@ -343,7 +398,7 @@ impl SignatureStore {
                 "{:x}-{}-{}",
                 label.hash(),
                 source_chunk.ast_hash,
-                label.name().unwrap().replace("/", "_")
+                label.name().unwrap().replace('/', "_")
             ))
             .with_extension("wsig")
     }
