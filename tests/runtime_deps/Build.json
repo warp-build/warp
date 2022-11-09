@@ -1,4 +1,4 @@
-[
+{ "signatures": [
   {
     "rule": "erlang_script",
     "name": "main.erl",
@@ -29,4 +29,4 @@
     "runtime_deps": [],
     "deps": []
   }
-]
+] }
