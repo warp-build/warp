@@ -1,0 +1,8 @@
+{
+    "signatures": [
+        {
+            "name": "library",
+            "rule": "mix_library"
+        }
+    ]
+}
