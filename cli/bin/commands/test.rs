@@ -31,7 +31,7 @@ Use //... to build the entire project.
 
 impl TestCommand {
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
-        let label: Label = if let Some(label) = (&warp.workspace.aliases).get(&self.label) {
+        let label: Label = if let Some(label) = warp.workspace.aliases.get(&self.label) {
             label.clone()
         } else {
             let mut label: Label = self.label.parse()?;
