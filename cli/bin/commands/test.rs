@@ -50,7 +50,7 @@ impl TestCommand {
                 &[label.clone()],
                 self.flags
                     .into_build_opts()
-                    .with_goal(Goal::Build)
+                    .with_goal(Goal::Test)
                     .with_target_filter(TargetFilter::OnlyTests),
             ),
             status_reporter.run(&[label.clone()]),
