@@ -130,11 +130,7 @@ impl SignaturesFile {
     {
         let workspace_root = workspace_root.as_ref();
         let file = file.as_ref();
-        let package_path = file
-            .parent()
-            .unwrap()
-            .strip_prefix(&workspace_root)
-            .unwrap();
+        let package_path = file.parent().unwrap().strip_prefix(workspace_root).unwrap();
 
         let file =
             tokio::fs::File::open(&file)
@@ -152,12 +148,12 @@ impl SignaturesFile {
         for sig in &mut sig_file.signatures {
             sig.name = {
                 let mut name = sig.name.to_abstract().unwrap();
-                name.set_workspace(&workspace_root);
-                name.set_path(&package_path);
+                name.set_workspace(workspace_root);
+                name.set_path(package_path);
                 name
             };
             for dep in sig.deps.iter_mut().chain(sig.runtime_deps.iter_mut()) {
-                dep.set_workspace(&workspace_root);
+                dep.set_workspace(workspace_root);
                 if dep.path().starts_with("./") {
                     dep.set_path(package_path.join(dep.path().to_string_lossy().replace("./", "")));
                 }
