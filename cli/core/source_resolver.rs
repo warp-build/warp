@@ -65,7 +65,10 @@ impl SourceResolver {
             .await
             .map_err(LabelResolverError::SignatureStoreError)?;
 
-        if symbol.is_all() {
+        // NOTE(@ostera): if we have more than one thing to execute and we want to execute
+        // everything
+        /*
+        if signatures.len() > 1 && symbol.is_all() {
             let meta_sig = Signature {
                 name: {
                     let mut label = label.to_owned();
@@ -73,13 +76,14 @@ impl SourceResolver {
                     label
                 },
                 rule: "dummy".to_string(),
-                runtime_deps: signatures.iter().map(|s| s.name.clone()).collect(),
-                deps: vec![],
+                deps: signatures.iter().map(|s| s.name.clone()).collect(),
+                runtime_deps: vec![],
                 config: RuleConfig::default(),
             }
             .into();
             return Ok(meta_sig);
         }
+        */
 
         for sig in signatures.iter() {
             if goal.includes(sig) && sig.name.name() == label.name() {
