@@ -3,8 +3,8 @@ defmodule Analyzer.Server do
 
   require Logger
 
-  def get_interested_extensions(_request, _stream) do
-    Build.Warp.Codedb.GetInterestedExtensionsResponse.new(
+  def get_interested_paths(_request, _stream) do
+    Build.Warp.Codedb.GetInterestedPathsResponse.new(
       build_files: [".hrl", ".erl", ".ex", ".exs", ".config", ".eex"],
       test_files: ["*_SUITE.erl", "prop_*.erl"],
     )
