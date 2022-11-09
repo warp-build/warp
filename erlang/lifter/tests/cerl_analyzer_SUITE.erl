@@ -29,6 +29,7 @@ skips_dynamic_calls(_Config) ->
   ?assertMatch([#{calls := [], mfa := {dynamic_calls,foo,1}} ], ExtCalls).
 
 handles_real_life_example_from_verl(_Config) ->
+  % this change is to another test in the same file
   {ok, #{ <<"../erlang/lifter/tests/fixtures/verl_SUITE.erl">> :=
           #{
             name := verl_SUITE,

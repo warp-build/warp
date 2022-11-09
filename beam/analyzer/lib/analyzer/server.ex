@@ -4,20 +4,22 @@ defmodule Analyzer.Server do
   require Logger
 
   def get_interested_extensions(_request, _stream) do
-    ext = [".hrl", ".erl", ".ex", ".exs", ".config", ".eex"]
-    Build.Warp.Codedb.GetInterestedExtensionsResponse.new(ext: ext)
+    Build.Warp.Codedb.GetInterestedExtensionsResponse.new(
+      build_files: [".hrl", ".erl", ".ex", ".exs", ".config", ".eex"],
+      test_files: ["*_SUITE.erl", "prop_*.erl"],
+    )
   end
 
   def generate_signature(req, _stream) do
     Logger.info("Analyzing: #{req.file}")
 
     cond do
-      Path.extname(req.file) in [".erl", ".hrl"] -> do_generate_signature(req)
+      Path.extname(req.file) in [".erl", ".hrl"] -> gen_sig_erl(req)
       true -> Build.Warp.Codedb.GenerateSignatureResponse.new( status: :STATUS_ERR)
     end
   end
 
-  def do_generate_signature(req) do
+  def gen_sig_erl(req) do
     signatures = :source_analyzer.analyze_one(req.file, _ModMap=%{}, _IgnoreModMap=%{}, _IncludePaths=[])
 
     signatures = :maps.get(:signatures, signatures, [])
@@ -47,11 +49,21 @@ defmodule Analyzer.Server do
                  Build.Warp.Codedb.Requirement.new(requirement: {:symbol, symbol})
                end)
 
+        {:ok, config} = sig
+                        |> Map.delete(:deps)
+                        |> Map.delete(:runtime_deps)
+                        |> Map.delete(:name)
+                        |> Map.delete(:rule)
+                        |> Jason.encode!
+                        |> Jason.decode!
+                        |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
+
         Build.Warp.Codedb.Signature.new(
           name: sig.name,
           rule: sig.rule,
           deps: deps,
           runtime_deps: runtime_deps,
+          config: config,
         )
       end)
 
