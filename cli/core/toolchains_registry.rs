@@ -20,7 +20,7 @@ pub struct ToolchainId {
 #[derive(Debug, Clone)]
 pub struct Toolchain {
     pub id: ToolchainId,
-    pub lifter: Option<Label>,
+    pub analyzer: Option<Label>,
     pub config: RuleConfig,
     pub deps: Vec<ToolchainId>,
 }
@@ -99,10 +99,12 @@ impl ToolchainsRegistry {
                             .collect()
                     },
 
-                    lifter: object
-                        .get("analyzer")
-                        .and_then(|s| s.as_str())
-                        .and_then(|s| s.parse::<Label>().ok()),
+                    analyzer: {
+                        object
+                            .get("analyzer")
+                            .and_then(|s| s.as_str())
+                            .map(|str| str.parse::<Label>().unwrap())
+                    },
 
                     config: {
                         let mut object = object.clone();
