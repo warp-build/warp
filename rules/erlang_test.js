@@ -13,6 +13,8 @@ const impl = ctx => {
     .unique()
     .flatMap(dir => ["-pa", ctx.path(dir)])
 
+  const sname = name.replace("/","-");
+
   ctx.action().runShell({ script: `
 
 ct_run \
@@ -22,7 +24,7 @@ ct_run \
   -suite ${test.replace(ERL_EXT, "")} \
   ${(cases.length > 0) ? `-case ${cases.join(" ")}` : ""} \
   -erl_args \
-    -sname ${name}-$(uuidgen) \
+    -sname ${sname}-$(uuidgen) \
     ${extraLibPaths.join(" ")}
 
   `});
