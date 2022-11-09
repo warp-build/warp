@@ -98,6 +98,7 @@ impl RuleConfig {
     }
 
     pub fn insert(&mut self, key: String, val: CfgValue) -> &mut RuleConfig {
+        self.config.remove(&key);
         self.config.insert(key, val);
         self
     }
@@ -167,6 +168,8 @@ impl RuleConfig {
             for el in elements {
                 if let CfgValue::Label(l) = el {
                     labels.push(l.clone());
+                } else if let CfgValue::String(s) = el {
+                    labels.push(s.parse::<Label>().map_err(RuleConfigError::LabelError)?);
                 } else {
                     return Err(RuleConfigError::UnexpectedValueTypeInList {
                         expected: CfgValueType::Label,
@@ -345,6 +348,15 @@ impl From<proto::google::protobuf::Struct> for RuleConfig {
         let mut config = FxHashMap::default();
 
         for (key, value) in value.fields {
+            // FIXME(@ostera): this is kinda hacky. We need it because the only case where we fuck
+            // up the final hash table is when we transform from protobuf into a Rule Config. This
+            // is happening because of how the protobuf schemas look like now (Wed Nov 9 07:58:07
+            // CET 2022), I think. I'm pre-coffee too, so we'll see if this makes more sense in a
+            // few hours.
+            if ["name", "runtime_deps", "deps", "rule"].contains(&key.as_str()) {
+                continue;
+            }
+
             config.insert(key.to_string(), value.into());
         }
 
