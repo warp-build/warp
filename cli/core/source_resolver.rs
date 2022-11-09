@@ -37,7 +37,7 @@ impl SourceResolver {
         label_id: LabelId,
         label: &Label,
         goal: Goal,
-    ) -> Result<Target, LabelResolverError> {
+    ) -> Result<Vec<Target>, LabelResolverError> {
         let _local_label = label.get_local().unwrap();
 
         // 1. Figure out what inside that AST we care about -- we need to know exactly which
@@ -67,27 +67,13 @@ impl SourceResolver {
 
         // NOTE(@ostera): if we have more than one thing to execute and we want to execute
         // everything
-        /*
         if signatures.len() > 1 && symbol.is_all() {
-            let meta_sig = Signature {
-                name: {
-                    let mut label = label.to_owned();
-                    label.set_name("@all");
-                    label
-                },
-                rule: "dummy".to_string(),
-                deps: signatures.iter().map(|s| s.name.clone()).collect(),
-                runtime_deps: vec![],
-                config: RuleConfig::default(),
-            }
-            .into();
-            return Ok(meta_sig);
+            return Ok(signatures.iter().map(|s| s.to_owned().into()).collect());
         }
-        */
 
         for sig in signatures.iter() {
             if goal.includes(sig) && sig.name.name() == label.name() {
-                return Ok(sig.to_owned().into());
+                return Ok(vec![sig.to_owned().into()]);
             }
         }
 

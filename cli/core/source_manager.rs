@@ -18,6 +18,7 @@ pub enum SourceInput {
     Path(PathBuf),
     Chunk(SourceFile),
 }
+
 impl SourceInput {
     pub fn path(&self) -> PathBuf {
         match self {

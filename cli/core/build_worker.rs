@@ -49,7 +49,6 @@ pub struct BuildWorker {
     pub label_registry: Arc<LabelRegistry>,
     pub label_resolver: Arc<LabelResolver>,
     pub target_executor: Arc<TargetExecutor>,
-    
 
     pub env: ExecutionEnvironment,
 
@@ -69,7 +68,7 @@ impl BuildWorker {
         artifact_store: Arc<ArtifactStore>,
         share_rule_executor_state: Arc<SharedRuleExecutorState>,
         source_manager: Arc<SourceManager>,
-        build_opts: BuildOpts
+        build_opts: BuildOpts,
     ) -> Result<Self, BuildWorkerError> {
         let env = ExecutionEnvironment::new();
 
@@ -183,12 +182,22 @@ impl BuildWorker {
                 return Ok(());
             }
 
-            Ok(target) => {
+            Ok(targets) => {
+                let target = targets.get(0).unwrap().clone();
                 let original_label = self.label_registry.get_label(label);
                 if *original_label != target.label {
                     self.label_registry
                         .update_label(label, target.label.clone());
                 }
+
+                for target in targets.into_iter().skip(1) {
+                    let label = self.label_registry.register_label(target.label);
+                    let task = Task { label, ..task };
+                    self.build_queue
+                        .queue(task)
+                        .map_err(BuildWorkerError::QueueError)?;
+                }
+
                 target
             }
         };

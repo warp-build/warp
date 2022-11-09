@@ -111,10 +111,10 @@ impl LabelResolver {
         &'a self,
         label_id: LabelId,
         goal: Goal,
-    ) -> Pin<Box<dyn Future<Output = Result<Target, LabelResolverError>> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Target>, LabelResolverError>> + 'a>> {
         async move {
             if let Some(target) = self.resolved_labels.get(&label_id) {
-                return Ok(target.value().clone());
+                return Ok(vec![target.value().clone()]);
             }
 
             let label = self.label_registry.get_label(label_id);
@@ -122,7 +122,7 @@ impl LabelResolver {
             if label.is_remote() {
                 if let Some(target) = self.find_as_toolchain(label_id, &label).await? {
                     self.save(label_id, target.clone());
-                    return Ok(target);
+                    return Ok(vec![target]);
                 }
 
                 match self
@@ -132,7 +132,7 @@ impl LabelResolver {
                 {
                     Ok(Some(target)) => {
                         self.save(label_id, target.clone());
-                        return Ok(target);
+                        return Ok(vec![target]);
                     }
                     Ok(None) => (),
                     Err(
@@ -145,7 +145,7 @@ impl LabelResolver {
                             self.dependency_resolver.resolve(label_id, &label).await?
                         {
                             self.save(label_id, target.clone());
-                            return Ok(target);
+                            return Ok(vec![target]);
                         }
                         return Err(err);
                     }
@@ -153,12 +153,11 @@ impl LabelResolver {
             } else if label.is_abstract() {
                 if let Some(target) = self.find_in_local_workspace(&label).await? {
                     self.save(label_id, target.clone());
-                    return Ok(target);
+                    return Ok(vec![target]);
                 }
             } else if label.is_file() {
-                let target = self.source_resolver.resolve(label_id, &label, goal).await?;
-                self.save(label_id, target.clone());
-                return Ok(target);
+                let targets = self.source_resolver.resolve(label_id, &label, goal).await?;
+                return Ok(targets);
             }
 
             Err(LabelResolverError::TargetNotFound((*label).clone()))
