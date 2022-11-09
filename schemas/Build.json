@@ -3,7 +3,13 @@
     {
       "name": "elixir",
       "rule": "elixir_proto_library",
-      "protos": ["./**/*.proto"]
+      "protos": ["./**/*.proto"],
+      "deps": ["./:protos"]
+    },
+    {
+      "name": "protos",
+      "rule": "files",
+      "srcs": ["./**/*.proto"]
     }
   ]
 }
