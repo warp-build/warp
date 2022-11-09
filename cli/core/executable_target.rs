@@ -116,7 +116,7 @@ impl ExecutableTarget {
 
         let actions: Vec<String> = self.actions.iter().map(|a| format!("{:?}", a)).collect();
 
-        let mut srcs: Vec<PathBuf> = self.srcs.iter().map(|src| src.path() ).collect();
+        let mut srcs: Vec<PathBuf> = self.srcs.iter().map(|src| src.path()).collect();
         srcs.dedup_by(|a, b| a == b);
         srcs.sort();
 
@@ -144,7 +144,20 @@ impl ExecutableTarget {
             s.update(seed.as_bytes());
         }
 
-        for src in srcs {
+        for src in &self.srcs {
+            if let SourceInput::Chunk(chunk) = src {
+                if chunk.symbol.is_named() {
+                    s.update(&chunk.source);
+                    s.update(&chunk.ast_hash);
+                    continue;
+                }
+            }
+
+            let src = match src {
+                SourceInput::Chunk(chunk) => chunk.path.to_path_buf(),
+                SourceInput::Path(src) => src.to_path_buf(),
+            };
+
             let src = self.label.workspace().join(src);
             let f = File::open(&src).unwrap_or_else(|_| panic!("Unable to open: {:?}", &src));
             let mut buffer = [0; 2048];

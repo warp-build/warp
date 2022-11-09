@@ -16,7 +16,7 @@ use url::Url;
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum SourceInput {
     Path(PathBuf),
-    Chunk(SourceFile)
+    Chunk(SourceFile),
 }
 impl SourceInput {
     pub fn path(&self) -> PathBuf {
@@ -64,7 +64,7 @@ pub struct SourceFile {
     pub symbol: SourceSymbol,
     pub ast_hash: AstHash,
     pub source_hash: SourceHash,
-    pub path: PathBuf
+    pub path: PathBuf,
 }
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
@@ -75,6 +75,10 @@ pub enum SourceSymbol {
 }
 
 impl SourceSymbol {
+    pub fn is_named(&self) -> bool {
+        matches!(&self, Self::Named(_))
+    }
+
     pub fn is_all(&self) -> bool {
         matches!(&self, Self::All)
     }
