@@ -144,7 +144,10 @@ impl ArtifactStore {
         let label = label.as_ref();
         let label = label.get_local().unwrap();
 
-        let name = label.name().map(|n| format!("-{}", n)).unwrap_or_default();
+        let name = label
+            .name()
+            .map(|n| format!("-{}", n).replace('/', "-"))
+            .unwrap_or_default();
 
         if let Some(remote) = label.promoted_from() {
             format!("{}-{}/{}{}", remote.prefix_hash, remote.host, hash, name)
@@ -208,11 +211,7 @@ impl ArtifactStore {
                     .try_fetch(&store_key, &expected_path, &node.label)
                     .await;
 
-                let result = self.local_store.find_manifest(&store_key).await;
-                if let Ok(ArtifactStoreHitType::Hit(manifest)) = &result {
-                    self.promote_outputs(manifest).await?;
-                }
-                result
+                self.local_store.find_manifest(&store_key).await
             }
             result => Ok(result),
         }
