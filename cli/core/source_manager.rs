@@ -44,20 +44,6 @@ impl SourceHasher {
     }
 }
 
-#[derive(Default, Debug, Clone, Hash, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ParserResult {
-    version: usize,
-    ast: String,
-}
-
-impl ParserResult {
-    fn hash(&self) -> AstHash {
-        let mut s = Sha256::new();
-        s.update(&self.ast);
-        format!("{:x}", s.finalize())
-    }
-}
-
 #[derive(Default, Debug, Clone, Hash, Serialize, Deserialize)]
 pub struct SourceFile {
     pub source: String,
@@ -80,7 +66,12 @@ impl SourceSymbol {
             Goal::Run => Self::All,
             Goal::Test => {
                 let name = label.name();
-                Self::Named(name.to_string())
+                let file_name = label.path().file_name().unwrap().to_string_lossy();
+                if name == file_name {
+                    Self::All
+                } else {
+                    Self::Named(name.to_string())
+                }
             }
         }
     }
@@ -299,7 +290,6 @@ impl SourceManager {
             let resp_symbol = response.symbol.unwrap().sym.unwrap();
 
             let source_file = SourceFile {
-                source: response.source,
                 symbol: match resp_symbol {
                     proto::build::warp::codedb::symbol::Sym::All(_) => SourceSymbol::All,
                     proto::build::warp::codedb::symbol::Sym::Named(name) => {
@@ -308,10 +298,11 @@ impl SourceManager {
                 },
                 ast_hash: {
                     let mut s = Sha256::new();
-                    s.update(&response.ast);
+                    s.update(&response.source);
                     format!("{:x}", s.finalize())
                 },
                 source_hash,
+                source: response.source,
             };
 
             self._save(&source_key, &source_file).await?;
