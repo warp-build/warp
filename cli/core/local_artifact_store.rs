@@ -82,7 +82,7 @@ impl LocalArtifactStore {
                 .await
                 .map_err(ArtifactStoreError::OutputManifestError)?;
 
-            debug!("Hashes do not match, removing old files...",);
+            debug!("Hashes do not match, removing old files...");
 
             let mut rm_tasks = vec![];
             for out in &output_manifest.outs {
@@ -131,7 +131,6 @@ impl LocalArtifactStore {
 
             match result {
                 Ok(_) => Ok(()),
-                Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
                 Err(err) => {
                     return Err(ArtifactStoreError::PromoteOutputError {
                         label: manifest.label.clone(),
