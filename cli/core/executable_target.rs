@@ -31,7 +31,7 @@ pub struct ExecutableTarget {
     /// Dependencies that need to be present but not copied into the cache
     pub toolchains: Vec<LabelId>,
 
-    pub srcs: FxHashSet<PathBuf>,
+    pub srcs: FxHashSet<SourceInput>,
 
     pub outs: FxHashSet<PathBuf>,
 
@@ -116,7 +116,7 @@ impl ExecutableTarget {
 
         let actions: Vec<String> = self.actions.iter().map(|a| format!("{:?}", a)).collect();
 
-        let mut srcs: Vec<&PathBuf> = self.srcs.iter().collect();
+        let mut srcs: Vec<PathBuf> = self.srcs.iter().map(|src| src.path() ).collect();
         srcs.dedup_by(|a, b| a == b);
         srcs.sort();
 
@@ -190,6 +190,10 @@ impl ExecutableTarget {
 
     pub fn is_portable(&self) -> bool {
         self.rule.portability == Portability::Portable
+    }
+
+    pub fn srcs(&self) -> Vec<PathBuf> {
+        self.srcs.iter().map(|src| src.path()).collect()
     }
 }
 

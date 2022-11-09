@@ -1,11 +1,13 @@
 use super::*;
 use std::sync::Arc;
+use fxhash::FxHashSet;
 use thiserror::*;
 
 pub struct TargetPlanner {
     build_results: Arc<BuildResults>,
     rule_store: Arc<RuleStore>,
     rule_executor: RuleExecutor,
+    source_manager: Arc<SourceManager>,
     artifact_store: Arc<ArtifactStore>,
     label_registry: Arc<LabelRegistry>,
 }
@@ -39,12 +41,14 @@ impl TargetPlanner {
     pub fn new(
         build_results: Arc<BuildResults>,
         artifact_store: Arc<ArtifactStore>,
+        source_manager: Arc<SourceManager>,
         share_rule_executor_state: Arc<SharedRuleExecutorState>,
         label_registry: Arc<LabelRegistry>,
     ) -> Result<Self, TargetPlannerError> {
         Ok(Self {
             build_results,
             artifact_store,
+            source_manager,
             rule_store: share_rule_executor_state.rule_store.clone(),
             rule_executor: RuleExecutor::new(share_rule_executor_state)
                 .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))?,
@@ -65,7 +69,8 @@ impl TargetPlanner {
         &mut self,
         build_opts: &BuildOpts,
         env: &ExecutionEnvironment,
-        label: LabelId,
+        label_id: LabelId,
+        goal: Goal,
         target: &Target,
     ) -> Result<ExecutableTarget, TargetPlannerError> {
         let target_plan_started_at = chrono::Utc::now();
@@ -82,14 +87,14 @@ impl TargetPlanner {
             .await
             .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))?;
 
-        let toolchains = self.find_toolchains(label, target, &rule)?;
+        let toolchains = self.find_toolchains(label_id, target, &rule)?;
 
-        let deps = self.find_deps(label, target)?;
+        let deps = self.find_deps(label_id, target)?;
 
-        let transitive_deps = self.find_transitive_deps(label, target)?;
+        let transitive_deps = self.find_transitive_deps(label_id, target)?;
 
         let runtime_deps = if rule.kind.is_runnable() {
-            self.find_runtime_deps(label, target)?
+            self.find_runtime_deps(label_id, target)?
         } else {
             target
                 .runtime_deps
@@ -98,7 +103,7 @@ impl TargetPlanner {
                 .collect()
         };
 
-        let exec_result = self
+        let mut exec_result = self
             .rule_executor
             .execute(
                 target_plan_started_at,
@@ -111,6 +116,20 @@ impl TargetPlanner {
             )
             .await
             .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))?;
+
+
+        if exec_result.srcs.len() == 1 {
+            let label = self.label_registry.get_label(label_id);
+            let symbol = SourceSymbol::from_label_and_goal(&label, goal);
+            
+            if let Ok(source_chunk) = self.source_manager.get_source_chunk_by_symbol(
+                label_id,
+                &label,
+                &symbol
+            ).await {
+                exec_result.srcs = [SourceInput::Chunk(source_chunk)].into_iter().collect();
+            }
+        }
 
         ExecutableTarget::new(
             env,

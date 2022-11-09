@@ -46,7 +46,7 @@ pub struct ExecutionResult {
     pub outs: FxHashSet<PathBuf>,
     pub provides: FxHashMap<String, PathBuf>,
     pub run_script: Option<RunScript>,
-    pub srcs: FxHashSet<PathBuf>,
+    pub srcs: FxHashSet<SourceInput>,
 }
 
 impl Default for ExecutionResult {
@@ -648,11 +648,12 @@ impl RuleExecutor {
         let run_script: Option<RunScript> =
             self.run_script_map.get(&target.label).map(|rs| rs.clone());
 
-        let srcs: FxHashSet<PathBuf> = config
+        let srcs: FxHashSet<SourceInput> = config
             .get_file_lists()
             .unwrap_or_default()
             .iter()
             .cloned()
+            .map(|x| SourceInput::Path(x))
             .collect();
 
         let provides = self

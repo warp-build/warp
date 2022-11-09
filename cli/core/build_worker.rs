@@ -49,6 +49,7 @@ pub struct BuildWorker {
     pub label_registry: Arc<LabelRegistry>,
     pub label_resolver: Arc<LabelResolver>,
     pub target_executor: Arc<TargetExecutor>,
+    
 
     pub env: ExecutionEnvironment,
 
@@ -67,13 +68,15 @@ impl BuildWorker {
         target_executor: Arc<TargetExecutor>,
         artifact_store: Arc<ArtifactStore>,
         share_rule_executor_state: Arc<SharedRuleExecutorState>,
-        build_opts: BuildOpts,
+        source_manager: Arc<SourceManager>,
+        build_opts: BuildOpts
     ) -> Result<Self, BuildWorkerError> {
         let env = ExecutionEnvironment::new();
 
         let target_planner = TargetPlanner::new(
             build_results.clone(),
             artifact_store,
+            source_manager,
             share_rule_executor_state,
             label_registry.clone(),
         )
@@ -199,7 +202,7 @@ impl BuildWorker {
 
         let executable_target = match self
             .target_planner
-            .plan(&self.build_opts, &self.env, label, &target)
+            .plan(&self.build_opts, &self.env, label, task.goal, &target)
             .await
         {
             Err(TargetPlannerError::MissingDependencies { deps, .. }) => {

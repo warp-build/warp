@@ -235,6 +235,7 @@ impl BuildExecutor {
         let label_registry = self.label_registry.clone();
         let label_resolver = self.label_resolver.clone();
         let target_executor = self.target_executor.clone();
+        let source_manager = self.source_manager.clone();
 
         let shared_rule_executor_state = Arc::new(SharedRuleExecutorState::new(
             self.rule_store.clone(),
@@ -253,6 +254,7 @@ impl BuildExecutor {
                 target_executor,
                 artifact_store,
                 shared_rule_executor_state,
+                source_manager,
                 build_opts,
             )
             .map_err(BuildExecutorError::WorkerError)?;
@@ -276,6 +278,7 @@ impl BuildExecutor {
         let label_registry = self.label_registry.clone();
         let label_resolver = self.label_resolver.clone();
         let target_executor = self.target_executor.clone();
+        let source_manager = self.source_manager.clone();
 
         let shared_rule_executor_state = Arc::new(SharedRuleExecutorState::new(
             self.rule_store.clone(),
@@ -294,6 +297,7 @@ impl BuildExecutor {
                 target_executor,
                 artifact_store,
                 shared_rule_executor_state,
+                source_manager,
                 build_opts,
             )
             .map_err(BuildExecutorError::WorkerError)?;

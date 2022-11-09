@@ -218,7 +218,7 @@ impl TargetExecutor {
         }
 
         // Copy sources
-        for src in &target.srcs {
+        for src in &target.srcs() {
             let dst = store_path.join(&src);
             if src.eq(&dst) {
                 panic!(
@@ -274,7 +274,7 @@ TARGET = {:#?}
         store_path: &PathBuf,
         target: &ExecutableTarget,
     ) -> Result<ValidationStatus, TargetExecutorError> {
-        let node_inputs: FxHashSet<PathBuf> = target.srcs.iter().cloned().collect();
+        let node_inputs: FxHashSet<PathBuf> = target.srcs().iter().cloned().collect();
         let deps_inputs: FxHashSet<PathBuf> = target
             .deps
             .iter()

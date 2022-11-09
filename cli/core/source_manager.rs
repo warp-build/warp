@@ -13,6 +13,20 @@ use tokio::fs;
 use tokio::io::AsyncReadExt;
 use url::Url;
 
+#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub enum SourceInput {
+    Path(PathBuf),
+    Chunk(SourceFile)
+}
+impl SourceInput {
+    pub fn path(&self) -> PathBuf {
+        match self {
+            SourceInput::Path(p) => p.to_owned(),
+            SourceInput::Chunk(src_file) => src_file.path.clone(),
+        }
+    }
+}
+
 pub type SourceHash = String;
 pub type AstHash = String;
 
@@ -44,12 +58,13 @@ impl SourceHasher {
     }
 }
 
-#[derive(Default, Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Hash, Serialize, Deserialize, Ord, Eq, PartialEq, PartialOrd)]
 pub struct SourceFile {
     pub source: String,
     pub symbol: SourceSymbol,
     pub ast_hash: AstHash,
     pub source_hash: SourceHash,
+    pub path: PathBuf
 }
 
 #[derive(Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
@@ -307,6 +322,7 @@ impl SourceManager {
                 },
                 source_hash,
                 source: response.source,
+                path: path.to_path_buf(),
             };
 
             self._save(&source_key, &source_file).await?;
