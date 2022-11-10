@@ -30,7 +30,7 @@ impl StatusReporter {
         let handle = std::thread::spawn(move || {
             let green_bold = console::Style::new().green().bold();
             let purple = console::Style::new().magenta().bright();
-            let blue_dim = console::Style::new().blue().dim();
+            let blue_dim = console::Style::new().blue();
             let yellow = console::Style::new().yellow();
             let red_bold = console::Style::new().red().bold();
 
@@ -182,7 +182,7 @@ impl StatusReporter {
                             pb.println(line);
                         }
 
-                        CacheHit { label, .. } => {
+                        CacheHit { label, goal } => {
                             current_targets.remove(&label);
                             let current_targets_names = current_targets
                                 .iter()
@@ -193,11 +193,16 @@ impl StatusReporter {
                                 current_targets_names.join(", ")
                             ));
 
-                            if self.show_cache_hits {
+                            if self.show_cache_hits || goal.is_test() {
                                 let line = format!(
-                                    "{:>12} {}",
-                                    blue_dim.apply_to("Cache-hit"),
+                                    "{:>12} {} {}",
+                                    if goal.is_test() {
+                                        green_bold.apply_to("PASS")
+                                    } else {
+                                        blue_dim.apply_to("Cache-hit")
+                                    },
                                     label.to_string(),
+                                    if goal.is_test() { "(CACHED)" } else { "" }
                                 );
                                 pb.println(line);
                             }
@@ -206,10 +211,10 @@ impl StatusReporter {
                             cache_hits.insert(label);
                         }
 
-                        TargetBuilt(label) => {
+                        TargetBuilt(label, goal) => {
                             let line = format!(
                                 "{:>12} {}",
-                                green_bold.apply_to("Built"),
+                                green_bold.apply_to(if goal.is_test() { "PASS" } else { "Built" }),
                                 label.to_string(),
                             );
                             current_targets.remove(&label);
@@ -338,6 +343,7 @@ impl StatusReporter {
                                     targets.iter().map(|l| format!("{:>12} -> {}", "", l.to_string())).collect::<Vec<String>>().join("\n"),
                                 )
                             };
+                            pb.println("");
                             pb.println(line);
                             break 'main_loop;
                         }

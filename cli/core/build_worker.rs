@@ -288,33 +288,15 @@ impl BuildWorker {
                 if manifest.cached {
                     self.event_channel.send(Event::CacheHit {
                         label: (*final_label).clone(),
-                        label_id: if final_label_id != label {
-                            label
-                        } else {
-                            final_label_id
-                        },
-                        worker_id: match self.role {
-                            Role::MainWorker => 0,
-                            Role::HelperWorker(id) => id,
-                        },
+                        goal: task.goal,
                     });
                 } else {
                     self.event_channel
-                        .send(Event::TargetBuilt((*final_label).clone()));
+                        .send(Event::TargetBuilt((*final_label).clone(), task.goal));
                 }
 
                 self.build_results
                     .add_computed_target(final_label_id, manifest, executable_target);
-
-                match &task.goal {
-                    Goal::Build => (),
-                    Goal::Test => {
-                        // run test
-                        // save results
-                        // self.test_results
-                    }
-                    Goal::Run => (),
-                }
 
                 self.build_queue.ack(task);
             }

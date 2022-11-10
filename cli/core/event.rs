@@ -42,8 +42,7 @@ pub enum Event {
     },
     CacheHit {
         label: Label,
-        label_id: LabelId,
-        worker_id: usize,
+        goal: Goal,
     },
     EmptyWorkspace(std::time::Instant),
     ErrorLoadingRule(String, BuildWorkerError),
@@ -67,7 +66,7 @@ pub enum Event {
     ResolvingDependency {
         label: Label,
     },
-    TargetBuilt(Label),
+    TargetBuilt(Label, Goal),
     WorkerError(BuildWorkerError),
     StartedAnalyzer {
         label: Label,
