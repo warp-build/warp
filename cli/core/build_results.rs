@@ -88,6 +88,11 @@ impl BuildResults {
         self.missing_targets.is_empty()
     }
 
+    pub fn remove_expected_target(&self, label: LabelId) {
+        self.expected_targets.remove(&label);
+        self.missing_targets.remove(&label);
+    }
+
     pub fn add_expected_target(&self, label: LabelId) {
         self.expected_targets.insert(label);
         self.missing_targets.insert(label);

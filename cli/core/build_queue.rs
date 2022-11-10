@@ -72,12 +72,8 @@ impl BuildQueue {
             let _lock = self._queue_lock.lock().unwrap();
             let task = if let crossbeam::deque::Steal::Success(task) = self.inner_queue.steal() {
                 task
-            } else if self.busy_targets.is_empty() {
-                if let crossbeam::deque::Steal::Success(task) = self.wait_queue.steal() {
-                    task
-                } else {
-                    return None;
-                }
+            } else if let crossbeam::deque::Steal::Success(task) = self.wait_queue.steal() {
+                task
             } else {
                 return None;
             };
@@ -109,6 +105,12 @@ impl BuildQueue {
     pub fn nack(&self, task: Task) {
         self.busy_targets.remove(&task.label);
         self.wait_queue.push(task);
+    }
+
+    #[tracing::instrument(name = "BuildQueue::nack", skip(self))]
+    pub fn skip(&self, task: Task) {
+        self.build_results.remove_expected_target(task.label);
+        self.busy_targets.remove(&task.label);
     }
 
     #[tracing::instrument(name = "BuildQueue::is_label_busy", skip(self))]

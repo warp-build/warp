@@ -68,7 +68,11 @@ impl SourceResolver {
         // NOTE(@ostera): if we have more than one thing to execute and we want to execute
         // everything
         if signatures.len() > 1 && symbol.is_all() {
-            return Ok(signatures.iter().map(|s| s.to_owned().into()).collect());
+            return Ok(signatures
+                .iter()
+                .filter(|s| goal.includes(s))
+                .map(|s| s.to_owned().into())
+                .collect());
         }
 
         for sig in signatures.iter() {

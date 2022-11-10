@@ -173,6 +173,18 @@ impl BuildWorker {
                 return self.requeue(task, &[service_id]).await;
             }
 
+            Err(LabelResolverError::SourceManagerError(SourceManagerError::BadSignature)) => {
+                self.build_queue.skip(task);
+                return Ok(());
+            }
+
+            Err(LabelResolverError::SourceManagerError(SourceManagerError::UnknownParser {
+                label: _label,
+            })) => {
+                self.build_queue.skip(task);
+                return Ok(());
+            }
+
             Err(err) => {
                 self.event_channel.send(Event::BuildError(
                     (*self.label_registry.get_label(label)).to_owned(),

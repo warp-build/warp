@@ -31,6 +31,14 @@ impl Goal {
     pub fn is_run(&self) -> bool {
         matches!(self, Goal::Run)
     }
+
+    pub fn is_build(&self) -> bool {
+        matches!(self, Goal::Build)
+    }
+
+    pub fn is_test(&self) -> bool {
+        matches!(self, Goal::Test)
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
