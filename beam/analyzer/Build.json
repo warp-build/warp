@@ -11,8 +11,8 @@
       "rule": "mix_library",
       "deps": [
         "//schemas:elixir",
-        "//erlang/analyzer:erl_analyzer.erl",
-        "//erlang/lifter/lib:source_analyzer.erl",
+        "//beam/erlang/analyzer:erl_analyzer.erl",
+        "//beam/erlang/analyzer:source_analyzer.erl",
         "https://hex.pm/packages/grpc",
         "https://hex.pm/packages/google_protos",
         "https://hex.pm/packages/protobuf"

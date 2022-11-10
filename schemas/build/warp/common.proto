@@ -1,0 +1,47 @@
+syntax = "proto3";
+package build.warp;
+
+import "google/protobuf/struct.proto";
+
+enum Status {
+  STATUS_UNKNOWN = 0;
+  STATUS_OK = 1;
+  STATUS_ERR = 2;
+}
+
+message Archive {
+  string url = 1;
+  string sha256 = 2;
+}
+
+message Signature {
+  string name = 1;
+  string rule = 2;
+  repeated Requirement deps = 3;
+  repeated Requirement runtime_deps = 4;
+  google.protobuf.Struct config = 5;
+}
+
+message Symbol {
+  oneof sym {
+    bool all = 1;
+    string named = 2;
+  }
+}
+
+message FileRequirement {
+  string path = 1;
+}
+
+message SymbolRequirement {
+  string raw = 1;
+  string kind = 2;
+}
+
+message Requirement {
+  oneof requirement {
+    FileRequirement file = 1;
+    SymbolRequirement symbol = 2;
+  }
+}
+

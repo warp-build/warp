@@ -1,7 +1,7 @@
 syntax = "proto3";
 package build.warp.codedb;
 
-import "google/protobuf/struct.proto";
+import "build/warp/common.proto";
 
 service AnalyzerService {
   rpc GetInterestedPaths(GetInterestedPathsRequest) returns (GetInterestedPathsResponse);
@@ -11,12 +11,6 @@ service AnalyzerService {
   rpc GetAst(GetAstRequest) returns (GetAstResponse);
 
   rpc GenerateSignature(GenerateSignatureRequest) returns (GenerateSignatureResponse);
-}
-
-enum Status {
-  STATUS_UNKNOWN = 0;
-  STATUS_OK = 1;
-  STATUS_ERR = 2;
 }
 
 message GenerateSignatureRequest {
@@ -30,14 +24,6 @@ message GenerateSignatureResponse {
   repeated Signature signatures = 4;
 }
 
-message Signature {
-  string name = 1;
-  string rule = 2;
-  repeated Requirement deps = 3;
-  repeated Requirement runtime_deps = 4;
-  google.protobuf.Struct config = 5;
-}
-
 message GetAstRequest {
   string file = 1;
   Symbol symbol = 2;
@@ -49,13 +35,6 @@ message GetAstResponse {
   Symbol symbol = 3;
   string source = 4;
   string ast = 5;
-}
-
-message Symbol {
-  oneof sym {
-    bool all = 1;
-    string named = 2;
-  }
 }
 
 message GetInterestedPathsRequest {}
@@ -74,20 +53,3 @@ message GetProvidedSymbolsResponse {
   string file = 2;
   repeated Requirement provides = 3;
 }
-
-message FileRequirement {
-  string path = 1;
-}
-
-message SymbolRequirement {
-  string raw = 1;
-  string kind = 2;
-}
-
-message Requirement {
-  oneof requirement {
-    FileRequirement file = 1;
-    SymbolRequirement symbol = 2;
-  }
-}
-

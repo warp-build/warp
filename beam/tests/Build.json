@@ -1,0 +1,122 @@
+{
+  "signatures": [
+    {
+      "deps": [],
+      "name": "source_analyzer_SUITE.erl",
+      "rule": "erlang_library",
+      "runtime_deps": [
+        "./fixtures",
+        "//beam/base:path.erl",
+        "//beam/erlang/analyzer:source_analyzer.erl"
+      ],
+      "srcs": [
+        "source_analyzer_SUITE.erl"
+      ]
+    },
+    {
+      "cases": [
+        "handles_real_life_example_from_emqx"
+      ],
+      "deps": [],
+      "name": "source_analyzer_handles_real_life_example_from_emqx",
+      "rule": "erlang_test",
+      "runtime_deps": [
+        "./fixtures",
+        ":source_analyzer_SUITE.erl"
+      ],
+      "test": "source_analyzer_SUITE.erl"
+    },
+    {
+      "deps": [],
+      "name": "cerl_analyzer_SUITE.erl",
+      "rule": "erlang_library",
+      "runtime_deps": [
+        "./fixtures",
+        "//beam/erlang/analyzer:cerl_analyzer.erl"
+      ],
+      "srcs": [
+        "cerl_analyzer_SUITE.erl"
+      ]
+    },
+    {
+      "cases": [
+        "fails_on_missing_parse_transform"
+      ],
+      "deps": [],
+      "name": "fails_on_missing_parse_transform",
+      "rule": "erlang_test",
+      "runtime_deps": [
+        "./fixtures",
+        "//beam/erlang/analyzer:cerl_analyzer.erl"
+      ],
+      "test": "cerl_analyzer_SUITE.erl"
+    },
+    {
+      "cases": [
+        "handles_parse_transforms"
+      ],
+      "deps": [],
+      "name": "handles_parse_transforms",
+      "rule": "erlang_test",
+      "runtime_deps": [
+        "./fixtures",
+        "//beam/erlang/analyzer:cerl_analyzer.erl"
+      ],
+      "test": "cerl_analyzer_SUITE.erl"
+    },
+    {
+      "cases": [
+        "handles_real_life_example_from_emqx"
+      ],
+      "deps": [],
+      "name": "handles_real_life_example_from_emqx",
+      "rule": "erlang_test",
+      "runtime_deps": [
+        "./fixtures",
+        "./fixtures/includes",
+        "//beam/erlang/analyzer:cerl_analyzer.erl"
+      ],
+      "test": "cerl_analyzer_SUITE.erl"
+    },
+    {
+      "cases": [
+        "handles_real_life_example_from_emqx_with_parse_transforms"
+      ],
+      "deps": [],
+      "name": "handles_real_life_example_from_emqx_with_parse_transforms",
+      "rule": "erlang_test",
+      "runtime_deps": [
+        "./fixtures",
+        "./fixtures/includes",
+        "//beam/erlang/analyzer:cerl_analyzer.erl"
+      ],
+      "test": "cerl_analyzer_SUITE.erl"
+    },
+    {
+      "cases": [
+        "handles_real_life_example_from_verl"
+      ],
+      "deps": [],
+      "name": "handles_real_life_example_from_verl",
+      "rule": "erlang_test",
+      "runtime_deps": [
+        "./fixtures",
+        "//beam/erlang/analyzer:cerl_analyzer.erl"
+      ],
+      "test": "cerl_analyzer_SUITE.erl"
+    },
+    {
+      "cases": [
+        "skips_dynamic_calls"
+      ],
+      "deps": [],
+      "name": "skips_dynamic_calls",
+      "rule": "erlang_test",
+      "runtime_deps": [
+        "./fixtures",
+        "//beam/erlang/analyzer:cerl_analyzer.erl"
+      ],
+      "test": "cerl_analyzer_SUITE.erl"
+    }
+  ]
+}

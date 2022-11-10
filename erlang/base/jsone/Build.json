@@ -1,7 +1,0 @@
-{"signatures": 
-[
-  {
-    "name": "jsone",
-    "rule": "rebar3_library"
-  }
-]}
