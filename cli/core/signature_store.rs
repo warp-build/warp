@@ -162,13 +162,13 @@ impl SignatureStore {
                 for dep in sig.deps {
                     let req = dep.requirement.unwrap();
                     match req {
-                        proto::build::warp::codedb::requirement::Requirement::File(file_req) => {
+                        proto::build::warp::requirement::Requirement::File(file_req) => {
                             /*
                             let label = code_db.find_label_for_file(&file_req.path).unwrap();
                             deps.push(label)
                             */
                         }
-                        proto::build::warp::codedb::requirement::Requirement::Symbol(sym_req) => {
+                        proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
                             let label = code_db
                                 .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
                                 .await
@@ -182,13 +182,13 @@ impl SignatureStore {
                 for dep in sig.runtime_deps {
                     let req = dep.requirement.unwrap();
                     match req {
-                        proto::build::warp::codedb::requirement::Requirement::File(file_req) => {
+                        proto::build::warp::requirement::Requirement::File(file_req) => {
                             /*
                             let label = code_db.find_label_for_file(&file_req.path).unwrap();
                             deps.push(label)
                             */
                         }
-                        proto::build::warp::codedb::requirement::Requirement::Symbol(sym_req) => {
+                        proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
                             let label = code_db
                                 .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
                                 .await

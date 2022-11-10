@@ -14,7 +14,8 @@
       "lib/bs",
       "deps",
       "_build",
-      "cli"
+      "cli",
+      "tests"
     ],
     "use_git_hooks": true
   },

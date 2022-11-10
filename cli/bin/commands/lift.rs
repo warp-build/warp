@@ -192,16 +192,12 @@ impl LiftCommand {
                         for req in response.provides {
                             let req = req.requirement.unwrap();
                             match req {
-                                proto::build::warp::codedb::requirement::Requirement::File(
-                                    file,
-                                ) => {
+                                proto::build::warp::requirement::Requirement::File(file) => {
                                     db.save_file(&label, &path, &hash, &file.path)
                                         .await
                                         .unwrap();
                                 }
-                                proto::build::warp::codedb::requirement::Requirement::Symbol(
-                                    symbol,
-                                ) => {
+                                proto::build::warp::requirement::Requirement::Symbol(symbol) => {
                                     db.save_symbol(&label, &path, &hash, &symbol.raw, &symbol.kind)
                                         .await
                                         .unwrap();

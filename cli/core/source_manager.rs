@@ -295,11 +295,11 @@ impl SourceManager {
 
             let request = proto::build::warp::codedb::GetAstRequest {
                 file: path.to_string_lossy().to_string(),
-                symbol: Some(proto::build::warp::codedb::Symbol {
+                symbol: Some(proto::build::warp::Symbol {
                     sym: Some(match symbol {
-                        SourceSymbol::All => proto::build::warp::codedb::symbol::Sym::All(true),
+                        SourceSymbol::All => proto::build::warp::symbol::Sym::All(true),
                         SourceSymbol::Named(name) => {
-                            proto::build::warp::codedb::symbol::Sym::Named(name.to_string())
+                            proto::build::warp::symbol::Sym::Named(name.to_string())
                         }
                     }),
                 }),
@@ -315,10 +315,8 @@ impl SourceManager {
 
             let source_file = SourceFile {
                 symbol: match resp_symbol {
-                    proto::build::warp::codedb::symbol::Sym::All(_) => SourceSymbol::All,
-                    proto::build::warp::codedb::symbol::Sym::Named(name) => {
-                        SourceSymbol::Named(name)
-                    }
+                    proto::build::warp::symbol::Sym::All(_) => SourceSymbol::All,
+                    proto::build::warp::symbol::Sym::Named(name) => SourceSymbol::Named(name),
                 },
                 ast_hash: {
                     let mut s = Sha256::new();
