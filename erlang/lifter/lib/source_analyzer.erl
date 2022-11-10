@@ -92,8 +92,8 @@ erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Comp
   [#{
     name => File,
     srcs => [path:filename(File)],
-    runtime_deps => deps_to_labels(ModDeps),
-    deps => deps_to_labels(IncludeDeps), 
+    runtime_deps => [],
+    deps => deps_to_labels(IncludeDeps ++ ModDeps), 
     rule => <<"erlang_library">>
    }].
 
