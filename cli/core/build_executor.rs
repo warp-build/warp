@@ -200,17 +200,17 @@ impl BuildExecutor {
             worker_tasks.push(self.spawn_helper(worker_id));
         }
 
-        let (helper_results, main_result, queuer_result) = futures::future::join3(
-            futures::future::join_all(worker_tasks),
-            main_worker,
+        let (queuer_result, main_result, helper_results) = futures::future::join3(
             queuer_worker,
+            main_worker,
+            futures::future::join_all(worker_tasks),
         )
         .await;
 
+        queuer_result.unwrap()?;
         for task_result in helper_results {
             task_result.unwrap()?;
         }
-        queuer_result.unwrap()?;
         main_result.unwrap()?;
 
         Ok(())
@@ -317,7 +317,6 @@ impl BuildExecutor {
         let should_queue_everything = labels.iter().any(|t| t.is_all());
         let labels: Vec<Label> = labels.to_vec();
 
-        let analyzer_service_manager = self.analyzer_service_manager.clone();
         let build_coordinator = self.build_coordinator.clone();
         let build_opts = self.build_opts;
         let build_queue = self.build_queue.clone();
@@ -330,12 +329,14 @@ impl BuildExecutor {
         let workspace_scanner = self.workspace.scanner();
 
         self.worker_pool.spawn_pinned(move || async move {
-            if build_opts.experimental_file_mode {
+            if should_queue_everything {
+                event_channel.send(Event::QueueingWorkspace);
                 let skip_patterns = {
                     let mut builder = globset::GlobSetBuilder::new();
                     for pattern in &[
                         "*target*",
                         "*_build*",
+                        "*deps*",
                         "*/.warp*",
                         "*warp-outputs*",
                         "*.git*",
@@ -346,6 +347,7 @@ impl BuildExecutor {
                     builder.build().unwrap()
                 };
 
+                let mut target_count = 0;
                 let mut dirs = vec![root.clone()];
                 while let Some(dir) = dirs.pop() {
                     let mut read_dir = tokio::fs::read_dir(&dir).await.unwrap();
@@ -373,13 +375,6 @@ impl BuildExecutor {
                             .build()
                             .map_err(BuildExecutorError::LabelError)?;
 
-                        if analyzer_service_manager
-                            .find_analyzer_for_local_label(&local_label)
-                            .is_none()
-                        {
-                            continue;
-                        }
-
                         let label: Label = local_label.into();
                         let label = label_registry.register_label(label);
 
@@ -389,12 +384,11 @@ impl BuildExecutor {
                                 goal: build_opts.goal,
                             })
                             .unwrap();
+
+                        target_count += 1;
                     }
                 }
-            } else if should_queue_everything {
-                event_channel.send(Event::QueueingWorkspace);
 
-                let mut target_count = 0;
                 let mut buildfiles = workspace_scanner
                     .find_build_files(build_opts.concurrency_limit)
                     .await
