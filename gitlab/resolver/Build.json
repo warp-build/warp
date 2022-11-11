@@ -1,0 +1,20 @@
+{
+  "signatures": [
+    {
+      "name": "resolver",
+      "rule": "elixir_script",
+      "main": "main.exs",
+      "deps": ["./:resolver_service"]
+    },
+    {
+      "name": "resolver_service",
+      "rule": "mix_library",
+      "deps": [
+        "//schemas:elixir",
+        "https://hex.pm/packages/grpc",
+        "https://hex.pm/packages/google_protos",
+        "https://hex.pm/packages/protobuf"
+      ]
+    }
+  ]
+}

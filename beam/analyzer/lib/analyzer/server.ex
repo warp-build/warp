@@ -33,20 +33,20 @@ defmodule Analyzer.Server do
       |> Enum.map(fn sig ->
         deps = sig.deps
                |> Enum.map(fn dep ->
-                 symbol = Build.Warp.Codedb.SymbolRequirement.new(
+                 symbol = Build.Warp.SymbolRequirement.new(
                    raw: dep,
                    kind: "module"
                  )
-                 Build.Warp.Codedb.Requirement.new(requirement: {:symbol, symbol})
+                 Build.Warp.Requirement.new(requirement: {:symbol, symbol})
                end)
 
         runtime_deps = sig.runtime_deps
                |> Enum.map(fn dep ->
-                 symbol = Build.Warp.Codedb.SymbolRequirement.new(
+                 symbol = Build.Warp.SymbolRequirement.new(
                    raw: dep,
                    kind: "module"
                  )
-                 Build.Warp.Codedb.Requirement.new(requirement: {:symbol, symbol})
+                 Build.Warp.Requirement.new(requirement: {:symbol, symbol})
                end)
 
         {:ok, config} = sig
@@ -58,7 +58,7 @@ defmodule Analyzer.Server do
                         |> Jason.decode!
                         |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
 
-        Build.Warp.Codedb.Signature.new(
+        Build.Warp.Signature.new(
           name: sig.name,
           rule: sig.rule,
           deps: deps,
@@ -107,7 +107,7 @@ defmodule Analyzer.Server do
     Build.Warp.Codedb.GetAstResponse.new(
       status: :STATUS_OK,
       file: file,
-      symbol: Build.Warp.Codedb.Symbol.new(sym: req.symbol.sym), 
+      symbol: Build.Warp.Symbol.new(sym: req.symbol.sym), 
 			ast: Kernel.inspect(ast),
       source: source
     )
@@ -134,29 +134,29 @@ defmodule Analyzer.Server do
         ".erl" -> 
           {:ok, mod_name} = :erl_stdlib.file_to_module(req.file)
           mod_name = mod_name |> Atom.to_string
-          {:symbol, Build.Warp.Codedb.SymbolRequirement.new(raw: mod_name, kind: "module")}
+          {:symbol, Build.Warp.SymbolRequirement.new(raw: mod_name, kind: "module")}
 
         ".hrl" ->
-          {:file, Build.Warp.Codedb.FileRequirement.new(path: req.file)}
+          {:file, Build.Warp.FileRequirement.new(path: req.file)}
       end
 
     exported_fns = :erl_analyzer.exported_functions(result) |> Enum.map(fn {m,f,a} ->
-      symbol = Build.Warp.Codedb.SymbolRequirement.new(
+      symbol = Build.Warp.SymbolRequirement.new(
         raw: "#{Atom.to_string(m)}:#{Atom.to_string(f)}/#{a}",
         kind: "function"
       )
-      Build.Warp.Codedb.Requirement.new(requirement: {:symbol, symbol})
+      Build.Warp.Requirement.new(requirement: {:symbol, symbol})
     end)
 
     exported_types = :erl_analyzer.exported_types(result) |> Enum.map(fn {m,f,a} ->
-      symbol = Build.Warp.Codedb.SymbolRequirement.new(
+      symbol = Build.Warp.SymbolRequirement.new(
         raw: "#{Atom.to_string(m)}:#{Atom.to_string(f)}/#{a}",
         kind: "type"
       )
-      Build.Warp.Codedb.Requirement.new(requirement: {:symbol, symbol})
+      Build.Warp.Requirement.new(requirement: {:symbol, symbol})
     end)
 
-    provides = [Build.Warp.Codedb.Requirement.new(requirement: requirement)]
+    provides = [Build.Warp.Requirement.new(requirement: requirement)]
                ++ exported_fns
                ++ exported_types
 

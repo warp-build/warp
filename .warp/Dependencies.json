@@ -1,5 +1,30 @@
 {
   "dependencies": {
+    "https://hex.pm/packages/castore": {
+      "url": "https://hex.pm/packages/castore",
+      "package": "castore",
+      "version": "0.1.18"
+    },
+    "https://hex.pm/packages/hpax": {
+      "url": "https://hex.pm/packages/hpax",
+      "package": "hpax",
+      "version": "0.1.2"
+    },
+    "https://hex.pm/packages/mint": {
+      "url": "https://hex.pm/packages/mint",
+      "package": "mint",
+      "version": "1.4.2"
+    },
+    "https://hex.pm/packages/hex_core": {
+      "url": "https://hex.pm/packages/hex_core",
+      "package": "hex_core",
+      "version": "0.9.0"
+    },
+    "https://hex.pm/packages/verl": {
+      "url": "https://hex.pm/packages/verl",
+      "package": "verl",
+      "version": "1.1.1"
+    },
     "https://hex.pm/packages/grpc": {
       "url": "https://hex.pm/packages/grpc",
       "package": "grpc",
