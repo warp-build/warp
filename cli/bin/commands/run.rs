@@ -43,11 +43,8 @@ impl RunCommand {
         };
         label.set_workspace(&warp.workspace.paths.workspace_root);
 
-        let status_reporter = StatusReporter::new(
-            warp.event_channel.clone(),
-            self.flags.show_cache_hits,
-            Goal::Run,
-        );
+        let status_reporter =
+            StatusReporter::new(warp.event_channel.clone(), self.flags, Goal::Run);
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],

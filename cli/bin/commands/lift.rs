@@ -40,7 +40,14 @@ impl LiftCommand {
         let analyzers: Vec<Label> = analyzers.into_iter().collect();
 
         if !analyzers.is_empty() {
-            let status_reporter = StatusReporter::new(warp.event_channel.clone(), false, Goal::Run);
+            let status_reporter = StatusReporter::new(
+                warp.event_channel.clone(),
+                Flags {
+                    show_cache_hits: false,
+                    ..self.flags
+                },
+                Goal::Run,
+            );
             let (results, ()) = futures::future::join(
                 warp.execute(
                     &analyzers,
@@ -202,6 +209,8 @@ impl LiftCommand {
                                         .await
                                         .unwrap();
                                 }
+
+                                proto::build::warp::requirement::Requirement::Url(_) => (),
                             }
                         }
 

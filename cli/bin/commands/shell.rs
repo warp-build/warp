@@ -23,11 +23,8 @@ impl ShellCommand {
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
         let label = Label::all();
 
-        let status_reporter = StatusReporter::new(
-            warp.event_channel.clone(),
-            self.flags.show_cache_hits,
-            Goal::Build,
-        );
+        let status_reporter =
+            StatusReporter::new(warp.event_channel.clone(), self.flags, Goal::Build);
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],

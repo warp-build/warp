@@ -41,7 +41,7 @@ impl TestCommand {
 
         let status_reporter = StatusReporter::new(
             warp.event_channel.clone(),
-            self.flags.show_cache_hits,
+            self.flags,
             Goal::Build,
         );
 

@@ -143,6 +143,7 @@ enum Command {
     Run(RunCommand),
     Setup(SetupCommand),
     Shell(ShellCommand),
+    Signature(SignatureCommand),
     Test(TestCommand),
 }
 
@@ -155,6 +156,7 @@ impl Command {
             Command::Lift(x) => x.run(warp).await,
             Command::Run(x) => x.run(warp).await,
             Command::Shell(x) => x.run(warp).await,
+            Command::Signature(x) => x.run(warp).await,
             Command::Test(x) => x.run(warp).await,
             Command::New(_) | Command::Init(_) | Command::Setup(_) => {
                 panic!("New, Init, and Setup should be handled especially since they consume the Engine")

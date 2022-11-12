@@ -6,6 +6,7 @@ mod new;
 mod run;
 mod setup;
 mod shell;
+mod signature;
 mod test;
 
 pub use build::*;
@@ -16,6 +17,7 @@ pub use new::*;
 pub use run::*;
 pub use setup::*;
 pub use shell::*;
+pub use signature::*;
 pub use test::*;
 
 use structopt::StructOpt;
@@ -28,37 +30,49 @@ pub struct Flags {
         short = "w",
         long = "max-workers"
     )]
-    max_workers: Option<usize>,
+    pub(crate) max_workers: Option<usize>,
 
     #[structopt(
         help = r"show all the cache hit entries in the build outputs.",
         long = "show-cache-hits"
     )]
-    show_cache_hits: bool,
+    pub(crate) show_cache_hits: bool,
+
+    #[structopt(
+        help = r"show all the queued entries in the build outputs.",
+        long = "show-queued-events"
+    )]
+    pub(crate) show_queued_events: bool,
+
+    #[structopt(
+        help = r"EXPERIMENTAL: force regeneration of build signatures",
+        long = "experimental-regenerate-signatures"
+    )]
+    pub(crate) experimental_regenerate_signatures: bool,
 
     #[structopt(
         help = r"EXPERIMENTAL: trace target execution to detect missing inputs",
         long = "experimental-runtime-input-detection"
     )]
-    experimental_runtime_input_detection: bool,
+    pub(crate) experimental_runtime_input_detection: bool,
 
     #[structopt(
         help = r"EXPERIMENTAL: stream stderr/stdout of analyzer services",
         long = "experimental-stream-analyzer-outputs"
     )]
-    experimental_stream_analyzer_outputs: bool,
+    pub(crate) experimental_stream_analyzer_outputs: bool,
 
     #[structopt(
         help = r"EXPERIMENTAL: ignore the cache and always rebuild",
         long = "experimental-force-rebuild"
     )]
-    experimental_force_rebuild: bool,
+    pub(crate) experimental_force_rebuild: bool,
 
     #[structopt(
         help = r"EXPERIMENTAL: load all the files instead of the build files",
         long = "experimental-file-mode"
     )]
-    experimental_file_mode: bool,
+    pub(crate) experimental_file_mode: bool,
 }
 
 impl Flags {
@@ -75,6 +89,7 @@ impl From<Flags> for BuildOpts {
             experimental_force_rebuild: flags.experimental_force_rebuild,
             experimental_stream_analyzer_outputs: flags.experimental_stream_analyzer_outputs,
             experimental_runtime_input_detection: flags.experimental_runtime_input_detection,
+            experimental_regenerate_signatures: flags.experimental_regenerate_signatures,
             ..Default::default()
         }
     }

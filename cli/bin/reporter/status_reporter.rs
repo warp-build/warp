@@ -1,3 +1,4 @@
+use crate::commands::Flags;
 use dashmap::DashSet;
 use fxhash::*;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -8,20 +9,16 @@ use warp_core::*;
 pub struct StatusReporter {
     event_consumer: EventConsumer,
     event_channel: Arc<EventChannel>,
-    show_cache_hits: bool,
+    flags: Flags,
     goal: Goal,
 }
 
 impl StatusReporter {
-    pub fn new(
-        event_channel: Arc<EventChannel>,
-        show_cache_hits: bool,
-        goal: Goal,
-    ) -> StatusReporter {
+    pub fn new(event_channel: Arc<EventChannel>, flags: Flags, goal: Goal) -> StatusReporter {
         StatusReporter {
             event_consumer: event_channel.consumer(),
             event_channel,
-            show_cache_hits,
+            flags,
             goal,
         }
     }
@@ -33,6 +30,8 @@ impl StatusReporter {
             let blue_dim = console::Style::new().blue();
             let yellow = console::Style::new().yellow();
             let red_bold = console::Style::new().red().bold();
+
+            let info = console::Style::new().on_blue().bright();
 
             let style = ProgressStyle::default_bar()
                 .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
@@ -72,6 +71,28 @@ impl StatusReporter {
                                 "Pending: {}",
                                 current_targets_names.join(", ")
                             ));
+                        }
+
+                        QueuedSkipLabel { label } => {
+                            if self.flags.show_queued_events {
+                                let line = format!(
+                                    " {:>11} {}",
+                                    info.apply_to("QUEUE SKIP"),
+                                    label.to_string()
+                                );
+                                pb.println(line);
+                            }
+                        }
+
+                        QueuedLabel { label } => {
+                            if self.flags.show_queued_events {
+                                let line = format!(
+                                    " {:>11} {}",
+                                    info.apply_to("QUEUED"),
+                                    label.to_string()
+                                );
+                                pb.println(line);
+                            }
                         }
 
                         QueueingWorkspace => {
@@ -139,7 +160,7 @@ impl StatusReporter {
                             action_count += ac as u64;
                         }
 
-                        StartedAnalyzer { label } => {
+                        StartedService { label } => {
                             let line = format!(
                                 "{:>12} {}",
                                 purple.apply_to("Started"),
@@ -193,7 +214,7 @@ impl StatusReporter {
                                 current_targets_names.join(", ")
                             ));
 
-                            if self.show_cache_hits || goal.is_test() {
+                            if self.flags.show_cache_hits || goal.is_test() {
                                 let line = format!(
                                     "{:>12} {} {}",
                                     if goal.is_test() {
@@ -217,6 +238,7 @@ impl StatusReporter {
                                 green_bold.apply_to(if goal.is_test() { "PASS" } else { "Built" }),
                                 label.to_string(),
                             );
+                            pb.println(line);
                             current_targets.remove(&label);
                             let current_targets_names = current_targets
                                 .iter()
@@ -226,7 +248,6 @@ impl StatusReporter {
                                 "Pending: {}",
                                 current_targets_names.join(", ")
                             ));
-                            pb.println(line);
                             pb.inc(1);
                             target_count.insert(label);
                         }

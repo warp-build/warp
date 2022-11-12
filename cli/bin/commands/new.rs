@@ -4,8 +4,6 @@ use std::collections::BTreeMap;
 use structopt::StructOpt;
 use warp_core::*;
 
-use crate::reporter::StatusReporter;
-
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
     name = "new",
