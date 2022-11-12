@@ -1,0 +1,13 @@
+{
+  "version": 0,
+  "signatures": [
+    {
+      "name": "cowboy",
+      "rule": "rebar3_library",
+      "deps": [
+        "//3rdparty/https/hex.pm/packages/ranch",
+        "//3rdparty/https/hex.pm/packages/cowlib"
+      ]
+    }
+  ]
+}

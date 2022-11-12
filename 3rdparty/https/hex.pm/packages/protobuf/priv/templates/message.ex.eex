@@ -1,0 +1,27 @@
+defmodule <%= @module %> do
+  @moduledoc false
+  use Protobuf<%= @use_options %>
+
+  <%= if @descriptor_fun_body do %>
+  def descriptor do
+    # credo:disable-for-next-line
+    <%= @descriptor_fun_body %>
+  end
+  <% end %>
+
+  <%= for {%Google.Protobuf.OneofDescriptorProto{name: name}, index} <- Enum.with_index(@oneofs) do %>
+  <%= if !String.starts_with?(name, "_") do %>
+  oneof :<%= name %>, <%= index %><% end %>
+  <% end %>
+
+  <%= for f <- @fields do %>
+  field <%= f %><% end %>
+
+  <%= if @transform_module do %>
+  def transform_module(), do: <%= inspect(@transform_module) %>
+  <% end %>
+
+  <%= if @extensions != [] do %>
+  extensions <%= inspect(@extensions, limit: :infinity) %>
+  <% end %>
+end

@@ -13,9 +13,9 @@
         "//schemas:elixir",
         "//beam/erlang/analyzer:erl_analyzer.erl",
         "//beam/erlang/analyzer:source_analyzer.erl",
-        "https://hex.pm/packages/grpc",
-        "https://hex.pm/packages/google_protos",
-        "https://hex.pm/packages/protobuf"
+        "//3rdparty/https/hex.pm/packages/grpc",
+        "//3rdparty/https/hex.pm/packages/google_protos",
+        "//3rdparty/https/hex.pm/packages/protobuf"
       ]
     }
   ]

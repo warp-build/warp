@@ -1,0 +1,27 @@
+{
+  "version": 0,
+  "signatures": [
+    {
+      "name": "google_protos",
+      "rule": "mix_library",
+      "deps": [
+        "//3rdparty/https/hex.pm/packages/protobuf"
+      ],
+      "runtime_deps": [],
+      "srcs": [
+        "LICENSE",
+        "lib/google_protos/wrappers.pb.ex",
+        "lib/google_protos/any.pb.ex",
+        "lib/google_protos/empty.pb.ex",
+        "lib/google_protos/timestamp.pb.ex",
+        "lib/google_protos/field_mask.pb.ex",
+        "lib/google_protos/duration.pb.ex",
+        "lib/google_protos/struct.pb.ex",
+        "lib/google_protos",
+        "lib",
+        "README.md",
+        "mix.exs"
+      ]
+    }
+  ]
+}

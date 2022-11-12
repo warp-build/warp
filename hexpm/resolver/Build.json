@@ -11,13 +11,13 @@
       "rule": "mix_library",
       "deps": [
         "//schemas:elixir",
-        "https://hex.pm/packages/castore",
-        "https://hex.pm/packages/google_protos",
-        "https://hex.pm/packages/grpc",
-        "https://hex.pm/packages/hex_core",
-        "https://hex.pm/packages/hpax",
-        "https://hex.pm/packages/mint",
-        "https://hex.pm/packages/protobuf"
+        "//3rdparty/https/hex.pm/packages/castore",
+        "//3rdparty/https/hex.pm/packages/google_protos",
+        "//3rdparty/https/hex.pm/packages/grpc",
+        "//3rdparty/https/hex.pm/packages/hex_core",
+        "//3rdparty/https/hex.pm/packages/hpax",
+        "//3rdparty/https/hex.pm/packages/mint",
+        "//3rdparty/https/hex.pm/packages/protobuf"
       ]
     }
   ]

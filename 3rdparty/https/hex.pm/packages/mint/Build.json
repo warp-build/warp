@@ -1,0 +1,41 @@
+{
+  "version": 0,
+  "signatures": [
+    {
+      "name": "mint",
+      "rule": "mix_library",
+      "deps": [
+        "//3rdparty/https/hex.pm/packages/castore",
+        "//3rdparty/https/hex.pm/packages/hpax"
+      ],
+      "runtime_deps": [],
+      "srcs": [
+        "src/mint_shims.erl",
+        "CHANGELOG.md",
+        "LICENSE.txt",
+        "README.md",
+        "mix.exs",
+        "lib/mint/transport_error.ex",
+        "lib/mint/unsafe_proxy.ex",
+        "lib/mint/http.ex",
+        "lib/mint/application.ex",
+        "lib/mint/http1.ex",
+        "lib/mint/negotiate.ex",
+        "lib/mint/http2/frame.ex",
+        "lib/mint/http_error.ex",
+        "lib/mint/types.ex",
+        "lib/mint/core/conn.ex",
+        "lib/mint/core/transport.ex",
+        "lib/mint/core/transport/tcp.ex",
+        "lib/mint/core/transport/ssl.ex",
+        "lib/mint/core/transport",
+        "lib/mint/core/util.ex",
+        "lib/mint/tunnel_proxy.ex",
+        "lib/mint/http2.ex",
+        "lib/mint/http1/parse.ex",
+        "lib/mint/http1/request.ex",
+        "lib/mint/http1/response.ex"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "version": 0,
+  "signatures": [
+    {
+      "name": "verl",
+      "rule": "rebar3_library",
+      "deps": [],
+      "runtime_deps": [],
+      "srcs": [
+        "src/verl_parser.erl",
+        "src/verl.erl",
+        "src/verl.app.src",
+        "rebar.lock",
+        "rebar.config",
+        "README.md",
+        "LICENSE"
+      ]
+    }
+  ]
+}

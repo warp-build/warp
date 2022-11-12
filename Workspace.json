@@ -69,7 +69,7 @@
   },
   "remote_workspaces": {
     "tools.warp.build": {
-      // "path": ".",
+      "path": ".",
       "github": "warp-build/tools.warp.build",
       "git_ref": "main"
     }
