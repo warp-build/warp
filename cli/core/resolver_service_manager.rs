@@ -10,19 +10,19 @@ use std::{
 use thiserror::*;
 use tokio::process::Child;
 
-pub type AnalyzerServiceClient =
-    proto::build::warp::codedb::analyzer_service_client::AnalyzerServiceClient<
+pub type ResolverServiceClient =
+    proto::build::warp::dependency::resolver_service_client::ResolverServiceClient<
         tonic::transport::Channel,
     >;
 
 pub type FileExtension = String;
 
 #[derive(Default, Debug, Clone)]
-pub struct AnalyzerServiceManager {
+pub struct ResolverServiceManager {
     analyzers_by_extension: DashMap<FileExtension, LabelId>,
     event_channel: Arc<EventChannel>,
     build_results: Arc<BuildResults>,
-    clients: DashMap<LabelId, AnalyzerServiceClient>,
+    clients: DashMap<LabelId, ResolverServiceClient>,
     label_registry: Arc<LabelRegistry>,
     next_available_port: Arc<AtomicU32>,
     processes: Arc<DashMap<LabelId, Child>>,
@@ -34,7 +34,7 @@ pub struct AnalyzerServiceManager {
 }
 
 #[derive(Error, Debug)]
-pub enum AnalyzerServiceManagerError {
+pub enum ResolverServiceManagerError {
     #[error("Could not spawn service {} due to {err:?}", label.to_string())]
     ServiceSpawnError { label: Label, err: std::io::Error },
 
@@ -45,13 +45,13 @@ pub enum AnalyzerServiceManagerError {
     CommandRunnerError(CommandRunnerError),
 }
 
-impl From<CommandRunnerError> for AnalyzerServiceManagerError {
+impl From<CommandRunnerError> for ResolverServiceManagerError {
     fn from(err: CommandRunnerError) -> Self {
         Self::CommandRunnerError(err)
     }
 }
 
-impl AnalyzerServiceManager {
+impl ResolverServiceManager {
     pub fn new(
         workspace: &Workspace,
         label_registry: Arc<LabelRegistry>,
@@ -73,7 +73,7 @@ impl AnalyzerServiceManager {
         }
 
         Self {
-            next_available_port: Arc::new(AtomicU32::new(21000)),
+            next_available_port: Arc::new(AtomicU32::new(22000)),
             processes: Arc::new(DashMap::new()),
             clients: DashMap::new(),
             build_results,
@@ -85,13 +85,13 @@ impl AnalyzerServiceManager {
         }
     }
 
-    pub fn all_clients(&self) -> Vec<AnalyzerServiceClient> {
+    pub fn all_clients(&self) -> Vec<ResolverServiceClient> {
         self.clients.iter().map(|e| (*e).clone()).collect()
     }
 
     pub async fn start_all_clients(
         &self,
-    ) -> Result<Vec<AnalyzerServiceClient>, AnalyzerServiceManagerError> {
+    ) -> Result<Vec<ResolverServiceClient>, ResolverServiceManagerError> {
         for analyzer_id in self.analyzers_by_extension.iter() {
             self.start(*analyzer_id).await?;
         }
@@ -106,7 +106,7 @@ impl AnalyzerServiceManager {
     pub async fn start(
         &self,
         label_id: LabelId,
-    ) -> Result<AnalyzerServiceClient, AnalyzerServiceManagerError> {
+    ) -> Result<ResolverServiceClient, ResolverServiceManagerError> {
         let _lock = self._start_lock.lock().unwrap();
 
         // 1. If the process has already been started, we'll just return its handler.
@@ -116,7 +116,7 @@ impl AnalyzerServiceManager {
 
         // 2. Make sure we have already built this analyzer so we can start it
         let Some(build_result) = self.build_results.get_build_result(label_id) else {
-            return Err(AnalyzerServiceManagerError::MissingService(label_id));
+            return Err(ResolverServiceManagerError::MissingService(label_id));
         };
 
         // 3. Find out the next available port
@@ -136,11 +136,10 @@ impl AnalyzerServiceManager {
 
         let conn_str = format!("http://0.0.0.0:{}", port);
         let client = loop {
-            let conn =
-                proto::build::warp::codedb::analyzer_service_client::AnalyzerServiceClient::connect(
-                    conn_str.clone(),
-                )
-                .await;
+            let conn = proto::build::warp::dependency::resolver_service_client::ResolverServiceClient::connect(
+                conn_str.clone(),
+            )
+            .await;
             if let Ok(conn) = conn {
                 break conn;
             }

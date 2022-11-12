@@ -22,7 +22,14 @@ fn main() -> Result<(), anyhow::Error> {
     tonic_build::configure()
         .include_file("_include.rs")
         .compile_well_known_types(true)
-        .compile(&["protos/build/warp/codedb/analyzer.proto"], &["protos"])?;
+        .compile(
+            &[
+                "protos/build/warp/codedb/analyzer.proto",
+                "protos/build/warp/resolver.proto",
+                "protos/build/warp/common.proto",
+            ],
+            &["protos"],
+        )?;
 
     Ok(())
 }

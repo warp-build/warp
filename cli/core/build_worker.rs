@@ -160,7 +160,12 @@ impl BuildWorker {
                 return self.requeue(task, &[generator]).await;
             }
 
-            Err(LabelResolverError::SourceManagerError(
+            Err(LabelResolverError::DependencyResolverError(
+                DependencyResolverError::ResolverServiceManagerError(
+                    ResolverServiceManagerError::MissingService(service_id),
+                ),
+            ))
+            | Err(LabelResolverError::SourceManagerError(
                 SourceManagerError::AnalyzerServiceManagerError(
                     AnalyzerServiceManagerError::MissingService(service_id),
                 ),
@@ -244,6 +249,7 @@ impl BuildWorker {
 
         self.event_channel.send(Event::BuildingTarget {
             label: target.label.clone(),
+            goal: task.goal,
             rule_mnemonic: executable_target.rule.mnemonic.to_string(),
         });
 

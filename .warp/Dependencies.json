@@ -1,6 +1,11 @@
 {
   "version": "0",
   "dependencies": {
+    "https://hex.pm/packages/cowboy": {
+      "url": "https://hex.pm/packages/cowboy",
+      "package": "cowboy",
+      "version": "2.9.0"
+    },
     "https://hex.pm/packages/proper": {
       "url": "https://hex.pm/packages/proper",
       "package": "proper",

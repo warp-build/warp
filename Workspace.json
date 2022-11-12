@@ -21,9 +21,9 @@
   },
   "remote_workspaces": {
     "tools.warp.build": {
-      "path": "../tools.warp.build/",
+      // "path": "../tools.warp.build/",
       "github": "warp-build/tools.warp.build",
-      "git_ref": "main"
+      "git_ref": "d42310278e1b41c1c01f048638ba2a63cee03782"
     }
   },
   "aliases": {

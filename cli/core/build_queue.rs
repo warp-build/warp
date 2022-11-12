@@ -1,3 +1,4 @@
+use super::Event;
 use super::*;
 use dashmap::DashSet;
 use std::sync::{Arc, Mutex};
@@ -46,6 +47,8 @@ pub struct BuildQueue {
 
     label_registry: Arc<LabelRegistry>,
 
+    event_channel: Arc<EventChannel>,
+
     // NOTE(@ostera): only used to serialize the calls to `next` and prevent fetching the same
     // label twice.
     _queue_lock: Arc<Mutex<()>>,
@@ -53,7 +56,11 @@ pub struct BuildQueue {
 
 impl BuildQueue {
     #[tracing::instrument(name = "BuildQueue::new", skip(build_results, label_registry))]
-    pub fn new(build_results: Arc<BuildResults>, label_registry: Arc<LabelRegistry>) -> BuildQueue {
+    pub fn new(
+        build_results: Arc<BuildResults>,
+        label_registry: Arc<LabelRegistry>,
+        event_channel: Arc<EventChannel>,
+    ) -> BuildQueue {
         BuildQueue {
             busy_targets: Arc::new(DashSet::new()),
             in_queue_targets: Arc::new(DashSet::new()),
@@ -63,6 +70,7 @@ impl BuildQueue {
             all_queued_labels: Arc::new(DashSet::default()),
             label_registry,
             _queue_lock: Arc::new(Mutex::new(())),
+            event_channel,
         }
     }
 
@@ -126,11 +134,6 @@ impl BuildQueue {
     #[tracing::instrument(name = "BuildQueue::queue", skip(self))]
     pub fn queue(&self, task: Task) -> Result<(), QueueError> {
         let label = task.label;
-        debug!(
-            "Queued {:?} {:#?}",
-            label,
-            self.label_registry.get_label(label)
-        );
         if self.label_registry.get_label(label).is_all() {
             return Err(QueueError::CannotQueueTargetAll);
         }
@@ -138,12 +141,18 @@ impl BuildQueue {
             || self.busy_targets.contains(&label)
             || self.in_queue_targets.contains(&label)
         {
+            self.event_channel.send(Event::QueuedSkipLabel {
+                label: self.label_registry.get_label(label).as_ref().to_owned(),
+            });
             return Ok(());
         }
         self.build_results.add_expected_target(label);
         self.in_queue_targets.insert(label);
         self.inner_queue.push(task);
         self.all_queued_labels.insert(label);
+        self.event_channel.send(Event::QueuedLabel {
+            label: self.label_registry.get_label(label).as_ref().to_owned(),
+        });
         Ok(())
     }
 

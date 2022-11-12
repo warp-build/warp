@@ -38,6 +38,7 @@ pub enum Event {
     BuildStarted(std::time::Instant),
     BuildingTarget {
         label: Label,
+        goal: Goal,
         rule_mnemonic: String,
     },
     CacheHit {
@@ -68,7 +69,13 @@ pub enum Event {
     },
     TargetBuilt(Label, Goal),
     WorkerError(BuildWorkerError),
-    StartedAnalyzer {
+    StartedService {
+        label: Label,
+    },
+    QueuedLabel {
+        label: Label,
+    },
+    QueuedSkipLabel {
         label: Label,
     },
 }

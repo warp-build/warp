@@ -139,6 +139,7 @@ pub struct SourceManager {
     parsers: DashMap<String, LabelId>,
 
     sources: DashMap<(LabelId, SourceHash, SourceSymbol), SourceFile>,
+    build_opts: BuildOpts,
 }
 
 #[derive(Error, Debug)]
@@ -209,6 +210,7 @@ impl SourceManager {
         artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
         analyzer_service_manager: Arc<AnalyzerServiceManager>,
+        build_opts: BuildOpts,
     ) -> Self {
         let parsers = DashMap::new();
 
@@ -238,6 +240,7 @@ impl SourceManager {
             label_registry,
             parsers,
             sources: DashMap::new(),
+            build_opts,
         }
     }
 

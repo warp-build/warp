@@ -1,5 +1,5 @@
 syntax = "proto3";
-package build.warp;
+package build.warp.dependency;
 
 import "build/warp/common.proto";
 
@@ -9,8 +9,21 @@ service ResolverService {
   rpc PrepareDependency(PrepareDependencyRequest) returns (PrepareDependencyResponse);
 }
 
+message ResolveDependencyRequest {
+  string package_name = 1;
+  string version = 2;
+  string url = 3;
+}
+
+message ResolveDependencyResponse {
+  Status status = 1;
+  string package_name = 2;
+  string version = 3;
+  Archive archive = 4;
+}
+
 message PrepareDependencyRequest {
-  string root = 1;
+  string package_root = 1;
   string url = 2;
   string version = 3;
   string package_name = 4;
@@ -21,13 +34,3 @@ message PrepareDependencyResponse {
   repeated Signature signatures = 2;
 }
 
-message ResolveDependencyRequest {
-  string url = 1;
-  string version = 2;
-  string package_name = 3;
-}
-
-message ResolveDependencyResponse {
-  Status status = 1;
-  Archive archive = 2;
-}

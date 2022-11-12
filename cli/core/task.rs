@@ -1,4 +1,6 @@
 use super::*;
+use std::str::FromStr;
+use thiserror::*;
 
 #[derive(Default, Debug, Copy, Clone)]
 pub enum Goal {
@@ -6,6 +8,12 @@ pub enum Goal {
     Build,
     Test,
     Run,
+}
+
+#[derive(Error, Debug)]
+pub enum GoalError {
+    #[error("Invalid goal {0}. Valid goals are: run, test, and build.")]
+    InvalidGoal(String),
 }
 
 impl Goal {
@@ -38,6 +46,19 @@ impl Goal {
 
     pub fn is_test(&self) -> bool {
         matches!(self, Goal::Test)
+    }
+}
+
+impl FromStr for Goal {
+    type Err = GoalError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "run" => Ok(Self::Run),
+            "test" => Ok(Self::Test),
+            "build" => Ok(Self::Build),
+            _ => Err(GoalError::InvalidGoal(s.into())),
+        }
     }
 }
 

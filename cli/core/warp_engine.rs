@@ -94,11 +94,7 @@ impl WarpEngine {
         Ok(())
     }
 
-    pub async fn execute(
-        &mut self,
-        labels: &[Label],
-        build_opts: BuildOpts,
-    ) -> Result<(), WarpEngineError> {
+    pub async fn prepare_executor(&mut self, build_opts: BuildOpts) -> Result<(), WarpEngineError> {
         if !self.initialized {
             return Err(WarpEngineError::ExecuteBeforeInitialize);
         }
@@ -113,6 +109,16 @@ impl WarpEngine {
             .map_err(WarpEngineError::BuildExecutorError)?,
         );
 
+        Ok(())
+    }
+
+    pub async fn execute(
+        &mut self,
+        labels: &[Label],
+        build_opts: BuildOpts,
+    ) -> Result<(), WarpEngineError> {
+        self.prepare_executor(build_opts).await?;
+
         self.build_executor
             .as_ref()
             .unwrap()
@@ -123,6 +129,10 @@ impl WarpEngine {
 
     pub fn get_results(&self) -> Vec<BuildResult> {
         self.build_executor.as_ref().unwrap().get_results()
+    }
+
+    pub fn label_registry(&self) -> Arc<LabelRegistry> {
+        self.build_executor.as_ref().unwrap().label_registry.clone()
     }
 
     pub fn source_manager(&self) -> Arc<SourceManager> {

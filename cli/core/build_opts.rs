@@ -21,6 +21,7 @@ pub struct BuildOpts {
     pub concurrency_limit: usize,
     pub experimental_file_mode: bool,
     pub experimental_force_rebuild: bool,
+    pub experimental_regenerate_signatures: bool,
     pub experimental_runtime_input_detection: bool,
     pub experimental_stream_analyzer_outputs: bool,
     pub goal: Goal,

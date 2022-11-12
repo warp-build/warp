@@ -65,6 +65,7 @@ impl LabelResolver {
         source_manager: Arc<SourceManager>,
         signature_store: Arc<SignatureStore>,
         toolchain_manager: Arc<ToolchainManager>,
+        resolver_service_manager: Arc<ResolverServiceManager>,
         build_opts: BuildOpts,
     ) -> Self {
         let remote_workspace_resolver = Arc::new(RemoteWorkspaceResolver::new(
@@ -82,6 +83,7 @@ impl LabelResolver {
             artifact_store.clone(),
             label_registry.clone(),
             dependency_manager,
+            resolver_service_manager,
         );
 
         let source_resolver = SourceResolver::new(

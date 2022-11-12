@@ -34,40 +34,42 @@ pub enum BuildExecutorError {
 ///
 #[derive(Builder, Clone, Debug)]
 pub struct BuildExecutor {
-    analyzer_service_manager: Arc<AnalyzerServiceManager>,
+    pub(crate) analyzer_service_manager: Arc<AnalyzerServiceManager>,
 
-    artifact_store: Arc<ArtifactStore>,
+    pub(crate) resolver_service_manager: Arc<ResolverServiceManager>,
 
-    build_coordinator: Arc<BuildCoordinator>,
+    pub(crate) artifact_store: Arc<ArtifactStore>,
 
-    build_opts: BuildOpts,
+    pub(crate) build_coordinator: Arc<BuildCoordinator>,
 
-    build_queue: Arc<BuildQueue>,
+    pub(crate) build_opts: BuildOpts,
 
-    build_results: Arc<BuildResults>,
+    pub(crate) build_queue: Arc<BuildQueue>,
 
-    dependency_manager: Arc<DependencyManager>,
+    pub(crate) build_results: Arc<BuildResults>,
 
-    event_channel: Arc<EventChannel>,
+    pub(crate) dependency_manager: Arc<DependencyManager>,
 
-    label_registry: Arc<LabelRegistry>,
+    pub(crate) event_channel: Arc<EventChannel>,
 
-    label_resolver: Arc<LabelResolver>,
+    pub(crate) label_registry: Arc<LabelRegistry>,
 
-    rule_store: Arc<RuleStore>,
+    pub(crate) label_resolver: Arc<LabelResolver>,
 
-    pub source_manager: Arc<SourceManager>,
+    pub(crate) rule_store: Arc<RuleStore>,
 
-    pub signature_store: Arc<SignatureStore>,
+    pub(crate) source_manager: Arc<SourceManager>,
 
-    target_executor: Arc<TargetExecutor>,
+    pub(crate) signature_store: Arc<SignatureStore>,
 
-    toolchain_manager: Arc<ToolchainManager>,
+    pub(crate) target_executor: Arc<TargetExecutor>,
+
+    pub(crate) toolchain_manager: Arc<ToolchainManager>,
 
     worker_pool: LocalPoolHandle,
 
     /// The workspace this worker is currently executing.
-    workspace: Workspace,
+    pub(crate) workspace: Workspace,
 }
 
 impl BuildExecutor {
@@ -88,6 +90,22 @@ impl BuildExecutor {
                 .map_err(BuildExecutorError::ToolchainManagerError)?,
         );
 
+        let analyzer_service_manager = Arc::new(AnalyzerServiceManager::new(
+            &workspace,
+            label_registry.clone(),
+            build_results.clone(),
+            event_channel.clone(),
+            build_opts,
+        ));
+
+        let resolver_service_manager = Arc::new(ResolverServiceManager::new(
+            &workspace,
+            label_registry.clone(),
+            build_results.clone(),
+            event_channel.clone(),
+            build_opts,
+        ));
+
         let dependency_manager = Arc::new(
             DependencyManager::new(&workspace, label_registry.clone())
                 .await
@@ -97,19 +115,12 @@ impl BuildExecutor {
         let build_queue = Arc::new(BuildQueue::new(
             build_results.clone(),
             label_registry.clone(),
+            event_channel.clone(),
         ));
 
         let artifact_store = Arc::new(ArtifactStore::new(&workspace, event_channel.clone()));
 
         let rule_store = Arc::new(RuleStore::new(&workspace));
-
-        let analyzer_service_manager = Arc::new(AnalyzerServiceManager::new(
-            &workspace,
-            label_registry.clone(),
-            build_results.clone(),
-            event_channel.clone(),
-            build_opts,
-        ));
 
         let signature_store = Arc::new(SignatureStore::new(
             &workspace,
@@ -118,6 +129,7 @@ impl BuildExecutor {
             artifact_store.clone(),
             label_registry.clone(),
             analyzer_service_manager.clone(),
+            build_opts,
         ));
 
         let source_manager = Arc::new(SourceManager::new(
@@ -127,6 +139,7 @@ impl BuildExecutor {
             artifact_store.clone(),
             label_registry.clone(),
             analyzer_service_manager.clone(),
+            build_opts,
         ));
 
         let label_resolver = Arc::new(LabelResolver::new(
@@ -139,6 +152,7 @@ impl BuildExecutor {
             source_manager.clone(),
             signature_store.clone(),
             toolchain_manager.clone(),
+            resolver_service_manager.clone(),
             build_opts,
         ));
 
@@ -165,6 +179,7 @@ impl BuildExecutor {
             event_channel,
             label_registry,
             label_resolver,
+            resolver_service_manager,
             rule_store,
             signature_store,
             source_manager,
@@ -333,14 +348,11 @@ impl BuildExecutor {
                 event_channel.send(Event::QueueingWorkspace);
                 let skip_patterns = {
                     let mut builder = globset::GlobSetBuilder::new();
-                    for pattern in &[
-                        "*target*",
-                        "*_build*",
-                        "*deps*",
-                        "*/.warp*",
-                        "*warp-outputs*",
-                        "*.git*",
-                    ] {
+                    for pattern in &workspace.ignore_patterns {
+                        let glob = globset::Glob::new(&format!("*{}*", pattern)).unwrap();
+                        builder.add(glob);
+                    }
+                    for pattern in &["*/.warp*", "*warp-outputs*", "*.git*"] {
                         let glob = globset::Glob::new(pattern).unwrap();
                         builder.add(glob);
                     }

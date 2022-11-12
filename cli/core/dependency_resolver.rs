@@ -21,8 +21,10 @@ pub struct DependencyResolver {
     event_channel: Arc<EventChannel>,
     global_workspaces_path: PathBuf,
     label_registry: Arc<LabelRegistry>,
+    resolver_service_manager: Arc<ResolverServiceManager>,
     resolvers: DashMap<String, LabelId>,
     targets: DashMap<LabelId, Target>,
+    workspace: Workspace,
 }
 
 #[derive(Error, Debug)]
@@ -50,6 +52,18 @@ pub enum DependencyResolverError {
 
     #[error(transparent)]
     ExtractionError(ArchiveManagerError),
+
+    #[error(transparent)]
+    ResolverServiceManagerError(ResolverServiceManagerError),
+
+    #[error(transparent)]
+    ResolverServiceError(tonic::Status),
+
+    #[error(transparent)]
+    ArchiveError(ArchiveError),
+
+    #[error(transparent)]
+    CodeDbError(CodeDbError),
 }
 
 impl DependencyResolver {
@@ -61,17 +75,20 @@ impl DependencyResolver {
         artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
         dependency_manager: Arc<DependencyManager>,
+        resolver_service_manager: Arc<ResolverServiceManager>,
     ) -> Self {
         let this = Self {
             archive_manager: ArchiveManager::new(workspace, event_channel.clone()),
-            build_results,
             artifact_store,
-            targets: DashMap::new(),
-            resolvers: DashMap::new(),
-            event_channel,
+            build_results,
             dependency_manager,
+            event_channel,
             global_workspaces_path: workspace.paths.global_workspaces_path.clone(),
             label_registry,
+            resolver_service_manager,
+            resolvers: DashMap::new(),
+            targets: DashMap::new(),
+            workspace: workspace.to_owned(),
         };
 
         // TODO(@ostera): these should come from a registry, like the toolchains registry
@@ -131,32 +148,6 @@ impl DependencyResolver {
         remote_label: &RemoteLabel,
         dependency: Dependency,
     ) -> Result<Option<Target>, DependencyResolverError> {
-        // 1. build resolver
-        let main_entry = self
-            .build_results
-            .get_build_result(resolver)
-            .ok_or(DependencyResolverError::MissingResolver { resolver })?;
-
-        // 1.1. if the dependency actually needs a separate resolver for analyzing the contents,
-        //   lets make sure its ready.
-        let BuildResult {
-            target_manifest: override_manifest,
-            executable_target: override_target,
-        } = if let Some(override_resolver) = dependency.resolver {
-            self.build_results
-                .get_build_result(override_resolver)
-                .ok_or(DependencyResolverError::MissingResolver {
-                    resolver: override_resolver,
-                })?
-        } else {
-            main_entry.clone()
-        };
-
-        let BuildResult {
-            target_manifest: manifest,
-            executable_target: target,
-        } = main_entry;
-
         // 2. Resolve dependency
 
         // 2.1. create a workspace for this dependency
@@ -196,86 +187,11 @@ impl DependencyResolver {
             signature_file.read_to_end(&mut bytes).await.unwrap();
             serde_json::from_slice(&bytes).unwrap()
         } else {
-            self.event_channel.send(Event::ResolvingDependency {
-                label: remote_label.to_owned().into(),
-            });
-            // 2.2. actually run the resolver to get the workspace contents
-            let cmd = CommandRunner::builder()
-                .cwd(final_dir.clone())
-                .manifest(manifest.clone())
-                .target(target.clone())
-                .args(vec![
-                    "resolve".to_string(),
-                    dependency.url.to_string(),
-                    dependency.version.clone(),
-                    dependency.package.clone(),
-                ])
-                .sandboxed(true)
-                .stream_outputs(false)
-                .build()
-                .map_err(DependencyResolverError::CommandRunnerError)?;
+            self.resolve_and_download(remote_label, resolver, &final_dir, &dependency)
+                .await?;
 
-            let result = cmd
-                .run()
-                .await
-                .map_err(DependencyResolverError::CommandRunnerError)?;
-
-            let resolution: DependencyArchiveResolution =
-                serde_json::from_slice(result.stdout.as_bytes()).map_err(|err| {
-                    DependencyResolverError::ParseError {
-                        err,
-                        resolution: result.stdout.clone(),
-                    }
-                })?;
-
-            // 2.3. download the workspace contents
-            self.archive_manager
-                .download_and_extract(
-                    &resolution.archive.url,
-                    &final_dir,
-                    None,
-                    resolution.archive.strip_prefix,
-                )
-                .await
-                .map_err(DependencyResolverError::ExtractionError)?;
-
-            // 3. let the resolver tell us how to build this workspace
-            let cmd = CommandRunner::builder()
-                .cwd(final_dir.clone())
-                .manifest(override_manifest)
-                .target(override_target)
-                .args(vec![
-                    "prepare".to_string(),
-                    final_dir.to_str().unwrap().to_string(),
-                    dependency.url.to_string(),
-                    dependency.version.clone(),
-                    dependency.package.clone(),
-                ])
-                .sandboxed(false)
-                .stream_outputs(false)
-                .build()
-                .map_err(DependencyResolverError::CommandRunnerError)?;
-
-            let result = cmd
-                .run()
-                .await
-                .map_err(DependencyResolverError::CommandRunnerError)?;
-
-            // parse it
-            let resolution: GeneratedSignature = serde_json::from_slice(result.stdout.as_bytes())
-                .map_err(|err| {
-                DependencyResolverError::ParseError {
-                    err,
-                    resolution: result.stdout.clone(),
-                }
-            })?;
-
-            let json = serde_json::to_string_pretty(&resolution).unwrap();
-            fs::write(final_dir.join("Warp.signature"), json)
-                .await
-                .unwrap();
-
-            resolution
+            self.generate_signature(resolver, &final_dir, &dependency)
+                .await?
         };
 
         // 4. Turn our new signature into a Target
@@ -290,16 +206,185 @@ impl DependencyResolver {
         //
         target.label = target.label.to_local(&final_dir).unwrap();
         target.label.set_associated_url(remote_label.url());
-        /*
-        for dep in target.deps.iter_mut().chain(target.runtime_deps.iter_mut()) {
-            *dep = {
-                let mut d = dep.to_abstract().unwrap();
-                d.set_workspace(&final_dir);
-                d
-            };
-        }
-        */
 
         Ok(Some(target))
+    }
+
+    async fn resolve_and_download(
+        &self,
+        remote_label: &RemoteLabel,
+        resolver: LabelId,
+        final_dir: &PathBuf,
+        dependency: &Dependency,
+    ) -> Result<(), DependencyResolverError> {
+        let mut main_resolver_svc = self
+            .resolver_service_manager
+            .start(resolver)
+            .await
+            .map_err(DependencyResolverError::ResolverServiceManagerError)?;
+
+        self.event_channel.send(Event::ResolvingDependency {
+            label: remote_label.to_owned().into(),
+        });
+
+        let request = proto::build::warp::dependency::ResolveDependencyRequest {
+            package_name: dependency.package.clone(),
+            version: dependency.version.clone(),
+            url: dependency.url.to_string(),
+        };
+
+        let response = main_resolver_svc
+            .resolve_dependency(request)
+            .await
+            .map_err(DependencyResolverError::ResolverServiceError)?
+            .into_inner();
+
+        let archive: Archive = response
+            .archive
+            .unwrap()
+            .try_into()
+            .map_err(DependencyResolverError::ArchiveError)?;
+
+        self.archive_manager
+            .download_and_extract(&archive.url, &final_dir, None, archive.strip_prefix)
+            .await
+            .map_err(DependencyResolverError::ExtractionError)?;
+
+        Ok(())
+    }
+
+    async fn generate_signature(
+        &self,
+        resolver: LabelId,
+        final_dir: &PathBuf,
+        dependency: &Dependency,
+    ) -> Result<GeneratedSignature, DependencyResolverError> {
+        let override_resolver = dependency.resolver.unwrap_or_else(|| resolver);
+        let mut override_resolver_svc = self
+            .resolver_service_manager
+            .start(override_resolver)
+            .await
+            .map_err(DependencyResolverError::ResolverServiceManagerError)?;
+
+        let request = proto::build::warp::dependency::PrepareDependencyRequest {
+            package_root: final_dir.to_string_lossy().to_string(),
+            url: dependency.url.to_string(),
+            version: dependency.version.clone(),
+            package_name: dependency.package.clone(),
+        };
+
+        let response = override_resolver_svc
+            .prepare_dependency(request)
+            .await
+            .map_err(DependencyResolverError::ResolverServiceError)?
+            .into_inner();
+
+        let code_db = CodeDb::new(&self.workspace).await.unwrap();
+
+        let mut signatures = vec![];
+        for sig in response.signatures {
+            let mut deps = vec![];
+            for dep in sig.deps {
+                let req = dep.requirement.unwrap();
+                match req {
+                    proto::build::warp::requirement::Requirement::Url(url_req) => {
+                        let url: url::Url = url_req.url.parse().unwrap();
+                        let label = url.into();
+                        deps.push(label)
+                    }
+                    proto::build::warp::requirement::Requirement::File(file_req) => {
+                        /*
+                        let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                        deps.push(label)
+                        */
+                    }
+                    proto::build::warp::requirement::Requirement::Symbol(sym_req)
+                        if sym_req.kind == "module" =>
+                    {
+                        if let Ok(label) = code_db
+                            .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                            .await
+                            .map_err(DependencyResolverError::CodeDbError)
+                        {
+                            deps.push(label)
+                        } else {
+                            let url: Url = format!("https://hex.pm/packages/{}", sym_req.raw)
+                                .parse()
+                                .unwrap();
+                            let label: Label = url.into();
+                            deps.push(label);
+                        }
+                    }
+                    proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
+                        let label = code_db
+                            .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                            .await
+                            .map_err(DependencyResolverError::CodeDbError)?;
+                        deps.push(label)
+                    }
+                }
+            }
+
+            let mut runtime_deps = vec![];
+            for dep in sig.runtime_deps {
+                let req = dep.requirement.unwrap();
+                match req {
+                    proto::build::warp::requirement::Requirement::Url(url_req) => {
+                        let url: url::Url = url_req.url.parse().unwrap();
+                        let label = url.into();
+                        deps.push(label)
+                    }
+                    proto::build::warp::requirement::Requirement::File(file_req) => {
+                        /*
+                        let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                        deps.push(label)
+                        */
+                    }
+                    proto::build::warp::requirement::Requirement::Symbol(sym_req)
+                        if sym_req.kind == "module" =>
+                    {
+                        if let Ok(label) = code_db
+                            .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                            .await
+                            .map_err(DependencyResolverError::CodeDbError)
+                        {
+                            runtime_deps.push(label)
+                        } else {
+                            let url: Url = format!("https://hex.pm/packages/{}", sym_req.raw)
+                                .parse()
+                                .unwrap();
+                            let label: Label = url.into();
+                            runtime_deps.push(label);
+                        }
+                    }
+                    proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
+                        let label = code_db
+                            .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                            .await
+                            .map_err(DependencyResolverError::CodeDbError)?;
+                        runtime_deps.push(label)
+                    }
+                }
+            }
+
+            let signature = Signature {
+                name: sig.name.parse().unwrap(),
+                rule: sig.rule,
+                deps,
+                runtime_deps,
+                config: sig.config.map(|c| c.into()).unwrap_or_default(),
+            };
+
+            signatures.push(signature)
+        }
+
+        let gen_sig = GeneratedSignature { signatures };
+
+        let json = serde_json::to_string_pretty(&gen_sig).unwrap();
+        fs::write(final_dir.join("Warp.signature"), json)
+            .await
+            .unwrap();
+
+        Ok(gen_sig)
     }
 }

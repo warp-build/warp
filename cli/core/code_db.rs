@@ -17,6 +17,12 @@ pub enum CodeDbError {
 
     #[error(transparent)]
     SqliteError(rusqlite::Error),
+
+    #[error("Could not find {symbol_kind} named {symbol_raw}. Did you call `warp lift` on this workspace yet?")]
+    UnknownSymbol {
+        symbol_raw: String,
+        symbol_kind: String,
+    },
 }
 
 impl CodeDb {
@@ -123,8 +129,14 @@ impl CodeDb {
             })
             .map_err(CodeDbError::SqliteError)?;
 
-        let label = rows.next().unwrap().unwrap();
-        Ok(label)
+        if let Some(Ok(label)) = rows.next() {
+            return Ok(label);
+        }
+
+        return Err(CodeDbError::UnknownSymbol {
+            symbol_raw: symbol_raw.to_string(),
+            symbol_kind: symbol_kind.to_string(),
+        });
     }
 
     pub async fn save_symbol(
@@ -135,6 +147,16 @@ impl CodeDb {
         symbol_raw: &str,
         symbol_kind: &str,
     ) -> Result<(), CodeDbError> {
+        self.sql
+            .execute(
+                r#" DELETE FROM symbols
+                    WHERE symbol_raw = ?1
+                      AND symbol_kind = ?2
+                "#,
+                (symbol_raw, symbol_kind),
+            )
+            .map_err(CodeDbError::SqliteError)?;
+
         self.sql
             .execute(
                 r#" INSERT OR IGNORE

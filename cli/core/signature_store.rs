@@ -7,6 +7,7 @@ use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tracing::*;
+use url::Url;
 
 #[derive(Debug)]
 pub struct SignatureStore {
@@ -25,7 +26,10 @@ pub struct SignatureStore {
     label_registry: Arc<LabelRegistry>,
 
     signatures: DashMap<PathBuf, Arc<Vec<Signature>>>,
+
     workspace: Workspace,
+
+    build_opts: BuildOpts,
 }
 
 #[derive(Error, Debug)]
@@ -67,6 +71,9 @@ pub enum SignatureStoreError {
 
     #[error(transparent)]
     AnalyzerServiceError(tonic::Status),
+
+    #[error(transparent)]
+    CodeDbError(CodeDbError),
 }
 
 impl SignatureStore {
@@ -77,6 +84,7 @@ impl SignatureStore {
         artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
         analyzer_service_manager: Arc<AnalyzerServiceManager>,
+        build_opts: BuildOpts,
     ) -> Self {
         let generators = DashMap::new();
         for (ext, generator) in &[
@@ -98,6 +106,7 @@ impl SignatureStore {
             label_registry,
             signatures: DashMap::default(),
             workspace: workspace.to_owned(),
+            build_opts,
         }
     }
 
@@ -110,6 +119,11 @@ impl SignatureStore {
         let local_label = label.get_local().unwrap();
 
         let sig_path = self.signature_path(local_label, source_chunk);
+
+        if self.build_opts.experimental_regenerate_signatures {
+            let _ = fs::remove_file(&sig_path).await;
+            self.signatures.remove(&sig_path);
+        }
 
         if let Some(signatures) = self.signatures.get(&sig_path) {
             return Ok(signatures.clone());
@@ -162,17 +176,39 @@ impl SignatureStore {
                 for dep in sig.deps {
                     let req = dep.requirement.unwrap();
                     match req {
+                        proto::build::warp::requirement::Requirement::Url(url_req) => {
+                            let url: url::Url = url_req.url.parse().unwrap();
+                            let label = url.into();
+                            deps.push(label)
+                        }
                         proto::build::warp::requirement::Requirement::File(file_req) => {
                             /*
                             let label = code_db.find_label_for_file(&file_req.path).unwrap();
                             deps.push(label)
                             */
                         }
+                        proto::build::warp::requirement::Requirement::Symbol(sym_req)
+                            if sym_req.kind == "module" =>
+                        {
+                            if let Ok(label) = code_db
+                                .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                                .await
+                                .map_err(SignatureStoreError::CodeDbError)
+                            {
+                                deps.push(label)
+                            } else {
+                                let url: Url = format!("https://hex.pm/packages/{}", sym_req.raw)
+                                    .parse()
+                                    .unwrap();
+                                let label: Label = url.into();
+                                deps.push(label);
+                            }
+                        }
                         proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
                             let label = code_db
                                 .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
                                 .await
-                                .unwrap();
+                                .map_err(SignatureStoreError::CodeDbError)?;
                             deps.push(label)
                         }
                     }
@@ -182,17 +218,40 @@ impl SignatureStore {
                 for dep in sig.runtime_deps {
                     let req = dep.requirement.unwrap();
                     match req {
+                        proto::build::warp::requirement::Requirement::Url(url_req) => {
+                            let url: url::Url = url_req.url.parse().unwrap();
+                            let label = url.into();
+                            deps.push(label)
+                        }
+
                         proto::build::warp::requirement::Requirement::File(file_req) => {
                             /*
                             let label = code_db.find_label_for_file(&file_req.path).unwrap();
                             deps.push(label)
                             */
                         }
+                        proto::build::warp::requirement::Requirement::Symbol(sym_req)
+                            if sym_req.kind == "module" =>
+                        {
+                            if let Ok(label) = code_db
+                                .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                                .await
+                                .map_err(SignatureStoreError::CodeDbError)
+                            {
+                                runtime_deps.push(label)
+                            } else {
+                                let url: Url = format!("https://hex.pm/packages/{}", sym_req.raw)
+                                    .parse()
+                                    .unwrap();
+                                let label: Label = url.into();
+                                runtime_deps.push(label);
+                            }
+                        }
                         proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
                             let label = code_db
                                 .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
                                 .await
-                                .unwrap();
+                                .map_err(SignatureStoreError::CodeDbError)?;
                             runtime_deps.push(label)
                         }
                     }
@@ -209,10 +268,7 @@ impl SignatureStore {
                 signatures.push(signature)
             }
 
-            let gen_sig = GeneratedSignature {
-                version: 0,
-                signatures,
-            };
+            let gen_sig = GeneratedSignature { signatures };
 
             let json_gen_sig = serde_json::to_string_pretty(&gen_sig).unwrap();
 
@@ -401,6 +457,34 @@ impl SignatureStore {
                 label.name().unwrap().replace('/', "_")
             ))
             .with_extension("wsig")
+    }
+
+    pub async fn find_signature(
+        &self,
+        label: &LocalLabel,
+        source_chunk: &SourceFile,
+    ) -> Result<Option<GeneratedSignature>, SignatureStoreError> {
+        let sig_path = self.signature_path(label, source_chunk);
+
+        if let Ok(mut file) = fs::File::open(&sig_path).await {
+            let mut bytes = vec![];
+            file.read_to_end(&mut bytes).await.map_err(|err| {
+                SignatureStoreError::SignatureReadError {
+                    file: sig_path.clone(),
+                    err,
+                }
+            })?;
+
+            let gen_sig: GeneratedSignature =
+                serde_json::from_slice(&bytes).map_err(|err| SignatureStoreError::ParseError {
+                    err,
+                    json: String::from_utf8(bytes).unwrap(),
+                })?;
+
+            Ok(Some(gen_sig))
+        } else {
+            Ok(None)
+        }
     }
 }
 
