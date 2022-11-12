@@ -73,7 +73,8 @@ impl RunShellAction {
             Ok(())
         } else {
             Err(anyhow!(
-                "Error running bash script: \n\nScript = {}\n\nStdout = {}\n\nStderr = {}",
+                "Error running bash script: \n\nStore Root = {}\n\nScript = {}\n\nStdout = {}\n\nStderr = {}",
+                store_root.to_string_lossy(),
                 self.script,
                 String::from_utf8_lossy(&output.stdout),
                 String::from_utf8_lossy(&output.stderr),
