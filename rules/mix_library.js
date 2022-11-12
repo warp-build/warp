@@ -62,7 +62,7 @@ ${
 # NOTE(@ostera): handle other mix libraries
 ${
   mixLibraries.flatMap((dep) => {
-    return `cp -R ${dep.name}/_build ${cwd()}/`
+    return `cp -R ${Label.path(dep.label)}/_build ${cwd()}/`
   }).join("\n")
 }
 
