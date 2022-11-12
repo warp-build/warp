@@ -1,7 +1,18 @@
 {
   "workspace": {
     "name": "tools.warp.build",
-    "use_git_hooks": true
+    "use_git_hooks": true,
+    "ignore_patterns": [
+      "warp-*",
+      ".terraform*",
+      "node_modules",
+      "target",
+      "lib/bs",
+      "deps",
+      "_build",
+      "cli",
+      "tests"
+    ]
   },
   "aliases": {
     "erlang": "https://rules.warp.build/toolchains/erlang",
