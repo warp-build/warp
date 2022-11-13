@@ -186,10 +186,9 @@ impl ArtifactStore {
             .write_manifest(&local_path, manifest, node)
             .await?;
 
-        let _ = self
-            .remote_store
+        self.remote_store
             .save(&store_key, &artifacts, &local_path)
-            .await;
+            .await?;
 
         Ok(())
     }
