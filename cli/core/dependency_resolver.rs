@@ -225,6 +225,7 @@ impl DependencyResolver {
 
         self.event_channel.send(Event::ResolvingDependency {
             label: remote_label.to_owned().into(),
+            resolver: self.label_registry.get_label(resolver).as_ref().to_owned(),
         });
 
         let request = proto::build::warp::dependency::ResolveDependencyRequest {

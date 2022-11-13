@@ -26,15 +26,24 @@ pub enum Event {
         label: Label,
         action: Action,
     },
+    AnalyzingSource {
+        label: Label,
+    },
     ArchiveDownloading {
         label: Label,
         url: String,
     },
     ArchiveUnpacking(Label),
     ArchiveVerifying(Label),
-    BadBuildfile(PathBuf, SignatureError),
+    BadBuildfile {
+        buildfile: PathBuf,
+        error: SignatureError,
+    },
     BuildCompleted(std::time::Instant),
-    BuildError(Label, BuildError),
+    BuildError {
+        label: Label,
+        error: BuildError,
+    },
     BuildStarted(std::time::Instant),
     BuildingTarget {
         label: Label,
@@ -47,11 +56,12 @@ pub enum Event {
     },
     EmptyWorkspace(std::time::Instant),
     ErrorLoadingRule(String, BuildWorkerError),
-    AnalyzingSource {
-        label: Label,
-    },
     GeneratingSignature {
         label: Label,
+    },
+    HandlingTarget {
+        label: Label,
+        goal: Goal,
     },
     HashedLabel {
         label: LabelId,
@@ -62,20 +72,24 @@ pub enum Event {
         label: Label,
         action_count: u64,
     },
-    QueuedTargets(u64),
-    QueueingWorkspace,
-    ResolvingDependency {
-        label: Label,
-    },
-    TargetBuilt(Label, Goal),
-    WorkerError(BuildWorkerError),
-    StartedService {
-        label: Label,
-    },
     QueuedLabel {
         label: Label,
     },
     QueuedSkipLabel {
         label: Label,
     },
+    QueuedTargets(u64),
+    QueueingWorkspace,
+    ResolvingDependency {
+        label: Label,
+        resolver: Label,
+    },
+    StartedService {
+        label: Label,
+    },
+    TargetBuilt {
+        label: Label,
+        goal: Goal,
+    },
+    WorkerError(BuildWorkerError),
 }

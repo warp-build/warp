@@ -136,9 +136,13 @@ impl BuildWorker {
         if next_task.is_none() {
             return Ok(());
         }
-
         let task = next_task.unwrap();
         let label = task.label;
+
+        self.event_channel.send(Event::HandlingTarget {
+            label: self.label_registry.get_label(label).as_ref().to_owned(),
+            goal: task.goal,
+        });
 
         let target = match self.label_resolver.resolve(label, task.goal).await {
             Err(LabelResolverError::DependencyResolverError(
@@ -178,23 +182,18 @@ impl BuildWorker {
                 return self.requeue(task, &[service_id]).await;
             }
 
-            Err(LabelResolverError::SourceManagerError(SourceManagerError::BadSignature)) => {
-                self.build_queue.skip(task);
-                return Ok(());
-            }
-
-            Err(LabelResolverError::SourceManagerError(SourceManagerError::UnknownParser {
-                label: _label,
-            })) => {
+            Err(LabelResolverError::SourceManagerError(
+                SourceManagerError::BadSignature | SourceManagerError::UnknownParser { .. },
+            )) => {
                 self.build_queue.skip(task);
                 return Ok(());
             }
 
             Err(err) => {
-                self.event_channel.send(Event::BuildError(
-                    (*self.label_registry.get_label(label)).to_owned(),
-                    BuildError::LabelResolverError(err),
-                ));
+                self.event_channel.send(Event::BuildError {
+                    label: (*self.label_registry.get_label(label)).to_owned(),
+                    error: BuildError::LabelResolverError(err),
+                });
                 self.coordinator.signal_shutdown();
                 return Ok(());
             }
@@ -236,10 +235,10 @@ impl BuildWorker {
             }
 
             Err(err) => {
-                self.event_channel.send(Event::BuildError(
-                    target.label.clone(),
-                    BuildError::TargetPlannerError(err),
-                ));
+                self.event_channel.send(Event::BuildError {
+                    label: target.label.clone(),
+                    error: BuildError::TargetPlannerError(err),
+                });
                 self.coordinator.signal_shutdown();
                 return Ok(());
             }
@@ -264,10 +263,10 @@ impl BuildWorker {
             ))) => self.build_queue.nack(task),
 
             Err(err) => {
-                self.event_channel.send(Event::BuildError(
-                    executable_target.label.clone().into(),
-                    BuildError::TargetExecutorError(err),
-                ));
+                self.event_channel.send(Event::BuildError {
+                    label: executable_target.label.clone().into(),
+                    error: BuildError::TargetExecutorError(err),
+                });
 
                 self.coordinator.signal_shutdown();
             }
@@ -280,15 +279,15 @@ impl BuildWorker {
                     unexpected_but_present,
                 },
             )) => {
-                self.event_channel.send(Event::BuildError(
-                    executable_target.label.clone().into(),
-                    BuildError::BuildWorkerError(BuildWorkerError::TargetFailedValidation {
+                self.event_channel.send(Event::BuildError {
+                    label: executable_target.label.clone().into(),
+                    error: BuildError::BuildWorkerError(BuildWorkerError::TargetFailedValidation {
                         label: executable_target.label.clone().into(),
                         expected_but_missing,
                         unexpected_but_present,
                         expected_and_present,
                     }),
-                ));
+                });
 
                 self.coordinator.signal_shutdown();
             }
@@ -309,8 +308,10 @@ impl BuildWorker {
                         goal: task.goal,
                     });
                 } else {
-                    self.event_channel
-                        .send(Event::TargetBuilt((*final_label).clone(), task.goal));
+                    self.event_channel.send(Event::TargetBuilt {
+                        label: (*final_label).clone(),
+                        goal: task.goal,
+                    });
                 }
 
                 self.build_results
@@ -326,10 +327,10 @@ impl BuildWorker {
     #[inline]
     async fn requeue(&self, task: Task, deps: &[LabelId]) -> Result<(), BuildWorkerError> {
         if let Err(QueueError::DependencyCycle(err)) = self.build_queue.queue_deps(task, deps) {
-            self.event_channel.send(Event::BuildError(
-                (*self.label_registry.get_label(task.label)).to_owned(),
-                BuildError::BuildResultError(err),
-            ));
+            self.event_channel.send(Event::BuildError {
+                label: (*self.label_registry.get_label(task.label)).to_owned(),
+                error: BuildError::BuildResultError(err),
+            });
             self.coordinator.signal_shutdown();
         }
 

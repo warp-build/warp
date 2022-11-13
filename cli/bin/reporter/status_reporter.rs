@@ -61,6 +61,16 @@ impl StatusReporter {
 
                     use warp_core::Event::*;
                     match event {
+                        HandlingTarget { label, .. } => {
+                            if self.flags.show_queued_events {
+                                let line = format!(
+                                    "   {} {}",
+                                    info.apply_to("HANDLING"),
+                                    label.to_string()
+                                );
+                                pb.println(line);
+                            }
+                        }
                         BuildingTarget { label, .. } => {
                             current_targets.insert(label);
                             let current_targets_names = current_targets
@@ -76,7 +86,7 @@ impl StatusReporter {
                         QueuedSkipLabel { label } => {
                             if self.flags.show_queued_events {
                                 let line = format!(
-                                    " {:>11} {}",
+                                    " {} {}",
                                     info.apply_to("QUEUE SKIP"),
                                     label.to_string()
                                 );
@@ -87,7 +97,7 @@ impl StatusReporter {
                         QueuedLabel { label } => {
                             if self.flags.show_queued_events {
                                 let line = format!(
-                                    " {:>11} {}",
+                                    "     {} {}",
                                     info.apply_to("QUEUED"),
                                     label.to_string()
                                 );
@@ -106,13 +116,19 @@ impl StatusReporter {
 
                         QueuedTargets(count) => {
                             queued_targets += count;
+                            if self.flags.show_queued_events {
+                                let line =
+                                    format!("     {} {} targets", info.apply_to("QUEUED"), count,);
+                                pb.println(line);
+                            }
                         }
 
-                        ResolvingDependency { label } => {
+                        ResolvingDependency { label, resolver } => {
                             let line = format!(
-                                "{:>12} {}",
+                                "{:>12} {} using {}",
                                 yellow.apply_to("Resolving"),
                                 label.to_string(),
+                                resolver.to_string(),
                             );
                             pb.println(line);
                             pb.set_length(pb.length() + 1);
@@ -232,7 +248,7 @@ impl StatusReporter {
                             cache_hits.insert(label);
                         }
 
-                        TargetBuilt(label, goal) => {
+                        TargetBuilt { label, goal } => {
                             let line = format!(
                                 "{:>12} {}",
                                 green_bold.apply_to(if goal.is_test() { "PASS" } else { "Built" }),
@@ -265,17 +281,17 @@ impl StatusReporter {
                             pb.println(format!("{}", err));
                         }
 
-                        BadBuildfile(path, err) => {
+                        BadBuildfile { buildfile, error } => {
                             errored = true;
                             error_count += 1;
                             let line = format!(
                                 "{:>12} {} {}",
                                 red_bold.apply_to("ERROR"),
                                 "error when reading ",
-                                path.to_str().unwrap()
+                                buildfile.to_str().unwrap()
                             );
                             pb.println(line);
-                            pb.println(format!("{}", err));
+                            pb.println(format!("{}", error));
                         }
 
                         WorkerError(err) => {
@@ -290,7 +306,7 @@ impl StatusReporter {
                             pb.println(format!("{}", err));
                         }
 
-                        BuildError(label, err) => {
+                        BuildError { label, error } => {
                             errored = true;
                             error_count += 1;
                             let line = format!(
@@ -299,7 +315,7 @@ impl StatusReporter {
                                 label.to_string(),
                             );
                             pb.println(line);
-                            pb.println(format!("{}", err));
+                            pb.println(format!("{}", error));
                         }
 
                         BuildStarted(t0) => {

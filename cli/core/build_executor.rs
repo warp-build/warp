@@ -413,7 +413,10 @@ impl BuildExecutor {
 
                     match buildfile {
                         Err(err) => {
-                            event_channel.send(Event::BadBuildfile(buildfile_path, err));
+                            event_channel.send(Event::BadBuildfile {
+                                buildfile: buildfile_path,
+                                error: err,
+                            });
                             continue;
                         }
                         Ok(buildfile) => {
