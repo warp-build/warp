@@ -109,7 +109,6 @@ impl ToolchainsRegistry {
                     config: {
                         let mut object = object.clone();
                         object.remove("deps");
-                        object.remove("analyzer");
                         let config = serde_json::Value::Object(object);
                         TryFrom::try_from(config.clone()).unwrap()
                     },
