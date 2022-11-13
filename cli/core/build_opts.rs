@@ -24,6 +24,7 @@ pub struct BuildOpts {
     pub experimental_regenerate_signatures: bool,
     pub experimental_runtime_input_detection: bool,
     pub experimental_stream_analyzer_outputs: bool,
+    pub disable_remote_cache: bool,
     pub goal: Goal,
     pub target_filter: TargetFilter,
 }

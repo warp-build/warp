@@ -45,6 +45,12 @@ pub struct Flags {
     pub(crate) show_queued_events: bool,
 
     #[structopt(
+        help = r"Prevents fetching already built targets from the cache. WARNING: some builds may be very slow with this flag on.",
+        long = "disable-remote-cache"
+    )]
+    pub(crate) disable_remote_cache: bool,
+
+    #[structopt(
         help = r"EXPERIMENTAL: force regeneration of build signatures",
         long = "experimental-regenerate-signatures"
     )]
@@ -90,6 +96,7 @@ impl From<Flags> for BuildOpts {
             experimental_stream_analyzer_outputs: flags.experimental_stream_analyzer_outputs,
             experimental_runtime_input_detection: flags.experimental_runtime_input_detection,
             experimental_regenerate_signatures: flags.experimental_regenerate_signatures,
+            disable_remote_cache: flags.disable_remote_cache,
             ..Default::default()
         }
     }

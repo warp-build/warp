@@ -255,7 +255,7 @@ impl BuildWorker {
 
         match self
             .target_executor
-            .execute(&executable_target, &self.build_opts)
+            .execute(&executable_target, self.build_opts)
             .await
         {
             // NOTE(@ostera): if someone else is already building this target, we'll postpone it.

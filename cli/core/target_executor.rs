@@ -73,13 +73,13 @@ impl TargetExecutor {
     pub async fn execute(
         &self,
         target: &ExecutableTarget,
-        build_opts: &BuildOpts,
+        build_opts: BuildOpts,
     ) -> Result<(TargetManifest, ValidationStatus), TargetExecutorError> {
         let build_started_at = chrono::Utc::now();
 
         if let ArtifactStoreHitType::Hit(manifest) = self
             .artifact_store
-            .is_stored(target)
+            .is_stored(target, build_opts)
             .await
             .map_err(TargetExecutorError::ArtifactStoreError)?
         {

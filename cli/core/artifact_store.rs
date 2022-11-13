@@ -200,11 +200,12 @@ impl ArtifactStore {
     pub async fn is_stored(
         &self,
         node: &ExecutableTarget,
+        build_opts: BuildOpts,
     ) -> Result<ArtifactStoreHitType, ArtifactStoreError> {
         let store_key = self.store_key(node);
 
         match self.local_store.find_manifest(&store_key).await? {
-            ArtifactStoreHitType::Miss(_) => {
+            ArtifactStoreHitType::Miss(_) if !build_opts.disable_remote_cache => {
                 let expected_path = self.local_store.absolute_path_for_key(&store_key).await?;
                 let _ = self
                     .remote_store
