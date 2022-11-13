@@ -1,6 +1,6 @@
 use super::*;
 use dashmap::DashMap;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 use thiserror::*;
 use tokio::fs;
 use tracing::*;
@@ -9,12 +9,16 @@ use tracing::*;
 pub struct DependencyManager {
     dependencies: DashMap<LabelId, Dependency>,
     label_registry: Arc<LabelRegistry>,
+    dependency_file: std::path::PathBuf,
 }
 
 #[derive(Error, Debug)]
 pub enum DependencyManagerError {
     #[error(transparent)]
     DependencyFileError(DependencyFileError),
+
+    #[error(transparent)]
+    DependencyJsonError(DependencyJsonBuilderError),
 }
 
 impl DependencyManager {
@@ -22,26 +26,23 @@ impl DependencyManager {
         workspace: &Workspace,
         label_registry: Arc<LabelRegistry>,
     ) -> Result<Self, DependencyManagerError> {
-        let dep_file = workspace.paths.local_warp_root.join(DEPENDENCIES_JSON);
-        if fs::metadata(&dep_file).await.is_err() {
+        let dependency_file = workspace.paths.local_warp_root.join(DEPENDENCIES_JSON);
+        if fs::metadata(&dependency_file).await.is_err() {
             let dep_file = DependencyFile::builder()
                 .version("0".to_string())
                 .build()
                 .unwrap();
-            dep_file
-                .write(&workspace.paths.local_warp_root)
-                .await
-                .unwrap();
+            dep_file.write(&dependency_file).await.unwrap();
         }
 
-        let dependency_file = DependencyFile::read_from_file(&dep_file)
+        let dep_file = DependencyFile::read_from_file(&dependency_file)
             .await
             .map_err(DependencyManagerError::DependencyFileError)
             .unwrap();
 
         let dependencies = DashMap::new();
 
-        for (url, dep_json) in &dependency_file.dependencies {
+        for (url, dep_json) in &dep_file.dependencies {
             let label: Label = url::Url::parse(url).unwrap().into();
             let label = label_registry.register_label(label);
 
@@ -70,7 +71,46 @@ impl DependencyManager {
         Ok(Self {
             dependencies,
             label_registry,
+            dependency_file,
         })
+    }
+
+    pub async fn persist(&self) -> Result<(), DependencyManagerError> {
+        let mut deps = BTreeMap::new();
+
+        for dep in self.dependencies.iter() {
+            let dep = &*dep;
+            let dep_json = DependencyJson::builder()
+                .url(dep.url.clone())
+                .resolver(dep.resolver.as_ref().map(|resolver_id| {
+                    self.label_registry
+                        .get_label(*resolver_id)
+                        .as_ref()
+                        .to_owned()
+                }))
+                .version(dep.version.clone())
+                .package(dep.package.clone())
+                .build()
+                .map_err(DependencyManagerError::DependencyJsonError)?;
+
+            deps.insert(dep.url.to_string(), dep_json);
+        }
+
+        let dependency_file = DependencyFile::builder()
+            .dependencies(deps)
+            .build()
+            .map_err(DependencyManagerError::DependencyFileError)?;
+
+        dependency_file
+            .write(&self.dependency_file)
+            .await
+            .map_err(DependencyManagerError::DependencyFileError)?;
+
+        Ok(())
+    }
+
+    pub fn add(&self, dep: Dependency) {
+        self.dependencies.insert(dep.label, dep);
     }
 
     pub fn get(&self, label: LabelId) -> Option<Dependency> {
