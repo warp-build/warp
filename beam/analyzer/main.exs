@@ -10,4 +10,3 @@ port = String.to_integer(port)
 Logger.info("Started gRPC server on http://0.0.0.0:#{port}")
 
 System.no_halt(true)
-
