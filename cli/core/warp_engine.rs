@@ -135,6 +135,14 @@ impl WarpEngine {
         self.build_executor.as_ref().unwrap().label_registry.clone()
     }
 
+    pub fn dependency_manager(&self) -> Arc<DependencyManager> {
+        self.build_executor
+            .as_ref()
+            .unwrap()
+            .dependency_manager
+            .clone()
+    }
+
     pub fn source_manager(&self) -> Arc<SourceManager> {
         self.build_executor.as_ref().unwrap().source_manager.clone()
     }

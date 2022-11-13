@@ -1,8 +1,8 @@
 use super::*;
 use crate::proto;
 use crate::reporter::StatusReporter;
-use dashmap::DashSet;
-use std::path::PathBuf;
+use dashmap::{DashMap, DashSet};
+use std::{collections::BTreeMap, path::PathBuf};
 use structopt::StructOpt;
 use warp_core::*;
 
@@ -74,6 +74,8 @@ impl LiftCommand {
         db: CodeDb,
     ) -> Result<(), anyhow::Error> {
         let cyan = console::Style::new().cyan().bold();
+        let blue_dim = console::Style::new().blue();
+        let green_bold = console::Style::new().green().bold();
 
         let analyzers: Vec<String> = analyzers.iter().map(|l| l.to_string()).collect();
 
@@ -128,16 +130,17 @@ impl LiftCommand {
         let root = warp.workspace.paths.workspace_root.clone();
         let invocation_dir = warp.invocation_dir.clone();
 
-        let mut extensions = vec![];
+        let mut paths = vec![];
         for client in &mut clients {
             let request = proto::build::warp::codedb::GetInterestedPathsRequest {};
             let exts = client.get_interested_paths(request).await?.into_inner();
-            extensions.extend(exts.build_files)
+            paths.extend(exts.build_files);
+            paths.extend(exts.test_files);
         }
 
         let match_patterns = {
             let mut builder = globset::GlobSetBuilder::new();
-            for ext in &extensions {
+            for ext in &paths {
                 let glob = globset::Glob::new(&format!("*{}", ext)).unwrap();
                 builder.add(glob);
             }
@@ -146,14 +149,7 @@ impl LiftCommand {
 
         let skip_patterns = {
             let mut builder = globset::GlobSetBuilder::new();
-            for pattern in &[
-                "*target*",
-                "*_build*",
-                "*/.warp*",
-                "*warp-outputs*",
-                "*.git*",
-                "*.DS_Store*",
-            ] {
+            for pattern in &["*target", "*_build", "*warp-outputs", "*.git", "*.DS_Store"] {
                 let glob = globset::Glob::new(pattern).unwrap();
                 builder.add(glob);
             }
@@ -162,6 +158,7 @@ impl LiftCommand {
 
         println!("{:>12} entire workspace...", cyan.apply_to("Scanning"),);
 
+        let deps = DashMap::new();
         let mut dirs = vec![root.clone()];
         while let Some(dir) = dirs.pop() {
             let mut read_dir = tokio::fs::read_dir(&dir).await.unwrap();
@@ -209,6 +206,49 @@ impl LiftCommand {
                                         .await
                                         .unwrap();
                                 }
+                                proto::build::warp::requirement::Requirement::Dependency(
+                                    dep_req,
+                                ) => {
+                                    let label: Label = dep_req.name.parse().unwrap();
+                                    let label = warp.label_registry().register_label(label);
+
+                                    let resolver: Label =
+                                        dep_req.signature_resolver.parse().unwrap();
+
+                                    /* FIXME(ostera): this is the code I wanted to write, but it won't work
+                                     * because the dependency manager has temporarily inherited all
+                                     * deps from all remote workspaces.
+                                     *
+                                     * So if we try to persist it, we get a bunch of random
+                                     * dependencies that we 100% do not want.
+                                     *
+                                     * The real solution here is to make the
+                                     * DependencyManager work with multiple workspaces.
+                                     *
+                                     *   let resolver =
+                                     *       Some(warp.label_registry().register_label(resolver));
+                                     *
+                                     *   let dep = Dependency {
+                                     *       label,
+                                     *       resolver,
+                                     *       package: dep_req.name,
+                                     *       version: dep_req.version,
+                                     *       url: dep_req.url.parse().unwrap(),
+                                     *   };
+                                     *
+                                     *   warp.dependency_manager().add(dep);
+                                     */
+
+                                    let dep_json = DependencyJson::builder()
+                                        .url(dep_req.url.parse()?)
+                                        .resolver(Some(resolver))
+                                        .version(dep_req.version.clone())
+                                        .package(dep_req.name.clone())
+                                        .build()
+                                        .map_err(DependencyManagerError::DependencyJsonError)?;
+
+                                    deps.insert(dep_req.url, dep_json);
+                                }
 
                                 proto::build::warp::requirement::Requirement::Url(_) => (),
                             }
@@ -216,7 +256,14 @@ impl LiftCommand {
 
                         println!(
                             "{:>12} {} ({}ms)",
-                            "OK",
+                            blue_dim.apply_to("OK"),
+                            &path.to_string_lossy(),
+                            analyze_time.elapsed().as_millis()
+                        );
+                    } else {
+                        println!(
+                            "{:>12} {} ({}ms)",
+                            blue_dim.apply_to("SKIP"),
                             &path.to_string_lossy(),
                             analyze_time.elapsed().as_millis()
                         );
@@ -225,7 +272,20 @@ impl LiftCommand {
             }
         }
 
+        let deps: BTreeMap<String, DependencyJson> = deps.into_iter().collect();
+        let dependency_file = DependencyFile::builder()
+            .version("0".into())
+            .dependencies(deps)
+            .build()?;
+
+        println!("{:>12} dependency manifest", cyan.apply_to("Saving"));
+
+        dependency_file
+            .write(&warp.workspace.paths.local_warp_root.join(DEPENDENCIES_JSON))
+            .await?;
+
         drop(processes);
+        println!("{:>12} lifting workspace.", green_bold.apply_to("Finished"));
 
         Ok(())
     }
