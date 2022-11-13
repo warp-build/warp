@@ -31,14 +31,34 @@ defmodule Analyzer.Server do
 
     signatures = signatures
       |> Enum.map(fn sig ->
-        deps = sig.deps
-               |> Enum.map(fn dep ->
-                 symbol = Build.Warp.SymbolRequirement.new(
-                   raw: dep,
-                   kind: "module"
-                 )
-                 Build.Warp.Requirement.new(requirement: {:symbol, symbol})
-               end)
+        modules =
+          sig.modules
+          |> Enum.map(fn dep ->
+            symbol = Build.Warp.SymbolRequirement.new(
+              raw: dep,
+              kind: "module"
+            )
+            Build.Warp.Requirement.new(requirement: {:symbol, symbol})
+          end)
+        
+        includes =
+          sig.includes
+          |> Enum.map(fn dep ->
+            req = if String.contains?(dep, "/include/") do
+              [app, _include, _file] = String.split(dep, "/")
+              {:url, Build.Warp.UrlRequirement.new(
+                url: "https://hex.pm/packages/#{app}"
+              )}
+            else
+              {:symbol, Build.Warp.FileRequirement.new(
+                path: dep,
+              )}
+            end
+            Build.Warp.Requirement.new(requirement: req)
+          end)
+        
+        
+        deps = modules ++ includes
 
         runtime_deps = sig.runtime_deps
                |> Enum.map(fn dep ->

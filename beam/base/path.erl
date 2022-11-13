@@ -49,7 +49,7 @@ strip_prefix(Prefix, Path) ->
 join(A, B) -> from_list([A, B]).
 
 extension(Path) -> 
-  case (catch filename:extension(Path)) of
+  case (catch filename:extension(unsafe_new(Path))) of
     {'ERROR', _} -> {error, no_extension};
     Ext -> {ok, Ext}
   end.

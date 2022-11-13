@@ -93,6 +93,8 @@ erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Comp
     name => File,
     srcs => [path:filename(File)],
     runtime_deps => [],
+    includes => IncludeDeps,
+    modules => ModDeps,
     deps => deps_to_labels(IncludeDeps ++ ModDeps), 
     rule => <<"erlang_library">>
    }].
@@ -129,6 +131,8 @@ get_ct_cases(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnal
     test => path:filename(File),
     runtime_deps => [],
     deps => deps_to_labels(IncludeDeps ++ ModDeps), 
+    includes => IncludeDeps,
+    modules => ModDeps,
     cases => [Case],
     rule => <<"erlang_test">>
    } || Case <- Cases, erlang:is_atom(Case)].
@@ -171,6 +175,8 @@ get_prop_tests(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAn
     test => path:filename(File),
     runtime_deps => [],
     deps => deps_to_labels(IncludeDeps ++ ModDeps), 
+    includes => IncludeDeps,
+    modules => ModDeps,
     props => [Prop],
     rule => <<"erlang_proper_test">>
    } || Prop <- Properties].
@@ -202,7 +208,7 @@ includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis) ->
                    end
                    || Hrl <- IncludeDeps0,
                       erl_stdlib:is_user_include(Hrl),
-                      path:extension(Hrl) == <<".hrl">>,
+                      path:extension(Hrl) == {ok, <<".hrl">>},
                       Hrl =/= File
                  ],
   skip_std(uniq([ Path || Path <- IncludeDeps1, Path =/= File ])).
