@@ -24,11 +24,11 @@ fn main() -> Result<(), anyhow::Error> {
         .compile_well_known_types(true)
         .compile(
             &[
-                "protos/build/warp/codedb/analyzer.proto",
-                "protos/build/warp/resolver.proto",
-                "protos/build/warp/common.proto",
+                "../../schemas/build/warp/codedb/analyzer.proto",
+                "../../schemas/build/warp/resolver.proto",
+                "../../schemas/build/warp/common.proto",
             ],
-            &["protos"],
+            &["../../"],
         )?;
 
     Ok(())

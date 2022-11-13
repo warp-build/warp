@@ -1,7 +1,7 @@
 syntax = "proto3";
 package build.warp.dependency;
 
-import "build/warp/common.proto";
+import "schemas/build/warp/common.proto";
 
 service ResolverService {
   rpc ResolveDependency(ResolveDependencyRequest) returns (ResolveDependencyResponse);
