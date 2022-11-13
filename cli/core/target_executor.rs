@@ -31,7 +31,23 @@ pub enum TargetExecutorError {
     },
 
     #[error(
-        "When building {label:?}, could not copy {src:?} into sandbox at {dst:?} due to: {err:?}"
+        r#"
+
+When building {}, could not copy
+
+  {}
+
+into sandbox at
+
+  {}
+
+due to:
+
+  {err:?}
+
+  "#, .label.to_string(),
+  .src.to_string_lossy(),
+  .dst.to_string_lossy(),
     )]
     CouldNotCopy {
         label: Label,
