@@ -25,6 +25,8 @@ pub struct SignatureStore {
 
     label_registry: Arc<LabelRegistry>,
 
+    dependency_manager: Arc<DependencyManager>,
+
     signatures: DashMap<PathBuf, Arc<Vec<Signature>>>,
 
     workspace: Workspace,
@@ -84,6 +86,7 @@ impl SignatureStore {
         artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
         analyzer_service_manager: Arc<AnalyzerServiceManager>,
+        dependency_manager: Arc<DependencyManager>,
         build_opts: BuildOpts,
     ) -> Self {
         let generators = DashMap::new();
@@ -100,6 +103,7 @@ impl SignatureStore {
             analyzer_service_manager,
             artifact_store,
             build_results,
+            dependency_manager,
             event_channel,
             generators,
             global_signatures_path: workspace.paths.global_signatures_path.clone(),
@@ -181,18 +185,31 @@ impl SignatureStore {
                             let label = url.into();
                             deps.push(label)
                         }
+
+                        proto::build::warp::requirement::Requirement::Dependency(dep_req)
+                            if dep_req.url.is_empty() || dep_req.name.is_empty() => {}
+
                         proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
-                            /*
-                            let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                            let url = self
+                                .dependency_manager
+                                .find_by_package_name(&dep_req.name)
+                                .map(|dep| dep.url)
+                                .unwrap_or_else(|| dep_req.url.parse().unwrap());
+                            dbg!(&url);
+                            let label: Label = url.into();
                             deps.push(label)
-                            */
                         }
+
                         proto::build::warp::requirement::Requirement::File(file_req) => {
                             /*
                             let label = code_db.find_label_for_file(&file_req.path).unwrap();
                             deps.push(label)
                             */
                         }
+
+                        proto::build::warp::requirement::Requirement::Symbol(sym_req)
+                            if sym_req.kind.is_empty() || sym_req.raw.is_empty() => {}
+
                         proto::build::warp::requirement::Requirement::Symbol(sym_req)
                             if sym_req.kind == "module" =>
                         {
@@ -210,6 +227,7 @@ impl SignatureStore {
                                 deps.push(label);
                             }
                         }
+
                         proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
                             let label = code_db
                                 .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
@@ -223,6 +241,7 @@ impl SignatureStore {
                 let mut runtime_deps = vec![];
                 for dep in sig.runtime_deps {
                     let req = dep.requirement.unwrap();
+                    dbg!(&req);
                     match req {
                         proto::build::warp::requirement::Requirement::Url(url_req) => {
                             let url: url::Url = url_req.url.parse().unwrap();
@@ -231,10 +250,14 @@ impl SignatureStore {
                         }
 
                         proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
-                            /*
-                            let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                            let url = self
+                                .dependency_manager
+                                .find_by_package_name(&dep_req.name)
+                                .map(|dep| dep.url)
+                                .unwrap_or_else(|| dep_req.url.parse().unwrap());
+                            dbg!(&url);
+                            let label: Label = url.into();
                             deps.push(label)
-                            */
                         }
 
                         proto::build::warp::requirement::Requirement::File(file_req) => {

@@ -117,6 +117,13 @@ impl DependencyManager {
         self.dependencies.get(&label).map(|r| (*r).clone())
     }
 
+    pub fn find_by_package_name(&self, name: &str) -> Option<Dependency> {
+        self.dependencies
+            .iter()
+            .find(|dep| dep.package == name)
+            .map(|dep| (*dep).clone())
+    }
+
     // TODO(@ostera): this should be part of the WorkspaceManager
     pub async fn register_workspace(
         &self,

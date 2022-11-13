@@ -34,6 +34,8 @@ pub enum BuildExecutorError {
 ///
 #[derive(Builder, Clone, Debug)]
 pub struct BuildExecutor {
+    pub(crate) archive_manager: Arc<ArchiveManager>,
+
     pub(crate) analyzer_service_manager: Arc<AnalyzerServiceManager>,
 
     pub(crate) resolver_service_manager: Arc<ResolverServiceManager>,
@@ -79,6 +81,8 @@ impl BuildExecutor {
         event_channel: Arc<EventChannel>,
         build_opts: BuildOpts,
     ) -> Result<Self, BuildExecutorError> {
+        let archive_manager = Arc::new(ArchiveManager::new(&workspace, event_channel.clone()));
+
         let label_registry = Arc::new(LabelRegistry::new());
 
         let build_results = Arc::new(BuildResults::new(label_registry.clone()));
@@ -129,6 +133,7 @@ impl BuildExecutor {
             artifact_store.clone(),
             label_registry.clone(),
             analyzer_service_manager.clone(),
+            dependency_manager.clone(),
             build_opts,
         ));
 
@@ -169,6 +174,7 @@ impl BuildExecutor {
         });
 
         Ok(BuildExecutor {
+            archive_manager,
             analyzer_service_manager,
             artifact_store,
             build_coordinator,

@@ -293,18 +293,24 @@ impl DependencyResolver {
                         let label = url.into();
                         deps.push(label)
                     }
+
                     proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
-                        /*
-                        let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                        let url = self
+                            .dependency_manager
+                            .find_by_package_name(&dep_req.name)
+                            .map(|dep| dep.url)
+                            .unwrap_or_else(|| dep_req.url.parse().unwrap());
+                        let label: Label = url.into();
                         deps.push(label)
-                        */
                     }
+
                     proto::build::warp::requirement::Requirement::File(file_req) => {
                         /*
                         let label = code_db.find_label_for_file(&file_req.path).unwrap();
                         deps.push(label)
                         */
                     }
+
                     proto::build::warp::requirement::Requirement::Symbol(sym_req)
                         if sym_req.kind == "module" =>
                     {
@@ -322,6 +328,7 @@ impl DependencyResolver {
                             deps.push(label);
                         }
                     }
+
                     proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
                         let label = code_db
                             .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
@@ -341,18 +348,24 @@ impl DependencyResolver {
                         let label = url.into();
                         deps.push(label)
                     }
+
                     proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
-                        /*
-                        let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                        let url = self
+                            .dependency_manager
+                            .find_by_package_name(&dep_req.name)
+                            .map(|dep| dep.url)
+                            .unwrap_or_else(|| dep_req.url.parse().unwrap());
+                        let label: Label = url.into();
                         deps.push(label)
-                        */
                     }
+
                     proto::build::warp::requirement::Requirement::File(file_req) => {
                         /*
                         let label = code_db.find_label_for_file(&file_req.path).unwrap();
                         deps.push(label)
                         */
                     }
+
                     proto::build::warp::requirement::Requirement::Symbol(sym_req)
                         if sym_req.kind == "module" =>
                     {
@@ -370,6 +383,7 @@ impl DependencyResolver {
                             runtime_deps.push(label);
                         }
                     }
+
                     proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
                         let label = code_db
                             .find_label_for_symbol(&sym_req.raw, &sym_req.kind)

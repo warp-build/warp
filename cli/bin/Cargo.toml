@@ -46,6 +46,7 @@ tonic-build = "0.8.2"
 tracing = { version = "0.1" }
 tracing-opentelemetry = "0.17"
 tracing-subscriber = "0.3"
+url = "2"
 whoami = "1.2"
 
 [dev-dependencies]

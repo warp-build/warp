@@ -7,14 +7,10 @@ use tracing::*;
 #[derive(Debug)]
 pub struct CodeDb {
     sql: rusqlite::Connection,
-    //db: rocksdb::DB,
 }
 
 #[derive(Error, Debug)]
 pub enum CodeDbError {
-    #[error(transparent)]
-    RocksDbError(rocksdb::Error),
-
     #[error(transparent)]
     SqliteError(rusqlite::Error),
 
@@ -133,10 +129,10 @@ impl CodeDb {
             return Ok(label);
         }
 
-        return Err(CodeDbError::UnknownSymbol {
+        Err(CodeDbError::UnknownSymbol {
             symbol_raw: symbol_raw.to_string(),
             symbol_kind: symbol_kind.to_string(),
-        });
+        })
     }
 
     pub async fn save_symbol(

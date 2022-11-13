@@ -37,7 +37,14 @@ impl LiftCommand {
             })
             .flat_map(|t| t.analyzer.clone())
             .collect();
-        let analyzers: Vec<Label> = analyzers.into_iter().collect();
+        let mut analyzers: Vec<Label> = analyzers.into_iter().collect();
+        for resolver in [
+            "https://tools.warp.build/hexpm/resolver",
+            "https://tools.warp.build/github/resolver",
+            "https://tools.warp.build/gitlab/resolver",
+        ] {
+            analyzers.push(resolver.parse::<url::Url>().unwrap().into());
+        }
 
         if !analyzers.is_empty() {
             let status_reporter = StatusReporter::new(
@@ -215,7 +222,7 @@ impl LiftCommand {
                                     let resolver: Label =
                                         dep_req.signature_resolver.parse().unwrap();
 
-                                    /* FIXME(ostera): this is the code I wanted to write, but it won't work
+                                    /* FIXME(@ostera): this is the code I wanted to write, but it won't work
                                      * because the dependency manager has temporarily inherited all
                                      * deps from all remote workspaces.
                                      *
@@ -247,7 +254,29 @@ impl LiftCommand {
                                         .build()
                                         .map_err(DependencyManagerError::DependencyJsonError)?;
 
-                                    deps.insert(dep_req.url, dep_json);
+                                    deps.insert(dep_req.url.clone(), dep_json);
+
+                                    /* FIXME(@ostera): this is the code I wanted to write here:
+                                     *
+                                     *   let dep_root = warp.dependency_manager().download(dep).await?;
+                                     *   dirs.push(dep_root);
+                                     *
+                                     * So that we can download, extract, and prepare a dependency
+                                     * at this point in time rather than later.
+                                     */
+
+                                    // NOTE(@ostera): this path should really be computed within a
+                                    // WorkspaceManager where we can add a DependencyWorkspace.
+                                    //
+                                    let final_dir = warp
+                                        .workspace
+                                        .paths
+                                        .global_workspaces_path
+                                        .join(dep_req.url.replace("://", "/"))
+                                        .join(&dep_req.version);
+                                    tokio::fs::create_dir_all(&final_dir).await?;
+
+                                    let signature_file_path = final_dir.join("Warp.signature");
                                 }
 
                                 proto::build::warp::requirement::Requirement::Url(_) => (),
