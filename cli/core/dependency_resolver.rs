@@ -293,6 +293,12 @@ impl DependencyResolver {
                         let label = url.into();
                         deps.push(label)
                     }
+                    proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
+                        /*
+                        let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                        deps.push(label)
+                        */
+                    }
                     proto::build::warp::requirement::Requirement::File(file_req) => {
                         /*
                         let label = code_db.find_label_for_file(&file_req.path).unwrap();
@@ -334,6 +340,12 @@ impl DependencyResolver {
                         let url: url::Url = url_req.url.parse().unwrap();
                         let label = url.into();
                         deps.push(label)
+                    }
+                    proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
+                        /*
+                        let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                        deps.push(label)
+                        */
                     }
                     proto::build::warp::requirement::Requirement::File(file_req) => {
                         /*

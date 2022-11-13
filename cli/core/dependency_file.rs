@@ -78,7 +78,7 @@ impl DependencyFile {
     #[tracing::instrument(name = "DependencyFile::write")]
     pub async fn write(&self, root: &Path) -> Result<(), DependencyFileError> {
         let json = serde_json::to_string_pretty(&self).map_err(DependencyFileError::PrintError)?;
-        fs::write(&root.join(DEPENDENCIES_JSON), json)
+        fs::write(&root, json)
             .await
             .map_err(DependencyFileError::IOError)
     }
@@ -87,6 +87,7 @@ impl DependencyFile {
 #[derive(Debug, Clone, Builder, Serialize, Deserialize)]
 pub struct DependencyJson {
     #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub resolver: Option<Label>,
 
     pub version: String,
