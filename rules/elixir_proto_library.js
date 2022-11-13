@@ -8,9 +8,9 @@ const impl = ctx => {
 
   let gen_dir = `${cwd()}/generated/elixir`;
   ctx.action().runShell({
-    script: `#!/bin/bash
+    script: `
 
-mkdir -p  ${gen_dir}
+mkdir -p ${gen_dir}
 protoc \
   --elixir_out=inline_docs=true,one_file_per_module=true,gen_descriptors=true,plugins=grpc:${gen_dir} \
   ${protos.join(" ")}
@@ -33,5 +33,10 @@ export default Warp.Rule({
   defaults: {
     deps: [],
   },
-  toolchains: [ElixirProtobufToolchain, ProtobufToolchain, ElixirToolchain, ErlangToolchain]
+  toolchains: [
+    ElixirProtobufToolchain,
+    ElixirToolchain,
+    ErlangToolchain,
+    ProtobufToolchain,
+  ]
 });
