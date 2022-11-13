@@ -35,7 +35,7 @@ defmodule Analyzer.Server do
           sig.modules
           |> Enum.map(fn dep ->
             symbol = Build.Warp.SymbolRequirement.new(
-              raw: dep,
+              raw: Atom.to_string(dep),
               kind: "module"
             )
             Build.Warp.Requirement.new(requirement: {:symbol, symbol})
