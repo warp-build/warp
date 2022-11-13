@@ -1,90 +1,995 @@
 {
+  "version": "0",
   "dependencies": {
-    "https://hex.pm/packages/castore": {
-      "url": "https://hex.pm/packages/castore",
-      "package": "castore",
-      "version": "0.1.18"
+    "http://github.com/aramallo/partisan": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "4db92b4477b2ed97669efc3f3d6143081fcc1dbc",
+      "package": "partisan",
+      "url": "http://github.com/aramallo/partisan"
     },
-    "https://hex.pm/packages/hpax": {
-      "url": "https://hex.pm/packages/hpax",
-      "package": "hpax",
-      "version": "0.1.2"
+    "https://github.com/Leapsight/eleveldb": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "f7339ad2a57537b3f7e185a38341664d3cc22cfb",
+      "package": "eleveldb",
+      "url": "https://github.com/Leapsight/eleveldb"
     },
-    "https://hex.pm/packages/mint": {
-      "url": "https://hex.pm/packages/mint",
-      "package": "mint",
-      "version": "1.4.2"
+    "https://github.com/Leapsight/plum_db": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "848f2e6c47d2315f7632e3be6f0093fe8e35dc50",
+      "package": "plum_db",
+      "url": "https://github.com/Leapsight/plum_db"
     },
-    "https://hex.pm/packages/hex_core": {
-      "url": "https://hex.pm/packages/hex_core",
-      "package": "hex_core",
-      "version": "0.9.0"
+    "https://github.com/Leapsight/riak_sysmon": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "726df1f4c31108bb9366fb767b480f286e51f7fc",
+      "package": "riak_sysmon",
+      "url": "https://github.com/Leapsight/riak_sysmon"
     },
-    "https://hex.pm/packages/verl": {
-      "url": "https://hex.pm/packages/verl",
-      "package": "verl",
-      "version": "1.1.1"
+    "https://github.com/Leapsight/wamp": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "b4bb9ae7f43123d8b962b26af65764ed00bd668a",
+      "package": "wamp",
+      "url": "https://github.com/Leapsight/wamp"
     },
-    "https://hex.pm/packages/grpc": {
-      "url": "https://hex.pm/packages/grpc",
-      "package": "grpc",
-      "version": "0.5"
+    "https://github.com/kivra/email": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "b62e070111e635e739628254eab8db2835631d28",
+      "package": "email",
+      "url": "https://github.com/kivra/email"
+    },
+    "https://github.com/klarna/brod": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "5d9f189623070f4927cb88af563552695b305fce",
+      "package": "brod",
+      "url": "https://github.com/klarna/brod"
+    },
+    "https://github.com/leapsight-oss/erlang-pbkdf2": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "84f964b1875b047c3ad93d43cc350c45d6e27f9c",
+      "package": "pbkdf2",
+      "url": "https://github.com/leapsight-oss/erlang-pbkdf2"
+    },
+    "https://github.com/leapsight/hash": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "dfbcc9ee089626f84068a1dcee3b1753a716871e",
+      "package": "hash",
+      "url": "https://github.com/leapsight/hash"
+    },
+    "https://github.com/potatosalad/erlang-jose": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "991649695aaccd92c8effb1c1e88e6159fe8e9a6",
+      "package": "jose",
+      "url": "https://github.com/potatosalad/erlang-jose"
+    },
+    "https://gitlab.com/leapsight/app_config": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "e6a4dc99c0c9f17a6d4d865e40aefc409986f849",
+      "package": "app_config",
+      "url": "https://gitlab.com/leapsight/app_config"
+    },
+    "https://gitlab.com/leapsight/art": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "35f8db5c877def1b4916791dce9a7858dc94dd33",
+      "package": "art",
+      "url": "https://gitlab.com/leapsight/art"
+    },
+    "https://gitlab.com/leapsight/base62": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "6e1c622c2e9bba51fadba44fa050d4b4ae706890",
+      "package": "base62",
+      "url": "https://gitlab.com/leapsight/base62"
+    },
+    "https://gitlab.com/leapsight/key_value": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "414fb19cd067b368666ceb5a2a63f1f24109562b",
+      "package": "key_value",
+      "url": "https://gitlab.com/leapsight/key_value"
+    },
+    "https://gitlab.com/leapsight/ksuid": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "a5016017edd1e99d46c9a6d4c348cb818e542b13",
+      "package": "ksuid",
+      "url": "https://gitlab.com/leapsight/ksuid"
+    },
+    "https://gitlab.com/leapsight/leap": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "5dcd5c162704048bcd3d37e9ffc7b83f70d66b77",
+      "package": "leap",
+      "url": "https://gitlab.com/leapsight/leap"
+    },
+    "https://gitlab.com/leapsight/mops": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "3955142d3720dc5b7a481e28124a2c5421dcd078",
+      "package": "mops",
+      "url": "https://gitlab.com/leapsight/mops"
+    },
+    "https://gitlab.com/leapsight/tuplespace": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "d5e540dc2e1d3a4b75dbf3841de99d4547e118ff",
+      "package": "tuplespace",
+      "url": "https://gitlab.com/leapsight/tuplespace"
+    },
+    "https://gitlab.com/leapsight/utils": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "881e59760358bf22979d6ef1fcd96fc476c8b3ca",
+      "package": "utils",
+      "url": "https://gitlab.com/leapsight/utils"
+    },
+    "https://hex.pm/packages/accept": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.3.5",
+      "package": "accept",
+      "url": "https://hex.pm/packages/accept"
+    },
+    "https://hex.pm/packages/acceptor_pool": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.0.0",
+      "package": "acceptor_pool",
+      "url": "https://hex.pm/packages/acceptor_pool"
+    },
+    "https://hex.pm/packages/backoff": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.1.6",
+      "package": "backoff",
+      "url": "https://hex.pm/packages/backoff"
+    },
+    "https://hex.pm/packages/base16": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.0.0",
+      "package": "base16",
+      "url": "https://hex.pm/packages/base16"
+    },
+    "https://hex.pm/packages/bear": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.0.0",
+      "package": "bear",
+      "url": "https://hex.pm/packages/bear"
+    },
+    "https://hex.pm/packages/bert": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.1.0",
+      "package": "bert",
+      "url": "https://hex.pm/packages/bert"
+    },
+    "https://hex.pm/packages/certifi": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.9.0",
+      "package": "certifi",
+      "url": "https://hex.pm/packages/certifi"
     },
     "https://hex.pm/packages/cowboy": {
-      "url": "https://hex.pm/packages/cowboy",
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.9.0",
       "package": "cowboy",
-      "version": "2.9.0"
+      "url": "https://hex.pm/packages/cowboy"
     },
     "https://hex.pm/packages/cowlib": {
-      "url": "https://hex.pm/packages/cowlib",
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.11.0",
       "package": "cowlib",
-      "version": "2.11.0"
+      "url": "https://hex.pm/packages/cowlib"
     },
-    "https://hex.pm/packages/google_protos": {
-      "url": "https://hex.pm/packages/google_protos",
-      "package": "google_protos",
-      "version": "0.3.0"
+    "https://hex.pm/packages/crc32cer": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.1.8",
+      "package": "crc32cer",
+      "url": "https://hex.pm/packages/crc32cer"
     },
-    "https://hex.pm/packages/decimal": {
-      "url": "https://hex.pm/packages/decimal",
-      "package": "grpc_gun",
-      "version": "2.0.0"
+    "https://hex.pm/packages/eini": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.2.9",
+      "package": "eini",
+      "url": "https://hex.pm/packages/eini"
     },
-    "https://hex.pm/packages/jason": {
-      "url": "https://hex.pm/packages/jason",
-      "package": "grpc_gun",
-      "version": "1.4.0"
+    "https://hex.pm/packages/enacl": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.2.1",
+      "package": "enacl",
+      "url": "https://hex.pm/packages/enacl"
     },
-    "https://hex.pm/packages/grpc_gun": {
-      "url": "https://hex.pm/packages/grpc_gun",
-      "package": "grpc_gun",
-      "version": "2.0.1"
+    "https://hex.pm/packages/erlcloud": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "3.6.1",
+      "package": "erlcloud",
+      "url": "https://hex.pm/packages/erlcloud"
     },
-    "https://hex.pm/packages/grpc": {
-      "url": "https://hex.pm/packages/grpc",
-      "package": "grpc",
-      "version": "0.5.0"
+    "https://hex.pm/packages/gproc": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.9.0",
+      "package": "gproc",
+      "url": "https://hex.pm/packages/gproc"
     },
-    "https://hex.pm/packages/gun": {
-      "url": "https://hex.pm/packages/gun",
-      "package": "gun",
-      "version": "2.0.1"
+    "https://hex.pm/packages/hackney": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.18.1",
+      "package": "hackney",
+      "url": "https://hex.pm/packages/hackney"
     },
-    "https://hex.pm/packages/protobuf": {
-      "url": "https://hex.pm/packages/protobuf",
-      "package": "protobuf",
-      "version": "0.11.0"
+    "https://hex.pm/packages/idna": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "6.1.1",
+      "package": "idna",
+      "url": "https://hex.pm/packages/idna"
+    },
+    "https://hex.pm/packages/jobs": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.10.0",
+      "package": "jobs",
+      "url": "https://hex.pm/packages/jobs"
+    },
+    "https://hex.pm/packages/jsone": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.6.1",
+      "package": "jsone",
+      "url": "https://hex.pm/packages/jsone"
+    },
+    "https://hex.pm/packages/jsx": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.11.0",
+      "package": "jsx",
+      "url": "https://hex.pm/packages/jsx"
+    },
+    "https://hex.pm/packages/kafka_protocol": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "4.0.1",
+      "package": "kafka_protocol",
+      "url": "https://hex.pm/packages/kafka_protocol"
+    },
+    "https://hex.pm/packages/lhttpc": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.6.2",
+      "package": "lhttpc",
+      "url": "https://hex.pm/packages/lhttpc"
+    },
+    "https://hex.pm/packages/logger_colorful": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.1.0",
+      "package": "logger_colorful",
+      "url": "https://hex.pm/packages/logger_colorful"
+    },
+    "https://hex.pm/packages/lrw": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.0.1",
+      "package": "lrw",
+      "url": "https://hex.pm/packages/lrw"
+    },
+    "https://hex.pm/packages/metrics": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.0.1",
+      "package": "metrics",
+      "url": "https://hex.pm/packages/metrics"
+    },
+    "https://hex.pm/packages/mimerl": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.2.0",
+      "package": "mimerl",
+      "url": "https://hex.pm/packages/mimerl"
+    },
+    "https://hex.pm/packages/msgpack": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.7.0",
+      "package": "msgpack",
+      "url": "https://hex.pm/packages/msgpack"
+    },
+    "https://hex.pm/packages/observer_cli": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.7.2",
+      "package": "observer_cli",
+      "url": "https://hex.pm/packages/observer_cli"
+    },
+    "https://hex.pm/packages/p1_utils": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.0.23",
+      "package": "p1_utils",
+      "url": "https://hex.pm/packages/p1_utils"
+    },
+    "https://hex.pm/packages/parse_trans": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "3.4.1",
+      "package": "parse_trans",
+      "url": "https://hex.pm/packages/parse_trans"
+    },
+    "https://hex.pm/packages/prometheus": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "4.8.1",
+      "package": "prometheus",
+      "url": "https://hex.pm/packages/prometheus"
+    },
+    "https://hex.pm/packages/prometheus_cowboy": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.1.8",
+      "package": "prometheus_cowboy",
+      "url": "https://hex.pm/packages/prometheus_cowboy"
+    },
+    "https://hex.pm/packages/prometheus_httpd": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.1.11",
+      "package": "prometheus_httpd",
+      "url": "https://hex.pm/packages/prometheus_httpd"
+    },
+    "https://hex.pm/packages/quantile_estimator": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.2.1",
+      "package": "quantile_estimator",
+      "url": "https://hex.pm/packages/quantile_estimator"
+    },
+    "https://hex.pm/packages/quickrand": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.0.4",
+      "package": "quickrand",
+      "url": "https://hex.pm/packages/quickrand"
     },
     "https://hex.pm/packages/ranch": {
-      "url": "https://hex.pm/packages/ranch",
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.8.0",
       "package": "ranch",
-      "version": "1.8.0"
+      "url": "https://hex.pm/packages/ranch"
     },
-    "https://hex.pm/packages/proper": {
-      "url": "https://hex.pm/packages/proper",
-      "package": "proper",
-      "version": "1.4.0"
+    "https://hex.pm/packages/recon": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.5.2",
+      "package": "recon",
+      "url": "https://hex.pm/packages/recon"
+    },
+    "https://hex.pm/packages/setup": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.1.0",
+      "package": "setup",
+      "url": "https://hex.pm/packages/setup"
+    },
+    "https://hex.pm/packages/sext": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.8.0",
+      "package": "sext",
+      "url": "https://hex.pm/packages/sext"
+    },
+    "https://hex.pm/packages/sidejob": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.1.0",
+      "package": "sidejob",
+      "url": "https://hex.pm/packages/sidejob"
+    },
+    "https://hex.pm/packages/snappyer": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.2.8",
+      "package": "snappyer",
+      "url": "https://hex.pm/packages/snappyer"
+    },
+    "https://hex.pm/packages/ssl_verify_fun": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.1.6",
+      "package": "ssl_verify_fun",
+      "url": "https://hex.pm/packages/ssl_verify_fun"
+    },
+    "https://hex.pm/packages/stringprep": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.0.27",
+      "package": "stringprep",
+      "url": "https://hex.pm/packages/stringprep"
+    },
+    "https://hex.pm/packages/supervisor3": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.1.11",
+      "package": "supervisor3",
+      "url": "https://hex.pm/packages/supervisor3"
+    },
+    "https://hex.pm/packages/telemetry": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "1.0.0",
+      "package": "telemetry",
+      "url": "https://hex.pm/packages/telemetry"
+    },
+    "https://hex.pm/packages/types": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.1.8",
+      "package": "types",
+      "url": "https://hex.pm/packages/types"
+    },
+    "https://hex.pm/packages/unicode_util_compat": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "0.7.0",
+      "package": "unicode_util_compat",
+      "url": "https://hex.pm/packages/unicode_util_compat"
+    },
+    "https://hex.pm/packages/uuid_erl": {
+      "resolver": {
+        "Remote": {
+          "url": "https://tools.warp.build/hexpm/resolver",
+          "host": "tools.warp.build",
+          "scheme": "https",
+          "prefix_hash": "2eef86b01553a9928811d059e4417f0b6a9e1f53a07cda26868339bf5d5309b2",
+          "path": "/hexpm/resolver",
+          "name": "resolver"
+        }
+      },
+      "version": "2.0.4",
+      "package": "uuid",
+      "url": "https://hex.pm/packages/uuid_erl"
     }
-  },
-  "version": "0"
+  }
 }
