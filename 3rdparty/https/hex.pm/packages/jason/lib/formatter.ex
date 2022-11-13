@@ -123,6 +123,7 @@ defmodule Jason.Formatter do
 
   defp parse_opts([{option, value} | opts], indent, line, record, colon) do
     value = IO.iodata_to_binary(value)
+
     case option do
       :indent -> parse_opts(opts, value, line, record, colon)
       :record_separator -> parse_opts(opts, indent, line, value, colon)
@@ -227,8 +228,10 @@ defmodule Jason.Formatter do
     case :binary.match(binary, ["\"", "\\"]) do
       :nomatch ->
         {[output_acc | binary], &pp_string(&1, &2, false, cont)}
+
       {pos, 1} ->
         {head, tail} = :erlang.split_binary(binary, pos + 1)
+
         case :binary.at(binary, pos) do
           ?\\ -> pp_string(tail, [output_acc | head], true, cont)
           ?" -> cont.(tail, [output_acc | head])

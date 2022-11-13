@@ -26,7 +26,7 @@ defmodule Resolver.MixProject do
       {:protobuf, "~> 0.10"},
       {:hex_core, "~0.9.0"},
       {:mint, "1.4.2"},
-      {:castore, "0.1.18"},
+      {:castore, "0.1.18"}
     ]
   end
 end

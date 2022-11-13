@@ -9,20 +9,22 @@ defmodule Resolver.Server do
 
   """
   def resolve_dependency(req, _stream) do
-    config = :hex_core.default_config()
-             |> Map.merge(%{
-               http_user_agent_fragment: "(tools.warp.build/hexpm/resolver)",
-               http_adapter: {Resolver.HexHttp, %{}}
-             })
+    config =
+      :hex_core.default_config()
+      |> Map.merge(%{
+        http_user_agent_fragment: "(tools.warp.build/hexpm/resolver)",
+        http_adapter: {Resolver.HexHttp, %{}}
+      })
 
     {:ok, resp} = :hex_api_release.get(config, req.package_name, req.version)
 
     case resp do
       {200, _meta, pkg} ->
-        archive = Build.Warp.Archive.new(
-          url: "https://repo.hex.pm/tarballs/#{req.package_name}-#{pkg["version"]}.tar",
-          sha256: pkg["checksum"]
-        )
+        archive =
+          Build.Warp.Archive.new(
+            url: "https://repo.hex.pm/tarballs/#{req.package_name}-#{pkg["version"]}.tar",
+            sha256: pkg["checksum"]
+          )
 
         Build.Warp.Dependency.ResolveDependencyResponse.new(
           status: :STATUS_OK,
@@ -30,27 +32,24 @@ defmodule Resolver.Server do
           version: pkg["version"],
           archive: archive
         )
-        
+
       _ ->
-        Build.Warp.Dependency.ResolveDependencyResponse.new(
-          status: :STATUS_ERR
-        )
+        Build.Warp.Dependency.ResolveDependencyResponse.new(status: :STATUS_ERR)
     end
   end
 
   def prepare_dependency(req, _stream) do
     root = req.package_root
+
     cond do
-      Path.join(root, "metadata.config") |> File.exists? ->
+      Path.join(root, "metadata.config") |> File.exists?() ->
         prepare_hex_workspace(req)
 
-      Path.join(root, "rebar.config") |> File.exists? ->
+      Path.join(root, "rebar.config") |> File.exists?() ->
         prepare_rebar3_workspace(req)
 
       true ->
-        Build.Warp.Dependency.PrepareDependencyResponse.new(
-          status: :STATUS_ERR
-        )
+        Build.Warp.Dependency.PrepareDependencyResponse.new(status: :STATUS_ERR)
     end
   end
 
@@ -63,25 +62,27 @@ defmodule Resolver.Server do
 
     rule = get_rule(metadata)
 
-    deps = get_deps(metadata)
-           |> Enum.map(fn dep ->
-             url = Build.Warp.UrlRequirement.new(url: dep)
-             Build.Warp.Requirement.new(requirement: {:url, url})
-           end)
+    deps =
+      get_deps(metadata)
+      |> Enum.map(fn dep ->
+        url = Build.Warp.UrlRequirement.new(url: dep)
+        Build.Warp.Requirement.new(requirement: {:url, url})
+      end)
 
     {:ok, config} =
-      %{ srcs: get_sources(metadata, root, name) }
-      |> Jason.encode!
-      |> Jason.decode!
+      %{srcs: get_sources(metadata, root, name)}
+      |> Jason.encode!()
+      |> Jason.decode!()
       |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
 
-    signature = Build.Warp.Signature.new(
-      name: name,
-      rule: rule,
-      deps: deps,
-      config: config,
-      runtime_deps: [],
-    )
+    signature =
+      Build.Warp.Signature.new(
+        name: name,
+        rule: rule,
+        deps: deps,
+        config: config,
+        runtime_deps: []
+      )
 
     Build.Warp.Dependency.PrepareDependencyResponse.new(
       status: :STATUS_OK,
@@ -107,13 +108,14 @@ defmodule Resolver.Server do
       path -> path
     end)
     |> Enum.filter(fn path ->
-      source_path = Path.join(source_root, path) 
+      source_path = Path.join(source_root, path)
       File.exists?(source_path) && not File.dir?(source_path)
     end)
   end
 
   def get_rule(metadata) do
     tools = :maps.get("build_tools", metadata, [])
+
     cond do
       "rebar3" in tools -> "rebar3_library"
       "mix" in tools -> "mix_library"
@@ -130,14 +132,19 @@ defmodule Resolver.Server do
   end
 
   def requirements(metadata) do
-    reqs = case :maps.get("requirements", metadata, []) do
-      x when is_map(x) -> :maps.to_list(x)
-      y -> y
-    end
-    :lists.map(fn
-      {name, req} -> [ {"name", name} | req ]
-      req when is_list(req) -> req
-    end, reqs)
+    reqs =
+      case :maps.get("requirements", metadata, []) do
+        x when is_map(x) -> :maps.to_list(x)
+        y -> y
+      end
+
+    :lists.map(
+      fn
+        {name, req} -> [{"name", name} | req]
+        req when is_list(req) -> req
+      end,
+      reqs
+    )
   end
 
   defp prepare_rebar3_workspace(req) do
@@ -150,18 +157,20 @@ defmodule Resolver.Server do
         Build.Warp.Requirement.new(requirement: {:url, url})
       end)
 
-    config = %{}
-      |> Jason.encode!
-      |> Jason.decode!
+    config =
+      %{}
+      |> Jason.encode!()
+      |> Jason.decode!()
       |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
 
-    signature = Build.Warp.Signature.new(
-      name: ":#{req.package_name}",
-      rule: "rebar3_library",
-      deps: deps,
-      config: config,
-      runtime_deps: [],
-    )
+    signature =
+      Build.Warp.Signature.new(
+        name: ":#{req.package_name}",
+        rule: "rebar3_library",
+        deps: deps,
+        config: config,
+        runtime_deps: []
+      )
 
     Build.Warp.Dependency.PrepareDependencyResponse.new(
       status: :STATUS_OK,

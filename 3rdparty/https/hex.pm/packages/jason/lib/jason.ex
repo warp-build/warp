@@ -18,7 +18,8 @@ defmodule Jason do
 
   @type objects :: :maps | :ordered_objects
 
-  @type decode_opt :: {:keys, keys} | {:strings, strings} | {:floats, floats} | {:objects, objects}
+  @type decode_opt ::
+          {:keys, keys} | {:strings, strings} | {:floats, floats} | {:objects, objects}
 
   @doc """
   Parses a JSON value from `input` iodata.

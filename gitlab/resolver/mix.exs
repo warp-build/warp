@@ -23,7 +23,7 @@ defmodule Resolver.MixProject do
     [
       {:google_protos, "~> 0.3"},
       {:grpc, "~> 0.5"},
-      {:protobuf, "~> 0.10"},
+      {:protobuf, "~> 0.10"}
     ]
   end
 end

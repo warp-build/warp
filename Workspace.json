@@ -15,6 +15,7 @@
     ]
   },
   "aliases": {
+    "rebar3": "https://rules.warp.build/toolchains/rebar3",
     "erlang": "https://rules.warp.build/toolchains/erlang",
     "elixir": "https://rules.warp.build/toolchains/elixir"
   },

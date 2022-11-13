@@ -93,12 +93,12 @@ defmodule Jason.Codegen do
   defp ranges_to_orddict(ranges) do
     ranges
     |> Enum.flat_map(fn
-         {int, value} when is_integer(int) ->
-           [{int, value}]
+      {int, value} when is_integer(int) ->
+        [{int, value}]
 
-         {enum, value} ->
-           Enum.map(enum, &{&1, value})
-       end)
+      {enum, value} ->
+        Enum.map(enum, &{&1, value})
+    end)
     |> :orddict.from_list()
   end
 
