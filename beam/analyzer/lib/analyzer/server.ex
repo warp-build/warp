@@ -32,7 +32,7 @@ defmodule Analyzer.Server do
     end
   end
 
-  def gen_sig_erl(req) do
+  defp gen_sig_erl(req) do
     signatures =
       :source_analyzer.analyze_one(
         req.file,
@@ -71,7 +71,11 @@ defmodule Analyzer.Server do
             req =
               if String.contains?(dep, "/include/") do
                 [app, _include, _file] = String.split(dep, "/")
-                {:url, Build.Warp.UrlRequirement.new(url: "https://hex.pm/packages/#{app}")}
+                dep = Build.Warp.DependencyRequirement.new(
+                  name: app,
+                  url: "https://hex.pm/packages/#{app}"
+                )
+                {:dependency, dep}
               else
                 {:symbol, Build.Warp.FileRequirement.new(path: dep)}
               end
@@ -130,7 +134,7 @@ defmodule Analyzer.Server do
     end
   end
 
-  def do_get_erl_ast(req) do
+  defp do_get_erl_ast(req) do
     file = req.file
     {:ok, %{^file => result}} = :erl_analyzer.analyze([file], _ModMap = %{}, _IncludePaths = [])
 
@@ -166,7 +170,7 @@ defmodule Analyzer.Server do
     )
   end
 
-  def get_provided_symbols(req, _stream) do
+  defp get_provided_symbols(req, _stream) do
     cond do
       Path.extname(req.file) in [".erl", ".hrl"] ->
         do_get_provided_symbols(req)
@@ -180,7 +184,7 @@ defmodule Analyzer.Server do
     end
   end
 
-  def do_get_rebar_lock_deps(req) do
+  defp do_get_rebar_lock_deps(req) do
     with {:ok, [{_, locked_deps} | _]} <- :file.consult(req.file) do
       provides =
         for {name, spec, _} <- locked_deps do
