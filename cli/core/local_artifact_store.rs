@@ -188,8 +188,8 @@ impl LocalArtifactStore {
     #[tracing::instrument(name = "LocalArtifactStore::clean")]
     pub async fn clean(&self, key: &ArtifactStoreKey) -> Result<(), ArtifactStoreError> {
         let cache_path = self.cache_root.join(key);
-        fs::remove_dir_all(&cache_path).await.unwrap();
-        fs::create_dir_all(&cache_path).await.unwrap();
+        let _ = fs::remove_dir_all(&cache_path).await;
+        let _ = fs::create_dir_all(&cache_path).await;
         trace!("Cleaned from cache: {:?}", &cache_path);
         Ok(())
     }
