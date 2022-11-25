@@ -37,13 +37,15 @@ impl LiftCommand {
             })
             .flat_map(|t| t.analyzer.clone())
             .collect();
-        let mut analyzers: Vec<Label> = analyzers.into_iter().collect();
+        let analyzers: Vec<Label> = analyzers.into_iter().collect();
+
+        let mut resolvers: Vec<Label> = vec![];
         for resolver in [
             "https://tools.warp.build/hexpm/resolver",
             "https://tools.warp.build/github/resolver",
             "https://tools.warp.build/gitlab/resolver",
         ] {
-            analyzers.push(resolver.parse::<url::Url>().unwrap().into());
+            resolvers.push(resolver.parse::<url::Url>().unwrap().into());
         }
 
         if !analyzers.is_empty() {
@@ -55,19 +57,17 @@ impl LiftCommand {
                 },
                 Goal::Run,
             );
+            let labels = [analyzers.clone(), resolvers.clone()].concat();
             let (results, ()) = futures::future::join(
-                warp.execute(
-                    &analyzers,
-                    self.flags.into_build_opts().with_goal(Goal::Build),
-                ),
-                status_reporter.run(&analyzers),
+                warp.execute(&labels, self.flags.into_build_opts().with_goal(Goal::Build)),
+                status_reporter.run(&labels),
             )
             .await;
             results?;
 
             let db = CodeDb::new(&warp.workspace).await?;
 
-            self.run_analyzers(analyzers, warp, db).await?;
+            self.run_analyzers(analyzers, resolvers, warp, db).await?;
         } else {
             println!("Nothing to be done.")
         }
@@ -77,6 +77,7 @@ impl LiftCommand {
     async fn run_analyzers(
         &self,
         analyzers: Vec<Label>,
+        resolvers: Vec<Label>,
         warp: &WarpEngine,
         db: CodeDb,
     ) -> Result<(), anyhow::Error> {
@@ -84,61 +85,13 @@ impl LiftCommand {
         let blue_dim = console::Style::new().blue();
         let green_bold = console::Style::new().green().bold();
 
-        let analyzers: Vec<String> = analyzers.iter().map(|l| l.to_string()).collect();
+        let mut analyzer_pool =
+            AnalyzerServicePool::start(21000, analyzers.clone(), warp, self.flags).await?;
 
-        let mut processes = vec![];
-        let mut clients = vec![];
-        for (idx, build_result) in warp
-            .get_results()
-            .iter()
-            .filter(|br| analyzers.contains(&br.target_manifest.label.to_string()))
-            .enumerate()
-        {
-            let port = 21000 + idx;
-            let conn_str = format!("http://0.0.0.0:{}", port);
-
-            let manifest = build_result.target_manifest.clone();
-            let target = build_result.executable_target.clone();
-
-            let process = CommandRunner::builder()
-                .cwd(PathBuf::from("."))
-                .manifest(manifest.clone())
-                .target(target.clone())
-                .stream_outputs(self.flags.experimental_stream_analyzer_outputs)
-                .sandboxed(false)
-                .args(vec!["start".into(), port.to_string()])
-                .build()?
-                .spawn()?;
-
-            processes.push(process);
-
-            println!(
-                "{:>12} started {} on port {}",
-                cyan.apply_to("Analyzer"),
-                build_result.target_manifest.label.to_string(),
-                port
-            );
-
-            let client = loop {
-                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-                let conn = proto::build::warp::codedb::analyzer_service_client::AnalyzerServiceClient::connect(conn_str.clone()).await;
-                if let Ok(conn) = conn {
-                    break conn;
-                }
-            };
-
-            clients.push(client)
-        }
-
-        if clients.is_empty() {
-            return Ok(());
-        }
-
-        let root = warp.workspace.paths.workspace_root.clone();
-        let invocation_dir = warp.invocation_dir.clone();
+        // let _resolver_pool = ResolverServicePool::start(22000, resolvers.clone(), warp, self.flags).await?;
 
         let mut paths = vec![];
-        for client in &mut clients {
+        for client in &mut analyzer_pool.clients {
             let request = proto::build::warp::codedb::GetInterestedPathsRequest {};
             let exts = client.get_interested_paths(request).await?.into_inner();
             paths.extend(exts.build_files);
@@ -166,6 +119,8 @@ impl LiftCommand {
         println!("{:>12} entire workspace...", cyan.apply_to("Scanning"),);
 
         let deps = DashMap::new();
+        let root = warp.workspace.paths.workspace_root.clone();
+        let invocation_dir = warp.invocation_dir.clone();
         let mut dirs = vec![root.clone()];
         while let Some(dir) = dirs.pop() {
             let mut read_dir = tokio::fs::read_dir(&dir).await.unwrap();
@@ -188,7 +143,7 @@ impl LiftCommand {
 
                 let (_contents, hash) = SourceHasher::hash_source(&path).await?;
 
-                for client in &mut clients {
+                for client in &mut analyzer_pool.clients {
                     let analyze_time = std::time::Instant::now();
                     let path = path.strip_prefix(&root).unwrap().to_path_buf();
                     let request = proto::build::warp::codedb::GetProvidedSymbolsRequest {
@@ -313,9 +268,165 @@ impl LiftCommand {
             .write(&warp.workspace.paths.local_warp_root.join(DEPENDENCIES_JSON))
             .await?;
 
-        drop(processes);
         println!("{:>12} lifting workspace.", green_bold.apply_to("Finished"));
 
         Ok(())
+    }
+}
+
+pub struct AnalyzerServicePool {
+    pub starting_port: i32,
+    pub processes: Vec<tokio::process::Child>,
+    pub clients: Vec<
+        proto::build::warp::codedb::analyzer_service_client::AnalyzerServiceClient<
+            tonic::transport::Channel,
+        >,
+    >,
+    pub services: Vec<Label>,
+}
+
+impl AnalyzerServicePool {
+    pub async fn start(
+        starting_port: i32,
+        services: Vec<Label>,
+        warp: &WarpEngine,
+        flags: Flags,
+    ) -> Result<Self, anyhow::Error> {
+        let cyan = console::Style::new().cyan().bold();
+
+        let service_names: Vec<String> = services.iter().map(|l| l.to_string()).collect();
+
+        let mut processes = vec![];
+        let mut clients = vec![];
+        for (idx, build_result) in warp
+            .get_results()
+            .iter()
+            .filter(|br| {
+                let name = br.target_manifest.label.to_string();
+                service_names.contains(&name)
+            })
+            .enumerate()
+        {
+            let port = starting_port + (idx as i32);
+            let conn_str = format!("http://0.0.0.0:{}", port);
+
+            let manifest = build_result.target_manifest.clone();
+            let target = build_result.executable_target.clone();
+
+            let process = CommandRunner::builder()
+                .cwd(PathBuf::from("."))
+                .manifest(manifest.clone())
+                .target(target.clone())
+                .stream_outputs(flags.experimental_stream_analyzer_outputs)
+                .sandboxed(false)
+                .args(vec!["start".into(), port.to_string()])
+                .build()?
+                .spawn()?;
+
+            processes.push(process);
+
+            println!(
+                "{:>12} started {} on port {}",
+                cyan.apply_to("Analyzer"),
+                build_result.target_manifest.label.to_string(),
+                port
+            );
+
+            let client = loop {
+                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                let conn = proto::build::warp::codedb::analyzer_service_client::AnalyzerServiceClient::connect(conn_str.clone()).await;
+                if let Ok(conn) = conn {
+                    break conn;
+                }
+            };
+
+            clients.push(client)
+        }
+
+        Ok(Self {
+            starting_port,
+            clients,
+            processes,
+            services,
+        })
+    }
+}
+
+pub struct ResolverServicePool {
+    pub starting_port: i32,
+    pub processes: Vec<tokio::process::Child>,
+    pub clients: Vec<
+        proto::build::warp::dependency::resolver_service_client::ResolverServiceClient<
+            tonic::transport::Channel,
+        >,
+    >,
+    pub services: Vec<Label>,
+}
+
+impl ResolverServicePool {
+    pub async fn start(
+        starting_port: i32,
+        services: Vec<Label>,
+        warp: &WarpEngine,
+        flags: Flags,
+    ) -> Result<Self, anyhow::Error> {
+        let cyan = console::Style::new().cyan().bold();
+
+        let service_names: Vec<String> = services.iter().map(|l| l.to_string()).collect();
+
+        let mut processes = vec![];
+        let mut clients = vec![];
+        for (idx, build_result) in warp
+            .get_results()
+            .iter()
+            .filter(|br| {
+                let name = br.target_manifest.label.to_string();
+                service_names.contains(&name)
+            })
+            .enumerate()
+        {
+            let port = starting_port + (idx as i32);
+            let conn_str = format!("http://0.0.0.0:{}", port);
+
+            let manifest = build_result.target_manifest.clone();
+            let target = build_result.executable_target.clone();
+
+            let process = CommandRunner::builder()
+                .cwd(PathBuf::from("."))
+                .manifest(manifest.clone())
+                .target(target.clone())
+                .stream_outputs(flags.experimental_stream_analyzer_outputs)
+                .sandboxed(false)
+                .args(vec!["start".into(), port.to_string()])
+                .build()?
+                .spawn()?;
+
+            processes.push(process);
+
+            println!(
+                "{:>12} started {} on port {}",
+                cyan.apply_to("Resolver"),
+                build_result.target_manifest.label.to_string(),
+                port
+            );
+
+            let client = loop {
+                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                let conn =
+            proto::build::warp::dependency::resolver_service_client::ResolverServiceClient::connect(conn_str.clone()).await;
+                if let Ok(conn) = conn {
+                    break conn;
+                }
+            };
+
+            clients.push(client)
+        }
+
+        Ok(Self {
+            starting_port,
+            clients,
+            processes,
+            services,
+        })
     }
 }
