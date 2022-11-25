@@ -1,4 +1,5 @@
 use super::*;
+use futures::StreamExt;
 use fxhash::*;
 use std::path::{Path, PathBuf};
 use tokio::fs;
@@ -31,7 +32,7 @@ impl LocalArtifactStore {
         &self,
         key: &ArtifactStoreKey,
     ) -> Result<ArtifactStoreHitType, ArtifactStoreError> {
-        let cache_path = self.cache_root.join(&key).join(MANIFEST_FILE);
+        let cache_path = self.cache_root.join(key).join(MANIFEST_FILE);
         if fs::metadata(&cache_path).await.is_ok() {
             return match TargetManifest::from_file(&cache_path).await {
                 Ok(manifest) => Ok(ArtifactStoreHitType::Hit(Box::new(manifest))),
@@ -110,7 +111,7 @@ impl LocalArtifactStore {
 
         let mut outs: FxHashMap<PathBuf, PathBuf> = FxHashMap::default();
         for out in &manifest.outs {
-            outs.insert(hash_path.join(&out), dst.join(&out).to_path_buf());
+            outs.insert(hash_path.join(out), dst.join(out).to_path_buf());
         }
 
         for (src, dst) in &outs {
@@ -124,10 +125,10 @@ impl LocalArtifactStore {
             }?;
 
             #[cfg(target_os = "windows")]
-            let result = std::os::windows::fs::symlink(&src, &dst);
+            let result = std::os::windows::fs::symlink(src, dst);
 
             #[cfg(not(target_os = "windows"))]
-            let result = std::os::unix::fs::symlink(&src, &dst);
+            let result = std::os::unix::fs::symlink(src, dst);
 
             match result {
                 Ok(_) => Ok(()),
@@ -186,10 +187,41 @@ impl LocalArtifactStore {
 
     #[tracing::instrument(name = "LocalArtifactStore::clean")]
     pub async fn clean(&self, key: &ArtifactStoreKey) -> Result<(), ArtifactStoreError> {
-        let cache_path = self.cache_root.join(&key);
-        let _ = fs::remove_dir_all(&cache_path).await;
-        let _ = fs::create_dir_all(&cache_path).await;
+        let cache_path = self.cache_root.join(key);
+        fs::remove_dir_all(&cache_path).await.unwrap();
+        fs::create_dir_all(&cache_path).await.unwrap();
         trace!("Cleaned from cache: {:?}", &cache_path);
+        Ok(())
+    }
+
+    pub async fn verify(
+        &self,
+        key: &ArtifactStoreKey,
+        manifest: &TargetManifest,
+    ) -> Result<(), ArtifactStoreError> {
+        let cache_path = self.cache_root.join(key);
+        let mut files = Box::pin(
+            FileScanner::new()
+                .starting_from(&cache_path)
+                .await
+                .map_err(ArtifactStoreError::FileListingErrorDuringVerification)?
+                .stream_files()
+                .await,
+        );
+        while let Some(file) = files.next().await {
+            let file = file.unwrap();
+            if file.ends_with(MANIFEST_FILE) {
+                continue;
+            }
+            let relative_file = file.strip_prefix(&cache_path).unwrap().to_path_buf();
+            debug!("Verifying {:?}", &relative_file);
+            if !manifest.outs.contains(&relative_file) {
+                return Err(ArtifactStoreError::VerificationError {
+                    key: key.clone(),
+                    file,
+                });
+            }
+        }
         Ok(())
     }
 }

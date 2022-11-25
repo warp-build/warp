@@ -104,6 +104,18 @@ pub enum ArtifactStoreError {
 
     #[error("Could not remove stale output at {file:?} due to: {err:?}")]
     StaleOutputRemovalError { err: std::io::Error, file: PathBuf },
+
+    #[error(transparent)]
+    MissingFileDuringVerification(std::io::Error),
+
+    #[error(transparent)]
+    FileListingErrorDuringVerification(FileScannerError),
+
+    #[error("Found unexpected file: {file:?} while verifying {key}")]
+    VerificationError {
+        key: ArtifactStoreKey,
+        file: PathBuf,
+    },
 }
 
 impl ArtifactStore {
@@ -206,12 +218,17 @@ impl ArtifactStore {
         match self.local_store.find_manifest(&store_key).await? {
             ArtifactStoreHitType::Miss(_) if !build_opts.disable_remote_cache => {
                 let expected_path = self.local_store.absolute_path_for_key(&store_key).await?;
-                let _ = self
-                    .remote_store
+                self.remote_store
                     .try_fetch(&store_key, &expected_path, &node.label)
-                    .await;
+                    .await?;
 
-                self.local_store.find_manifest(&store_key).await
+                let manifest = self.local_store.find_manifest(&store_key).await;
+
+                if let Ok(ArtifactStoreHitType::Hit(manifest)) = &manifest {
+                    self.local_store.verify(&store_key, manifest).await?;
+                }
+
+                manifest
             }
             result => Ok(result),
         }
