@@ -66,6 +66,11 @@ impl DependencyFile {
 
     #[tracing::instrument(name = "DependencyFile::read_from_file")]
     pub async fn read_from_file(path: &Path) -> Result<Self, DependencyFileError> {
+        if fs::metadata(&path).await.is_err() {
+            let dep_file = Self::builder().version("0".to_string()).build().unwrap();
+            dep_file.write(path).await?;
+        }
+
         let file = fs::File::open(path)
             .await
             .map_err(DependencyFileError::IOError)?;
