@@ -39,11 +39,8 @@ impl TestCommand {
             label
         };
 
-        let status_reporter = StatusReporter::new(
-            warp.event_channel.clone(),
-            self.flags,
-            Goal::Build,
-        );
+        let status_reporter =
+            StatusReporter::new(warp.event_channel.clone(), self.flags, Goal::Build);
 
         let (_results, ()) = futures::future::join(
             warp.execute(

@@ -195,7 +195,6 @@ impl SignatureStore {
                                 .find_by_package_name(&dep_req.name)
                                 .map(|dep| dep.url)
                                 .unwrap_or_else(|| dep_req.url.parse().unwrap());
-                            dbg!(&url);
                             let label: Label = url.into();
                             deps.push(label)
                         }

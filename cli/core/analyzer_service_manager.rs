@@ -120,7 +120,7 @@ impl AnalyzerServiceManager {
         };
 
         // 3. Find out the next available port
-        let port = self.next_available_port.fetch_add(1, Ordering::SeqCst);
+        let port = PortFinder::next().unwrap();
 
         // 4. Spin up the process
         let process = CommandRunner::builder()

@@ -127,6 +127,10 @@ impl WarpEngine {
             .map_err(WarpEngineError::BuildExecutorError)
     }
 
+    pub fn clear_results(&self) {
+        self.build_executor.as_ref().unwrap().clear_results()
+    }
+
     pub fn get_results(&self) -> Vec<BuildResult> {
         self.build_executor.as_ref().unwrap().get_results()
     }

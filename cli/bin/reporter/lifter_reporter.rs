@@ -6,16 +6,16 @@ use std::sync::Arc;
 use tracing::*;
 use warp_core::*;
 
-pub struct StatusReporter {
+pub struct LifterReporter {
     event_consumer: EventConsumer,
     event_channel: Arc<EventChannel>,
     flags: Flags,
     goal: Goal,
 }
 
-impl StatusReporter {
-    pub fn new(event_channel: Arc<EventChannel>, flags: Flags, goal: Goal) -> StatusReporter {
-        StatusReporter {
+impl LifterReporter {
+    pub fn new(event_channel: Arc<EventChannel>, flags: Flags, goal: Goal) -> LifterReporter {
+        LifterReporter {
             event_consumer: event_channel.consumer(),
             event_channel,
             flags,
@@ -367,7 +367,7 @@ impl StatusReporter {
                                 )
                             } else {
                                 format!(
-                                    "{:>12} multiple goals in {}ms ({} targets, {} cached, {} errors): \n{}",
+                                    "{:>12} multiple goals in {}ms ({} targets, {} cached, {} errors)",
                                     if errored {
                                         red_bold.apply_to("Finished with errors")
                                     } else {
@@ -377,11 +377,6 @@ impl StatusReporter {
                                     target_count.len(),
                                     cache_hits.len(),
                                     error_count,
-                                    {
-                                        let targets = targets.iter().map(|l| format!("{:>12} -> {}", "", l.to_string())).collect::<std::collections::HashSet<String>>();
-                                        let mut targets = targets.into_iter().collect::<Vec<String>>();
-                                        targets.sort();
-                                        targets.join("\n")},
                                 )
                             };
                             pb.println("");

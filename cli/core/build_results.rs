@@ -68,6 +68,10 @@ impl BuildResults {
         self.build_results.len()
     }
 
+    pub fn clear_results(&self) {
+        self.build_results.clear()
+    }
+
     pub fn get_results(&self) -> Vec<BuildResult> {
         self.build_results
             .iter()

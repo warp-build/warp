@@ -223,11 +223,6 @@ impl DependencyResolver {
             .await
             .map_err(DependencyResolverError::ResolverServiceManagerError)?;
 
-        self.event_channel.send(Event::ResolvingDependency {
-            label: remote_label.to_owned().into(),
-            resolver: self.label_registry.get_label(resolver).as_ref().to_owned(),
-        });
-
         let request = proto::build::warp::dependency::ResolveDependencyRequest {
             package_name: dependency.package.clone(),
             version: dependency.version.clone(),
@@ -240,6 +235,11 @@ impl DependencyResolver {
             .map_err(DependencyResolverError::ResolverServiceError)?
             .into_inner();
 
+        self.event_channel.send(Event::ResolvingDependency {
+            label: remote_label.to_owned().into(),
+            resolver: self.label_registry.get_label(resolver).as_ref().to_owned(),
+        });
+
         let archive: Archive = response
             .archive
             .unwrap()
@@ -247,7 +247,7 @@ impl DependencyResolver {
             .map_err(DependencyResolverError::ArchiveError)?;
 
         self.archive_manager
-            .download_and_extract(&archive.url, &final_dir, None, archive.strip_prefix)
+            .download_and_extract(&archive.url, final_dir, None, archive.strip_prefix)
             .await
             .map_err(DependencyResolverError::ExtractionError)?;
 

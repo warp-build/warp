@@ -482,4 +482,8 @@ impl BuildExecutor {
             Ok(())
         })
     }
+
+    pub fn clear_results(&self) {
+        self.build_results.clear_results();
+    }
 }

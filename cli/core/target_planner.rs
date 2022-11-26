@@ -1,6 +1,6 @@
 use super::*;
-use std::sync::Arc;
 use fxhash::FxHashSet;
+use std::sync::Arc;
 use thiserror::*;
 
 pub struct TargetPlanner {
@@ -117,16 +117,15 @@ impl TargetPlanner {
             .await
             .map_err(|err| TargetPlannerError::RuleExecutorError(Box::new(err)))?;
 
-
         if exec_result.srcs.len() == 1 {
             let label = self.label_registry.get_label(label_id);
             let symbol = SourceSymbol::from_label_and_goal(&label, goal);
-            
-            if let Ok(source_chunk) = self.source_manager.get_source_chunk_by_symbol(
-                label_id,
-                &label,
-                &symbol
-            ).await {
+
+            if let Ok(source_chunk) = self
+                .source_manager
+                .get_source_chunk_by_symbol(label_id, &label, &symbol)
+                .await
+            {
                 exec_result.srcs = [SourceInput::Chunk(source_chunk)].into_iter().collect();
             }
         }
