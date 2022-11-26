@@ -4,13 +4,21 @@ defmodule Resolver.Server do
   require Logger
 
   def resolve_dependency(req, _stream) do
-    with %URI{host: "github.com"} <- URI.parse(req.url) do
+    with url = %URI{host: "github.com"} <- URI.parse(req.url) do
       [_scheme, _, _github, _username, repo] = String.split(req.url, "/")
+
+      url = %URI{url | scheme: "https"}
+
+      version =
+        case req.version do
+          <<"v", _::binary>> -> req.version |> String.replace("v", "")
+          _ -> req.version
+        end
 
       archive =
         Build.Warp.Archive.new(
-          url: "#{req.url}/archive/#{req.version}.tar.gz",
-          strip_prefix: "#{repo}-#{req.version}"
+          url: "#{URI.to_string(url)}/archive/#{req.version}.tar.gz",
+          strip_prefix: "#{repo}-#{version}"
         )
 
       Build.Warp.Dependency.ResolveDependencyResponse.new(
