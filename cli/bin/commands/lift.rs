@@ -32,6 +32,7 @@ impl LiftCommand {
     //
     // call analyzers to get dependencies
     // build all dependencies
+    //  scan dependency root
     //
     // get all interested paths from analyzers
     // scan workspace
@@ -42,6 +43,9 @@ impl LiftCommand {
     //       save symbol in db
     //
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
+        let dependency_file = warp.workspace.paths.local_warp_root.join(DEPENDENCIES_JSON);
+        let dependencies = DependencyFile::read_from_file(&dependency_file).await?;
+
         let toolchains_registry =
             ToolchainsRegistry::fetch(&warp.workspace.paths, warp.event_channel.clone()).await?;
 
@@ -79,34 +83,23 @@ impl LiftCommand {
             .await;
             results?;
 
-            let db = CodeDb::new(&warp.workspace).await?;
+            let mut db = CodeDb::new(&warp.workspace).await?;
 
-            self.lift_workspace(analyzers, warp, db).await?;
+            let green_bold = console::Style::new().green().bold();
+
+            let mut analyzer_pool =
+                AnalyzerServicePool::start(21000, analyzers.clone(), warp, self.flags).await?;
+
+            self.install_dependencies(&mut analyzer_pool, warp, &mut db, dependencies)
+                .await?;
+
+            self.scan_workspace(&mut analyzer_pool, warp, &mut db)
+                .await?;
+
+            println!("{:>12} lifting workspace.", green_bold.apply_to("Finished"));
         } else {
             println!("Nothing to be done.")
         }
-        Ok(())
-    }
-
-    async fn lift_workspace(
-        &self,
-        analyzers: Vec<Label>,
-        mut warp: &mut WarpEngine,
-        mut db: CodeDb,
-    ) -> Result<(), anyhow::Error> {
-        let green_bold = console::Style::new().green().bold();
-
-        let mut analyzer_pool =
-            AnalyzerServicePool::start(21000, analyzers.clone(), warp, self.flags).await?;
-
-        self.install_dependencies(&mut analyzer_pool, &mut warp, &mut db)
-            .await?;
-
-        self.scan_workspace(&mut analyzer_pool, &mut warp, &mut db)
-            .await?;
-
-        println!("{:>12} lifting workspace.", green_bold.apply_to("Finished"));
-
         Ok(())
     }
 
@@ -115,89 +108,19 @@ impl LiftCommand {
         analyzer_pool: &mut AnalyzerServicePool,
         warp: &mut WarpEngine,
         db: &mut CodeDb,
+        dependencies: DependencyFile,
     ) -> Result<(), anyhow::Error> {
         let cyan = console::Style::new().cyan().bold();
         println!("{:>12} dependencies...", cyan.apply_to("Discovering"),);
 
-        let mut dep_paths: Vec<PathBuf> = vec![];
-        let deps = DashMap::new();
-        let mut dep_labels: Vec<Label> = vec![];
-        for client in &mut analyzer_pool.clients {
-            let request = proto::build::warp::codedb::GetDependenciesRequest {};
-            let response = client.get_dependencies(request).await?.into_inner();
-
-            for dep in response.dependencies {
-                dep_labels.push(dep.url.parse()?);
-                let resolver: Label = dep.signature_resolver.parse().unwrap();
-
-                /* FIXME(@ostera): this is the code I wanted to write, but it won't work
-                 * because the dependency manager has temporarily inherited all
-                 * deps from all remote workspaces.
-                 *
-                 * So if we try to persist it, we get a bunch of random
-                 * dependencies that we 100% do not want.
-                 *
-                 * The real solution here is to make the
-                 * DependencyManager work with multiple workspaces.
-                 *
-                 *   let resolver =
-                 *       Some(warp.label_registry().register_label(resolver));
-                 *
-                 *   let dep = Dependency {
-                 *       label,
-                 *       resolver,
-                 *       package: dep.name,
-                 *       version: dep.version,
-                 *       url: dep.url.parse().unwrap(),
-                 *   };
-                 *
-                 *   warp.dependency_manager().add(dep);
-                 */
-
-                let dep_json = DependencyJson::builder()
-                    .url(dep.url.parse()?)
-                    .resolver(Some(resolver))
-                    .version(dep.version.clone())
-                    .package(dep.name.clone())
-                    .build()
-                    .map_err(DependencyManagerError::DependencyJsonError)?;
-
-                deps.insert(dep.url.clone(), dep_json);
-
-                /* FIXME(@ostera): this is the code I wanted to write here:
-                 *
-                 *   let dep_root = warp.dependency_manager().download(dep).await?;
-                 *   dirs.push(dep_root);
-                 *
-                 * So that we can download, extract, and prepare a dependency
-                 * at this point in time rather than later.
-                 */
-
-                // NOTE(@ostera): this path should really be computed within a
-                // WorkspaceManager where we can add a DependencyWorkspace.
-                //
-                let final_dir = warp
-                    .workspace
-                    .paths
-                    .global_workspaces_path
-                    .join(dep.url.replace("://", "/"))
-                    .join(&dep.version);
-
-                dep_paths.push(final_dir);
-            }
-        }
-
-        let deps: BTreeMap<String, DependencyJson> = deps.into_iter().collect();
-        let dependency_file = DependencyFile::builder()
-            .version("0".into())
-            .dependencies(deps)
-            .build()?;
+        let workspace_root = warp.invocation_dir.clone();
+        let (dep_paths, dep_labels, deps) = self
+            .get_dependencies(analyzer_pool, warp, &workspace_root, &dependencies)
+            .await?;
 
         println!("{:>12} dependency manifest", cyan.apply_to("Saving"));
 
-        dependency_file
-            .write(&warp.workspace.paths.local_warp_root.join(DEPENDENCIES_JSON))
-            .await?;
+        self.update_dep_manifest(warp, &dependencies, &deps).await?;
 
         // NOTE(@ostera): If we found dependencies, we should fetch and build them at this point so
         // we can analyze their sources and establish the right dependency graph.
@@ -222,7 +145,8 @@ impl LiftCommand {
             results?;
 
             for (dep_root, dep_label) in dep_paths.iter().zip(dep_labels.iter()) {
-                self.scan_dep_dir(analyzer_pool, warp, db, &dep_root, &dep_label)
+                println!("Scanning {:?}", &*dep_root);
+                self.scan_dep_dir(analyzer_pool, db, &*dep_root, dep_label)
                     .await?;
             }
         }
@@ -230,10 +154,175 @@ impl LiftCommand {
         Ok(())
     }
 
-    async fn scan_dep_dir(
+    async fn update_dep_manifest(
+        &self,
+        warp: &WarpEngine,
+        dependencies: &DependencyFile,
+        deps: &DashMap<String, DependencyJson>,
+    ) -> Result<(), anyhow::Error> {
+        let deps: BTreeMap<String, DependencyJson> = dependencies
+            .dependencies
+            .clone()
+            .into_iter()
+            .chain(deps.clone().into_iter())
+            .collect();
+        let dependency_file = DependencyFile::builder()
+            .version("0".into())
+            .dependencies(deps)
+            .build()?;
+
+        dependency_file
+            .write(&warp.workspace.paths.local_warp_root.join(DEPENDENCIES_JSON))
+            .await?;
+        Ok(())
+    }
+
+    async fn get_dependencies(
         &self,
         analyzer_pool: &mut AnalyzerServicePool,
         warp: &mut WarpEngine,
+        workspace_root: &PathBuf,
+        dependencies: &DependencyFile,
+    ) -> Result<
+        (
+            DashMap<String, PathBuf>,
+            Vec<Label>,
+            DashMap<String, DependencyJson>,
+        ),
+        anyhow::Error,
+    > {
+        let mut later: Vec<PathBuf> = vec![];
+        let mut queue = vec![workspace_root.clone()];
+        let visited: DashSet<PathBuf> = DashSet::new();
+
+        let mut dep_labels = vec![];
+        let dep_paths = DashMap::new();
+        let deps = DashMap::new();
+
+        while let Some(workspace_root) = queue.pop().or_else(|| later.pop()) {
+            if visited.contains(&workspace_root) {
+                continue;
+            }
+
+            println!("Getting deps for {:?}", &workspace_root);
+
+            // NOTE(@ostera): get all dependencies from all the analyzers
+            let mut current_deps = vec![];
+            let mut current_paths = vec![];
+            for client in &mut analyzer_pool.clients {
+                let request = proto::build::warp::codedb::GetDependenciesRequest {
+                    workspace_root: workspace_root.to_string_lossy().to_string(),
+                };
+                let response = client.get_dependencies(request).await?.into_inner();
+
+                for dep in response.dependencies {
+                    let label: Label = dep.url.parse()?;
+                    warp.label_registry().register_label(label.clone());
+                    let resolver: Label = dep.signature_resolver.parse().unwrap();
+
+                    /* FIXME(@ostera): this is the code I wanted to write, but it won't work
+                     * because the dependency manager has temporarily inherited all
+                     * deps from all remote workspaces.
+                     *
+                     * So if we try to persist it, we get a bunch of random
+                     * dependencies that we 100% do not want.
+                     *
+                     * The real solution here is to make the
+                     * DependencyManager work with multiple workspaces.
+                     *
+                     *   let resolver =
+                     *       Some(warp.label_registry().register_label(resolver));
+                     *
+                     *   let dep = Dependency {
+                     *       label,
+                     *       resolver,
+                     *       package: dep.name,
+                     *       version: dep.version,
+                     *       url: dep.url.parse().unwrap(),
+                     *   };
+                     *
+                     *   warp.dependency_manager().add(dep);
+                     */
+
+                    let dep_json = DependencyJson::builder()
+                        .url(dep.url.parse()?)
+                        .resolver(Some(resolver.to_hash_string()))
+                        .version(dep.version.clone())
+                        .package(dep.name.clone())
+                        .build()
+                        .map_err(DependencyManagerError::DependencyJsonError)?;
+
+                    // NOTE(@ostera): add this dependency to the current dependency manager, so we
+                    // can find its information when we're building
+                    deps.insert(dep.url.clone(), dep_json);
+
+                    /* FIXME(@ostera): this is the code I wanted to write here:
+                     *
+                     *   let dep_root = warp.dependency_manager().download(dep).await?;
+                     *   dirs.push(dep_root);
+                     *
+                     * So that we can download, extract, and prepare a dependency
+                     * at this point in time rather than later.
+                     */
+
+                    // NOTE(@ostera): this path should really be computed within a
+                    // WorkspaceManager where we can add a DependencyWorkspace.
+                    //
+                    let final_dir = warp
+                        .workspace
+                        .paths
+                        .global_workspaces_path
+                        .join(dep.url.replace("://", "/"))
+                        .join(&dep.version);
+
+                    current_deps.push(label.clone());
+                    current_paths.push(final_dir.clone());
+
+                    queue.push(final_dir.clone());
+
+                    dep_labels.push(label.clone());
+                    dep_paths.insert(dep.url.clone(), final_dir.clone());
+                }
+            }
+
+            // NOTE(@ostera): add all dependencies to the Dependencies.json
+            self.update_dep_manifest(warp, dependencies, &deps).await?;
+
+            // NOTE(@ostera): In this case we don't have any dependencies, so there's no point in
+            // trying to fetch anything. Mark as visited and move on.
+            //
+            if current_deps.is_empty() {
+                visited.insert(workspace_root.clone());
+                continue;
+            } else {
+                // NOTE(@ostera): try to fetch all the dependencies.
+                //
+                let download_reporter =
+                    DownloadReporter::new(warp.event_channel.clone(), self.flags, Goal::Fetch);
+                let (results, ()) = futures::future::join(
+                    warp.execute(
+                        &current_deps,
+                        self.flags.into_build_opts().with_goal(Goal::Fetch),
+                    ),
+                    download_reporter.run(&current_deps),
+                )
+                .await;
+                results?;
+            }
+
+            if current_paths.iter().all(|d| visited.contains(d)) {
+                visited.insert(workspace_root);
+            } else {
+                later.push(workspace_root);
+            }
+        }
+
+        Ok((dep_paths, dep_labels, deps))
+    }
+
+    async fn scan_dep_dir(
+        &self,
+        analyzer_pool: &mut AnalyzerServicePool,
         db: &mut CodeDb,
         root: &Path,
         label: &Label,

@@ -136,6 +136,7 @@ impl Warp {
 #[derive(StructOpt, Debug, Clone)]
 enum Command {
     Build(BuildCommand),
+    Get(FetchCommand),
     Info(InfoCommand),
     Init(InitCommand),
     Lift(LiftCommand),
@@ -153,6 +154,7 @@ impl Command {
         match self {
             Command::Build(x) => x.run(warp).await,
             Command::Info(x) => x.run(warp).await,
+            Command::Get(x) => x.run(warp).await,
             Command::Lift(x) => x.run(warp).await,
             Command::Run(x) => x.run(warp).await,
             Command::Shell(x) => x.run(warp).await,

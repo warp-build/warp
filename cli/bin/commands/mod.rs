@@ -1,4 +1,5 @@
 mod build;
+mod fetch;
 mod info;
 mod init;
 mod lift;
@@ -10,6 +11,7 @@ mod signature;
 mod test;
 
 pub use build::*;
+pub use fetch::*;
 pub use info::*;
 pub use init::*;
 pub use lift::*;
