@@ -112,7 +112,7 @@ impl ExecutableTarget {
     ) {
         let mut s = Sha256::new();
 
-        s.update(self.label.to_string().as_bytes());
+        s.update(self.label.to_hash_string().as_bytes());
 
         let actions: Vec<String> = self.actions.iter().map(|a| format!("{:?}", a)).collect();
 

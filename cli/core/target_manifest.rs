@@ -126,28 +126,28 @@ impl TargetManifest {
             .deps
             .iter()
             .flat_map(|d| build_results.get_manifest(*d))
-            .map(|d| (d.label.to_string(), d.hash.to_string()))
+            .map(|d| (d.label.to_hash_string(), d.hash.to_string()))
             .collect();
 
         let runtime_deps = target
             .runtime_deps
             .iter()
             .flat_map(|d| build_results.get_manifest(*d))
-            .map(|d| (d.label.to_string(), d.hash.to_string()))
+            .map(|d| (d.label.to_hash_string(), d.hash.to_string()))
             .collect();
 
         let transitive_deps = target
             .transitive_deps
             .iter()
             .flat_map(|d| build_results.get_manifest(*d))
-            .map(|d| (d.label.to_string(), d.hash.to_string()))
+            .map(|d| (d.label.to_hash_string(), d.hash.to_string()))
             .collect();
 
         let toolchains = target
             .toolchains
             .iter()
             .flat_map(|d| build_results.get_manifest(*d))
-            .map(|d| (d.label.to_string(), d.hash.to_string()))
+            .map(|d| (d.label.to_hash_string(), d.hash.to_string()))
             .collect();
 
         let build_completed_at = chrono::Utc::now();
