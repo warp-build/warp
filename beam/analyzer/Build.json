@@ -15,6 +15,9 @@
         "//beam/erlang/analyzer:source_analyzer.erl",
         "//3rdparty/https/hex.pm/packages/grpc",
         "//3rdparty/https/hex.pm/packages/google_protos",
+        "//3rdparty/https/hex.pm/packages/hex_core",
+        "//3rdparty/https/hex.pm/packages/hpax",
+        "//3rdparty/https/hex.pm/packages/mint",
         "//3rdparty/https/hex.pm/packages/protobuf"
       ]
     }

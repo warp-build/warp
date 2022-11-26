@@ -4,6 +4,8 @@ package build.warp.codedb;
 import "schemas/build/warp/common.proto";
 
 service AnalyzerService {
+  rpc GetDependencies(GetDependenciesRequest) returns (GetDependenciesResponse);
+
   rpc GetInterestedPaths(GetInterestedPathsRequest) returns (GetInterestedPathsResponse);
 
   rpc GetProvidedSymbols(GetProvidedSymbolsRequest) returns (GetProvidedSymbolsResponse);
@@ -11,6 +13,14 @@ service AnalyzerService {
   rpc GetAst(GetAstRequest) returns (GetAstResponse);
 
   rpc GenerateSignature(GenerateSignatureRequest) returns (GenerateSignatureResponse);
+}
+
+message GetDependenciesRequest {
+}
+
+message GetDependenciesResponse {
+  Status status = 1;
+  repeated Dependency dependencies = 2;
 }
 
 message GenerateSignatureRequest {

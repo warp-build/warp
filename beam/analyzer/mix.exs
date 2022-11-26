@@ -20,8 +20,11 @@ defmodule Analyzer.MixProject do
 
   defp deps do
     [
+      {:castore, "0.1.18"},
       {:google_protos, "~> 0.3"},
       {:grpc, "~> 0.5"},
+      {:hex_core, "~0.9.0"},
+      {:mint, "1.4.2"},
       {:protobuf, "~> 0.10"}
     ]
   end

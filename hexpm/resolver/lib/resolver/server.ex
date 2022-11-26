@@ -16,13 +16,15 @@ defmodule Resolver.Server do
         http_adapter: {Resolver.HexHttp, %{}}
       })
 
-    {:ok, resp} = :hex_api_release.get(config, req.package_name, req.version)
+    package_name = URI.parse(req.url).path |> String.split("/") |> List.last()
+    Logger.info("Resolving #{package_name} at version #{req.version}")
+    {:ok, resp} = :hex_api_release.get(config, package_name, req.version)
 
     case resp do
       {200, _meta, pkg} ->
         archive =
           Build.Warp.Archive.new(
-            url: "https://repo.hex.pm/tarballs/#{req.package_name}-#{pkg["version"]}.tar",
+            url: "https://repo.hex.pm/tarballs/#{package_name}-#{pkg["version"]}.tar",
             sha256: pkg["checksum"]
           )
 
@@ -151,13 +153,38 @@ defmodule Resolver.Server do
     metadata = read_rebar_config(req.package_root)
 
     deps =
-      metadata.deps
+      Map.get(metadata, :deps, [])
       |> Enum.map(fn dep ->
-        url = Build.Warp.UrlRequirement.new(url: dep)
+        url =
+          case dep do
+            {name, version, {:pkg, pkg_name}} ->
+              Build.Warp.UrlRequirement.new(
+                url: "https://hex.pm/packages/#{pkg_name |> Atom.to_string()}"
+              )
+
+            {name, _version, {:git, repo, ref}} ->
+              repo = :binary.list_to_bin(repo)
+              Build.Warp.UrlRequirement.new(url: String.replace(repo, ".git", ""))
+
+            {name, {:git, repo, ref}} ->
+              repo = :binary.list_to_bin(repo)
+              Build.Warp.UrlRequirement.new(url: String.replace(repo, ".git", ""))
+
+            {name, version} ->
+              Build.Warp.UrlRequirement.new(
+                url: "https://hex.pm/packages/#{name |> Atom.to_string()}"
+              )
+
+            name when is_atom(name) ->
+              Build.Warp.DependencyRequirement.new(
+                url: "https://hex.pm/packages/#{name |> Atom.to_string()}"
+              )
+          end
+
         Build.Warp.Requirement.new(requirement: {:url, url})
       end)
 
-    config =
+    {:ok, config} =
       %{}
       |> Jason.encode!()
       |> Jason.decode!()

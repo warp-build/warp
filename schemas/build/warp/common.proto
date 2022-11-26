@@ -66,3 +66,19 @@ message Requirement {
   }
 }
 
+
+message Dependency {
+  string name = 1;
+  string version = 2;
+  string url = 3;
+
+  // This resolver label will be used to find out where to fetch the archive
+  // that corresponds to this dependency.
+  string archive_resolver = 4;
+
+  // this resolver label will be used to generate a signature for the contents
+  // of the archive.
+  string signature_resolver = 5;
+}
+
+
