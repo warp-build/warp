@@ -88,6 +88,7 @@ impl SourceSymbol {
         match goal {
             Goal::Build => Self::All,
             Goal::Run => Self::All,
+            Goal::Fetch => Self::All,
             Goal::Test => {
                 let name = label.name();
                 let file_name = label.get_local().unwrap().filename();

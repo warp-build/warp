@@ -246,6 +246,12 @@ impl BuildWorker {
             Ok(executable_target) => executable_target,
         };
 
+        if task.goal.is_fetch() {
+            self.build_results.add_fetch_result(task.label);
+            self.build_queue.ack(task);
+            return Ok(());
+        }
+
         self.event_channel.send(Event::BuildingTarget {
             label: target.label.clone(),
             goal: task.goal,

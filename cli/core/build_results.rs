@@ -102,6 +102,10 @@ impl BuildResults {
         self.missing_targets.insert(label);
     }
 
+    pub fn add_fetch_result(&self, label: LabelId) {
+        self.missing_targets.remove(&label);
+    }
+
     pub fn add_computed_target(
         &self,
         label: LabelId,

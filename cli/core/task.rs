@@ -8,6 +8,7 @@ pub enum Goal {
     Build,
     Test,
     Run,
+    Fetch,
 }
 
 #[derive(Error, Debug)]
@@ -29,6 +30,8 @@ impl Goal {
                     || t.as_ref().ends_with("_executable")
             }
             Goal::Build => !t.as_ref().ends_with("_test"),
+            // NOTE(@ostera): fetch can be used to download all dependencies on anything
+            Goal::Fetch => true,
         }
     }
 
@@ -47,6 +50,10 @@ impl Goal {
     pub fn is_test(&self) -> bool {
         matches!(self, Goal::Test)
     }
+
+    pub fn is_fetch(&self) -> bool {
+        matches!(self, Goal::Fetch)
+    }
 }
 
 impl FromStr for Goal {
@@ -57,6 +64,7 @@ impl FromStr for Goal {
             "run" => Ok(Self::Run),
             "test" => Ok(Self::Test),
             "build" => Ok(Self::Build),
+            "get" => Ok(Self::Fetch),
             _ => Err(GoalError::InvalidGoal(s.into())),
         }
     }
