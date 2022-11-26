@@ -16,6 +16,7 @@ service AnalyzerService {
 }
 
 message GetDependenciesRequest {
+  string workspace_root = 1;
 }
 
 message GetDependenciesResponse {
