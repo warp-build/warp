@@ -18,6 +18,31 @@ impl Dependency {
     pub fn builder() -> DependencyBuilder {
         DependencyBuilder::default()
     }
+
+    pub fn from_json(dep_json: DependencyJson, label_registry: &LabelRegistry) -> Self {
+        let label: Label = dep_json.url.clone().into();
+        let label = label_registry.register_label(label);
+
+        let mut resolver = None;
+        for dep in &dep_json.resolver {
+            let label: Label = dep.clone().parse().unwrap();
+            resolver = Some(label_registry.register_label(label));
+        }
+
+        let version = dep_json.version.to_string();
+
+        let package = dep_json.package.to_string();
+
+        let url = dep_json.url;
+
+        Dependency {
+            label,
+            resolver,
+            version,
+            package,
+            url,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Builder)]
