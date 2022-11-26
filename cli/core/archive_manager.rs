@@ -1,9 +1,11 @@
 use super::Event;
 use super::*;
 use async_compression::futures::bufread::GzipDecoder;
+use futures::AsyncReadExt;
 use futures::StreamExt;
 use futures::TryStreamExt;
 use sha2::{Digest, Sha256};
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use thiserror::*;
@@ -48,7 +50,7 @@ pub enum ArchiveManagerError {
     StreamingError { url: Url, err: std::io::Error },
 
     #[error(
-        "Could not copy archive originating at {url:?} from {src:?} to {src:?}, due to: {err:?}"
+        "Could not copy archive originating at {url:?} from {src:?} to {dst:?}, due to: {err:?}"
     )]
     CopyError {
         url: Url,
@@ -58,7 +60,7 @@ pub enum ArchiveManagerError {
     },
 
     #[error(
-        "Could not extract archive originating at {} from {src:?} to {src:?}, due to: {err:?}", url.to_string()
+        "Could not extract archive originating at {} from {src:?} to {dst:?}, due to: {err:?}", url.to_string()
     )]
     ExtractionError {
         url: Url,
@@ -175,7 +177,7 @@ impl ArchiveManager {
         expected_hash: Option<String>,
         strip_prefix: Option<String>,
     ) -> Result<Archive, ArchiveManagerError> {
-        let (downloaded_file, actual_hash) = self.download(url, "zip").await?;
+        let (downloaded_file, actual_hash) = self.download(url, "tar.gz").await?;
 
         self.check_hash(url, &expected_hash, &actual_hash)?;
 
@@ -283,7 +285,7 @@ impl ArchiveManager {
 
                     let file_path = PathBuf::from(reader.entry().name());
                     let file_path = if let Some(ref prefix) = strip_prefix {
-                        file_path.strip_prefix(prefix).unwrap().to_path_buf()
+                        file_path.strip_prefix(prefix)?.to_path_buf()
                     } else {
                         file_path
                     };
@@ -295,23 +297,12 @@ impl ArchiveManager {
                 }
             }
             Err(_err) => {
-                let file = fs::File::open(&archive).await?;
-                let decompress_stream =
-                    GzipDecoder::new(futures::io::BufReader::new(file.compat()));
-
-                let tar = async_tar::Archive::new(decompress_stream);
-
                 if let Some(ref prefix) = strip_prefix {
                     let tmpdir = tempfile::tempdir()?;
 
-                    if tar.unpack(tmpdir.path()).await.is_err() {
-                        let file = fs::File::open(&archive).await?;
-                        let tar =
-                            async_tar::Archive::new(futures::io::BufReader::new(file.compat()));
-                        tar.unpack(tmpdir.path()).await?
-                    };
+                    self.unpack(archive, &tmpdir.path()).await?;
 
-                    let tmp_root = tmpdir.path().join(&prefix).to_path_buf();
+                    let tmp_root = tmpdir.path().join(prefix).to_path_buf();
 
                     let mut files = Box::pin(
                         FileScanner::new()
@@ -322,7 +313,7 @@ impl ArchiveManager {
                     );
 
                     while let Some(src_path) = files.next().await {
-                        let src_path = src_path.unwrap();
+                        let src_path = src_path?;
                         if fs::metadata(&src_path).await?.is_dir() {
                             continue;
                         }
@@ -331,7 +322,7 @@ impl ArchiveManager {
                         // prefix.
                         let path = src_path
                             .strip_prefix("/private")?
-                            .strip_prefix(&tmp_root.strip_prefix("/").unwrap())?;
+                            .strip_prefix(tmp_root.strip_prefix("/").unwrap())?;
 
                         let dst_path = dst.join(path);
                         fs::create_dir_all(dst_path.parent().unwrap()).await?;
@@ -339,17 +330,27 @@ impl ArchiveManager {
                         fs::copy(src_path, dst_path).await?;
                     }
                 } else {
-                    match tar.unpack(&dst).await {
-                        Ok(_) => (),
-                        Err(_err) => {
-                            let file = fs::File::open(&archive).await?;
-                            let tar =
-                                async_tar::Archive::new(futures::io::BufReader::new(file.compat()));
-                            tar.unpack(dst).await?
-                        }
-                    };
+                    self.unpack(archive, dst).await?
                 }
             }
+        }
+        Ok(())
+    }
+
+    /// Attempt to unpack [archive] into [dst] by decompressing it first, and if it fails, try
+    /// without decompression.
+    async fn unpack(&self, archive: &PathBuf, dst: &Path) -> Result<(), anyhow::Error> {
+        let file = fs::File::open(archive).await?;
+        let mut decompress_stream = GzipDecoder::new(futures::io::BufReader::new(file.compat()));
+
+        let mut data = vec![];
+        if decompress_stream.read_to_end(&mut data).await.is_ok() {
+            let mut tar = tar::Archive::new(std::io::BufReader::new(&*data));
+            tar.unpack(dst)?
+        } else {
+            let file = std::fs::File::open(archive)?;
+            let mut tar = tar::Archive::new(std::io::BufReader::new(file));
+            tar.unpack(dst)?
         }
         Ok(())
     }
