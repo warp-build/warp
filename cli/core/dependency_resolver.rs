@@ -64,6 +64,9 @@ pub enum DependencyResolverError {
 
     #[error(transparent)]
     CodeDbError(CodeDbError),
+
+    #[error("Could not find a generated signature for target {} -- this could mean we don't have a Signature Generator available for it yet!", .label.to_string())]
+    MissingSignature { label: Label },
 }
 
 impl DependencyResolver {
@@ -195,7 +198,13 @@ impl DependencyResolver {
         };
 
         // 4. Turn our new signature into a Target
-        let sig = resolution.signatures[0].clone();
+        let sig = resolution
+            .signatures
+            .get(0)
+            .ok_or_else(|| DependencyResolverError::MissingSignature {
+                label: self.label_registry.get_label(label).as_ref().to_owned(),
+            })?
+            .clone();
         let mut target: Target = sig.into();
 
         // 5. The Target itself will have a label that is not pointing to the right workspace
