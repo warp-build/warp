@@ -2,7 +2,6 @@ use super::*;
 use dashmap::DashMap;
 use std::{collections::BTreeMap, sync::Arc};
 use thiserror::*;
-use tokio::fs;
 use tracing::*;
 
 #[derive(Debug, Clone)]
@@ -27,14 +26,6 @@ impl DependencyManager {
         label_registry: Arc<LabelRegistry>,
     ) -> Result<Self, DependencyManagerError> {
         let dependency_file = workspace.paths.local_warp_root.join(DEPENDENCIES_JSON);
-        if fs::metadata(&dependency_file).await.is_err() {
-            let dep_file = DependencyFile::builder()
-                .version("0".to_string())
-                .build()
-                .unwrap();
-            dep_file.write(&dependency_file).await.unwrap();
-        }
-
         let dep_file = DependencyFile::read_from_file(&dependency_file)
             .await
             .map_err(DependencyManagerError::DependencyFileError)
@@ -46,10 +37,11 @@ impl DependencyManager {
             let label: Label = url::Url::parse(url).unwrap().into();
             let label = label_registry.register_label(label);
 
-            let resolver = dep_json
-                .resolver
-                .clone()
-                .map(|r| label_registry.register_label(r));
+            let mut resolver = None;
+            for dep in &dep_json.resolver {
+                let label: Label = dep.clone().parse().unwrap();
+                resolver = Some(label_registry.register_label(label));
+            }
 
             let version = dep_json.version.to_string();
 
@@ -75,7 +67,7 @@ impl DependencyManager {
         })
     }
 
-    pub async fn persist(&self) -> Result<(), DependencyManagerError> {
+    pub fn into_file(&self) -> Result<DependencyFile, DependencyManagerError> {
         let mut deps = BTreeMap::new();
 
         for dep in self.dependencies.iter() {
@@ -86,7 +78,7 @@ impl DependencyManager {
                     self.label_registry
                         .get_label(*resolver_id)
                         .as_ref()
-                        .to_owned()
+                        .to_string()
                 }))
                 .version(dep.version.clone())
                 .package(dep.package.clone())
@@ -101,7 +93,11 @@ impl DependencyManager {
             .build()
             .map_err(DependencyManagerError::DependencyFileError)?;
 
-        dependency_file
+        Ok(dependency_file)
+    }
+
+    pub async fn persist(&self) -> Result<(), DependencyManagerError> {
+        self.into_file()?
             .write(&self.dependency_file)
             .await
             .map_err(DependencyManagerError::DependencyFileError)?;

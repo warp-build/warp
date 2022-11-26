@@ -93,7 +93,7 @@ impl DependencyFile {
 pub struct DependencyJson {
     #[builder(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resolver: Option<Label>,
+    pub resolver: Option<String>,
 
     pub version: String,
 
