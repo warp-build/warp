@@ -111,7 +111,7 @@ pub enum ArtifactStoreError {
     #[error(transparent)]
     FileListingErrorDuringVerification(FileScannerError),
 
-    #[error("Found unexpected file: {file:?} while verifying {key}")]
+    #[error("Uh-oh! Found unexpected file: {file:?} while verifying {key}. This is a serious bug, please report it!")]
     VerificationError {
         key: ArtifactStoreKey,
         file: PathBuf,
@@ -225,7 +225,13 @@ impl ArtifactStore {
                 let manifest = self.local_store.find_manifest(&store_key).await;
 
                 if let Ok(ArtifactStoreHitType::Hit(manifest)) = &manifest {
-                    self.local_store.verify(&store_key, manifest).await?;
+                    match self.local_store.verify(&store_key, manifest).await {
+                        Ok(()) => (),
+                        Err(err) => {
+                            self.clean(node).await?;
+                            return Err(err);
+                        }
+                    }
                 }
 
                 manifest

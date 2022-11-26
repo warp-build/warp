@@ -91,7 +91,7 @@ impl API {
             .build()
             .map_err(ApiError::RequestError)?;
 
-        let _ = self
+        let _response = self
             .client
             .execute(request)
             .await

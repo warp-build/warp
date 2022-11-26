@@ -1,14 +1,11 @@
 use super::Event;
 use super::*;
-use async_compression::futures::bufread::GzipDecoder;
 use async_compression::tokio::write::GzipEncoder;
 use futures::stream::TryStreamExt;
-use futures::StreamExt;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::fs;
+use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
-use tokio_util::compat::TokioAsyncReadCompatExt;
 use tracing::*;
 
 /// The RemoteArtifactStore implements an external cache.
@@ -41,7 +38,7 @@ impl RemoteArtifactStore {
         let archive = {
             let mut b = async_tar::Builder::new(vec![]);
             for artifact in artifacts {
-                b.append_path_with_name(&sandbox_root.join(&artifact), &artifact)
+                b.append_path_with_name(&sandbox_root.join(artifact), &artifact)
                     .await
                     .map_err(ArtifactStoreError::IOError)?;
             }
@@ -78,8 +75,6 @@ impl RemoteArtifactStore {
         dst: &PathBuf,
         label: &LocalLabel,
     ) -> Result<(), ArtifactStoreError> {
-        let dst_tarball = &dst.with_extension("tar.gz");
-
         let url = format!("{}/artifact/{}.tar.gz", self.api.url, key);
 
         let response = self
@@ -95,39 +90,22 @@ impl RemoteArtifactStore {
                 url: url.to_string(),
             });
 
-            let mut byte_stream = response
+            let byte_stream = response
                 .bytes_stream()
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
+            let byte_reader = tokio_util::io::StreamReader::new(byte_stream);
+            let mut unzip_stream = async_compression::tokio::bufread::GzipDecoder::new(byte_reader);
 
-            fs::create_dir_all(&dst_tarball.parent().unwrap())
-                .await
-                .map_err(ArtifactStoreError::IOError)?;
+            let mut data = vec![];
+            unzip_stream.read_to_end(&mut data).await.unwrap();
 
-            let mut outfile = fs::File::create(&dst_tarball)
-                .await
-                .map_err(ArtifactStoreError::IOError)?;
-
-            while let Some(chunk) = byte_stream.next().await {
-                let mut chunk = chunk.map_err(ArtifactStoreError::IOError)?;
-
-                outfile
-                    .write_all_buf(&mut chunk)
-                    .await
-                    .map_err(ArtifactStoreError::IOError)?;
-            }
-
-            let file = fs::File::open(&dst_tarball)
-                .await
-                .map_err(ArtifactStoreError::IOError)?;
-
-            let decompress_stream = GzipDecoder::new(futures::io::BufReader::new(file.compat()));
-
-            let tar = async_tar::Archive::new(decompress_stream);
-            tar.unpack(dst).await.map_err(ArtifactStoreError::IOError)?;
-
-            fs::remove_file(&dst_tarball)
-                .await
-                .map_err(ArtifactStoreError::IOError)?;
+            let dst = dst.clone();
+            tokio::task::spawn_blocking(move || {
+                let mut tar = tar::Archive::new(std::io::BufReader::new(&*data));
+                tar.unpack(dst).map_err(ArtifactStoreError::IOError)
+            })
+            .await
+            .unwrap()?;
         }
 
         Ok(())
