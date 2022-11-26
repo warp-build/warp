@@ -227,6 +227,29 @@ impl LocalLabel {
 
         base_url.into()
     }
+
+    pub fn to_hash_string(&self) -> String {
+        let path = self.file.to_string_lossy();
+
+        let prefix = {
+            if let Some(url) = &self.associated_url {
+                format!("{}{}", url.host_str().unwrap(), url.path())
+            } else if let Some(remote) = &self.promoted_from {
+                remote.to_string()
+            } else if path.starts_with("./") {
+                format!("{}", path)
+            } else {
+                format!("./{}", path)
+            }
+        };
+
+        if let Some(name) = &self.name {
+            if !prefix.ends_with(name) {
+                return format!("{}:{}", prefix, name);
+            }
+        }
+        prefix
+    }
 }
 
 impl LocalLabelBuilder {
@@ -494,6 +517,10 @@ impl AbstractLabel {
 
         base_url.into()
     }
+
+    pub fn to_hash_string(&self) -> String {
+        format!("{}:{}", self.path.to_string_lossy(), self.name)
+    }
 }
 
 impl AbstractLabelBuilder {
@@ -639,6 +666,15 @@ impl Label {
 
 /// Accessors for Labels
 impl Label {
+    pub fn to_hash_string(&self) -> String {
+        match &self {
+            Label::Wildcard(w) => w.to_string(),
+            Label::Local(l) => l.to_hash_string(),
+            Label::Remote(r) => r.url_str().to_string(),
+            Label::Abstract(a) => a.to_hash_string(),
+        }
+    }
+
     pub fn hash(&self) -> usize {
         match &self {
             Label::Wildcard(_) => 0,
