@@ -40,7 +40,7 @@ pub enum ArchiveManagerError {
         err: std::io::Error,
     },
 
-    #[error("Could not download {url:?} due to: {err:?}")]
+    #[error("Could not download {url:?} due to: {err}")]
     CouldNotDownload { url: Url, err: reqwest::Error },
 
     #[error("Failed download {url:?} with status: {err:?}")]
