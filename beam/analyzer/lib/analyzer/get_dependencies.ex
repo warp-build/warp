@@ -3,8 +3,9 @@ defmodule Analyzer.GetDependencies do
 
   def get_dependencies(req, _stream) do
     with {:ok, rebar_deps} <- do_get_rebar_config_deps(req),
-         {:ok, lock_deps} <- do_get_rebar_lock_deps(req) do
-      dependencies = rebar_deps ++ lock_deps
+         {:ok, lock_deps} <- do_get_rebar_lock_deps(req),
+         {:ok, erlmk_deps} <- do_get_erlangmk_deps(req) do
+      dependencies = rebar_deps ++ lock_deps ++ erlmk_deps
 
       for dep <- dependencies do
         Logger.debug("Found dep: #{inspect(dep)}")
@@ -18,8 +19,45 @@ defmodule Analyzer.GetDependencies do
     end
   end
 
+  defp do_get_erlangmk_deps(req) do
+    with {:ok, file} <- File.read(Path.join(req.workspace_root, "Makefile")) do
+      lines = String.split(file, <<"\n">>)
+
+      deps =
+        lines
+        |> Enum.map(&String.split(&1, " "))
+        |> Enum.reduce([], fn
+          [<<"dep_", name::binary>>, "=", "git", repo, version], acc ->
+            [
+              Build.Warp.Dependency.new(
+                url: String.replace(repo, ".git", ""),
+                name: name,
+                version: version,
+                signature_resolver: "https://tools.warp.build/hexpm/resolver",
+                archive_resolver:
+                  if String.contains?(repo, "github") do
+                    "https://tools.warp.build/github/resolver"
+                  else
+                    "https://tools.warp.build/gitlab/resolver"
+                  end
+              )
+              | acc
+            ]
+
+          _line, acc ->
+            acc
+        end)
+
+      {:ok, deps}
+    else
+      e ->
+        Logger.error("Error reading erlang.mk deps: #{inspect(e)}")
+        {:ok, []}
+    end
+  end
+
   defp do_get_rebar_config_deps(req) do
-    with {:ok, config} <- :file.consult("rebar.config") do
+    with {:ok, config} <- :file.consult(Path.join(req.workspace_root, "rebar.config")) do
       deps = Keyword.get(config, :deps, [])
 
       test_deps =
@@ -53,6 +91,7 @@ defmodule Analyzer.GetDependencies do
                     {:ref, ref} -> ref
                     {:branch, branch} -> branch
                     {:tag, tag} -> tag
+                    _ -> ref
                   end
 
                 ref =
@@ -130,11 +169,16 @@ defmodule Analyzer.GetDependencies do
         end
 
       {:ok, dependencies}
+    else
+      e ->
+        Logger.error("Error reading rebar3 deps: #{inspect(e)}")
+        {:ok, []}
     end
   end
 
   defp do_get_rebar_lock_deps(req) do
-    with {:ok, [{_, locked_deps} | _]} <- :file.consult("rebar.lock") do
+    with {:ok, [{_, locked_deps} | _]} <-
+           :file.consult(Path.join(req.workspace_root, "rebar.lock")) do
       dependencies =
         for {name, spec, _} <- locked_deps do
           dep =
@@ -177,7 +221,9 @@ defmodule Analyzer.GetDependencies do
 
       {:ok, dependencies}
     else
-      _ -> {:ok, []}
+      e ->
+        Logger.error("Error reading rebar.lock deps: #{inspect(e)}")
+        {:ok, []}
     end
   end
 end
