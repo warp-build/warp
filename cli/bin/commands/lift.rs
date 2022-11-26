@@ -67,18 +67,18 @@ impl LiftCommand {
 
             let db = CodeDb::new(&warp.workspace).await?;
 
-            self.run_analyzers(analyzers, resolvers, warp, db).await?;
+            self.lift_workspace(analyzers, resolvers, warp, db).await?;
         } else {
             println!("Nothing to be done.")
         }
         Ok(())
     }
 
-    async fn run_analyzers(
+    async fn lift_workspace(
         &self,
         analyzers: Vec<Label>,
         resolvers: Vec<Label>,
-        warp: &WarpEngine,
+        warp: &mut WarpEngine,
         db: CodeDb,
     ) -> Result<(), anyhow::Error> {
         let cyan = console::Style::new().cyan().bold();
@@ -93,6 +93,7 @@ impl LiftCommand {
         let mut paths = vec![];
         for client in &mut analyzer_pool.clients {
             let request = proto::build::warp::codedb::GetInterestedPathsRequest {};
+            println!("get_interested_paths");
             let exts = client.get_interested_paths(request).await?.into_inner();
             paths.extend(exts.build_files);
             paths.extend(exts.test_files);
@@ -119,6 +120,8 @@ impl LiftCommand {
         println!("{:>12} entire workspace...", cyan.apply_to("Scanning"),);
 
         let deps = DashMap::new();
+        let mut dep_labels: Vec<Label> = vec![];
+
         let root = warp.workspace.paths.workspace_root.clone();
         let invocation_dir = warp.invocation_dir.clone();
         let mut dirs = vec![root.clone()];
@@ -149,6 +152,7 @@ impl LiftCommand {
                     let request = proto::build::warp::codedb::GetProvidedSymbolsRequest {
                         file: path.to_string_lossy().to_string(),
                     };
+                    println!("get_provided_symbols");
                     let response = client.get_provided_symbols(request).await?.into_inner();
                     if !response.skipped {
                         let mut local_label: LocalLabel = path.clone().into();
@@ -172,6 +176,8 @@ impl LiftCommand {
                                     dep_req,
                                 ) => {
                                     let label: Label = dep_req.name.parse().unwrap();
+                                    dep_labels.push(label.clone());
+
                                     let label = warp.label_registry().register_label(label);
 
                                     let resolver: Label =
@@ -255,7 +261,6 @@ impl LiftCommand {
                 }
             }
         }
-
         let deps: BTreeMap<String, DependencyJson> = deps.into_iter().collect();
         let dependency_file = DependencyFile::builder()
             .version("0".into())
@@ -267,6 +272,28 @@ impl LiftCommand {
         dependency_file
             .write(&warp.workspace.paths.local_warp_root.join(DEPENDENCIES_JSON))
             .await?;
+
+        // NOTE(@ostera): If we found dependencies, we should fetch and build them at this point so
+        // we can analyze their sources and establish the right dependency graph.
+        if !dep_labels.is_empty() {
+            let status_reporter = StatusReporter::new(
+                warp.event_channel.clone(),
+                Flags {
+                    show_cache_hits: false,
+                    ..self.flags
+                },
+                Goal::Run,
+            );
+            let (results, ()) = futures::future::join(
+                warp.execute(
+                    &dep_labels,
+                    self.flags.into_build_opts().with_goal(Goal::Build),
+                ),
+                status_reporter.run(&dep_labels),
+            )
+            .await;
+            results?;
+        }
 
         println!("{:>12} lifting workspace.", green_bold.apply_to("Finished"));
 
