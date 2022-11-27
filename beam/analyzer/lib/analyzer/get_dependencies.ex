@@ -152,6 +152,36 @@ defmodule Analyzer.GetDependencies do
                     end
                 )
 
+              {name, {:git_subdir, repo, ref, subdir}} ->
+                ref =
+                  case ref do
+                    {:ref, ref} -> ref
+                    {:branch, branch} -> branch
+                    {:tag, tag} -> tag
+                  end
+
+                ref =
+                  cond do
+                    is_atom(ref) -> Atom.to_string(ref)
+                    true -> :binary.list_to_bin(ref)
+                  end
+
+                repo = :binary.list_to_bin(repo)
+
+                Build.Warp.Dependency.new(
+                  url: String.replace(repo, ".git", ""),
+                  name: name |> Atom.to_string(),
+                  version: ref,
+                  signature_resolver: "https://tools.warp.build/hexpm/resolver",
+                  archive_subdir: subdir |> :binary.list_to_bin(),
+                  archive_resolver:
+                    if String.contains?(repo, "github") do
+                      "https://tools.warp.build/github/resolver"
+                    else
+                      "https://tools.warp.build/gitlab/resolver"
+                    end
+                )
+
               {name, version} ->
                 Build.Warp.Dependency.new(
                   url: "https://hex.pm/packages/#{name |> Atom.to_string()}",
