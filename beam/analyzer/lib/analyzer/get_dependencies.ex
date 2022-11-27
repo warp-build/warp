@@ -27,6 +27,10 @@ defmodule Analyzer.GetDependencies do
         lines
         |> Enum.map(&String.split(&1, " "))
         |> Enum.reduce([], fn
+          # NOTE(@ostera): erlang.mk is its own dependeny so we gotta skip this
+          [<<"dep_ci.erlang.mk">> | _], acc ->
+            acc
+
           [<<"dep_", name::binary>>, "=", "git", repo, version], acc ->
             [
               Build.Warp.Dependency.new(
