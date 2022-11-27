@@ -20,8 +20,8 @@ defmodule Resolver.Server do
 
     {:ok, version} =
       case Version.parse(req.version) do
-        {:ok, version} ->
-          {:ok, version}
+        {:ok, _version} ->
+          {:ok, req.version}
 
         :error ->
           Logger.info("Resolving #{package_name} with requirement #{req.version}")
@@ -132,8 +132,8 @@ defmodule Resolver.Server do
             Path.wildcard("#{root}/src/*"),
             Path.wildcard("#{root}/include/*"),
             Path.wildcard("#{root}/c_src/*"),
-            "Makefile",
-            "erlang.mk"
+            "#{root}/Makefile",
+            "#{root}/erlang.mk"
           ]
           |> List.flatten()
       }
