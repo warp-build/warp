@@ -17,8 +17,40 @@ defmodule Resolver.Server do
       })
 
     package_name = URI.parse(req.url).path |> String.split("/") |> List.last()
-    Logger.info("Resolving #{package_name} at version #{req.version}")
-    {:ok, resp} = :hex_api_release.get(config, package_name, req.version)
+
+    {:ok, version} =
+      case Version.parse(req.version) do
+        {:ok, version} ->
+          {:ok, version}
+
+        :error ->
+          Logger.info("Resolving #{package_name} with requirement #{req.version}")
+          requirement = Version.parse_requirement!(req.version)
+
+          hex_config =
+            :hex_core.default_config()
+            |> Map.merge(%{
+              http_user_agent_fragment: "(tools.warp.build/hexpm/resolver)",
+              http_adapter: {Resolver.HexHttp, %{}}
+            })
+
+          {:ok, {_, _, resp}} = :hex_api_package.get(hex_config, package_name)
+          Logger.info("Found #{Enum.count(resp["releases"])} versions for #{package_name}")
+
+          version =
+            (resp["releases"] || [])
+            |> Enum.find(fn %{"version" => version} ->
+              Version.match?(version, requirement)
+            end)
+            |> Map.get("version", resp["latest_stable_version"])
+
+          Logger.info("Picked #{version}")
+          {:ok, version}
+      end
+
+    Logger.info("Resolving #{package_name} at version #{version}")
+
+    {:ok, resp} = :hex_api_release.get(config, package_name, version)
 
     case resp do
       {200, _meta, pkg} ->
