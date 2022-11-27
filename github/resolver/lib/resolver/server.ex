@@ -7,10 +7,11 @@ defmodule Resolver.Server do
     with url = %URI{host: "github.com"} <- URI.parse(req.url) do
       [_scheme, _, _github, _username, repo] = String.split(req.url, "/")
 
-      url = case url do
-        %URI{ scheme: "git" } -> %URI{url | scheme: "https", port: 443 }
-        _ -> url
-      end
+      url =
+        case url do
+          %URI{scheme: "git"} -> %URI{url | scheme: "https", port: 443}
+          _ -> url
+        end
 
       version =
         case req.version do
