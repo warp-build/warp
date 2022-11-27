@@ -65,7 +65,11 @@ defmodule Analyzer.GetDependencies do
       deps = Keyword.get(config, :deps, [])
 
       test_deps =
-        config |> Keyword.get(:profiles, []) |> Keyword.get(:test, []) |> Keyword.get(:deps, [])
+        if "test" in req.profiles do
+          config |> Keyword.get(:profiles, []) |> Keyword.get(:test, []) |> Keyword.get(:deps, [])
+        else
+          []
+        end
 
       deps = deps ++ test_deps
 
