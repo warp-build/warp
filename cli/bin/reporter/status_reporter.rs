@@ -35,7 +35,7 @@ impl StatusReporter {
 
             let style = ProgressStyle::default_bar()
                 .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
-                .progress_chars("# ");
+                .progress_chars("=> ");
 
             let pb = ProgressBar::new(100);
             pb.set_style(style);

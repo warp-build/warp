@@ -2,6 +2,8 @@ use super::*;
 use crate::proto;
 use crate::reporter::*;
 use dashmap::{DashMap, DashSet};
+use indicatif::ProgressBar;
+use indicatif::ProgressStyle;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -73,7 +75,7 @@ impl LiftCommand {
                     show_cache_hits: false,
                     ..self.flags
                 },
-                Goal::Run,
+                Goal::Build,
             );
             let labels = analyzers.clone();
             let (results, ()) = futures::future::join(
@@ -87,6 +89,7 @@ impl LiftCommand {
 
             let green_bold = console::Style::new().green().bold();
 
+            println!("{:>12} on analyzer_services...", "Waiting");
             let mut analyzer_pool =
                 AnalyzerServicePool::start(21000, analyzers.clone(), warp, self.flags).await?;
 
@@ -110,15 +113,10 @@ impl LiftCommand {
         db: &mut CodeDb,
         dependencies: DependencyFile,
     ) -> Result<(), anyhow::Error> {
-        let cyan = console::Style::new().cyan().bold();
-        println!("{:>12} dependencies...", cyan.apply_to("Discovering"),);
-
         let workspace_root = warp.invocation_dir.clone();
         let (dep_paths, dep_labels, deps) = self
             .get_dependencies(analyzer_pool, warp, &workspace_root, &dependencies)
             .await?;
-
-        println!("{:>12} dependency manifest", cyan.apply_to("Saving"));
 
         self.update_dep_manifest(warp, &dependencies, &deps).await?;
 
@@ -127,13 +125,10 @@ impl LiftCommand {
         if !dep_labels.is_empty() {
             let lifter_reporter = LifterReporter::new(
                 warp.event_channel.clone(),
-                Flags {
-                    show_cache_hits: true,
-                    ..self.flags
-                },
+                Flags { ..self.flags },
                 Goal::Build,
             );
-            warp.clear_results();
+            warp.prepare_for_new_run();
             let (results, ()) = futures::future::join(
                 warp.execute(
                     &dep_labels,
@@ -144,11 +139,8 @@ impl LiftCommand {
             .await;
             results?;
 
-            for (dep_root, dep_label) in dep_paths.iter().zip(dep_labels.iter()) {
-                println!("Scanning {:?}", &*dep_root);
-                self.scan_dep_dir(analyzer_pool, db, &*dep_root, dep_label)
-                    .await?;
-            }
+            self.scan_dep_dirs(analyzer_pool, db, dep_paths, dep_labels)
+                .await?;
         }
 
         Ok(())
@@ -160,11 +152,10 @@ impl LiftCommand {
         dependencies: &DependencyFile,
         deps: &DashMap<String, DependencyJson>,
     ) -> Result<(), anyhow::Error> {
-        let deps: BTreeMap<String, DependencyJson> = dependencies
-            .dependencies
+        let deps: BTreeMap<String, DependencyJson> = deps
             .clone()
             .into_iter()
-            .chain(deps.clone().into_iter())
+            .chain(dependencies.dependencies.clone().into_iter())
             .collect();
         let dependency_file = DependencyFile::builder()
             .version("0".into())
@@ -191,21 +182,51 @@ impl LiftCommand {
         ),
         anyhow::Error,
     > {
-        let mut later: Vec<PathBuf> = vec![];
-        let mut queue = vec![workspace_root.clone()];
+        let cyan = console::Style::new().cyan().bold();
+
+        let mut later: Vec<(PathBuf, Label)> = vec![];
+        let mut queue = vec![(
+            workspace_root.clone(),
+            workspace_root.to_string_lossy().to_string().parse()?,
+        )];
         let visited: DashSet<PathBuf> = DashSet::new();
+        let pending: DashSet<Label> = DashSet::new();
 
         let mut dep_labels = vec![];
         let dep_paths = DashMap::new();
         let deps = DashMap::new();
 
         let mut include_test = true;
-        while let Some(workspace_root) = queue.pop().or_else(|| later.pop()) {
+
+        let mut max_length = queue.len();
+
+        // set up a progress bar
+        let pb = {
+            let style = ProgressStyle::default_bar()
+                .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
+                .progress_chars("=> ");
+            let pb = ProgressBar::new(max_length as u64);
+            pb.set_style(style);
+            pb.set_prefix("Discovering");
+            pb
+        };
+
+        while let Some((workspace_root, current_label)) = queue.pop().or_else(|| later.pop()) {
+            max_length = max_length.max(queue.len() + later.len());
+            // maximum length of the bar should be the largest number we find while queueing things
+            pb.set_length(max_length as u64);
+            pb.set_message(
+                pending
+                    .iter()
+                    .map(|l| l.to_string())
+                    .collect::<Vec<String>>()
+                    .join(", "),
+            );
+
             if visited.contains(&workspace_root) {
+                pending.remove(&current_label);
                 continue;
             }
-
-            println!("Getting deps for {:?}", &workspace_root);
 
             // NOTE(@ostera): get all dependencies from all the analyzers
             let mut current_deps = vec![];
@@ -287,7 +308,8 @@ impl LiftCommand {
                     current_deps.push(label.clone());
                     current_paths.push(final_dir.clone());
 
-                    queue.push(final_dir.clone());
+                    queue.push((final_dir.clone(), label.clone()));
+                    pending.insert(label.clone());
 
                     dep_labels.push(label.clone());
                     dep_paths.insert(dep.url.clone(), final_dir.clone());
@@ -301,116 +323,178 @@ impl LiftCommand {
             // trying to fetch anything. Mark as visited and move on.
             //
             if current_deps.is_empty() {
-                visited.insert(workspace_root.clone());
+                visited.insert(workspace_root);
+                pending.remove(&current_label);
+                pb.inc(1);
                 continue;
-            } else {
-                // NOTE(@ostera): try to fetch all the dependencies.
-                //
-                let download_reporter =
-                    DownloadReporter::new(warp.event_channel.clone(), self.flags, Goal::Fetch);
-                let (results, ()) = futures::future::join(
-                    warp.execute(
-                        &current_deps,
-                        self.flags.into_build_opts().with_goal(Goal::Fetch),
-                    ),
-                    download_reporter.run(&current_deps),
-                )
-                .await;
-                results?;
             }
+
+            // NOTE(@ostera): try to fetch all the dependencies.
+            //
+            let download_reporter =
+                DownloadReporter::new(warp.event_channel.clone(), self.flags, Goal::Fetch);
+            let (results, ()) = futures::future::join(
+                warp.execute(
+                    &current_deps,
+                    self.flags.into_build_opts().with_goal(Goal::Fetch),
+                ),
+                download_reporter.run(&current_deps),
+            )
+            .await;
+            results?;
 
             if current_paths.iter().all(|d| visited.contains(d)) {
                 visited.insert(workspace_root);
+                pending.remove(&current_label);
+                pb.inc(1);
             } else {
-                later.push(workspace_root);
+                later.push((workspace_root, current_label));
             }
         }
+
+        pb.set_message("");
+        pb.println(format!(
+            "{:>12} {} dependencies",
+            cyan.apply_to("Downloaded"),
+            max_length
+        ));
 
         Ok((dep_paths, dep_labels, deps))
     }
 
-    async fn scan_dep_dir(
+    async fn scan_dep_dirs(
         &self,
         analyzer_pool: &mut AnalyzerServicePool,
         db: &mut CodeDb,
-        root: &Path,
-        label: &Label,
+        dep_paths: DashMap<String, PathBuf>,
+        dep_labels: Vec<Label>,
     ) -> Result<(), anyhow::Error> {
-        let mut paths = vec![];
-        for client in &mut analyzer_pool.clients {
-            let request = proto::build::warp::codedb::GetInterestedPathsRequest {};
-            let exts = client.get_interested_paths(request).await?.into_inner();
-            paths.extend(exts.build_files);
-            paths.extend(exts.test_files);
-        }
+        let analyze_time = std::time::Instant::now();
+        let cyan = console::Style::new().cyan().bold();
 
-        let match_patterns = {
-            let mut builder = globset::GlobSetBuilder::new();
-            for ext in &paths {
-                let glob = globset::Glob::new(&format!("*{}", ext)).unwrap();
-                builder.add(glob);
-            }
-            builder.build().unwrap()
+        // set up a progress bar
+        let pb = {
+            let style = ProgressStyle::default_bar()
+                .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
+                .progress_chars("=> ");
+            let pb = ProgressBar::new(dep_paths.len() as u64);
+            pb.set_style(style);
+            pb.set_prefix("Analyzing");
+            pb
         };
 
-        let skip_patterns = {
-            let mut builder = globset::GlobSetBuilder::new();
-            for pattern in &["*target", "*_build", "*warp-outputs", "*.git", "*.DS_Store"] {
-                let glob = globset::Glob::new(pattern).unwrap();
-                builder.add(glob);
+        let mut total_files = 0;
+
+        for (root, label) in dep_paths.iter().zip(dep_labels.iter()) {
+            pb.inc(1);
+            let root = &*root;
+
+            let mut paths = vec![];
+            for client in &mut analyzer_pool.clients {
+                let request = proto::build::warp::codedb::GetInterestedPathsRequest {};
+                let exts = client.get_interested_paths(request).await?.into_inner();
+                paths.extend(exts.build_files);
+                paths.extend(exts.test_files);
             }
-            builder.build().unwrap()
-        };
 
-        let mut dirs = vec![root.to_path_buf()];
-        while let Some(dir) = dirs.pop() {
-            let mut read_dir = tokio::fs::read_dir(&dir).await.unwrap();
-
-            while let Ok(Some(entry)) = read_dir.next_entry().await {
-                let path = entry.path().clone();
-
-                if skip_patterns.is_match(&path) {
-                    continue;
+            let match_patterns = {
+                let mut builder = globset::GlobSetBuilder::new();
+                for ext in &paths {
+                    let glob = globset::Glob::new(&format!("*{}", ext)).unwrap();
+                    builder.add(glob);
                 }
+                builder.build().unwrap()
+            };
 
-                if tokio::fs::read_dir(&path).await.is_ok() {
-                    dirs.push(path.clone());
-                    continue;
-                };
-
-                if !match_patterns.is_match(&path) {
-                    continue;
+            let skip_patterns = {
+                let mut builder = globset::GlobSetBuilder::new();
+                for pattern in &["*target", "*_build", "*warp-outputs", "*.git", "*.DS_Store"] {
+                    let glob = globset::Glob::new(pattern).unwrap();
+                    builder.add(glob);
                 }
+                builder.build().unwrap()
+            };
 
-                let (_contents, hash) = SourceHasher::hash_source(&path).await?;
+            let mut current_file_count = 0;
 
-                for client in &mut analyzer_pool.clients {
-                    let request = proto::build::warp::codedb::GetProvidedSymbolsRequest {
-                        file: path.to_string_lossy().to_string(),
+            let mut dirs = vec![root.to_path_buf()];
+            while let Some(dir) = dirs.pop() {
+                let mut read_dir = tokio::fs::read_dir(&dir).await.unwrap();
+
+                while let Ok(Some(entry)) = read_dir.next_entry().await {
+                    let path = entry.path().clone();
+
+                    if skip_patterns.is_match(&path) {
+                        continue;
+                    }
+
+                    if tokio::fs::read_dir(&path).await.is_ok() {
+                        dirs.push(path.clone());
+                        continue;
                     };
-                    let path = path.strip_prefix(&root).unwrap().to_path_buf();
-                    let response = client.get_provided_symbols(request).await?.into_inner();
-                    if !response.skipped {
-                        for req in response.provides {
-                            let req = req.requirement.unwrap();
-                            match req {
-                                proto::build::warp::requirement::Requirement::File(file) => {
-                                    db.save_file(label, &path, &hash, &file.path).await.unwrap();
-                                }
-                                proto::build::warp::requirement::Requirement::Symbol(symbol) => {
-                                    db.save_symbol(label, &path, &hash, &symbol.raw, &symbol.kind)
+
+                    if !match_patterns.is_match(&path) {
+                        continue;
+                    }
+
+                    let rel_path = path.strip_prefix(&root).unwrap().to_path_buf();
+                    current_file_count += 1;
+                    pb.set_message(format!(
+                        "{} / {}",
+                        label.to_string(),
+                        rel_path.to_string_lossy()
+                    ));
+
+                    let (_contents, hash) = SourceHasher::hash_source(&path).await?;
+
+                    for client in &mut analyzer_pool.clients {
+                        let request = proto::build::warp::codedb::GetProvidedSymbolsRequest {
+                            file: path.to_string_lossy().to_string(),
+                        };
+                        let path = path.strip_prefix(&root).unwrap().to_path_buf();
+                        let response = client.get_provided_symbols(request).await?.into_inner();
+                        if !response.skipped {
+                            use proto::build::warp::requirement::Requirement;
+                            for req in response.provides {
+                                let req = req.requirement.unwrap();
+                                match req {
+                                    Requirement::File(file) => {
+                                        db.save_file(label, &path, &hash, &file.path)
+                                            .await
+                                            .unwrap();
+                                    }
+                                    Requirement::Symbol(symbol) => {
+                                        db.save_symbol(
+                                            label,
+                                            &path,
+                                            &hash,
+                                            &symbol.raw,
+                                            &symbol.kind,
+                                        )
                                         .await
                                         .unwrap();
-                                }
+                                    }
 
-                                proto::build::warp::requirement::Requirement::Dependency(_) => (),
-                                proto::build::warp::requirement::Requirement::Url(_) => (),
+                                    Requirement::Dependency(_) => (),
+                                    Requirement::Url(_) => (),
+                                }
                             }
                         }
                     }
                 }
             }
+
+            total_files += current_file_count;
         }
+
+        pb.set_message("");
+        pb.println(format!(
+            "{:>12} {} sources in {} dependencies",
+            cyan.apply_to("analyzed"),
+            total_files,
+            dep_paths.len(),
+        ));
+
         Ok(())
     }
 
@@ -421,7 +505,19 @@ impl LiftCommand {
         db: &mut CodeDb,
     ) -> Result<(), anyhow::Error> {
         let cyan = console::Style::new().cyan().bold();
-        let blue_dim = console::Style::new().blue();
+
+        // set up a progress bar
+        let pb = {
+            let style = ProgressStyle::default_bar()
+                .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
+                .progress_chars("=> ");
+            let pb = ProgressBar::new(0);
+            pb.set_style(style);
+            pb.set_prefix("Analyzing");
+            pb
+        };
+
+        let mut total_files = 0;
 
         // NOTE(@ostera): now we can scan the workspace!
         let mut paths = vec![];
@@ -450,8 +546,6 @@ impl LiftCommand {
             builder.build().unwrap()
         };
 
-        println!("{:>12} entire workspace...", cyan.apply_to("Scanning"),);
-
         let root = warp.workspace.paths.workspace_root.clone();
         let invocation_dir = warp.invocation_dir.clone();
         let mut dirs = vec![root.clone()];
@@ -474,11 +568,15 @@ impl LiftCommand {
                     continue;
                 }
 
+                let rel_path = path.strip_prefix(&root).unwrap().to_path_buf();
+
+                total_files += 1;
+                pb.set_length(total_files);
+                pb.set_message(rel_path.to_string_lossy().to_string());
+
                 let (_contents, hash) = SourceHasher::hash_source(&path).await?;
 
                 for client in &mut analyzer_pool.clients {
-                    let analyze_time = std::time::Instant::now();
-                    let path = path.strip_prefix(&root).unwrap().to_path_buf();
                     let request = proto::build::warp::codedb::GetProvidedSymbolsRequest {
                         file: path.to_string_lossy().to_string(),
                     };
@@ -506,24 +604,19 @@ impl LiftCommand {
                                 proto::build::warp::requirement::Requirement::Url(_) => (),
                             }
                         }
-
-                        println!(
-                            "{:>12} {} ({}ms)",
-                            blue_dim.apply_to("OK"),
-                            &path.to_string_lossy(),
-                            analyze_time.elapsed().as_millis()
-                        );
-                    } else {
-                        println!(
-                            "{:>12} {} ({}ms)",
-                            blue_dim.apply_to("SKIP"),
-                            &path.to_string_lossy(),
-                            analyze_time.elapsed().as_millis()
-                        );
                     }
                 }
+                pb.inc(1);
             }
         }
+
+        pb.set_message("");
+        pb.println(format!(
+            "{:>12} {} sources in the current workspace",
+            cyan.apply_to("Analyzed"),
+            total_files,
+        ));
+
         Ok(())
     }
 }
@@ -552,7 +645,7 @@ impl AnalyzerServicePool {
 
         let mut processes = vec![];
         let mut clients = vec![];
-        for (idx, build_result) in warp
+        for (_idx, build_result) in warp
             .get_results()
             .iter()
             .filter(|br| {
@@ -579,15 +672,8 @@ impl AnalyzerServicePool {
 
             processes.push(process);
 
-            println!(
-                "{:>12} started {} on port {}",
-                cyan.apply_to("Analyzer"),
-                build_result.target_manifest.label.to_string(),
-                port
-            );
-
             let client = loop {
-                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                 let conn = proto::build::warp::codedb::analyzer_service_client::AnalyzerServiceClient::connect(conn_str.clone()).await;
                 if let Ok(conn) = conn {
                     break conn;

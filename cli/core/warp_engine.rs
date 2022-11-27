@@ -127,7 +127,7 @@ impl WarpEngine {
             .map_err(WarpEngineError::BuildExecutorError)
     }
 
-    pub fn clear_results(&self) {
+    pub fn prepare_for_new_run(&self) {
         self.build_executor.as_ref().unwrap().clear_results()
     }
 

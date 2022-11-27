@@ -35,7 +35,7 @@ impl LifterReporter {
 
             let style = ProgressStyle::default_bar()
                 .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
-                .progress_chars("# ");
+                .progress_chars("=> ");
 
             let pb = ProgressBar::new(100);
             pb.set_style(style);
@@ -367,7 +367,7 @@ impl LifterReporter {
                                 )
                             } else {
                                 format!(
-                                    "{:>12} multiple goals in {}ms ({} targets, {} cached, {} errors)",
+                                    "{:>12} in {}ms ({} targets, {} cached, {} errors)",
                                     if errored {
                                         red_bold.apply_to("Finished with errors")
                                     } else {
