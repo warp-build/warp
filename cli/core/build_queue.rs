@@ -162,11 +162,7 @@ impl BuildQueue {
             .map_err(QueueError::DependencyCycle)?;
 
         for dep in deps {
-            if task.goal.is_fetch() {
-                self.queue(Task::fetch(*dep))?;
-            } else {
-                self.queue(Task::build(*dep))?;
-            }
+            self.queue(Task::build(*dep))?;
         }
 
         Ok(())

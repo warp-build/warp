@@ -63,6 +63,7 @@ due to:
 #[derive(Debug, Clone)]
 pub enum ValidationStatus {
     Invalid {
+        store_path: PathBuf,
         expected_and_present: Vec<PathBuf>,
         expected_but_missing: Vec<PathBuf>,
         unexpected_but_present: Vec<PathBuf>,
@@ -379,6 +380,7 @@ TARGET = {:#?}
             }
 
             Ok(ValidationStatus::Invalid {
+                store_path: store_path.to_path_buf(),
                 expected_and_present,
                 unexpected_but_present,
                 expected_but_missing,

@@ -28,9 +28,10 @@ pub enum BuildWorkerError {
     #[error(transparent)]
     TargetPlannerError(TargetPlannerError),
 
-    #[error("Node {} expected the following but missing outputs: {:?}\n\nInstead it found the following unexpected outputs: {:?}", label.to_string(), expected_but_missing, unexpected_but_present)]
+    #[error("Node {} expected the following but missing outputs: {:?}\n\nInstead it found the following unexpected outputs: {:?}\n\nStore path: {store_path:?}", label.to_string(), expected_but_missing, unexpected_but_present)]
     TargetFailedValidation {
         label: Label,
+        store_path: PathBuf,
         expected_but_missing: Vec<PathBuf>,
         unexpected_but_present: Vec<PathBuf>,
         expected_and_present: Vec<PathBuf>,
@@ -280,6 +281,7 @@ impl BuildWorker {
             Ok((
                 _manifest,
                 ValidationStatus::Invalid {
+                    store_path,
                     expected_and_present,
                     expected_but_missing,
                     unexpected_but_present,
@@ -289,6 +291,7 @@ impl BuildWorker {
                     label: executable_target.label.clone().into(),
                     error: BuildError::BuildWorkerError(BuildWorkerError::TargetFailedValidation {
                         label: executable_target.label.clone().into(),
+                        store_path,
                         expected_but_missing,
                         unexpected_but_present,
                         expected_and_present,
