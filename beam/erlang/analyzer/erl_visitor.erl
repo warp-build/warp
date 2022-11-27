@@ -43,10 +43,12 @@ walk(Node={'case', _Ln, Expr, Args}, Acc, Fn) ->
     Acc2,
     Args);
 
-walk(Node={'call', _Ln, _Name, Args}, Acc, Fn) ->
+walk(Node={'call', _Ln, Name, Args}, Acc, Fn) ->
+  Acc0 = Fn(Node, Acc),
+  Acc1 = Fn(Name, Acc0),
   lists:foldl(
     fun (Arg, ArgAcc) -> walk(Arg, ArgAcc, Fn) end,
-    Fn(Node, Acc),
+    Acc1,
     Args);
 
 walk(Node={'attribute', _Ln, 'record', {_Name, Args}}, Acc, Fn) ->
@@ -83,6 +85,20 @@ walk(Node={'op', _Ln, _Op, Lhs, Rhs}, Acc, Fn) ->
   Acc0 = Fn(Node, Acc),
   Acc1 = Fn(Lhs, Acc0),
   Acc2 = Fn(Rhs, Acc1),
+  Acc2;
+
+walk(Node={'lc', _Ln, Expr, Gens}, Acc, Fn) ->
+  Acc0 = Fn(Node, Acc),
+  Acc1 = Fn(Expr, Acc0),
+  lists:foldl(
+    fun (Part, PartsAcc) -> walk(Part, PartsAcc, Fn) end,
+    Acc1,
+    Gens);
+
+walk(Node={'generate', _Ln, Pat, Expr}, Acc, Fn)->
+  Acc0 = Fn(Node, Acc),
+  Acc1 = Fn(Pat, Acc0),
+  Acc2 = Fn(Expr, Acc1),
   Acc2;
 
 walk(Node={'remote_type', _Name, [_Mod, _Type, Args]}, Acc, Fn) ->
