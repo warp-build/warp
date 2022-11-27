@@ -1,5 +1,6 @@
 -module(erl_visitor).
 
+-include_lib("kernel/include/logger.hrl").
 -export([walk/3]).
 
 walk([], Acc, _Fn) -> Acc;
@@ -73,23 +74,31 @@ walk(Node={'bin', _Ln, Parts}, Acc, Fn) ->
     Fn(Node, Acc),
     Parts);
 
+walk(Node={'cons', _Ln, Head, Tail}, Acc, Fn) when is_list(Tail) ->
+  Acc0 = Fn(Node, Acc),
+  Acc1 = walk(Head, Acc0, Fn),
+  lists:foldl(
+    fun (Part, PartsAcc) -> walk(Part, PartsAcc, Fn) end,
+    Acc1,
+    Tail);
+
 walk(Node={'cons', _Ln, Head, Tail}, Acc, Fn) ->
   Acc0 = Fn(Node, Acc),
-  Acc1 = Fn(Head, Acc0),
-  Fn(Tail, Acc1);
+  Acc1 = walk(Head, Acc0, Fn),
+  walk(Tail, Acc1, Fn);
 
 walk(Node={'var', _Ln, _Name}, Acc, Fn) ->
   Fn(Node, Acc);
 
 walk(Node={'op', _Ln, _Op, Lhs, Rhs}, Acc, Fn) ->
   Acc0 = Fn(Node, Acc),
-  Acc1 = Fn(Lhs, Acc0),
-  Acc2 = Fn(Rhs, Acc1),
+  Acc1 = walk(Lhs, Acc0, Fn),
+  Acc2 = walk(Rhs, Acc1, Fn),
   Acc2;
 
 walk(Node={'lc', _Ln, Expr, Gens}, Acc, Fn) ->
   Acc0 = Fn(Node, Acc),
-  Acc1 = Fn(Expr, Acc0),
+  Acc1 = walk(Expr, Acc0, Fn),
   lists:foldl(
     fun (Part, PartsAcc) -> walk(Part, PartsAcc, Fn) end,
     Acc1,
@@ -97,8 +106,8 @@ walk(Node={'lc', _Ln, Expr, Gens}, Acc, Fn) ->
 
 walk(Node={'generate', _Ln, Pat, Expr}, Acc, Fn)->
   Acc0 = Fn(Node, Acc),
-  Acc1 = Fn(Pat, Acc0),
-  Acc2 = Fn(Expr, Acc1),
+  Acc1 = walk(Pat, Acc0, Fn),
+  Acc2 = walk(Expr, Acc1, Fn),
   Acc2;
 
 walk(Node={'remote_type', _Name, [_Mod, _Type, Args]}, Acc, Fn) ->

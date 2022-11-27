@@ -236,7 +236,7 @@ mods(CurrPath, ModMap, Ast) ->
       (_Ast={attribute, _Loc1, compile, _Args={parse_transform, Mod}}, Acc) ->
         [Mod | Acc];
 
-      (_Ast={call, _Loc1, {remote, _Loc2, {atom, _Loc3, Mod}, _Fun}, _Args}, Acc) ->
+      (_Ast={remote, _Loc2, {atom, _Loc3, Mod}, _Fun}, Acc) ->
         [Mod | Acc];
 
       (_Ast={remote_type, _Loc1, [{atom, _Loc3, Mod}, _Fun, _Args]}, Acc) ->
