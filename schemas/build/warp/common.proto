@@ -79,6 +79,9 @@ message Dependency {
   // this resolver label will be used to generate a signature for the contents
   // of the archive.
   string signature_resolver = 5;
+
+  // NOTE(@ostera): allow specifying a subdir within a larger archive
+  string archive_subdir = 6;
 }
 
 
