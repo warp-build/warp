@@ -17,6 +17,7 @@ service AnalyzerService {
 
 message GetDependenciesRequest {
   string workspace_root = 1;
+  repeated string profiles = 2;
 }
 
 message GetDependenciesResponse {
