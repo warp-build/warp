@@ -82,9 +82,68 @@ defmodule Resolver.Server do
       Path.join(root, "rebar.config") |> File.exists?() ->
         prepare_rebar3_workspace(req)
 
+      Path.join(root, "Makefile") |> File.exists?() ->
+        prepare_erlangmk_workspace(req)
+
       true ->
         Build.Warp.Dependency.PrepareDependencyResponse.new(status: :STATUS_ERR)
     end
+  end
+
+  defp prepare_erlangmk_workspace(req) do
+    root = req.package_root
+
+    {:ok, file} = File.read(Path.join(root, "Makefile"))
+    lines = String.split(file, <<"\n">>)
+
+    tokens =
+      lines
+      |> Enum.map(&String.split(&1, " "))
+      |> Enum.reject(fn
+        [] -> true
+        [""] -> true
+        ["#" | _] -> true
+        _ -> false
+      end)
+
+    [["PROJECT", "=", name | _] | _] = tokens
+
+    deps =
+      tokens
+      |> Enum.reduce([], fn
+        # NOTE(@ostera): erlang.mk is its own dependeny so we gotta skip this
+        [<<"dep_ci.erlang.mk">> | _], acc ->
+          acc
+
+        [<<"dep_", _name::binary>>, "=", "git", repo, _version], acc ->
+          url = Build.Warp.UrlRequirement.new(url: String.replace(repo, ".git", ""))
+          req = Build.Warp.Requirement.new(requirement: {:url, url})
+
+          [req | acc]
+
+        _line, acc ->
+          acc
+      end)
+
+    {:ok, config} =
+      %{srcs: Path.wildcard("#{root}/**/*")}
+      |> Jason.encode!()
+      |> Jason.decode!()
+      |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
+
+    signature =
+      Build.Warp.Signature.new(
+        name: name,
+        rule: "erlangmk_library",
+        deps: deps,
+        config: config,
+        runtime_deps: []
+      )
+
+    Build.Warp.Dependency.PrepareDependencyResponse.new(
+      status: :STATUS_OK,
+      signatures: [signature]
+    )
   end
 
   defp prepare_hex_workspace(req) do
