@@ -126,7 +126,17 @@ defmodule Resolver.Server do
       end)
 
     {:ok, config} =
-      %{srcs: Path.wildcard("#{root}/**/*")}
+      %{
+        srcs:
+          [
+            Path.wildcard("#{root}/src/*"),
+            Path.wildcard("#{root}/include/*"),
+            Path.wildcard("#{root}/c_src/*"),
+            "Makefile",
+            "erlang.mk"
+          ]
+          |> List.flatten()
+      }
       |> Jason.encode!()
       |> Jason.decode!()
       |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
