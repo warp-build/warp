@@ -199,6 +199,7 @@ impl LiftCommand {
         let dep_paths = DashMap::new();
         let deps = DashMap::new();
 
+        let mut include_test = true;
         while let Some(workspace_root) = queue.pop().or_else(|| later.pop()) {
             if visited.contains(&workspace_root) {
                 continue;
@@ -212,7 +213,15 @@ impl LiftCommand {
             for client in &mut analyzer_pool.clients {
                 let request = proto::build::warp::codedb::GetDependenciesRequest {
                     workspace_root: workspace_root.to_string_lossy().to_string(),
+                    profiles: if include_test {
+                        vec!["test".into()]
+                    } else {
+                        vec![]
+                    },
                 };
+                // NOTE(@ostera): we only include tests the very first time (for the top-level
+                // workspace)
+                include_test = false;
                 let response = client.get_dependencies(request).await?.into_inner();
 
                 for dep in response.dependencies {
