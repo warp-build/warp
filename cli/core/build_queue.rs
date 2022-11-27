@@ -1,7 +1,7 @@
 use super::Event;
 use super::*;
 use dashmap::DashSet;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use thiserror::*;
 use tracing::*;
 
@@ -37,7 +37,7 @@ pub struct BuildQueue {
     inner_queue: Arc<crossbeam::deque::Injector<Task>>,
 
     /// A backup queue used for set-aside targets.
-    wait_queue: Arc<crossbeam::deque::Injector<Task>>,
+    wait_queue: Arc<RwLock<Vec<Task>>>,
 
     /// Targets already built.
     build_results: Arc<BuildResults>,
@@ -65,7 +65,7 @@ impl BuildQueue {
             busy_targets: Arc::new(DashSet::new()),
             in_queue_targets: Arc::new(DashSet::new()),
             inner_queue: Arc::new(crossbeam::deque::Injector::new()),
-            wait_queue: Arc::new(crossbeam::deque::Injector::new()),
+            wait_queue: Arc::new(RwLock::new(vec![])),
             build_results,
             all_queued_labels: Arc::new(DashSet::default()),
             label_registry,
@@ -80,8 +80,8 @@ impl BuildQueue {
             let _lock = self._queue_lock.lock().unwrap();
             let task = if let crossbeam::deque::Steal::Success(task) = self.inner_queue.steal() {
                 task
-            } else if let crossbeam::deque::Steal::Success(task) = self.wait_queue.steal() {
-                task
+            } else if let Ok(mut wait_queue) = self.wait_queue.write() {
+                (*wait_queue).pop()?
             } else {
                 return None;
             };
@@ -112,7 +112,7 @@ impl BuildQueue {
     #[tracing::instrument(name = "BuildQueue::nack", skip(self))]
     pub fn nack(&self, task: Task) {
         self.busy_targets.remove(&task.label);
-        self.wait_queue.push(task);
+        self.wait_queue.write().unwrap().push(task);
     }
 
     #[tracing::instrument(name = "BuildQueue::nack", skip(self))]
@@ -162,7 +162,11 @@ impl BuildQueue {
             .map_err(QueueError::DependencyCycle)?;
 
         for dep in deps {
-            self.queue(Task::build(*dep))?;
+            if task.goal.is_fetch() {
+                self.queue(Task::fetch(*dep))?;
+            } else {
+                self.queue(Task::build(*dep))?;
+            }
         }
 
         Ok(())
