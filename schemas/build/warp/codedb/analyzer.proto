@@ -27,6 +27,7 @@ message GetDependenciesResponse {
 
 message GenerateSignatureRequest {
   string file = 1;
+  repeated Dependency dependencies = 2;
 }
 
 message GenerateSignatureResponse {

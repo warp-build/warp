@@ -82,6 +82,9 @@ message Dependency {
 
   // NOTE(@ostera): allow specifying a subdir within a larger archive
   string archive_subdir = 6;
+
+  // 
+  string store_path = 7;
 }
 
 

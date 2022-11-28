@@ -14,17 +14,32 @@ defmodule Analyzer.GenerateSignature do
   end
 
   defp gen_sig_erl(req) do
-    # NOTE(@ostera): this is a hack to make the source analyzer find heaedr 
+    # FIXME(@ostera): this is a hack to make the source analyzer find heaedr 
     parts = req.file |> Path.dirname() |> Path.split() |> Enum.drop(1)
 
     include_paths =
-      for i <- 1..(Enum.count(parts) - 1) do
-        path = Enum.take(parts, i + 1) |> Path.join()
-        [path, Path.join(path, "include")]
-      end
+      [
+        Enum.map(req.dependencies, fn dep ->
+          [
+            Path.dirname(Path.dirname(dep.store_path)),
+            Path.dirname(dep.store_path),
+            dep.store_path
+          ]
+        end),
+        for i <- 1..(Enum.count(parts) - 1) do
+          path = Enum.take(parts, i + 1) |> Path.join()
+          [path, Path.join(path, "include")]
+        end
+      ]
       |> List.flatten()
+      |> Enum.sort()
+      |> Enum.uniq()
 
-    IO.inspect(include_paths)
+    Logger.info("using include paths:")
+
+    for p <- include_paths do
+      IO.inspect(p)
+    end
 
     signatures =
       :source_analyzer.analyze_one(
