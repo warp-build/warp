@@ -19,6 +19,9 @@ pub enum CodeDbError {
         symbol_raw: String,
         symbol_kind: String,
     },
+
+    #[error("Could not find file named {file}. Did you call `warp lift` on this workspace yet?")]
+    UnknownFile { file: String },
 }
 
 impl CodeDb {
@@ -67,7 +70,7 @@ impl CodeDb {
                 source_hash TEXT,
                 file_path TEXT,
                 label TEXT,
-                UNIQUE (source_path, source_hash)
+                UNIQUE (source_path, source_hash, file_path)
             );
         ",
             (),
@@ -100,6 +103,33 @@ impl CodeDb {
             )
             .map(|_row_count| ())
             .map_err(CodeDbError::SqliteError)
+    }
+
+    pub async fn find_label_for_file(&self, file: &str) -> Result<Label, CodeDbError> {
+        let mut query = self
+            .sql
+            .prepare(
+                r#" SELECT label FROM files
+                WHERE file_path = ?1
+            "#,
+            )
+            .map_err(CodeDbError::SqliteError)?;
+
+        let mut rows = query
+            .query_map(rusqlite::params![file], |row| {
+                let label_json: String = row.get(0).unwrap();
+                let label: Label = serde_json::from_str(&label_json).unwrap();
+                Ok(label)
+            })
+            .map_err(CodeDbError::SqliteError)?;
+
+        if let Some(Ok(label)) = rows.next() {
+            return Ok(label);
+        }
+
+        Err(CodeDbError::UnknownFile {
+            file: file.to_string(),
+        })
     }
 
     pub async fn find_label_for_symbol(
