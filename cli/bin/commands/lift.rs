@@ -451,7 +451,6 @@ impl LiftCommand {
                         let request = proto::build::warp::codedb::GetProvidedSymbolsRequest {
                             file: path.to_string_lossy().to_string(),
                         };
-                        let path = path.strip_prefix(&root).unwrap().to_path_buf();
                         let response = client.get_provided_symbols(request).await?.into_inner();
                         if !response.skipped {
                             use proto::build::warp::requirement::Requirement;
@@ -578,11 +577,11 @@ impl LiftCommand {
 
                 for client in &mut analyzer_pool.clients {
                     let request = proto::build::warp::codedb::GetProvidedSymbolsRequest {
-                        file: path.to_string_lossy().to_string(),
+                        file: rel_path.to_string_lossy().to_string(),
                     };
                     let response = client.get_provided_symbols(request).await?.into_inner();
                     if !response.skipped {
-                        let mut local_label: LocalLabel = path.clone().into();
+                        let mut local_label: LocalLabel = rel_path.clone().into();
                         local_label.set_workspace(&invocation_dir);
                         let label: Label = local_label.into();
 
@@ -590,14 +589,20 @@ impl LiftCommand {
                             let req = req.requirement.unwrap();
                             match req {
                                 proto::build::warp::requirement::Requirement::File(file) => {
-                                    db.save_file(&label, &path, &hash, &file.path)
+                                    db.save_file(&label, &rel_path, &hash, &file.path)
                                         .await
                                         .unwrap();
                                 }
                                 proto::build::warp::requirement::Requirement::Symbol(symbol) => {
-                                    db.save_symbol(&label, &path, &hash, &symbol.raw, &symbol.kind)
-                                        .await
-                                        .unwrap();
+                                    db.save_symbol(
+                                        &label,
+                                        &rel_path,
+                                        &hash,
+                                        &symbol.raw,
+                                        &symbol.kind,
+                                    )
+                                    .await
+                                    .unwrap();
                                 }
 
                                 proto::build::warp::requirement::Requirement::Dependency(_) => (),
