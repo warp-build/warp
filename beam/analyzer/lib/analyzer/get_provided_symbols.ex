@@ -18,15 +18,21 @@ defmodule Analyzer.GetProvidedSymbols do
     file = req.file
     {:ok, %{^file => result}} = :erl_analyzer.analyze([file], _ModMap = %{}, _IncludePaths = [])
 
-    requirement =
+    requirements =
       case Path.extname(req.file) do
         ".erl" ->
           {:ok, mod_name} = :erl_stdlib.file_to_module(req.file)
           mod_name = mod_name |> Atom.to_string()
-          {:symbol, Build.Warp.SymbolRequirement.new(raw: mod_name, kind: "module")}
+          req = {:symbol, Build.Warp.SymbolRequirement.new(raw: mod_name, kind: "module")}
+          [Build.Warp.Requirement.new(requirement: req)]
 
         ".hrl" ->
-          {:file, Build.Warp.FileRequirement.new(path: req.file)}
+          parts = req.file |> Path.split
+          for i <- 0..(Enum.count(parts) - 1) do
+              path = Enum.drop(parts, i) |> Path.join
+              req = {:file, Build.Warp.FileRequirement.new(path: path)}
+              Build.Warp.Requirement.new(requirement: req)
+          end
       end
 
     exported_fns =
@@ -54,7 +60,7 @@ defmodule Analyzer.GetProvidedSymbols do
       end)
 
     provides =
-      [Build.Warp.Requirement.new(requirement: requirement)] ++
+      requirements ++
         exported_fns ++
         exported_types
 

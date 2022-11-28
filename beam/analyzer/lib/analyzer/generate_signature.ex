@@ -24,6 +24,7 @@ defmodule Analyzer.GenerateSignature do
 
     signatures = :maps.get(:signatures, signatures, [])
 
+
     gen_sig =
       %{
         :version => 0,
@@ -61,7 +62,7 @@ defmodule Analyzer.GenerateSignature do
 
                 {:dependency, dep}
               else
-                {:symbol, Build.Warp.FileRequirement.new(path: dep)}
+                {:file, Build.Warp.FileRequirement.new(path: dep)}
               end
 
             Build.Warp.Requirement.new(requirement: req)
