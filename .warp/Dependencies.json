@@ -2,14 +2,14 @@
   "version": "0",
   "dependencies": {
     "https://hex.pm/packages/cowboy": {
-      "url": "https://hex.pm/packages/cowboy",
+      "version": "2.9.0",
       "package": "cowboy",
-      "version": "2.9.0"
+      "url": "https://hex.pm/packages/cowboy"
     },
     "https://hex.pm/packages/proper": {
-      "url": "https://hex.pm/packages/proper",
+      "version": "1.4.0",
       "package": "proper",
-      "version": "1.4.0"
+      "url": "https://hex.pm/packages/proper"
     }
   }
 }
