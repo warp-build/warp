@@ -121,7 +121,15 @@ impl LocalArtifactStore {
             match fs::create_dir_all(&dst.parent().unwrap()).await {
                 Ok(_) => Ok(()),
                 Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-                Err(err) => return Err(ArtifactStoreError::IOError(err)),
+                Err(err) => {
+                    return Err(
+                        ArtifactStoreError::CouldNotCreateDirWhilePromotingArtifact {
+                            src: src.clone(),
+                            dst: dst.clone(),
+                            err,
+                        },
+                    )
+                }
             }?;
 
             #[cfg(target_os = "windows")]
@@ -166,9 +174,13 @@ impl LocalArtifactStore {
         let buildstamp = dst.join(format!("{}.{}", manifest.label.hash(), BUILDSTAMP));
 
         if fs::metadata(&buildstamp).await.is_ok() {
-            let hash = fs::read_to_string(buildstamp)
-                .await
-                .map_err(ArtifactStoreError::IOError)?;
+            let hash = fs::read_to_string(buildstamp).await.map_err(|err| {
+                ArtifactStoreError::CouldNotReadBuildStamp {
+                    label: manifest.label.clone(),
+                    err,
+                    dst: dst.to_path_buf(),
+                }
+            })?;
             return Ok(hash != manifest.hash);
         }
         Ok(true)
@@ -181,7 +193,10 @@ impl LocalArtifactStore {
     ) -> Result<PathBuf, ArtifactStoreError> {
         fs::canonicalize(&self.cache_root)
             .await
-            .map_err(ArtifactStoreError::IOError)
+            .map_err(|err| ArtifactStoreError::CouldNotCanonicalizePath {
+                key: key.clone(),
+                err,
+            })
             .map(|p| p.join(key))
     }
 

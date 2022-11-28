@@ -20,11 +20,14 @@ pub struct ArtifactStoreLock(PathBuf);
 
 #[derive(Error, Debug)]
 pub enum StoreLockError {
-    #[error(transparent)]
-    IOError(std::io::Error),
-
     #[error("Key {0:?} is already locked.")]
     LockedKey(PathBuf),
+
+    #[error("Could not create dir to lock file in store at {key:?} due to {err:?}")]
+    CouldNotCreateStoreLockDir { key: PathBuf, err: std::io::Error },
+
+    #[error("Could not create lock file in store at {key:?} due to {err:?}")]
+    CouldNotWriteStoreLock { key: PathBuf, err: std::io::Error },
 }
 
 impl ArtifactStoreLock {
@@ -36,13 +39,19 @@ impl ArtifactStoreLock {
             return Err(StoreLockError::LockedKey(lock_file));
         }
 
-        fs::create_dir_all(&key)
-            .await
-            .map_err(StoreLockError::IOError)?;
+        fs::create_dir_all(&key).await.map_err(|err| {
+            StoreLockError::CouldNotCreateStoreLockDir {
+                key: key.clone(),
+                err,
+            }
+        })?;
 
-        fs::write(&lock_file, "locked")
-            .await
-            .map_err(StoreLockError::IOError)?;
+        fs::write(&lock_file, "locked").await.map_err(|err| {
+            StoreLockError::CouldNotWriteStoreLock {
+                key: key.clone(),
+                err,
+            }
+        })?;
 
         Ok(Self(lock_file))
     }
@@ -70,9 +79,6 @@ pub enum ArtifactStoreHitType {
 
 #[derive(Error, Debug)]
 pub enum ArtifactStoreError {
-    #[error(transparent)]
-    IOError(std::io::Error),
-
     #[error(transparent)]
     HTTPError(reqwest::Error),
 
@@ -106,15 +112,39 @@ pub enum ArtifactStoreError {
     StaleOutputRemovalError { err: std::io::Error, file: PathBuf },
 
     #[error(transparent)]
-    MissingFileDuringVerification(std::io::Error),
-
-    #[error(transparent)]
     FileListingErrorDuringVerification(FileScannerError),
 
     #[error("Uh-oh! Found unexpected file: {file:?} while verifying {key}. This is a serious bug, please report it!")]
     VerificationError {
         key: ArtifactStoreKey,
         file: PathBuf,
+    },
+
+    #[error("When canonicalizing path from a store key ({key:?}), failed due to: {err:?}")]
+    CouldNotCanonicalizePath {
+        key: ArtifactStoreKey,
+        err: std::io::Error,
+    },
+
+    #[error("Could not read build stamp for {} at {dst:?} due to: {err:?}", label.to_string())]
+    CouldNotReadBuildStamp {
+        label: Label,
+        err: std::io::Error,
+        dst: PathBuf,
+    },
+
+    #[error("Could not promote artifact from {src:?}  to {dst:?} due to: {err:?}")]
+    CouldNotCreateDirWhilePromotingArtifact {
+        src: PathBuf,
+        dst: PathBuf,
+        err: std::io::Error,
+    },
+
+    #[error("Could not add artifact located in {path:?} into archive, using name {artifact:?}, due to: {err:?}")]
+    CouldNotAddArtifactToArchive {
+        path: PathBuf,
+        artifact: PathBuf,
+        err: std::io::Error,
     },
 }
 

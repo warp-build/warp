@@ -38,25 +38,24 @@ impl RemoteArtifactStore {
         let archive = {
             let mut b = async_tar::Builder::new(vec![]);
             for artifact in artifacts {
-                b.append_path_with_name(&sandbox_root.join(artifact), &artifact)
+                let path = sandbox_root.join(artifact);
+                b.append_path_with_name(&path, &artifact)
                     .await
-                    .map_err(ArtifactStoreError::IOError)?;
+                    .map_err(|err| ArtifactStoreError::CouldNotAddArtifactToArchive {
+                        err,
+                        path,
+                        artifact: artifact.clone(),
+                    })?;
             }
-            b.finish().await.map_err(ArtifactStoreError::IOError)?;
-            b.into_inner().await.map_err(ArtifactStoreError::IOError)?
+            b.finish().await.unwrap();
+            b.into_inner().await.unwrap()
         };
 
         // then compress it
         let body = {
             let mut encoder = GzipEncoder::new(vec![]);
-            encoder
-                .write_all(&archive)
-                .await
-                .map_err(ArtifactStoreError::IOError)?;
-            encoder
-                .shutdown()
-                .await
-                .map_err(ArtifactStoreError::IOError)?;
+            encoder.write_all(&archive).await.unwrap();
+            encoder.shutdown().await.unwrap();
             encoder.into_inner()
         };
 
@@ -102,7 +101,8 @@ impl RemoteArtifactStore {
             let dst = dst.clone();
             tokio::task::spawn_blocking(move || {
                 let mut tar = tar::Archive::new(std::io::BufReader::new(&*data));
-                tar.unpack(dst).map_err(ArtifactStoreError::IOError)
+                tar.unpack(dst).unwrap();
+                Ok(())
             })
             .await
             .unwrap()?;

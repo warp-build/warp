@@ -13,8 +13,11 @@ pub enum FileScannerError {
     #[error("Invalid pattern error: {0:?}")]
     InvalidPattern(globset::Error),
 
-    #[error("File I/O Error: {0:?}")]
-    IOError(std::io::Error),
+    #[error("Expected path {path:?} to exist but could not canonicalize it due to: {err:?}")]
+    CouldNotCanonicalize { path: PathBuf, err: std::io::Error },
+
+    #[error("Could not read {dir:?} while scanning due to: {err:?}")]
+    CouldNotReadDir { dir: PathBuf, err: std::io::Error },
 }
 
 #[derive(Debug, Clone)]
@@ -50,9 +53,13 @@ impl FileScanner {
         &mut self,
         root: &PathBuf,
     ) -> Result<&mut FileScanner, FileScannerError> {
-        self.root = fs::canonicalize(root)
-            .await
-            .map_err(FileScannerError::IOError)?;
+        self.root =
+            fs::canonicalize(root)
+                .await
+                .map_err(|err| FileScannerError::CouldNotCanonicalize {
+                    path: root.clone(),
+                    err,
+                })?;
 
         Ok(self)
     }
@@ -90,7 +97,7 @@ impl FileScanner {
         async_stream::try_stream! {
             while let Some(dir) = dirs.pop() {
                 trace!("Reading {:?}", &dir);
-                let mut read_dir = fs::read_dir(&dir).await.map_err(FileScannerError::IOError)?;
+                let mut read_dir = fs::read_dir(&dir).await.map_err(|err| FileScannerError::CouldNotReadDir { dir: dir.clone(), err })?;
 
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
                     let path = entry.path().clone();

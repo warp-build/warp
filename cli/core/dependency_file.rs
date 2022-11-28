@@ -2,7 +2,7 @@ use super::*;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::BufReader;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use thiserror::*;
 use tokio::fs;
 use tracing::*;
@@ -17,8 +17,11 @@ pub enum DependencyFileError {
     #[error("Could not print Dependency file: {0:#?}")]
     PrintError(serde_json::Error),
 
-    #[error(transparent)]
-    IOError(std::io::Error),
+    #[error("Could not open dependency file at {path:?} due to: {err:?}")]
+    CouldNotOpen { path: PathBuf, err: std::io::Error },
+
+    #[error("Could not write dependency file at {path:?} due to: {err:?}")]
+    CouldNotWrite { path: PathBuf, err: std::io::Error },
 
     #[error("Could not find workspace a file walking upwards your file system. Are you sure we're in the right place?")]
     DependencyFileNotFound,
@@ -73,7 +76,10 @@ impl DependencyFile {
 
         let file = fs::File::open(path)
             .await
-            .map_err(DependencyFileError::IOError)?;
+            .map_err(|err| DependencyFileError::CouldNotOpen {
+                path: path.to_path_buf(),
+                err,
+            })?;
 
         let reader = json_comments::StripComments::new(BufReader::new(file.into_std().await));
 
@@ -85,7 +91,10 @@ impl DependencyFile {
         let json = serde_json::to_string_pretty(&self).map_err(DependencyFileError::PrintError)?;
         fs::write(&root, json)
             .await
-            .map_err(DependencyFileError::IOError)
+            .map_err(|err| DependencyFileError::CouldNotWrite {
+                path: root.to_path_buf(),
+                err,
+            })
     }
 }
 

@@ -15,8 +15,8 @@ pub enum WarpEngineError {
     #[error("Can not execute a build before initializing the Warp Engine")]
     ExecuteBeforeInitialize,
 
-    #[error(transparent)]
-    EnvError(std::io::Error),
+    #[error("Could not set the current directory to {root:?} due to {err:?}")]
+    CouldNotSetCurrentDir { root: PathBuf, err: std::io::Error },
 
     #[error(transparent)]
     WorkspacePathsError(WorkspacePathsError),
@@ -70,7 +70,10 @@ impl WarpEngine {
             .await
             .map_err(WarpEngineError::WorkspaceFileError)?;
 
-        std::env::set_current_dir(&root).map_err(WarpEngineError::EnvError)?;
+        std::env::set_current_dir(&root).map_err(|err| WarpEngineError::CouldNotSetCurrentDir {
+            err,
+            root: root.to_path_buf(),
+        })?;
 
         let paths = WorkspacePaths::new(&root, self.warp_root.clone(), self.current_user.clone())
             .map_err(WarpEngineError::WorkspacePathsError)?;
@@ -90,7 +93,12 @@ impl WarpEngine {
     }
 
     pub async fn shutdown(self) -> Result<(), WarpEngineError> {
-        std::env::set_current_dir(&self.invocation_dir).map_err(WarpEngineError::EnvError)?;
+        std::env::set_current_dir(&self.invocation_dir).map_err(|err| {
+            WarpEngineError::CouldNotSetCurrentDir {
+                err,
+                root: self.invocation_dir.clone(),
+            }
+        })?;
         Ok(())
     }
 

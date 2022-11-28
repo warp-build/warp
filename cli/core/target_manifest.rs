@@ -16,8 +16,14 @@ pub enum TargetManifestError {
     #[error("Could not print Manifest file: {0:#?}")]
     PrintError(serde_json::Error),
 
-    #[error(transparent)]
-    IOError(std::io::Error),
+    #[error("Could not read target manifest file at {path:?} due to {err:?}")]
+    CouldNotWriteManifest { path: PathBuf, err: std::io::Error },
+
+    #[error("Could not write target manifest file at {path:?} due to {err:?}")]
+    CouldNotReadManifest { path: PathBuf, err: std::io::Error },
+
+    #[error("Could not open target manifest file at {path:?} due to {err:?}")]
+    CouldNotOpenManifest { path: PathBuf, err: std::io::Error },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -188,14 +194,20 @@ impl TargetManifest {
 
     #[tracing::instrument(name = "TargetManifest::from_file")]
     pub async fn from_file(path: &Path) -> Result<Self, TargetManifestError> {
-        let mut file = fs::File::open(path)
-            .await
-            .map_err(TargetManifestError::IOError)?;
+        let mut file = fs::File::open(path).await.map_err(|err| {
+            TargetManifestError::CouldNotOpenManifest {
+                path: path.into(),
+                err,
+            }
+        })?;
 
         let mut bytes = vec![];
-        file.read_to_end(&mut bytes)
-            .await
-            .map_err(TargetManifestError::IOError)?;
+        file.read_to_end(&mut bytes).await.map_err(|err| {
+            TargetManifestError::CouldNotReadManifest {
+                path: path.into(),
+                err,
+            }
+        })?;
 
         let target_manifest_file: TargetManifestFile =
             serde_json::from_slice(&bytes).map_err(TargetManifestError::ParseError)?;
@@ -213,7 +225,10 @@ impl TargetManifest {
 
         fs::write(&root.join(MANIFEST_FILE), json)
             .await
-            .map_err(TargetManifestError::IOError)
+            .map_err(|err| TargetManifestError::CouldNotWriteManifest {
+                path: root.into(),
+                err,
+            })
     }
 
     pub fn placeholder(label: Label) -> Self {

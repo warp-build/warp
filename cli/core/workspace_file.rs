@@ -35,9 +35,6 @@ pub enum WorkspaceFileError {
     PrintError(serde_json::Error),
 
     #[error(transparent)]
-    IOError(std::io::Error),
-
-    #[error(transparent)]
     RemoteWorkspaceError(RemoteWorkspaceFileError),
 
     #[error("Could not find workspace a file walking upwards your file system. Are you sure we're in the right place?")]
@@ -48,6 +45,12 @@ pub enum WorkspaceFileError {
 
     #[error("{0}")]
     ValidationError(String),
+
+    #[error("Could not read workspace file at {path:?} due to {err:?}")]
+    CouldNotWriteFile { path: PathBuf, err: std::io::Error },
+
+    #[error("Could not write workspace file at {path:?} due to {err:?}")]
+    CouldNotReadFile { path: PathBuf, err: std::io::Error },
 }
 
 impl From<derive_builder::UninitializedFieldError> for WorkspaceFileError {
@@ -153,9 +156,13 @@ impl WorkspaceFile {
 
     #[tracing::instrument(name = "WorkspaceFile::read_from_file")]
     pub async fn read_from_file(path: &Path) -> Result<Self, WorkspaceFileError> {
-        let file = fs::File::open(path)
-            .await
-            .map_err(WorkspaceFileError::IOError)?;
+        let file =
+            fs::File::open(path)
+                .await
+                .map_err(|err| WorkspaceFileError::CouldNotReadFile {
+                    path: path.into(),
+                    err,
+                })?;
 
         let reader = json_comments::StripComments::new(BufReader::new(file.into_std().await));
 
@@ -165,9 +172,12 @@ impl WorkspaceFile {
     #[tracing::instrument(name = "WorkspaceFile::write")]
     pub async fn write(&self, root: &Path) -> Result<(), WorkspaceFileError> {
         let json = serde_json::to_string_pretty(&self).map_err(WorkspaceFileError::PrintError)?;
-        fs::write(&root.join(WORKSPACE), json)
-            .await
-            .map_err(WorkspaceFileError::IOError)
+        fs::write(&root.join(WORKSPACE), json).await.map_err(|err| {
+            WorkspaceFileError::CouldNotWriteFile {
+                path: root.into(),
+                err,
+            }
+        })
     }
 
     #[tracing::instrument(name = "WorkspaceFile::walk_uptree")]

@@ -36,19 +36,29 @@ pub struct SourceHasher;
 
 #[derive(Error, Debug)]
 pub enum SourceHasherError {
-    #[error(transparent)]
-    IOError(std::io::Error),
+    #[error("Could not read source file at {path:?} due to {err:?}")]
+    CouldNotReadSource { path: PathBuf, err: std::io::Error },
+
+    #[error("Could not open source file at {path:?} due to {err:?}")]
+    CouldNotOpenSource { path: PathBuf, err: std::io::Error },
 }
 
 impl SourceHasher {
     pub async fn hash_source(file: &Path) -> Result<(String, SourceHash), SourceHasherError> {
-        let mut f = fs::File::open(&file)
-            .await
-            .map_err(SourceHasherError::IOError)?;
+        let mut f =
+            fs::File::open(&file)
+                .await
+                .map_err(|err| SourceHasherError::CouldNotOpenSource {
+                    path: file.into(),
+                    err,
+                })?;
         let mut buffer = Vec::with_capacity(2048);
         f.read_to_end(&mut buffer)
             .await
-            .map_err(SourceHasherError::IOError)?;
+            .map_err(|err| SourceHasherError::CouldNotReadSource {
+                path: file.into(),
+                err,
+            })?;
 
         let mut s = Sha256::new();
         s.update(&buffer);

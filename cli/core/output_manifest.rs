@@ -22,8 +22,14 @@ pub enum OutputManifestError {
     #[error("Could not print Output Manifest file: {0:#?}")]
     PrintError(serde_json::Error),
 
-    #[error(transparent)]
-    IOError(std::io::Error),
+    #[error("Could not read output manifest file at {path:?} due to {err:?}")]
+    CouldNotWriteManifest { path: PathBuf, err: std::io::Error },
+
+    #[error("Could not write output manifest file at {path:?} due to {err:?}")]
+    CouldNotReadManifest { path: PathBuf, err: std::io::Error },
+
+    #[error("Could not open output manifest file at {path:?} due to {err:?}")]
+    CouldNotOpenManifest { path: PathBuf, err: std::io::Error },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,14 +42,20 @@ impl OutputManifestHash {
     #[tracing::instrument(name = "OutputManifestHash::find", skip(path))]
     pub async fn find(label: &Label, path: &Path) -> Result<Self, OutputManifestError> {
         let path = OutputManifest::_file(label, path);
-        let mut file = fs::File::open(&path)
-            .await
-            .map_err(OutputManifestError::IOError)?;
+        let mut file = fs::File::open(&path).await.map_err(|err| {
+            OutputManifestError::CouldNotOpenManifest {
+                path: path.to_path_buf(),
+                err,
+            }
+        })?;
 
         let mut bytes = vec![];
-        file.read_to_end(&mut bytes)
-            .await
-            .map_err(OutputManifestError::IOError)?;
+        file.read_to_end(&mut bytes).await.map_err(|err| {
+            OutputManifestError::CouldNotReadManifest {
+                path: path.to_path_buf(),
+                err,
+            }
+        })?;
 
         serde_json::from_slice(&bytes).map_err(|err| OutputManifestError::ParseError {
             file: path,
@@ -60,7 +72,10 @@ impl OutputManifestHash {
 
         fs::write(file, json)
             .await
-            .map_err(OutputManifestError::IOError)
+            .map_err(|err| OutputManifestError::CouldNotWriteManifest {
+                path: root.into(),
+                err,
+            })
     }
 
     fn _file(label: &Label, root: &Path) -> PathBuf {
@@ -80,14 +95,20 @@ impl OutputManifest {
     #[tracing::instrument(name = "OutputManifest::find", skip(path))]
     pub async fn find(label: &Label, path: &Path) -> Result<Self, OutputManifestError> {
         let path = OutputManifest::_file(label, path);
-        let mut file = fs::File::open(&path)
-            .await
-            .map_err(OutputManifestError::IOError)?;
+        let mut file = fs::File::open(&path).await.map_err(|err| {
+            OutputManifestError::CouldNotOpenManifest {
+                path: path.to_path_buf(),
+                err,
+            }
+        })?;
 
         let mut bytes = vec![];
-        file.read_to_end(&mut bytes)
-            .await
-            .map_err(OutputManifestError::IOError)?;
+        file.read_to_end(&mut bytes).await.map_err(|err| {
+            OutputManifestError::CouldNotReadManifest {
+                path: path.to_path_buf(),
+                err,
+            }
+        })?;
 
         serde_json::from_slice(&bytes).map_err(|err| OutputManifestError::ParseError {
             file: path,
@@ -104,7 +125,10 @@ impl OutputManifest {
 
         fs::write(file, json)
             .await
-            .map_err(OutputManifestError::IOError)
+            .map_err(|err| OutputManifestError::CouldNotWriteManifest {
+                path: root.to_path_buf(),
+                err,
+            })
     }
 
     fn _file(label: &Label, root: &Path) -> PathBuf {
