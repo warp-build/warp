@@ -153,20 +153,50 @@ impl SignatureStore {
             .analyzer_service_manager
             .find_analyzer_for_local_label(local_label)
         {
-            let code_db = CodeDb::new(&self.workspace).await.unwrap();
-
             let mut analyzer_svc = self
                 .analyzer_service_manager
                 .start(analyzer_id)
                 .await
                 .map_err(SignatureStoreError::AnalyzerServiceManagerError)?;
 
+            // NOTE(@ostera): maybe here we could introduce a step to resolve static dependencies
+            // that are needed for signature generation?
+            //   * get static dependencies
+            //   * ensure they are all built
+            //   * call generate signature passing the dependency outputs
+
             self.event_channel.send(Event::GeneratingSignature {
                 label: label.to_owned(),
             });
 
+            // NOTE(@ostera): we are getting all the paths to all the dependencies, since the
+            // signature generators may need to look up certain files here.
+            //
+            let dependencies = self
+                .dependency_manager
+                .labels()
+                .into_iter()
+                .map(|l| {
+                    let label = self.label_registry.get_label(l);
+                    let store_path = label
+                        .workspace()
+                        .map(|p| p.to_path_buf())
+                        .unwrap_or_else(|| PathBuf::from(""))
+                        .join(label.path())
+                        .to_string_lossy()
+                        .to_string();
+
+                    proto::build::warp::Dependency {
+                        name: label.name().to_string(),
+                        store_path,
+                        ..proto::build::warp::Dependency::default()
+                    }
+                })
+                .collect();
+
             let request = proto::build::warp::codedb::GenerateSignatureRequest {
                 file: local_label.file().to_string_lossy().to_string(),
+                dependencies,
             };
             let response = analyzer_svc
                 .generate_signature(request)
@@ -174,6 +204,7 @@ impl SignatureStore {
                 .map_err(SignatureStoreError::AnalyzerServiceError)?
                 .into_inner();
 
+            let code_db = CodeDb::new(&self.workspace).await.unwrap();
             let mut signatures = vec![];
             for sig in response.signatures {
                 let mut deps = vec![];
@@ -200,10 +231,11 @@ impl SignatureStore {
                         }
 
                         proto::build::warp::requirement::Requirement::File(file_req) => {
-                            /*
-                            let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                            let label = code_db
+                                .find_label_for_file(&file_req.path)
+                                .await
+                                .map_err(SignatureStoreError::CodeDbError)?;
                             deps.push(label)
-                            */
                         }
 
                         proto::build::warp::requirement::Requirement::Symbol(sym_req)

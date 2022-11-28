@@ -36,10 +36,10 @@ pub struct SourceHasher;
 
 #[derive(Error, Debug)]
 pub enum SourceHasherError {
-    #[error("Could not read source file at {path:?} due to {err:?}")]
+    #[error("Source hasher could not read source file at {path:?} due to {err:?}")]
     CouldNotReadSource { path: PathBuf, err: std::io::Error },
 
-    #[error("Could not open source file at {path:?} due to {err:?}")]
+    #[error("Source hasher could not open source file at {path:?} due to {err:?}")]
     CouldNotOpenSource { path: PathBuf, err: std::io::Error },
 }
 

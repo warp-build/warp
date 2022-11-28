@@ -105,6 +105,10 @@ impl DependencyManager {
         Ok(())
     }
 
+    pub fn labels(&self) -> Vec<LabelId> {
+        self.dependencies.iter().map(|e| *(e.key())).collect()
+    }
+
     pub fn add(&self, dep: Dependency) {
         self.dependencies.insert(dep.label, dep);
     }

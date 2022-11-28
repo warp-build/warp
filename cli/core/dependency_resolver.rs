@@ -163,7 +163,8 @@ impl DependencyResolver {
         let final_dir = self
             .global_workspaces_path
             .join(url)
-            .join(&dependency.version);
+            .join(&dependency.version)
+            .join(&dependency.package);
         fs::create_dir_all(&final_dir).await.unwrap();
 
         let workspace_name = {
