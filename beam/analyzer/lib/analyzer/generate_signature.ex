@@ -14,16 +14,27 @@ defmodule Analyzer.GenerateSignature do
   end
 
   defp gen_sig_erl(req) do
+    # NOTE(@ostera): this is a hack to make the source analyzer find heaedr 
+    parts = req.file |> Path.dirname() |> Path.split() |> Enum.drop(1)
+
+    include_paths =
+      for i <- 1..(Enum.count(parts) - 1) do
+        path = Enum.take(parts, i + 1) |> Path.join()
+        [path, Path.join(path, "include")]
+      end
+      |> List.flatten()
+
+    IO.inspect(include_paths)
+
     signatures =
       :source_analyzer.analyze_one(
         req.file,
         _ModMap = %{},
         _IgnoreModMap = %{},
-        _IncludePaths = []
+        include_paths
       )
 
     signatures = :maps.get(:signatures, signatures, [])
-
 
     gen_sig =
       %{
@@ -50,20 +61,13 @@ defmodule Analyzer.GenerateSignature do
         includes =
           sig.includes
           |> Enum.map(fn dep ->
-            req =
-              if String.contains?(dep, "/include/") do
-                [app, _include, _file] = String.split(dep, "/")
-
-                dep =
-                  Build.Warp.DependencyRequirement.new(
-                    name: app,
-                    url: "https://hex.pm/packages/#{app}"
-                  )
-
-                {:dependency, dep}
-              else
-                {:file, Build.Warp.FileRequirement.new(path: dep)}
+            dep =
+              case String.split(dep, "/") do
+                [_app, include, file] -> Path.join(include, file)
+                _ -> dep
               end
+
+            req = {:file, Build.Warp.FileRequirement.new(path: dep)}
 
             Build.Warp.Requirement.new(requirement: req)
           end)

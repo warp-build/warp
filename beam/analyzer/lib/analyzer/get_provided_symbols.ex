@@ -27,11 +27,12 @@ defmodule Analyzer.GetProvidedSymbols do
           [Build.Warp.Requirement.new(requirement: req)]
 
         ".hrl" ->
-          parts = req.file |> Path.split
+          parts = req.file |> Path.split()
+
           for i <- 0..(Enum.count(parts) - 1) do
-              path = Enum.drop(parts, i) |> Path.join
-              req = {:file, Build.Warp.FileRequirement.new(path: path)}
-              Build.Warp.Requirement.new(requirement: req)
+            path = Enum.drop(parts, i) |> Path.join()
+            req = {:file, Build.Warp.FileRequirement.new(path: path)}
+            Build.Warp.Requirement.new(requirement: req)
           end
       end
 
