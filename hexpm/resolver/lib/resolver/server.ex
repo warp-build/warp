@@ -226,6 +226,7 @@ defmodule Resolver.Server do
 
     cond do
       "rebar3" in tools -> "rebar3_library"
+      "rebar" in tools -> "rebar3_library"
       "mix" in tools -> "mix_library"
       "make" in tools -> "erlangmk_library"
       true -> "mix_library"
