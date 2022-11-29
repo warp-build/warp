@@ -23,7 +23,12 @@ defmodule Analyzer.GenerateSignature do
           Path.dirname(Path.dirname(dep.store_path))
         end),
         for i <- 1..(Enum.count(parts) - 1) do
-          path = Enum.take(parts, i + 1) |> Path.join()
+          path =
+            case Enum.take(parts, i + 1) do
+              [] -> "."
+              parts -> parts |> Path.join()
+            end
+
           [path, Path.join(path, "include")]
         end
       ]

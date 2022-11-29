@@ -2,6 +2,8 @@ defmodule Analyzer.GetDependencies do
   require Logger
 
   def get_dependencies(req, _stream) do
+    Logger.debug("Reading deps at #{req.workspace_root}")
+
     with {:ok, rebar_deps} <- do_get_rebar_config_deps(req),
          {:ok, lock_deps} <- do_get_rebar_lock_deps(req),
          {:ok, erlmk_deps} <- do_get_erlangmk_deps(req) do
@@ -20,7 +22,10 @@ defmodule Analyzer.GetDependencies do
   end
 
   defp do_get_erlangmk_deps(req) do
-    with {:ok, file} <- File.read(Path.join(req.workspace_root, "Makefile")) do
+    makefile = Path.join(req.workspace_root, "Makefile")
+
+    with {:ok, file} <- File.read(makefile) do
+      Logger.debug("Reading erlang.mk deps at #{makefile}")
       lines = String.split(file, <<"\n">>)
 
       deps =
@@ -52,6 +57,8 @@ defmodule Analyzer.GetDependencies do
             acc
         end)
 
+      Logger.debug("erlang.mk had #{Enum.count(deps)} dependencies")
+
       {:ok, deps}
     else
       e ->
@@ -61,7 +68,10 @@ defmodule Analyzer.GetDependencies do
   end
 
   defp do_get_rebar_config_deps(req) do
-    with {:ok, config} <- :file.consult(Path.join(req.workspace_root, "rebar.config")) do
+    rebar_config = Path.join(req.workspace_root, "rebar.config")
+
+    with {:ok, config} <- :file.consult(rebar_config) do
+      Logger.debug("Reading rebar3 deps at #{rebar_config}")
       deps = Keyword.get(config, :deps, [])
 
       test_deps =
@@ -206,6 +216,8 @@ defmodule Analyzer.GetDependencies do
           dep
         end
 
+      Logger.debug("rebar3 config had #{Enum.count(dependencies)} dependencies")
+
       {:ok, dependencies}
     else
       e ->
@@ -215,8 +227,12 @@ defmodule Analyzer.GetDependencies do
   end
 
   defp do_get_rebar_lock_deps(req) do
+    rebar_lock = Path.join(req.workspace_root, "rebar.lock")
+
     with {:ok, [{_, locked_deps} | _]} <-
-           :file.consult(Path.join(req.workspace_root, "rebar.lock")) do
+           :file.consult(rebar_lock) do
+      Logger.debug("Reading rebar3 lockfile deps at #{rebar_lock}")
+
       dependencies =
         for {name, spec, _} <- locked_deps do
           dep =
@@ -256,6 +272,8 @@ defmodule Analyzer.GetDependencies do
 
           dep
         end
+
+      Logger.debug("rebar3 lockfile had #{Enum.count(dependencies)} dependencies")
 
       {:ok, dependencies}
     else
