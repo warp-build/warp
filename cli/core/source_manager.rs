@@ -140,6 +140,8 @@ pub struct SourceManager {
 
     build_results: Arc<BuildResults>,
 
+    dependency_manager: Arc<DependencyManager>,
+
     event_channel: Arc<EventChannel>,
 
     global_signatures_path: PathBuf,
@@ -221,6 +223,7 @@ impl SourceManager {
         artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
         analyzer_service_manager: Arc<AnalyzerServiceManager>,
+        dependency_manager: Arc<DependencyManager>,
         build_opts: BuildOpts,
     ) -> Self {
         let parsers = DashMap::new();
@@ -245,13 +248,14 @@ impl SourceManager {
         Self {
             analyzer_service_manager,
             artifact_store,
+            build_opts,
             build_results,
+            dependency_manager,
             event_channel,
             global_signatures_path: workspace.paths.global_signatures_path.clone(),
             label_registry,
             parsers,
             sources: DashMap::new(),
-            build_opts,
         }
     }
 
@@ -307,6 +311,31 @@ impl SourceManager {
                 .await
                 .map_err(SourceManagerError::AnalyzerServiceManagerError)?;
 
+            // NOTE(@ostera): we are getting all the paths to all the dependencies, since the
+            // signature generators may need to look up certain files here.
+            //
+            let dependencies = self
+                .dependency_manager
+                .labels()
+                .into_iter()
+                .map(|l| {
+                    let label = self.label_registry.get_label(l);
+                    let store_path = label
+                        .workspace()
+                        .map(|p| p.to_path_buf())
+                        .unwrap_or_else(|| PathBuf::from(""))
+                        .join(label.path())
+                        .to_string_lossy()
+                        .to_string();
+
+                    proto::build::warp::Dependency {
+                        name: label.name().to_string(),
+                        store_path,
+                        ..proto::build::warp::Dependency::default()
+                    }
+                })
+                .collect();
+
             let request = proto::build::warp::codedb::GetAstRequest {
                 file: path.to_string_lossy().to_string(),
                 symbol: Some(proto::build::warp::Symbol {
@@ -317,6 +346,7 @@ impl SourceManager {
                         }
                     }),
                 }),
+                dependencies,
             };
 
             let response = analyzer_svc

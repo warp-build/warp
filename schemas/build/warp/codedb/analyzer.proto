@@ -40,6 +40,7 @@ message GenerateSignatureResponse {
 message GetAstRequest {
   string file = 1;
   Symbol symbol = 2;
+  repeated Dependency dependencies = 3;
 }
 
 message GetAstResponse {

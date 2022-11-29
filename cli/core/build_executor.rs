@@ -144,6 +144,7 @@ impl BuildExecutor {
             artifact_store.clone(),
             label_registry.clone(),
             analyzer_service_manager.clone(),
+            dependency_manager.clone(),
             build_opts,
         ));
 

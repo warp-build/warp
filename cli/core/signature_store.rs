@@ -210,15 +210,14 @@ impl SignatureStore {
                 let mut deps = vec![];
                 for dep in sig.deps {
                     let req = dep.requirement.unwrap();
+
                     match req {
                         proto::build::warp::requirement::Requirement::Url(url_req) => {
                             let url: url::Url = url_req.url.parse().unwrap();
-                            let label = url.into();
+                            let label: Label = url.clone().into();
+                            debug!("DEP: {} -> {}", &url, label.to_string());
                             deps.push(label)
                         }
-
-                        proto::build::warp::requirement::Requirement::Dependency(dep_req)
-                            if dep_req.url.is_empty() || dep_req.name.is_empty() => {}
 
                         proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
                             let url = self
@@ -227,6 +226,7 @@ impl SignatureStore {
                                 .map(|dep| dep.url)
                                 .unwrap_or_else(|| dep_req.url.parse().unwrap());
                             let label: Label = url.into();
+                            debug!("DEP: {} -> {}", &dep_req.name, label.to_string());
                             deps.push(label)
                         }
 
@@ -235,28 +235,8 @@ impl SignatureStore {
                                 .find_label_for_file(&file_req.path)
                                 .await
                                 .map_err(SignatureStoreError::CodeDbError)?;
+                            debug!("DEP: {} -> {}", &file_req.path, label.to_string());
                             deps.push(label)
-                        }
-
-                        proto::build::warp::requirement::Requirement::Symbol(sym_req)
-                            if sym_req.kind.is_empty() || sym_req.raw.is_empty() => {}
-
-                        proto::build::warp::requirement::Requirement::Symbol(sym_req)
-                            if sym_req.kind == "module" =>
-                        {
-                            if let Ok(label) = code_db
-                                .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
-                                .await
-                                .map_err(SignatureStoreError::CodeDbError)
-                            {
-                                deps.push(label)
-                            } else {
-                                let url: Url = format!("https://hex.pm/packages/{}", sym_req.raw)
-                                    .parse()
-                                    .unwrap();
-                                let label: Label = url.into();
-                                deps.push(label);
-                            }
                         }
 
                         proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
@@ -264,6 +244,12 @@ impl SignatureStore {
                                 .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
                                 .await
                                 .map_err(SignatureStoreError::CodeDbError)?;
+                            debug!(
+                                "DEP: {}:{} -> {}",
+                                &sym_req.raw,
+                                &sym_req.kind,
+                                label.to_string()
+                            );
                             deps.push(label)
                         }
                     }
@@ -272,12 +258,12 @@ impl SignatureStore {
                 let mut runtime_deps = vec![];
                 for dep in sig.runtime_deps {
                     let req = dep.requirement.unwrap();
-                    dbg!(&req);
                     match req {
                         proto::build::warp::requirement::Requirement::Url(url_req) => {
                             let url: url::Url = url_req.url.parse().unwrap();
-                            let label = url.into();
-                            deps.push(label)
+                            let label: Label = url.clone().into();
+                            debug!("DEP: {} -> {}", &url, label.to_string());
+                            runtime_deps.push(label)
                         }
 
                         proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
@@ -286,39 +272,31 @@ impl SignatureStore {
                                 .find_by_package_name(&dep_req.name)
                                 .map(|dep| dep.url)
                                 .unwrap_or_else(|| dep_req.url.parse().unwrap());
-                            dbg!(&url);
                             let label: Label = url.into();
-                            deps.push(label)
+                            debug!("DEP: {} -> {}", &dep_req.name, label.to_string());
+                            runtime_deps.push(label)
                         }
 
                         proto::build::warp::requirement::Requirement::File(file_req) => {
-                            /*
-                            let label = code_db.find_label_for_file(&file_req.path).unwrap();
-                            deps.push(label)
-                            */
-                        }
-                        proto::build::warp::requirement::Requirement::Symbol(sym_req)
-                            if sym_req.kind == "module" =>
-                        {
-                            if let Ok(label) = code_db
-                                .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                            let label = code_db
+                                .find_label_for_file(&file_req.path)
                                 .await
-                                .map_err(SignatureStoreError::CodeDbError)
-                            {
-                                runtime_deps.push(label)
-                            } else {
-                                let url: Url = format!("https://hex.pm/packages/{}", sym_req.raw)
-                                    .parse()
-                                    .unwrap();
-                                let label: Label = url.into();
-                                runtime_deps.push(label);
-                            }
+                                .map_err(SignatureStoreError::CodeDbError)?;
+                            debug!("DEP: {} -> {}", &file_req.path, label.to_string());
+                            runtime_deps.push(label)
                         }
+
                         proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
                             let label = code_db
                                 .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
                                 .await
                                 .map_err(SignatureStoreError::CodeDbError)?;
+                            debug!(
+                                "DEP: {}:{} -> {}",
+                                &sym_req.raw,
+                                &sym_req.kind,
+                                label.to_string()
+                            );
                             runtime_deps.push(label)
                         }
                     }

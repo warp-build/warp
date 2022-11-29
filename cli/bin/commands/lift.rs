@@ -4,11 +4,10 @@ use crate::reporter::*;
 use dashmap::{DashMap, DashSet};
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
+use tracing::*;
 use warp_core::*;
 
 #[derive(StructOpt, Debug, Clone)]
@@ -114,7 +113,7 @@ impl LiftCommand {
         dependencies: DependencyFile,
     ) -> Result<(), anyhow::Error> {
         let workspace_root = warp.invocation_dir.clone();
-        let (dep_paths, dep_labels, deps) = self
+        let (dep_label_paths, deps) = self
             .get_dependencies(analyzer_pool, warp, &workspace_root, &dependencies)
             .await?;
 
@@ -122,24 +121,26 @@ impl LiftCommand {
 
         // NOTE(@ostera): If we found dependencies, we should fetch and build them at this point so
         // we can analyze their sources and establish the right dependency graph.
-        if !dep_labels.is_empty() {
+        if !dep_label_paths.is_empty() {
             let lifter_reporter = LifterReporter::new(
                 warp.event_channel.clone(),
                 Flags { ..self.flags },
                 Goal::Build,
             );
             warp.prepare_for_new_run();
+            let labels: Vec<Label> = dep_label_paths
+                .clone()
+                .into_iter()
+                .map(|(_key, (_path, label))| label.clone())
+                .collect();
             let (results, ()) = futures::future::join(
-                warp.execute(
-                    &dep_labels,
-                    self.flags.into_build_opts().with_goal(Goal::Build),
-                ),
-                lifter_reporter.run(&dep_labels),
+                warp.execute(&labels, self.flags.into_build_opts().with_goal(Goal::Build)),
+                lifter_reporter.run(&labels),
             )
             .await;
             results?;
 
-            self.scan_dep_dirs(analyzer_pool, db, dep_paths, dep_labels)
+            self.scan_dep_dirs(analyzer_pool, db, dep_label_paths)
                 .await?;
         }
 
@@ -176,8 +177,7 @@ impl LiftCommand {
         dependencies: &DependencyFile,
     ) -> Result<
         (
-            DashMap<String, PathBuf>,
-            Vec<Label>,
+            DashMap<String, (PathBuf, Label)>,
             DashMap<String, DependencyJson>,
         ),
         anyhow::Error,
@@ -192,8 +192,7 @@ impl LiftCommand {
         let visited: DashSet<PathBuf> = DashSet::new();
         let pending: DashSet<Label> = DashSet::new();
 
-        let mut dep_labels = vec![];
-        let dep_paths = DashMap::new();
+        let dep_label_paths = DashMap::new();
         let deps = DashMap::new();
 
         let mut include_test = true;
@@ -311,8 +310,7 @@ impl LiftCommand {
                     queue.push((final_dir.clone(), label.clone()));
                     pending.insert(label.clone());
 
-                    dep_labels.push(label.clone());
-                    dep_paths.insert(dep.url.clone(), final_dir.clone());
+                    dep_label_paths.insert(dep.url.clone(), (final_dir.clone(), label.clone()));
                 }
             }
 
@@ -359,17 +357,15 @@ impl LiftCommand {
             max_length
         ));
 
-        Ok((dep_paths, dep_labels, deps))
+        Ok((dep_label_paths, deps))
     }
 
     async fn scan_dep_dirs(
         &self,
         analyzer_pool: &mut AnalyzerServicePool,
         db: &mut CodeDb,
-        dep_paths: DashMap<String, PathBuf>,
-        dep_labels: Vec<Label>,
+        deps: DashMap<String, (PathBuf, Label)>,
     ) -> Result<(), anyhow::Error> {
-        let analyze_time = std::time::Instant::now();
         let cyan = console::Style::new().cyan().bold();
 
         // set up a progress bar
@@ -377,7 +373,7 @@ impl LiftCommand {
             let style = ProgressStyle::default_bar()
                 .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
                 .progress_chars("=> ");
-            let pb = ProgressBar::new(dep_paths.len() as u64);
+            let pb = ProgressBar::new(deps.len() as u64);
             pb.set_style(style);
             pb.set_prefix("Analyzing");
             pb
@@ -385,9 +381,9 @@ impl LiftCommand {
 
         let mut total_files = 0;
 
-        for (root, label) in dep_paths.iter().zip(dep_labels.iter()) {
+        for entry in deps.iter() {
+            let (root, label) = &*entry;
             pb.inc(1);
-            let root = &*root;
 
             let mut paths = vec![];
             for client in &mut analyzer_pool.clients {
@@ -437,7 +433,7 @@ impl LiftCommand {
                         continue;
                     }
 
-                    let rel_path = path.strip_prefix(&root).unwrap().to_path_buf();
+                    let rel_path = path.strip_prefix(root).unwrap().to_path_buf();
                     current_file_count += 1;
                     pb.set_message(format!(
                         "{} / {}",
@@ -458,11 +454,18 @@ impl LiftCommand {
                                 let req = req.requirement.unwrap();
                                 match req {
                                     Requirement::File(file) => {
+                                        debug!("DEP: {} -> {}", &file.path, label.to_string());
                                         db.save_file(label, &path, &hash, &file.path)
                                             .await
                                             .unwrap();
                                     }
                                     Requirement::Symbol(symbol) => {
+                                        debug!(
+                                            "DEP: {}@{} -> {}",
+                                            &symbol.kind,
+                                            &symbol.raw,
+                                            label.to_string()
+                                        );
                                         db.save_symbol(
                                             label,
                                             &path,
@@ -491,7 +494,7 @@ impl LiftCommand {
             "{:>12} {} sources in {} dependencies",
             cyan.apply_to("analyzed"),
             total_files,
-            dep_paths.len(),
+            deps.len(),
         ));
 
         Ok(())
