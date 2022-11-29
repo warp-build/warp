@@ -16,8 +16,7 @@ const impl = ctx => {
     .concat(headers);
 
   ctx.action().declareOutputs([
-    `${Label.path(label)}/ebin/${name}.app`,
-    `${Label.path(label)}/${name}.d`,
+    `ebin/${name}.app`,
     ...outputs
   ]);
 
