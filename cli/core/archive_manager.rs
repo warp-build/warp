@@ -300,7 +300,7 @@ impl ArchiveManager {
                 if let Some(ref prefix) = strip_prefix {
                     let tmpdir = tempfile::tempdir()?;
 
-                    self.unpack(archive, &tmpdir.path()).await?;
+                    self.unpack(archive, tmpdir.path()).await?;
 
                     let tmp_root = tmpdir.path().join(prefix).to_path_buf();
 
@@ -314,8 +314,13 @@ impl ArchiveManager {
 
                     while let Some(src_path) = files.next().await {
                         let src_path = src_path?;
-                        if fs::metadata(&src_path).await?.is_dir() {
-                            continue;
+                        match fs::metadata(&src_path).await {
+                            Ok(meta) => {
+                                if meta.file_type().is_symlink() || meta.file_type().is_dir() {
+                                    continue;
+                                }
+                            }
+                            _ => continue,
                         }
                         // NOTE(@ostera): when using tmpdir we create a folder that starts at `/tmp`,
                         // but our FileScanner resolves _through_ and gets the actual `/private/tmp`
