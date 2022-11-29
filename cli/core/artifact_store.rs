@@ -271,16 +271,6 @@ impl ArtifactStore {
     }
 
     #[tracing::instrument(name = "ArtifactStore::lock", skip(node))]
-    pub async fn lock(
-        &self,
-        node: &ExecutableTarget,
-    ) -> Result<ArtifactStoreLock, ArtifactStoreError> {
-        let key = self.absolute_path_by_node(node).await?;
-        ArtifactStoreLock::try_lock(&key)
-            .await
-            .map_err(ArtifactStoreError::StoreLockError)
-    }
-
     #[tracing::instrument(name = "ArtifactStore::clean", skip(node))]
     pub async fn clean(&self, node: &ExecutableTarget) -> Result<(), ArtifactStoreError> {
         let store_key = self.store_key(node);

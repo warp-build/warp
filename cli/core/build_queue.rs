@@ -76,8 +76,8 @@ impl BuildQueue {
 
     #[tracing::instrument(name = "BuildQueue::next", skip(self))]
     pub fn next(&self) -> Option<Task> {
+        let _lock = self._queue_lock.lock().unwrap();
         loop {
-            let _lock = self._queue_lock.lock().unwrap();
             let task = if let crossbeam::deque::Steal::Success(task) = self.inner_queue.steal() {
                 task
             } else if let Ok(mut wait_queue) = self.wait_queue.write() {

@@ -132,12 +132,11 @@ impl BuildWorker {
 
     #[tracing::instrument(name = "BuildWorker::run", skip(self))]
     pub async fn run(&mut self) -> Result<(), BuildWorkerError> {
-        let next_task = self.build_queue.next();
+        let task = match self.build_queue.next() {
+            Some(task) => task,
+            None => return Ok(()),
+        };
 
-        if next_task.is_none() {
-            return Ok(());
-        }
-        let task = next_task.unwrap();
         let label = task.label;
 
         self.event_channel.send(Event::HandlingTarget {
@@ -264,11 +263,6 @@ impl BuildWorker {
             .execute(&executable_target, self.build_opts)
             .await
         {
-            // NOTE(@ostera): if someone else is already building this target, we'll postpone it.
-            Err(TargetExecutorError::ArtifactStoreError(ArtifactStoreError::StoreLockError(
-                StoreLockError::LockedKey(_key),
-            ))) => self.build_queue.nack(task),
-
             Err(err) => {
                 self.event_channel.send(Event::BuildError {
                     label: executable_target.label.clone().into(),

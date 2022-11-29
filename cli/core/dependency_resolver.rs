@@ -157,7 +157,7 @@ impl DependencyResolver {
 
         // https://hex.pm/packages/proper -> become a workspace
         // let mut dep_workspace = DependencyWorkspace::from_label(label);
-        let url = remote_label.url_str().replace("://", "/");
+        let url = dependency.url.to_string().replace("://", "/");
 
         // WorkspaceManager.prepare_workspace(&mut dep_workspace).await?;
         let final_dir = self
