@@ -173,7 +173,7 @@ impl LiftCommand {
         &self,
         analyzer_pool: &mut AnalyzerServicePool,
         warp: &mut WarpEngine,
-        workspace_root: &PathBuf,
+        starting_root: &PathBuf,
         dependencies: &DependencyFile,
     ) -> Result<
         (
@@ -183,13 +183,14 @@ impl LiftCommand {
         anyhow::Error,
     > {
         let cyan = console::Style::new().cyan().bold();
+        let green_bold = console::Style::new().green().bold();
 
         let mut later: Vec<(PathBuf, Label)> = vec![];
         let mut queue = vec![(
-            workspace_root.clone(),
-            workspace_root.to_string_lossy().to_string().parse()?,
+            starting_root.clone(),
+            starting_root.to_string_lossy().to_string().parse()?,
         )];
-        let visited: DashSet<PathBuf> = DashSet::new();
+        let visited: DashSet<Label> = DashSet::new();
         let pending: DashSet<Label> = DashSet::new();
 
         let dep_label_paths = DashMap::new();
@@ -197,39 +198,38 @@ impl LiftCommand {
 
         let mut include_test = true;
 
-        let mut max_length = queue.len();
-
         // set up a progress bar
         let pb = {
             let style = ProgressStyle::default_bar()
                 .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
                 .progress_chars("=> ");
-            let pb = ProgressBar::new(max_length as u64);
+            let pb = ProgressBar::new(0);
             pb.set_style(style);
             pb.set_prefix("Discovering");
             pb
         };
 
         while let Some((workspace_root, current_label)) = queue.pop().or_else(|| later.pop()) {
-            max_length = max_length.max(queue.len() + later.len());
             // maximum length of the bar should be the largest number we find while queueing things
-            pb.set_length(max_length as u64);
-            pb.set_message(
+            pb.set_length(queue.len() as u64);
+            pb.set_message(current_label.to_string());
+            /*
                 pending
                     .iter()
                     .map(|l| l.to_string())
                     .collect::<Vec<String>>()
                     .join(", "),
             );
+            */
 
-            if visited.contains(&workspace_root) {
+            if visited.contains(&current_label) {
+                println!("skipping {}", current_label.to_string());
                 pending.remove(&current_label);
                 continue;
             }
 
             // NOTE(@ostera): get all dependencies from all the analyzers
             let mut current_deps = vec![];
-            let mut current_paths = vec![];
             for client in &mut analyzer_pool.clients {
                 let request = proto::build::warp::codedb::GetDependenciesRequest {
                     workspace_root: workspace_root.to_string_lossy().to_string(),
@@ -281,19 +281,6 @@ impl LiftCommand {
                         .build()
                         .map_err(DependencyManagerError::DependencyJsonError)?;
 
-                    // NOTE(@ostera): add this dependency to the current dependency manager, so we
-                    // can find its information when we're building
-                    deps.insert(dep.url.clone(), dep_json);
-
-                    /* FIXME(@ostera): this is the code I wanted to write here:
-                     *
-                     *   let dep_root = warp.dependency_manager().download(dep).await?;
-                     *   dirs.push(dep_root);
-                     *
-                     * So that we can download, extract, and prepare a dependency
-                     * at this point in time rather than later.
-                     */
-
                     // NOTE(@ostera): this path should really be computed within a
                     // WorkspaceManager where we can add a DependencyWorkspace.
                     //
@@ -302,10 +289,14 @@ impl LiftCommand {
                         .paths
                         .global_workspaces_path
                         .join(dep.url.replace("://", "/"))
-                        .join(&dep.version);
+                        .join(&dep.version)
+                        .join(&dep_json.package);
+
+                    // NOTE(@ostera): add this dependency to the current dependency manager, so we
+                    // can find its information when we're building
+                    deps.insert(dep.url.clone(), dep_json);
 
                     current_deps.push(label.clone());
-                    current_paths.push(final_dir.clone());
 
                     queue.push((final_dir.clone(), label.clone()));
                     pending.insert(label.clone());
@@ -314,18 +305,16 @@ impl LiftCommand {
                 }
             }
 
+            let line = format!(
+                "{:>12} {} has {} dependencies",
+                green_bold.apply_to("Discovered"),
+                current_label.to_string(),
+                current_deps.len(),
+            );
+            pb.println(line);
+
             // NOTE(@ostera): add all dependencies to the Dependencies.json
             self.update_dep_manifest(warp, dependencies, &deps).await?;
-
-            // NOTE(@ostera): In this case we don't have any dependencies, so there's no point in
-            // trying to fetch anything. Mark as visited and move on.
-            //
-            if current_deps.is_empty() {
-                visited.insert(workspace_root);
-                pending.remove(&current_label);
-                pb.inc(1);
-                continue;
-            }
 
             // NOTE(@ostera): try to fetch all the dependencies.
             //
@@ -341,20 +330,35 @@ impl LiftCommand {
             .await;
             results?;
 
-            if current_paths.iter().all(|d| visited.contains(d)) {
-                visited.insert(workspace_root);
-                pending.remove(&current_label);
-                pb.inc(1);
-            } else {
+            // NOTE(@ostera): since we have dependencies, we'll just push us to the later-queue.
+            let has_dependencies = !current_deps.is_empty();
+            let has_deps_that_need_building = !current_deps.iter().all(|l| visited.contains(l));
+            if has_dependencies && has_deps_that_need_building {
                 later.push((workspace_root, current_label));
+                continue;
             }
+
+            let line = format!(
+                "{:>12} {}",
+                green_bold.apply_to("Built"),
+                if workspace_root == *starting_root {
+                    starting_root.to_string_lossy().to_string()
+                } else {
+                    current_label.to_string()
+                },
+            );
+            pb.println(line);
+
+            pending.remove(&current_label);
+            visited.insert(current_label);
+            pb.inc(1);
         }
 
         pb.set_message("");
         pb.println(format!(
             "{:>12} {} dependencies",
             cyan.apply_to("Downloaded"),
-            max_length
+            deps.len(),
         ));
 
         Ok((dep_label_paths, deps))
