@@ -154,6 +154,7 @@ analyze(Files, ModMap, IncludePaths) ->
 
 do_analyze(Path, IncludePaths, ModMap) ->
   {ok, Ast} = erl_ast:parse_file(Path, IncludePaths),
+  RawIncludes = erl_ast:get_includes(Path),
 
   {Mods, MissingMods} = mods(Path, ModMap, Ast),
 
@@ -169,7 +170,7 @@ do_analyze(Path, IncludePaths, ModMap) ->
 
   {Path, #{
            modules => Mods,
-           includes => Includes,
+           includes => Includes ++ RawIncludes,
            functions => Functions,
            exports => Exports,
            missing_includes => MissingIncludes,

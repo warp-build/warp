@@ -10,17 +10,13 @@ defmodule Analyzer.GetAst do
   end
 
   defp do_get_erl_ast(req) do
-    # FIXME(@ostera): this is a hack to make the source analyzer find heaedr 
+    # FIXME(@ostera): this is a hack to make the source analyzer find headers
     parts = req.file |> Path.dirname() |> Path.split() |> Enum.drop(1)
 
     include_paths =
       [
         Enum.map(req.dependencies, fn dep ->
-          [
-            Path.dirname(Path.dirname(dep.store_path)),
-            Path.dirname(dep.store_path),
-            dep.store_path
-          ]
+          Path.dirname(Path.dirname(dep.store_path))
         end),
         for i <- 1..(Enum.count(parts) - 1) do
           path = Enum.take(parts, i + 1) |> Path.join()
@@ -39,7 +35,11 @@ defmodule Analyzer.GetAst do
       #     {:attribute, 1, :file, {"app/include/header.hrl", 1}}
       |> Enum.map(fn path -> :binary.bin_to_list(path) end)
 
-    IO.inspect(include_paths)
+    Logger.info("splitting ast using include paths:")
+
+    for p <- include_paths do
+      IO.inspect(p)
+    end
 
     file = req.file
     {:ok, %{^file => result}} = :erl_analyzer.analyze([file], _ModMap = %{}, include_paths)

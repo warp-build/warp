@@ -69,11 +69,9 @@ get_erlang_script(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Com
     false -> [];
     true -> [#{
                apps => [kernel],
-               deps => deps_to_labels(IncludeDeps), 
                main => path:filename(File),
                name => File,
-               rule => <<"erlang_script">>,
-               runtime_deps => deps_to_labels(ModDeps)
+               rule => <<"erlang_script">>
               }]
   end.
 
@@ -92,10 +90,8 @@ erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Comp
   [#{
     name => File,
     srcs => [path:filename(File)],
-    runtime_deps => [],
     includes => IncludeDeps,
     modules => ModDeps,
-    deps => deps_to_labels(IncludeDeps ++ ModDeps), 
     rule => <<"erlang_library">>
    }].
 
@@ -129,8 +125,6 @@ get_ct_cases(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnal
   [#{
     name => <<File/binary, ":", (erlang:atom_to_binary(Case, utf8))/binary, "/1">>,
     test => path:filename(File),
-    runtime_deps => [],
-    deps => deps_to_labels(IncludeDeps ++ ModDeps), 
     includes => IncludeDeps,
     modules => ModDeps,
     cases => [Case],
@@ -173,8 +167,6 @@ get_prop_tests(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAn
   [#{
     name => <<File/binary, ":", (erlang:atom_to_binary(Prop, utf8))/binary>>,
     test => path:filename(File),
-    runtime_deps => [],
-    deps => deps_to_labels(IncludeDeps ++ ModDeps), 
     includes => IncludeDeps,
     modules => ModDeps,
     props => [Prop],
@@ -197,21 +189,7 @@ mods_from_analyses(File, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis) ->
 
 includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis) ->
   IncludeDeps0 = uniq(cerl_analyzer:dependency_includes(CompAnalysis) ++ erl_analyzer:dependency_includes(SourceAnalysis)),
-  IncludeDeps1 = [ begin
-                     case path:contains(Hrl, <<"include">>) of
-                       true ->
-                         SubPath = path:nth_tail(Hrl, 3),
-                         maps:get(SubPath, ModMap, Hrl);
-                       _ ->
-                         maps:get(Hrl, ModMap, Hrl)
-                     end
-                   end
-                   || Hrl <- IncludeDeps0,
-                      erl_stdlib:is_user_include(Hrl),
-                      path:extension(Hrl) == {ok, <<".hrl">>},
-                      Hrl =/= File
-                 ],
-  skip_std(uniq([ Path || Path <- IncludeDeps1, Path =/= File ])).
+  [ Hrl || Hrl <- IncludeDeps0, erl_stdlib:is_user_include(Hrl), Hrl =/= File].
 
 deps_to_labels(Deps) -> uniq(lists:map(fun dep_to_label/1, Deps)).
 

@@ -14,17 +14,13 @@ defmodule Analyzer.GenerateSignature do
   end
 
   defp gen_sig_erl(req) do
-    # FIXME(@ostera): this is a hack to make the source analyzer find heaedr 
+    # FIXME(@ostera): this is a hack to make the source analyzer find headers
     parts = req.file |> Path.dirname() |> Path.split() |> Enum.drop(1)
 
     include_paths =
       [
         Enum.map(req.dependencies, fn dep ->
-          [
-            Path.dirname(Path.dirname(dep.store_path)),
-            Path.dirname(dep.store_path),
-            dep.store_path
-          ]
+          Path.dirname(Path.dirname(dep.store_path))
         end),
         for i <- 1..(Enum.count(parts) - 1) do
           path = Enum.take(parts, i + 1) |> Path.join()
@@ -35,7 +31,7 @@ defmodule Analyzer.GenerateSignature do
       |> Enum.sort()
       |> Enum.uniq()
 
-    Logger.info("using include paths:")
+    Logger.info("generating signature using include paths:")
 
     for p <- include_paths do
       IO.inspect(p)
@@ -57,6 +53,8 @@ defmodule Analyzer.GenerateSignature do
         :signatures => signatures
       }
       |> Jason.encode!()
+
+    IO.inspect(signatures)
 
     signatures =
       signatures
@@ -87,20 +85,6 @@ defmodule Analyzer.GenerateSignature do
             Build.Warp.Requirement.new(requirement: req)
           end)
 
-        deps = includes
-
-        runtime_deps =
-          sig.runtime_deps
-          |> Enum.map(fn dep ->
-            symbol =
-              Build.Warp.SymbolRequirement.new(
-                raw: dep,
-                kind: "module"
-              )
-
-            Build.Warp.Requirement.new(requirement: {:symbol, symbol})
-          end)
-
         {:ok, config} =
           sig
           |> Map.delete(:deps)
@@ -114,8 +98,8 @@ defmodule Analyzer.GenerateSignature do
         Build.Warp.Signature.new(
           name: sig.name,
           rule: sig.rule,
-          deps: deps,
-          runtime_deps: runtime_deps ++ modules,
+          deps: includes,
+          runtime_deps: modules,
           config: config
         )
       end)
