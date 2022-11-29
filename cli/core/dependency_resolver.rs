@@ -270,7 +270,7 @@ impl DependencyResolver {
         final_dir: &PathBuf,
         dependency: &Dependency,
     ) -> Result<GeneratedSignature, DependencyResolverError> {
-        let override_resolver = dependency.resolver.unwrap_or_else(|| resolver);
+        let override_resolver = dependency.resolver.unwrap_or(resolver);
         let mut override_resolver_svc = self
             .resolver_service_manager
             .start(override_resolver)
@@ -315,10 +315,11 @@ impl DependencyResolver {
                     }
 
                     proto::build::warp::requirement::Requirement::File(file_req) => {
-                        /*
-                        let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                        let label = code_db
+                            .find_label_for_file(&file_req.path)
+                            .await
+                            .map_err(DependencyResolverError::CodeDbError)?;
                         deps.push(label)
-                        */
                     }
 
                     proto::build::warp::requirement::Requirement::Symbol(sym_req)
@@ -370,10 +371,11 @@ impl DependencyResolver {
                     }
 
                     proto::build::warp::requirement::Requirement::File(file_req) => {
-                        /*
-                        let label = code_db.find_label_for_file(&file_req.path).unwrap();
+                        let label = code_db
+                            .find_label_for_file(&file_req.path)
+                            .await
+                            .map_err(DependencyResolverError::CodeDbError)?;
                         deps.push(label)
-                        */
                     }
 
                     proto::build::warp::requirement::Requirement::Symbol(sym_req)
