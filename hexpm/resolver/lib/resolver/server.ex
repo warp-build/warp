@@ -106,7 +106,12 @@ defmodule Resolver.Server do
         _ -> false
       end)
 
-    [["PROJECT", "=", name | _] | _] = tokens
+    ["PROJECT", "=", name | _] =
+      tokens
+      |> Enum.find(fn
+        ["PROJECT", "=", name | _] -> true
+        _ -> false
+      end)
 
     deps =
       tokens
