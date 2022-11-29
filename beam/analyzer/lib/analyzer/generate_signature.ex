@@ -87,7 +87,7 @@ defmodule Analyzer.GenerateSignature do
             Build.Warp.Requirement.new(requirement: req)
           end)
 
-        deps = modules ++ includes
+        deps = includes
 
         runtime_deps =
           sig.runtime_deps
@@ -115,7 +115,7 @@ defmodule Analyzer.GenerateSignature do
           name: sig.name,
           rule: sig.rule,
           deps: deps,
-          runtime_deps: runtime_deps,
+          runtime_deps: runtime_deps ++ modules,
           config: config
         )
       end)

@@ -14,12 +14,22 @@ defmodule Analyzer.GetAst do
     parts = req.file |> Path.dirname() |> Path.split() |> Enum.drop(1)
 
     include_paths =
-      (for i <- 1..(Enum.count(parts) - 1) do
-         path = Enum.take(parts, i + 1) |> Path.join()
-         [path, Path.join(path, "include")]
-       end ++
-         req.dependency_paths)
+      [
+        Enum.map(req.dependencies, fn dep ->
+          [
+            Path.dirname(Path.dirname(dep.store_path)),
+            Path.dirname(dep.store_path),
+            dep.store_path
+          ]
+        end),
+        for i <- 1..(Enum.count(parts) - 1) do
+          path = Enum.take(parts, i + 1) |> Path.join()
+          [path, Path.join(path, "include")]
+        end
+      ]
       |> List.flatten()
+      |> Enum.sort()
+      |> Enum.uniq()
 
       # NOTE(@ostera): this is needed because the tree we will generate after
       # the `:erl_analyzer.subtree` call will contain include paths that use these prefixes
