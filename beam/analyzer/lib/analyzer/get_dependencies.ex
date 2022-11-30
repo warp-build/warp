@@ -4,10 +4,11 @@ defmodule Analyzer.GetDependencies do
   def get_dependencies(req, _stream) do
     Logger.debug("Reading deps at #{req.workspace_root}")
 
-    with {:ok, rebar_deps} <- do_get_rebar_config_deps(req),
+    with {:ok, hex_deps} <- do_get_hex_metadata_deps(req),
+         {:ok, rebar_deps} <- do_get_rebar_config_deps(req),
          {:ok, lock_deps} <- do_get_rebar_lock_deps(req),
          {:ok, erlmk_deps} <- do_get_erlangmk_deps(req) do
-      dependencies = rebar_deps ++ lock_deps ++ erlmk_deps
+      dependencies = rebar_deps ++ lock_deps ++ erlmk_deps ++ hex_deps
 
       for dep <- dependencies do
         Logger.debug("Found dep: #{inspect(dep)}")
@@ -18,6 +19,49 @@ defmodule Analyzer.GetDependencies do
       e ->
         Logger.error("Error finding dependencies: #{inspect(e)}")
         Build.Warp.Codedb.GetDependenciesResponse.new(dependencies: [])
+    end
+  end
+
+  defp do_get_hex_metadata_deps(req) do
+    metadata = Path.join(req.workspace_root, "metadata.config")
+
+    with {:ok, meta} <- :file.consult(metadata) do
+      meta = meta |> Map.new()
+
+      reqs = meta |> Map.get("requirements", [])
+
+      reqs =
+        for req <- reqs do
+          case req do
+            {name, spec} ->
+              spec = Map.new(spec)
+
+              Build.Warp.Dependency.new(
+                url: "https://hex.pm/packages/#{name}",
+                name: name,
+                version: spec["requirement"],
+                signature_resolver: "https://tools.warp.build/hexpm/resolver",
+                archive_resolver: "https://tools.warp.build/hexpm/resolver"
+              )
+
+            spec when is_list(spec) ->
+              spec = Map.new(spec)
+
+              Build.Warp.Dependency.new(
+                url: "https://hex.pm/packages/#{spec["name"]}",
+                name: spec["name"],
+                version: spec["requirement"],
+                signature_resolver: "https://tools.warp.build/hexpm/resolver",
+                archive_resolver: "https://tools.warp.build/hexpm/resolver"
+              )
+          end
+        end
+
+      {:ok, reqs}
+    else
+      e ->
+        Logger.error("Error reading metadata.config deps: #{inspect(e)}")
+        {:ok, []}
     end
   end
 
