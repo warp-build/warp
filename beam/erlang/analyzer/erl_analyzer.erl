@@ -218,6 +218,11 @@ parse_trans(Ast) ->
     Ast,
     _Acc = [],
     fun
+      (_Ast={attribute, _Loc1, compile, Args}, Acc) when is_list(Args) ->
+        case proplists:lookup(parse_transform, Args) of
+          none -> Acc;
+          {parse_transform, Mod} -> [Mod | Acc]
+        end;
       (_Ast={attribute, _Loc1, compile, _Args={parse_transform, Mod}}, Acc) ->
         [Mod | Acc];
       (_Ast, Acc) ->
