@@ -77,7 +77,7 @@ defmodule Analyzer.GenerateSignature do
           end)
 
         parse_transforms =
-          (sig.parse_transforms || [])
+          Map.get(sig, :parse_transforms, [])
           |> Enum.map(fn dep ->
             symbol =
               Build.Warp.SymbolRequirement.new(
