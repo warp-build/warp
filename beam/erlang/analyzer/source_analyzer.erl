@@ -92,6 +92,7 @@ erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Comp
     srcs => [path:filename(File)],
     includes => IncludeDeps,
     modules => ModDeps,
+    parse_tranforms => erl_analyzer:parse_transforms(SourceAnalysis), 
     rule => <<"erlang_library">>
    }].
 

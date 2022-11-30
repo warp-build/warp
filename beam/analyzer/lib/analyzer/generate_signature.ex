@@ -76,6 +76,18 @@ defmodule Analyzer.GenerateSignature do
             Build.Warp.Requirement.new(requirement: {:symbol, symbol})
           end)
 
+        parse_transforms =
+          (sig.parse_transforms || [])
+          |> Enum.map(fn dep ->
+            symbol =
+              Build.Warp.SymbolRequirement.new(
+                raw: Atom.to_string(dep),
+                kind: "module"
+              )
+
+            Build.Warp.Requirement.new(requirement: {:symbol, symbol})
+          end)
+
         includes =
           sig.includes
           |> Enum.map(fn dep ->
@@ -103,7 +115,7 @@ defmodule Analyzer.GenerateSignature do
         Build.Warp.Signature.new(
           name: sig.name,
           rule: sig.rule,
-          deps: includes,
+          deps: includes ++ parse_transforms,
           runtime_deps: modules,
           config: config
         )
