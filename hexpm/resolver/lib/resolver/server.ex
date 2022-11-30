@@ -25,7 +25,15 @@ defmodule Resolver.Server do
 
         :error ->
           Logger.info("Resolving #{package_name} with requirement #{req.version}")
-          requirement = Version.parse_requirement!(req.version)
+
+          requirement =
+            Version.parse_requirement!(
+              if req.version == "" do
+                "> 0.0.0"
+              else
+                req.version
+              end
+            )
 
           hex_config =
             :hex_core.default_config()
@@ -234,26 +242,17 @@ defmodule Resolver.Server do
   end
 
   def get_deps(metadata) do
-    for req <- requirements(metadata) do
-      name = :proplists.to_map(req) |> Map.get("name")
-      "https://hex.pm/packages/#{name}"
-    end
-  end
+    for req <- Map.get(metadata, "requirements", []) do
+      case req do
+        {name, spec} ->
+          spec = Map.new(spec)
+          "https://hex.pm/packages/#{name}"
 
-  def requirements(metadata) do
-    reqs =
-      case :maps.get("requirements", metadata, []) do
-        x when is_map(x) -> :maps.to_list(x)
-        y -> y
+        spec when is_list(spec) ->
+          spec = Map.new(spec)
+          "https://hex.pm/packages/#{spec["name"]}"
       end
-
-    :lists.map(
-      fn
-        {name, req} -> [{"name", name} | req]
-        req when is_list(req) -> req
-      end,
-      reqs
-    )
+    end
   end
 
   defp prepare_rebar3_workspace(req) do
