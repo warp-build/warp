@@ -5,6 +5,7 @@ use dashmap::{DashMap, DashSet};
 use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 use tracing::*;
@@ -131,7 +132,7 @@ impl LiftCommand {
             let labels: Vec<Label> = dep_label_paths
                 .clone()
                 .into_iter()
-                .map(|(_key, (_path, label))| label.clone())
+                .map(|(_key, (_path, label))| label)
                 .collect();
             let (results, ()) = futures::future::join(
                 warp.execute(&labels, self.flags.into_build_opts().with_goal(Goal::Build)),
@@ -213,19 +214,13 @@ impl LiftCommand {
             // maximum length of the bar should be the largest number we find while queueing things
             pb.set_length(queue.len() as u64);
             pb.set_message(current_label.to_string());
-            /*
-                pending
-                    .iter()
-                    .map(|l| l.to_string())
-                    .collect::<Vec<String>>()
-                    .join(", "),
-            );
-            */
 
             if visited.contains(&current_label) {
-                println!("skipping {}", current_label.to_string());
+                pb.println(format!("skipping {}", current_label.to_string()));
                 pending.remove(&current_label);
                 continue;
+            } else {
+                pb.println(format!("handling {}", current_label.to_string()));
             }
 
             // NOTE(@ostera): get all dependencies from all the analyzers
@@ -235,9 +230,24 @@ impl LiftCommand {
             // in the Dependencies.json that are NOT inferrable
             if first_run {
                 for dep in dependencies.dependencies.values() {
+                    pb.println(format!("adding from dep.json: {}", dep.url.to_string()));
                     let label: Label = dep.url.clone().into();
                     warp.label_registry().register_label(label.clone());
+                    // NOTE(@ostera): this path should really be computed within a
+                    // WorkspaceManager where we can add a DependencyWorkspace.
+                    //
+                    let final_dir = warp
+                        .workspace
+                        .paths
+                        .global_workspaces_path
+                        .join(dep.url.to_string().replace("://", "/"))
+                        .join(&dep.version)
+                        .join(&dep.package);
+
+                    queue.push((final_dir.clone(), label.clone()));
+                    dep_label_paths.insert(dep.url.to_string(), (final_dir.clone(), label.clone()));
                     current_deps.push(label);
+                    deps.insert(dep.url.to_string(), dep.to_owned());
                 }
             }
 
@@ -665,19 +675,15 @@ impl AnalyzerServicePool {
     ) -> Result<Self, anyhow::Error> {
         let cyan = console::Style::new().cyan().bold();
 
-        let service_names: Vec<String> = services.iter().map(|l| l.to_string()).collect();
+        let service_names: HashSet<String> = services.iter().map(|l| l.to_string()).collect();
 
         let mut processes = vec![];
         let mut clients = vec![];
-        for (_idx, build_result) in warp
-            .get_results()
-            .iter()
-            .filter(|br| {
-                let name = br.target_manifest.label.to_string();
-                service_names.contains(&name)
-            })
-            .enumerate()
-        {
+        for build_result in warp.get_results().iter().filter(|br| {
+            let name = br.target_manifest.label.to_string();
+            service_names.contains(&name)
+        }) {
+            let service_name = build_result.target_manifest.label.to_string();
             let port = PortFinder::next().unwrap();
             let conn_str = format!("http://0.0.0.0:{}", port);
 
@@ -694,6 +700,7 @@ impl AnalyzerServicePool {
                 .build()?
                 .spawn()?;
 
+            debug!("Started {}", service_name);
             processes.push(process);
 
             let client = loop {
