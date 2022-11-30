@@ -1,10 +1,19 @@
 {
   "elixir": {
-    "1.13": {
+    "1.13 / OTP 24": {
       "sha1": "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa",
       "kind": "source",
       "version": "1.13",
       "analyzer": "https://tools.warp.build/beam/analyzer",
+      "extensions": ["ex", "exs"],
+      "deps": { "erlang": "24" }
+    },
+    "1.13 / OTP 25": {
+      "sha1": "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa",
+      "kind": "source",
+      "version": "1.13",
+      "analyzer": "https://tools.warp.build/beam/analyzer",
+      "extensions": ["ex", "exs"],
       "deps": { "erlang": "25" }
     }
   },
