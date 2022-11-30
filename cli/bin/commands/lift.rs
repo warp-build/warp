@@ -216,11 +216,8 @@ impl LiftCommand {
             pb.set_message(current_label.to_string());
 
             if visited.contains(&current_label) {
-                pb.println(format!("skipping {}", current_label.to_string()));
                 pending.remove(&current_label);
                 continue;
-            } else {
-                pb.println(format!("handling {}", current_label.to_string()));
             }
 
             // NOTE(@ostera): get all dependencies from all the analyzers
@@ -230,7 +227,6 @@ impl LiftCommand {
             // in the Dependencies.json that are NOT inferrable
             if first_run {
                 for dep in dependencies.dependencies.values() {
-                    pb.println(format!("adding from dep.json: {}", dep.url.to_string()));
                     let label: Label = dep.url.clone().into();
                     warp.label_registry().register_label(label.clone());
                     // NOTE(@ostera): this path should really be computed within a
