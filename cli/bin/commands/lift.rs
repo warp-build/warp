@@ -196,7 +196,7 @@ impl LiftCommand {
         let dep_label_paths = DashMap::new();
         let deps = DashMap::new();
 
-        let mut include_test = true;
+        let mut first_run = true;
 
         // set up a progress bar
         let pb = {
@@ -230,18 +230,26 @@ impl LiftCommand {
 
             // NOTE(@ostera): get all dependencies from all the analyzers
             let mut current_deps = vec![];
+
+            // NOTE(@ostera): the first time we run, we should also load to build the deps that are
+            // in the Dependencies.json that are NOT inferrable
+            if first_run {
+                for dep in dependencies.dependencies.values() {
+                    let label: Label = dep.url.clone().into();
+                    warp.label_registry().register_label(label.clone());
+                    current_deps.push(label);
+                }
+            }
+
             for client in &mut analyzer_pool.clients {
                 let request = proto::build::warp::codedb::GetDependenciesRequest {
                     workspace_root: workspace_root.to_string_lossy().to_string(),
-                    profiles: if include_test {
+                    profiles: if first_run {
                         vec!["test".into()]
                     } else {
                         vec![]
                     },
                 };
-                // NOTE(@ostera): we only include tests the very first time (for the top-level
-                // workspace)
-                include_test = false;
                 let response = client.get_dependencies(request).await?.into_inner();
 
                 for dep in response.dependencies {
@@ -304,6 +312,10 @@ impl LiftCommand {
                     dep_label_paths.insert(dep.url.clone(), (final_dir.clone(), label.clone()));
                 }
             }
+
+            // NOTE(@ostera): we only include tests the very first time (for the top-level
+            // workspace)
+            first_run = false;
 
             let line = format!(
                 "{:>12} {} has {} dependencies",
