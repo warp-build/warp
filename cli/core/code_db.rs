@@ -105,6 +105,11 @@ impl CodeDb {
             .map_err(CodeDbError::SqliteError)
     }
 
+    /// Find the Label that corresponds to a particular file.
+    ///
+    /// If the file is defined multiple times, it will return the first local file. If there is
+    /// no local file, it will return the first remote file.
+    ///
     pub async fn find_label_for_file(&self, file: &str) -> Result<Label, CodeDbError> {
         let mut query = self
             .sql
@@ -123,7 +128,24 @@ impl CodeDb {
             })
             .map_err(CodeDbError::SqliteError)?;
 
-        if let Some(Ok(label)) = rows.next() {
+        // NOTE(@ostera): the heuristic here is to prefer local symbol over remote ones, but if
+        // there are multiple remote ones, pick the first one.
+        //
+        // However, we may iterate over all the remote symbol before we find the local one, so we
+        // have to save the first one until the end.
+        //
+        let mut first_remote_label = None;
+        while let Some(Ok(label)) = rows.next() {
+            if label.is_file() {
+                return Ok(label);
+            }
+            if first_remote_label.is_none() {
+                first_remote_label = Some(label);
+            }
+            continue;
+        }
+
+        if let Some(label) = first_remote_label {
             return Ok(label);
         }
 
@@ -132,6 +154,11 @@ impl CodeDb {
         })
     }
 
+    /// Find the Label that corresponds to a particular symbol.
+    ///
+    /// If the symbol is defined multiple times, it will return the first local symbol. If there is
+    /// no local symbol, it will return the first remote symbol.
+    ///
     pub async fn find_label_for_symbol(
         &self,
         symbol_raw: &str,
@@ -155,7 +182,24 @@ impl CodeDb {
             })
             .map_err(CodeDbError::SqliteError)?;
 
-        if let Some(Ok(label)) = rows.next() {
+        // NOTE(@ostera): the heuristic here is to prefer local symbol over remote ones, but if
+        // there are multiple remote ones, pick the first one.
+        //
+        // However, we may iterate over all the remote symbol before we find the local one, so we
+        // have to save the first one until the end.
+        //
+        let mut first_remote_label = None;
+        while let Some(Ok(label)) = rows.next() {
+            if label.is_file() {
+                return Ok(label);
+            }
+            if first_remote_label.is_none() {
+                first_remote_label = Some(label);
+            }
+            continue;
+        }
+
+        if let Some(label) = first_remote_label {
             return Ok(label);
         }
 
