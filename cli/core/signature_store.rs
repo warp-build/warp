@@ -419,6 +419,32 @@ impl SignatureStore {
         for mut sig in gen_sig.signatures.into_iter() {
             sig.name.set_workspace(local_label.workspace());
 
+            // NOTE(@ostera): if there are any hints for _all targets_ (designated with the `*`
+            // key), put them into the dependency and runtime dependency lists.
+            //
+            if let Some(cfg) = hints.get("*") {
+                let package_path = local_label.file().parent().unwrap();
+                for mut dep in cfg.get_label_list("deps").unwrap_or_default() {
+                    if dep.path().starts_with("./") {
+                        dep.set_path(
+                            package_path.join(dep.path().to_string_lossy().replace("./", "")),
+                        );
+                        dep = dep.to_abstract().unwrap();
+                    }
+                    sig.deps.push(dep);
+                }
+
+                for mut dep in cfg.get_label_list("runtime_deps").unwrap_or_default() {
+                    if dep.path().starts_with("./") {
+                        dep.set_path(
+                            package_path.join(dep.path().to_string_lossy().replace("./", "")),
+                        );
+                        dep = dep.to_abstract().unwrap();
+                    }
+                    sig.runtime_deps.push(dep);
+                }
+            };
+
             // NOTE(@ostera): if there are any hints, we will put them at the back of the
             // dependency and runtime dependency lists.
             //
