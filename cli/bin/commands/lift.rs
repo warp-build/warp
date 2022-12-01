@@ -263,30 +263,6 @@ impl LiftCommand {
                     warp.label_registry().register_label(label.clone());
                     let resolver: Label = dep.signature_resolver.parse().unwrap();
 
-                    /* FIXME(@ostera): this is the code I wanted to write, but it won't work
-                     * because the dependency manager has temporarily inherited all
-                     * deps from all remote workspaces.
-                     *
-                     * So if we try to persist it, we get a bunch of random
-                     * dependencies that we 100% do not want.
-                     *
-                     * The real solution here is to make the
-                     * DependencyManager work with multiple workspaces.
-                     *
-                     *   let resolver =
-                     *       Some(warp.label_registry().register_label(resolver));
-                     *
-                     *   let dep = Dependency {
-                     *       label,
-                     *       resolver,
-                     *       package: dep.name,
-                     *       version: dep.version,
-                     *       url: dep.url.parse().unwrap(),
-                     *   };
-                     *
-                     *   warp.dependency_manager().add(dep);
-                     */
-
                     let dep_json = DependencyJson::builder()
                         .url(dep.url.parse()?)
                         .resolver(Some(resolver.to_hash_string()))
