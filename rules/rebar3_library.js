@@ -65,7 +65,7 @@ export default Warp.Rule({
       "src/**/*.erl",
       "src/**/*.hrl",
       "include/**/*.hrl",
-      "rebar.config",
+      "rebar.config*",
       "priv/**/*",
     ],
     extra_srcs: [],
