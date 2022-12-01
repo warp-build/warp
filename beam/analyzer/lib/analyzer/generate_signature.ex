@@ -15,7 +15,13 @@ defmodule Analyzer.GenerateSignature do
 
   defp gen_sig_erl(req) do
     # FIXME(@ostera): this is a hack to make the source analyzer find headers
-    parts = req.file |> Path.dirname() |> Path.split() |> Enum.drop(1)
+    #
+
+    # NOTE(@ostera): we don't want to discover things on the FS root
+    parts = case req.file |> Path.dirname() |> Path.split() do
+      ["/" | parts] -> parts
+      parts -> parts
+    end
 
     include_paths =
       [
@@ -23,9 +29,9 @@ defmodule Analyzer.GenerateSignature do
         Enum.map(req.dependencies, fn dep ->
           Path.dirname(Path.dirname(dep.store_path))
         end),
-        for i <- 1..(Enum.count(parts) - 1) do
+        for i <- 0..(Enum.count(parts) - 1) do
           path =
-            case Enum.take(parts, i + 1) do
+            case Enum.take(parts, i) do
               [] -> "."
               parts -> parts |> Path.join()
             end
@@ -92,12 +98,6 @@ defmodule Analyzer.GenerateSignature do
         includes =
           sig.includes
           |> Enum.map(fn dep ->
-            dep =
-              case String.split(dep, "/") do
-                [_app, include, file] -> Path.join(include, file)
-                _ -> dep
-              end
-
             req = {:file, Build.Warp.FileRequirement.new(path: dep)}
 
             Build.Warp.Requirement.new(requirement: req)
