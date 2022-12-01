@@ -18,10 +18,11 @@ defmodule Analyzer.GenerateSignature do
     #
 
     # NOTE(@ostera): we don't want to discover things on the FS root
-    parts = case req.file |> Path.dirname() |> Path.split() do
-      ["/" | parts] -> parts
-      parts -> parts
-    end
+    parts =
+      case req.file |> Path.dirname() |> Path.split() do
+        ["/" | parts] -> parts
+        parts -> parts
+      end
 
     include_paths =
       [

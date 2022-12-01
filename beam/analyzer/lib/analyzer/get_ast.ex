@@ -13,10 +13,11 @@ defmodule Analyzer.GetAst do
     # FIXME(@ostera): this is a hack to make the source analyzer find headers
     #
     # NOTE(@ostera): we don't want to discover things on the FS root
-    parts = case req.file |> Path.dirname() |> Path.split() do
-      ["/" | parts] -> parts
-      parts -> parts
-    end
+    parts =
+      case req.file |> Path.dirname() |> Path.split() do
+        ["/" | parts] -> parts
+        parts -> parts
+      end
 
     include_paths =
       [
