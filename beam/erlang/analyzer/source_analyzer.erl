@@ -155,12 +155,21 @@ erlang_prop_tests(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, Comp
 get_prop_tests(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysisFn) ->
   CompAnalysis = CompAnalysisFn(),
 
-  Properties = case CompAnalysis of 
+  Properties0 = case CompAnalysis of 
                  #{ error := _ } ->
                    [ Fn || {_Mod, Fn, _Arity} <- erl_analyzer:functions(SourceAnalysis) ];
                  _ ->
                    maps:keys(cerl_analyzer:functions(SourceAnalysis))
                end,
+
+  Properties = lists:filter(fun (Fn) ->
+                                FnName = erlang:atom_to_binary(Fn, utf8),
+                                io:format("prop: ~p\n", [FnName]),
+                                case string:prefix(FnName, <<"prop_">>) of
+                                  nomatch -> false;
+                                  _ -> true
+                                end
+                            end, Properties0),
 
   ModDeps = mods_from_analyses(File, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis),
   IncludeDeps = includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis),
@@ -172,7 +181,7 @@ get_prop_tests(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAn
     modules => ModDeps,
     props => [Prop],
     rule => <<"erlang_proper_test">>
-   } || Prop <- Properties].
+   } || Prop <- Properties ].
 
 
 %%--------------------------------------------------------------------------------------------------

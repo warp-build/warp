@@ -85,8 +85,12 @@ strip_tree([Node={attribute, _ , _, _}|Ast], Symbols, Acc) -> strip_tree(Ast, Sy
 
 strip_tree([Node={function, _Loc, Name, Arity, _Body}|Ast], Symbols, Acc) ->
   case lists:member({Name, Arity}, Symbols) of
-    true -> strip_tree(Ast, Symbols, [Node|Acc]);
-    false -> strip_tree(Ast, Symbols, Acc)
+    true -> 
+      io:format("Found function: ~p/~p\n", [Name, Arity]),
+      strip_tree(Ast, Symbols, [Node|Acc]);
+    false -> 
+      io:format("Skipped function: ~p/~p\n", [Name, Arity]),
+      strip_tree(Ast, Symbols, Acc)
   end;
 
 strip_tree([Node|Ast], Symbols, Acc) ->
@@ -97,9 +101,15 @@ get_symbol(Ast, {Sym, Args}) ->
     Ast,
     _Acc = none,
     fun
-      (Ast={function, _Loc1, Name, Arity, _Body}, none)
-        when (Name =:= Sym) andalso (Arity =:= Args) -> {some, Ast};
-      (_Ast, Acc) -> Acc
+      (Ast={function, _Loc1, Name, Arity, _Body}, none) ->
+        io:format("Searching for symbol: ~p/~p\n", [Sym, Args]),
+        io:format("Found symbol: ~p/~p\n", [Name, Arity]),
+        case (Name =:= Sym) and (Arity =:= Args) of
+          true -> {some, Ast};
+          false -> none
+        end;
+      (_Ast, Acc) ->
+        Acc
     end).
 
 get_sym_deps(Ast) ->
