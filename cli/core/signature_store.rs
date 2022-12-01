@@ -1,6 +1,6 @@
 use super::Event;
 use super::*;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use std::collections::BTreeMap;
 use std::{path::PathBuf, sync::Arc};
 use thiserror::*;
@@ -207,7 +207,7 @@ impl SignatureStore {
             let code_db = CodeDb::new(&self.workspace).await.unwrap();
             let mut signatures = vec![];
             for sig in response.signatures {
-                let mut deps = vec![];
+                let mut deps: DashSet<Label> = DashSet::new();
                 for dep in sig.deps {
                     let req = dep.requirement.unwrap();
 
@@ -216,7 +216,7 @@ impl SignatureStore {
                             let url: url::Url = url_req.url.parse().unwrap();
                             let label: Label = url.clone().into();
                             debug!("DEP: {} -> {}", &url, label.to_string());
-                            deps.push(label)
+                            deps.insert(label);
                         }
 
                         proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
@@ -227,7 +227,7 @@ impl SignatureStore {
                                 .unwrap_or_else(|| dep_req.url.parse().unwrap());
                             let label: Label = url.into();
                             debug!("DEP: {} -> {}", &dep_req.name, label.to_string());
-                            deps.push(label)
+                            deps.insert(label);
                         }
 
                         proto::build::warp::requirement::Requirement::File(file_req) => {
@@ -236,7 +236,7 @@ impl SignatureStore {
                                 .await
                                 .map_err(SignatureStoreError::CodeDbError)?;
                             debug!("DEP: {} -> {}", &file_req.path, label.to_string());
-                            deps.push(label)
+                            deps.insert(label);
                         }
 
                         proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
@@ -250,12 +250,12 @@ impl SignatureStore {
                                 &sym_req.kind,
                                 label.to_string()
                             );
-                            deps.push(label)
+                            deps.insert(label);
                         }
                     }
                 }
 
-                let mut runtime_deps = vec![];
+                let mut runtime_deps: DashSet<Label> = DashSet::new();
                 for dep in sig.runtime_deps {
                     let req = dep.requirement.unwrap();
                     match req {
@@ -263,7 +263,7 @@ impl SignatureStore {
                             let url: url::Url = url_req.url.parse().unwrap();
                             let label: Label = url.clone().into();
                             debug!("DEP: {} -> {}", &url, label.to_string());
-                            runtime_deps.push(label)
+                            runtime_deps.insert(label);
                         }
 
                         proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
@@ -274,7 +274,7 @@ impl SignatureStore {
                                 .unwrap_or_else(|| dep_req.url.parse().unwrap());
                             let label: Label = url.into();
                             debug!("DEP: {} -> {}", &dep_req.name, label.to_string());
-                            runtime_deps.push(label)
+                            runtime_deps.insert(label);
                         }
 
                         proto::build::warp::requirement::Requirement::File(file_req) => {
@@ -283,7 +283,7 @@ impl SignatureStore {
                                 .await
                                 .map_err(SignatureStoreError::CodeDbError)?;
                             debug!("DEP: {} -> {}", &file_req.path, label.to_string());
-                            runtime_deps.push(label)
+                            runtime_deps.insert(label);
                         }
 
                         proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
@@ -297,7 +297,7 @@ impl SignatureStore {
                                 &sym_req.kind,
                                 label.to_string()
                             );
-                            runtime_deps.push(label)
+                            runtime_deps.insert(label);
                         }
                     }
                 }
@@ -305,8 +305,8 @@ impl SignatureStore {
                 let signature = Signature {
                     name: sig.name.parse().unwrap(),
                     rule: sig.rule,
-                    deps,
-                    runtime_deps,
+                    deps: deps.into_iter().collect(),
+                    runtime_deps: runtime_deps.into_iter().collect(),
                     config: sig.config.map(|c| c.into()).unwrap_or_default(),
                 };
 
