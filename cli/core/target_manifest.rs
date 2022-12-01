@@ -181,7 +181,7 @@ impl TargetManifest {
             outs,
             provides,
             rule_name: target.rule.name.clone(),
-            srcs: target.srcs().iter().cloned().collect(),
+            srcs: target.srcs().to_vec(),
             toolchains,
             transitive_deps,
             runtime_deps,

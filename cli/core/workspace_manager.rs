@@ -57,21 +57,6 @@ impl WorkspaceManager {
         fs::metadata(&warp_lock).await.is_ok()
     }
 
-    #[tracing::instrument(name = "WorkspaceManager::create_lock", skip(self, config))]
-    async fn create_lock(
-        &self,
-        config: &impl WorkspaceConfig,
-    ) -> Result<(), WorkspaceManagerError> {
-        let warp_lock = self._warp_lock_path(config);
-        fs::File::create(&warp_lock)
-            .await
-            .map(|_| ())
-            .map_err(|err| WorkspaceManagerError::LockCreationError {
-                path: warp_lock,
-                err,
-            })
-    }
-
     fn _store_path(&self, config: &impl WorkspaceConfig) -> PathBuf {
         self.global_workspaces_path.join(config.path())
     }

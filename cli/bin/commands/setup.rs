@@ -33,7 +33,7 @@ To do this, we need sudo permissions to:
         cmd.stdin(Stdio::inherit())
             .stderr(Stdio::inherit())
             .stdout(Stdio::inherit())
-            .args(&["-c", setup_script]);
+            .args(["-c", setup_script]);
 
         let output = cmd.output().await.expect("could not run bash :(");
 

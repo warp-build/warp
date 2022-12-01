@@ -4,6 +4,10 @@ WARP_EXE=warp
 build:
 	cargo build
 
+.PHONY: check
+check:
+	cargo clippy
+
 .PHONY: manual
 manual:
 	mdbook build --dest-dir ../docs ./manual

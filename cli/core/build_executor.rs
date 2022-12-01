@@ -36,10 +36,6 @@ pub enum BuildExecutorError {
 pub struct BuildExecutor {
     pub(crate) archive_manager: Arc<ArchiveManager>,
 
-    pub(crate) analyzer_service_manager: Arc<AnalyzerServiceManager>,
-
-    pub(crate) resolver_service_manager: Arc<ResolverServiceManager>,
-
     pub(crate) artifact_store: Arc<ArtifactStore>,
 
     pub(crate) build_coordinator: Arc<BuildCoordinator>,
@@ -65,8 +61,6 @@ pub struct BuildExecutor {
     pub(crate) signature_store: Arc<SignatureStore>,
 
     pub(crate) target_executor: Arc<TargetExecutor>,
-
-    pub(crate) toolchain_manager: Arc<ToolchainManager>,
 
     worker_pool: LocalPoolHandle,
 
@@ -176,7 +170,6 @@ impl BuildExecutor {
 
         Ok(BuildExecutor {
             archive_manager,
-            analyzer_service_manager,
             artifact_store,
             build_coordinator,
             build_opts,
@@ -186,12 +179,10 @@ impl BuildExecutor {
             event_channel,
             label_registry,
             label_resolver,
-            resolver_service_manager,
             rule_store,
             signature_store,
             source_manager,
             target_executor,
-            toolchain_manager,
             worker_pool,
             workspace,
         })

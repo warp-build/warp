@@ -653,7 +653,7 @@ impl RuleExecutor {
             .unwrap_or_default()
             .iter()
             .cloned()
-            .map(|x| SourceInput::Path(x))
+            .map(SourceInput::Path)
             .collect();
 
         let provides = self

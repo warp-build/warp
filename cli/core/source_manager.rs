@@ -11,7 +11,6 @@ use std::sync::Arc;
 use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
-use url::Url;
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub enum SourceInput {
@@ -135,24 +134,10 @@ impl Display for SourceId {
 #[derive(Clone, Debug)]
 pub struct SourceManager {
     analyzer_service_manager: Arc<AnalyzerServiceManager>,
-
-    artifact_store: Arc<ArtifactStore>,
-
-    build_results: Arc<BuildResults>,
-
     dependency_manager: Arc<DependencyManager>,
-
-    event_channel: Arc<EventChannel>,
-
     global_signatures_path: PathBuf,
-
     label_registry: Arc<LabelRegistry>,
-
-    // TODO(@ostera): remove this! we should be
-    parsers: DashMap<String, LabelId>,
-
     sources: DashMap<(LabelId, SourceHash, SourceSymbol), SourceFile>,
-    build_opts: BuildOpts,
 }
 
 #[derive(Error, Debug)]
@@ -218,43 +203,19 @@ pub enum SourceManagerError {
 impl SourceManager {
     pub fn new(
         workspace: &Workspace,
-        build_results: Arc<BuildResults>,
-        event_channel: Arc<EventChannel>,
-        artifact_store: Arc<ArtifactStore>,
+        _build_results: Arc<BuildResults>,
+        _event_channel: Arc<EventChannel>,
+        _artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
         analyzer_service_manager: Arc<AnalyzerServiceManager>,
         dependency_manager: Arc<DependencyManager>,
-        build_opts: BuildOpts,
+        _build_opts: BuildOpts,
     ) -> Self {
-        let parsers = DashMap::new();
-
-        for (ext, parser) in &[
-            ("erl", "https://tools.warp.build/erlang/lifter"),
-            ("hrl", "https://tools.warp.build/erlang/lifter"),
-            ("go", "https://tools.warp.build/tree-sitter/parser"),
-            ("js", "https://tools.warp.build/tree-sitter/parser"),
-            ("py", "https://tools.warp.build/tree-sitter/parser"),
-            ("rs", "https://tools.warp.build/tree-sitter/parser"),
-            ("swift", "https://tools.warp.build/tree-sitter/parser"),
-            ("ts", "https://tools.warp.build/tree-sitter/parser"),
-            ("tsx", "https://tools.warp.build/tree-sitter/parser"),
-            ("jsx", "https://tools.warp.build/tree-sitter/parser"),
-        ] {
-            let label: Label = Url::parse(parser).unwrap().into();
-            let label_id = label_registry.register_label(label);
-            parsers.insert(ext.to_string(), label_id);
-        }
-
         Self {
             analyzer_service_manager,
-            artifact_store,
-            build_opts,
-            build_results,
             dependency_manager,
-            event_channel,
             global_signatures_path: workspace.paths.global_signatures_path.clone(),
             label_registry,
-            parsers,
             sources: DashMap::new(),
         }
     }

@@ -1,12 +1,6 @@
 use super::*;
 use dashmap::DashMap;
-use std::{
-    path::PathBuf,
-    sync::{
-        atomic::{AtomicU32, Ordering},
-        Arc, Mutex,
-    },
-};
+use std::{path::PathBuf, sync::Arc};
 use thiserror::*;
 use tokio::process::Child;
 
@@ -24,13 +18,12 @@ pub struct ResolverServiceManager {
     build_results: Arc<BuildResults>,
     clients: DashMap<LabelId, ResolverServiceClient>,
     label_registry: Arc<LabelRegistry>,
-    next_available_port: Arc<AtomicU32>,
     processes: Arc<DashMap<LabelId, Child>>,
     build_opts: BuildOpts,
 
     // NOTE(@ostera): only used to serialize the calls to `start` and prevent starting the same
     // analyzer twice.
-    _start_lock: Arc<Mutex<()>>,
+    _start_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 #[derive(Error, Debug)]
@@ -73,7 +66,6 @@ impl ResolverServiceManager {
         }
 
         Self {
-            next_available_port: Arc::new(AtomicU32::new(22000)),
             processes: Arc::new(DashMap::new()),
             clients: DashMap::new(),
             build_results,
@@ -81,7 +73,7 @@ impl ResolverServiceManager {
             analyzers_by_extension,
             event_channel,
             build_opts,
-            _start_lock: Arc::new(Mutex::new(())),
+            _start_lock: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
@@ -107,7 +99,7 @@ impl ResolverServiceManager {
         &self,
         label_id: LabelId,
     ) -> Result<ResolverServiceClient, ResolverServiceManagerError> {
-        let _lock = self._start_lock.lock().unwrap();
+        let _lock = self._start_lock.lock().await;
 
         // 1. If the process has already been started, we'll just return its handler.
         if let Some(client) = self.clients.get(&label_id) {

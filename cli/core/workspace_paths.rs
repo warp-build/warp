@@ -118,7 +118,7 @@ impl WorkspacePaths {
             &local_toolchains_root,
             &local_warp_root,
         ] {
-            std::fs::create_dir_all(&path).map_err(|err| {
+            std::fs::create_dir_all(path).map_err(|err| {
                 WorkspacePathsError::CouldNotCreateDir {
                     path: path.to_path_buf(),
                     err,

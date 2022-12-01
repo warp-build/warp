@@ -1,6 +1,7 @@
 use super::Event;
 use super::*;
 use dashmap::DashMap;
+use std::path::Path;
 use std::{path::PathBuf, sync::Arc};
 use thiserror::*;
 use tokio::fs;
@@ -16,7 +17,6 @@ use url::Url;
 pub struct DependencyResolver {
     archive_manager: ArchiveManager,
     artifact_store: Arc<ArtifactStore>,
-    build_results: Arc<BuildResults>,
     dependency_manager: Arc<DependencyManager>,
     event_channel: Arc<EventChannel>,
     global_workspaces_path: PathBuf,
@@ -73,7 +73,7 @@ impl DependencyResolver {
     #[tracing::instrument(name = "DependencyResolver::new", skip(workspace))]
     pub fn new(
         workspace: &Workspace,
-        build_results: Arc<BuildResults>,
+        _build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
         artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
@@ -83,7 +83,6 @@ impl DependencyResolver {
         let this = Self {
             archive_manager: ArchiveManager::new(workspace, event_channel.clone()),
             artifact_store,
-            build_results,
             dependency_manager,
             event_channel,
             global_workspaces_path: workspace.paths.global_workspaces_path.clone(),
@@ -267,7 +266,7 @@ impl DependencyResolver {
     async fn generate_signature(
         &self,
         resolver: LabelId,
-        final_dir: &PathBuf,
+        final_dir: &Path,
         dependency: &Dependency,
     ) -> Result<GeneratedSignature, DependencyResolverError> {
         let override_resolver = dependency.resolver.unwrap_or(resolver);

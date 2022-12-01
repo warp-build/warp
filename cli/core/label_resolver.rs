@@ -10,13 +10,11 @@ use tracing::*;
 
 #[derive(Debug)]
 pub struct LabelResolver {
-    build_opts: BuildOpts,
     dependency_resolver: DependencyResolver,
     label_registry: Arc<LabelRegistry>,
     remote_workspace_resolver: Arc<RemoteWorkspaceResolver>,
     resolved_labels: DashMap<LabelId, Target>,
     toolchain_manager: Arc<ToolchainManager>,
-    event_channel: Arc<EventChannel>,
     workspace: Workspace,
     artifact_store: Arc<ArtifactStore>,
     source_resolver: SourceResolver,
@@ -87,7 +85,7 @@ impl LabelResolver {
         );
 
         let source_resolver = SourceResolver::new(
-            event_channel.clone(),
+            event_channel,
             label_registry.clone(),
             source_manager,
             signature_store,
@@ -96,9 +94,7 @@ impl LabelResolver {
 
         Self {
             artifact_store,
-            build_opts,
             dependency_resolver,
-            event_channel,
             label_registry,
             remote_workspace_resolver,
             resolved_labels: DashMap::default(),

@@ -165,20 +165,20 @@ impl BuildResults {
     pub fn get_manifest(&self, label: LabelId) -> Option<Arc<TargetManifest>> {
         self.build_results
             .get(&label)
-            .map(|r| (*r).target_manifest.clone())
+            .map(|r| r.target_manifest.clone())
     }
 
     pub fn get_target_runtime_deps(&self, label: LabelId) -> Vec<LabelId> {
         self.build_results
             .get(&label)
-            .map(|r| (*r).executable_target.runtime_deps.clone())
+            .map(|r| r.executable_target.runtime_deps.clone())
             .unwrap_or_default()
     }
 
     pub fn get_target_deps(&self, label: LabelId) -> Vec<LabelId> {
         self.build_results
             .get(&label)
-            .map(|r| (*r).executable_target.deps.clone())
+            .map(|r| r.executable_target.deps.clone())
             .unwrap_or_default()
     }
 

@@ -1,4 +1,3 @@
-use super::Event;
 use super::*;
 use std::sync::Arc;
 
@@ -7,27 +6,21 @@ use std::sync::Arc;
 ///
 #[derive(Debug, Clone)]
 pub struct SourceResolver {
-    build_opts: BuildOpts,
-    event_channel: Arc<EventChannel>,
-    label_registry: Arc<LabelRegistry>,
     signature_store: Arc<SignatureStore>,
     source_manager: Arc<SourceManager>,
 }
 
 impl SourceResolver {
     pub fn new(
-        event_channel: Arc<EventChannel>,
-        label_registry: Arc<LabelRegistry>,
+        _event_channel: Arc<EventChannel>,
+        _label_registry: Arc<LabelRegistry>,
         source_manager: Arc<SourceManager>,
         signature_store: Arc<SignatureStore>,
-        build_opts: BuildOpts,
+        _build_opts: BuildOpts,
     ) -> Self {
         Self {
-            event_channel,
-            label_registry,
             source_manager,
             signature_store,
-            build_opts,
         }
     }
 

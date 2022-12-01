@@ -6,7 +6,7 @@ use indicatif::ProgressBar;
 use indicatif::ProgressStyle;
 use std::collections::BTreeMap;
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use structopt::StructOpt;
 use tracing::*;
 use warp_core::*;
@@ -651,8 +651,6 @@ impl AnalyzerServicePool {
         warp: &WarpEngine,
         flags: Flags,
     ) -> Result<Self, anyhow::Error> {
-        let cyan = console::Style::new().cyan().bold();
-
         let service_names: HashSet<String> = services.iter().map(|l| l.to_string()).collect();
 
         let mut processes = vec![];

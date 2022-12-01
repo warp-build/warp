@@ -228,15 +228,15 @@ impl TargetExecutor {
                 .map_err(TargetExecutorError::ArtifactStoreError)?;
 
             for out in dep.outs.iter() {
-                let src = dep_src.join(&out);
-                let dst = store_path.join(&out);
+                let src = dep_src.join(out);
+                let dst = store_path.join(out);
                 self.copy_file(&target.label, &src, &dst).await?;
             }
         }
 
         // Copy sources
         for src in &target.srcs() {
-            let dst = store_path.join(&src);
+            let dst = store_path.join(src);
             if src.eq(&dst) {
                 panic!(
                     r#"We almost copied a file onto itself!
@@ -301,11 +301,10 @@ TARGET = {:#?}
 
         let inputs: FxHashSet<PathBuf> = node_inputs.union(&deps_inputs).cloned().collect();
 
-        let all_outputs: FxHashSet<PathBuf> = self
-            .scan_files(store_path)
+        let all_outputs: FxHashSet<PathBuf> = scan_files(store_path)
             .await
             .iter()
-            .flat_map(|path| path.strip_prefix(&store_path))
+            .flat_map(|path| path.strip_prefix(store_path))
             .map(|path| path.to_path_buf())
             .collect();
 
@@ -320,7 +319,7 @@ TARGET = {:#?}
         for out in &target.outs {
             let abs_out = store_path.join(out);
             if abs_out.is_dir() {
-                for path in self.scan_files(&abs_out).await {
+                for path in scan_files(&abs_out).await {
                     let path = path
                         .strip_prefix(&store_path.join("."))
                         .unwrap()
@@ -421,28 +420,28 @@ TARGET = {:#?}
 
         Ok(())
     }
+}
 
-    fn scan_files<'a>(&'a self, root: &'a PathBuf) -> futures::future::BoxFuture<'_, Vec<PathBuf>> {
-        async move {
-            if root.is_dir() {
-                let mut entries = vec![];
-                let mut read_dir = fs::read_dir(root).await.unwrap_or_else(|err| {
-                    panic!("Could not read directory: {:?} due to {:?}", root, err)
-                });
-                while let Ok(Some(entry)) = read_dir.next_entry().await {
-                    let path = entry.path();
-                    let mut rest = if path.is_dir() {
-                        self.scan_files(&path).await
-                    } else {
-                        vec![path]
-                    };
-                    entries.append(&mut rest);
-                }
-                entries
-            } else {
-                vec![]
+fn scan_files(root: &'_ PathBuf) -> futures::future::BoxFuture<'_, Vec<PathBuf>> {
+    async move {
+        if root.is_dir() {
+            let mut entries = vec![];
+            let mut read_dir = fs::read_dir(root).await.unwrap_or_else(|err| {
+                panic!("Could not read directory: {:?} due to {:?}", root, err)
+            });
+            while let Ok(Some(entry)) = read_dir.next_entry().await {
+                let path = entry.path();
+                let mut rest = if path.is_dir() {
+                    scan_files(&path).await
+                } else {
+                    vec![path]
+                };
+                entries.append(&mut rest);
             }
+            entries
+        } else {
+            vec![]
         }
-        .boxed()
     }
+    .boxed()
 }

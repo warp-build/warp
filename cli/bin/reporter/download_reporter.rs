@@ -7,20 +7,16 @@ use warp_core::*;
 pub struct DownloadReporter {
     event_consumer: EventConsumer,
     event_channel: Arc<EventChannel>,
-    flags: Flags,
-    goal: Goal,
 }
 
 impl DownloadReporter {
-    pub fn new(event_channel: Arc<EventChannel>, flags: Flags, goal: Goal) -> DownloadReporter {
+    pub fn new(event_channel: Arc<EventChannel>, _flags: Flags, _goal: Goal) -> DownloadReporter {
         DownloadReporter {
             event_consumer: event_channel.consumer(),
             event_channel,
-            flags,
-            goal,
         }
     }
-    pub async fn run(self, targets: &[Label]) {
+    pub async fn run(self, _targets: &[Label]) {
         let handle = std::thread::spawn(move || {
             let yellow = console::Style::new().yellow();
             let red_bold = console::Style::new().red().bold();

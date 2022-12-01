@@ -54,7 +54,7 @@ impl RunShellAction {
             .env_clear()
             .envs(default_env)
             .stdout(Stdio::piped())
-            .args(&["-c", &script]);
+            .args(["-c", &script]);
 
         trace!("Running script: {:#?} {}", &self.env, &self.script);
 

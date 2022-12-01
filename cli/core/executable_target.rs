@@ -108,7 +108,7 @@ impl ExecutableTarget {
         &mut self,
         env: &ExecutionEnvironment,
         build_results: &BuildResults,
-        label_registry: &LabelRegistry,
+        _label_registry: &LabelRegistry,
     ) {
         let mut s = Sha256::new();
 

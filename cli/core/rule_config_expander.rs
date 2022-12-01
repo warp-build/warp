@@ -8,7 +8,10 @@ pub struct ConfigExpander;
 #[derive(Error, Debug)]
 pub enum ConfigExpanderError {
     #[error("Missing mandatory field {field_name} in target: {target:?}")]
-    MissingMandatoryField { target: Target, field_name: String },
+    MissingMandatoryField {
+        target: Box<Target>,
+        field_name: String,
+    },
 
     #[error("Invalid glob pattern: {path:?}\n\nError: {err:?}")]
     InvalidGlobPattern {
@@ -44,7 +47,7 @@ impl ConfigExpander {
                     Some(value) => value,
                     None => values.get(key).ok_or_else(|| {
                         ConfigExpanderError::MissingMandatoryField {
-                            target: target.clone(),
+                            target: Box::new(target.clone()),
                             field_name: key.clone(),
                         }
                     })?,
@@ -100,7 +103,7 @@ impl ConfigExpander {
         let workspace = label.workspace().unwrap();
         let path = {
             let p = workspace.join(label.path());
-            let p = if p.ends_with(&cfg_path) {
+            let p = if p.ends_with(cfg_path) {
                 p
             } else {
                 p.join(cfg_path)

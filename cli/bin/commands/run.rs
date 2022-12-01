@@ -36,7 +36,7 @@ build their dependencies and exit.
 
 impl RunCommand {
     pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
-        let mut label: Label = if let Some(label) = (&warp.workspace.aliases).get(&self.label) {
+        let mut label: Label = if let Some(label) = warp.workspace.aliases.get(&self.label) {
             label.clone()
         } else {
             self.label.parse()?
@@ -101,7 +101,7 @@ impl RunCommand {
             }
 
             if let Some(RunScript { run_script, env }) = &target.run_script {
-                let path = warp.workspace.paths.local_outputs_root.join(&run_script);
+                let path = warp.workspace.paths.local_outputs_root.join(run_script);
                 debug!("Running default run_script ({:?})", &path);
                 provides_env.extend(env.clone());
                 return self.run_cmd(
@@ -141,7 +141,7 @@ impl RunCommand {
     ) -> Result<(), Error> {
         let mut cmd = Command::new(bin);
 
-        let extra_paths = env.get("PATH").cloned().unwrap_or_else(|| "".to_string());
+        let extra_paths = env.get("PATH").cloned().unwrap_or_default();
         env.remove("PATH");
         env.insert("PATH".to_string(), format!("/bin:/usr/bin:{}", extra_paths));
 

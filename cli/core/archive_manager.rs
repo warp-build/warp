@@ -270,7 +270,7 @@ impl ArchiveManager {
     async fn run_extraction(
         &self,
         archive: &PathBuf,
-        dst: &PathBuf,
+        dst: &Path,
         strip_prefix: Option<String>,
     ) -> Result<(), anyhow::Error> {
         let mut file = fs::File::open(&archive).await?;

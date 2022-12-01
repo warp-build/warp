@@ -7,13 +7,10 @@ use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tracing::*;
-use url::Url;
 
 #[derive(Debug)]
 pub struct SignatureStore {
     analyzer_service_manager: Arc<AnalyzerServiceManager>,
-
-    artifact_store: Arc<ArtifactStore>,
 
     build_results: Arc<BuildResults>,
 
@@ -83,7 +80,7 @@ impl SignatureStore {
         workspace: &Workspace,
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
-        artifact_store: Arc<ArtifactStore>,
+        _artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
         analyzer_service_manager: Arc<AnalyzerServiceManager>,
         dependency_manager: Arc<DependencyManager>,
@@ -101,7 +98,6 @@ impl SignatureStore {
 
         Self {
             analyzer_service_manager,
-            artifact_store,
             build_results,
             dependency_manager,
             event_channel,
@@ -207,7 +203,7 @@ impl SignatureStore {
             let code_db = CodeDb::new(&self.workspace).await.unwrap();
             let mut signatures = vec![];
             for sig in response.signatures {
-                let mut deps: DashSet<Label> = DashSet::new();
+                let deps: DashSet<Label> = DashSet::new();
                 for dep in sig.deps {
                     let req = dep.requirement.unwrap();
 
@@ -255,7 +251,7 @@ impl SignatureStore {
                     }
                 }
 
-                let mut runtime_deps: DashSet<Label> = DashSet::new();
+                let runtime_deps: DashSet<Label> = DashSet::new();
                 for dep in sig.runtime_deps {
                     let req = dep.requirement.unwrap();
                     match req {
@@ -557,9 +553,4 @@ impl SignatureStore {
             Ok(None)
         }
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
 }

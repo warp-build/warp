@@ -146,7 +146,7 @@ impl<'de> Deserialize<'de> for Rule {
         }
         let defaults = RuleConfig::new().with_defaults(default_cfg);
 
-        let toolchains: Vec<Label> = (&rule_spec["toolchains"])
+        let toolchains: Vec<Label> = rule_spec["toolchains"]
             .as_array()
             .ok_or_else(|| {
                 de::Error::custom(format!(

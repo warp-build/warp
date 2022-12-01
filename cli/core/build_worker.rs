@@ -30,7 +30,7 @@ pub enum BuildWorkerError {
 
     #[error("Node {} expected the following but missing outputs: {:?}\n\nInstead it found the following unexpected outputs: {:?}\n\nStore path: {store_path:?}", label.to_string(), expected_but_missing, unexpected_but_present)]
     TargetFailedValidation {
-        label: Label,
+        label: Box<Label>,
         store_path: PathBuf,
         expected_but_missing: Vec<PathBuf>,
         unexpected_but_present: Vec<PathBuf>,
@@ -284,7 +284,7 @@ impl BuildWorker {
                 self.event_channel.send(Event::BuildError {
                     label: executable_target.label.clone().into(),
                     error: BuildError::BuildWorkerError(BuildWorkerError::TargetFailedValidation {
-                        label: executable_target.label.clone().into(),
+                        label: Box::new(executable_target.label.clone().into()),
                         store_path,
                         expected_but_missing,
                         unexpected_but_present,

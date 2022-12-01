@@ -165,27 +165,6 @@ impl LocalArtifactStore {
         Ok(())
     }
 
-    #[tracing::instrument(name = "LocalArtifactStore::needs_promotion", skip(manifest, dst))]
-    async fn needs_promotion(
-        &self,
-        manifest: &TargetManifest,
-        dst: &Path,
-    ) -> Result<bool, ArtifactStoreError> {
-        let buildstamp = dst.join(format!("{}.{}", manifest.label.hash(), BUILDSTAMP));
-
-        if fs::metadata(&buildstamp).await.is_ok() {
-            let hash = fs::read_to_string(buildstamp).await.map_err(|err| {
-                ArtifactStoreError::CouldNotReadBuildStamp {
-                    label: manifest.label.clone(),
-                    err,
-                    dst: dst.to_path_buf(),
-                }
-            })?;
-            return Ok(hash != manifest.hash);
-        }
-        Ok(true)
-    }
-
     #[tracing::instrument(name = "LocalArtifactStore::absolute_path_for_key")]
     pub async fn absolute_path_for_key(
         &self,
