@@ -15,6 +15,7 @@ defmodule Analyzer.GetAst do
 
     include_paths =
       [
+        "include",
         Enum.map(req.dependencies, fn dep ->
           Path.dirname(Path.dirname(dep.store_path))
         end),
