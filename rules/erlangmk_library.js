@@ -3,21 +3,8 @@ import ErlangToolchain, {BEAM_EXT, ERL_EXT} from "https://rules.warp.build/toolc
 const impl = ctx => {
   const { label, name, deps, srcs, headers } = ctx.cfg();
 
-  const outputs = srcs
-    .filter(file => file.endsWith(ERL_EXT))
-    .map(erl => {
-      let parent = File.parent(File.parent(erl))
-      if (parent.endsWith("src")) {
-        parent = parent.replace(/\/src$/, "")
-      }
-      const name = File.withExtension(File.filename(erl), BEAM_EXT)
-      return File.join(parent, File.join("ebin", name))
-    })
-    .concat(headers);
-
   ctx.action().declareOutputs([
-    `ebin/${name}.app`,
-    ...outputs
+    `_build/default/lib/${name}`
   ]);
 
   ctx.action().runShell({
@@ -31,6 +18,8 @@ export CPLUS_LIB_PATH="\${ERL_LIB_PATH}:$CPLUS_LIB_PATH"
 
 cd ${Label.path(label)}
 make clean app
+mkdir -p _build/default/lib/${name}
+mv ebin _build/default/lib/${name}
 
 `,
   })
