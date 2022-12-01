@@ -724,6 +724,8 @@ impl Label {
             .map(|ext| ext.to_string())
     }
 
+    /// Whether this label is a local label or not.
+    ///
     pub fn is_file(&self) -> bool {
         matches!(&self, Self::Local(_))
     }
