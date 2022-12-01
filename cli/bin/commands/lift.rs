@@ -413,7 +413,13 @@ impl LiftCommand {
 
             let mut dirs = vec![root.to_path_buf()];
             while let Some(dir) = dirs.pop() {
-                let mut read_dir = tokio::fs::read_dir(&dir).await.unwrap();
+                let mut read_dir = match tokio::fs::read_dir(&dir).await {
+                    Ok(read_dir) => read_dir,
+                    Err(err) => {
+                        debug!("could not read dir: {:?} due to {:?}", &dir, err);
+                        continue;
+                    }
+                };
 
                 while let Ok(Some(entry)) = read_dir.next_entry().await {
                     let path = entry.path().clone();
