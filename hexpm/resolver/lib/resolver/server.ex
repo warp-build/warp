@@ -87,7 +87,8 @@ defmodule Resolver.Server do
       Path.join(root, "metadata.config") |> File.exists?() ->
         prepare_hex_workspace(req)
 
-      Path.join(root, "rebar.config") |> File.exists?() ->
+      Path.join(root, "rebar.config") |> File.exists?() ||
+          Path.join(root, "rebar.lock") |> File.exists?() ->
         prepare_rebar3_workspace(req)
 
       Path.join(root, "Makefile") |> File.exists?() ->
@@ -256,39 +257,43 @@ defmodule Resolver.Server do
   end
 
   defp prepare_rebar3_workspace(req) do
-    metadata = read_rebar_config(req.package_root)
+    rebar_config = Path.join(req.package_root, "rebar.config")
 
     deps =
-      Map.get(metadata, :deps, [])
-      |> Enum.map(fn dep ->
-        url =
-          case dep do
-            {name, version, {:pkg, pkg_name}} ->
-              Build.Warp.UrlRequirement.new(
-                url: "https://hex.pm/packages/#{pkg_name |> Atom.to_string()}"
-              )
+      with {:ok, config} <- :file.consult(rebar_config) do
+        Keyword.get(config, :deps, [])
+        |> Enum.map(fn dep ->
+          url =
+            case dep do
+              {name, version, {:pkg, pkg_name}} ->
+                Build.Warp.UrlRequirement.new(
+                  url: "https://hex.pm/packages/#{pkg_name |> Atom.to_string()}"
+                )
 
-            {name, _version, {:git, repo, ref}} ->
-              repo = :binary.list_to_bin(repo)
-              Build.Warp.UrlRequirement.new(url: String.replace(repo, ".git", ""))
+              {name, _version, {:git, repo, ref}} ->
+                repo = :binary.list_to_bin(repo)
+                Build.Warp.UrlRequirement.new(url: String.replace(repo, ".git", ""))
 
-            {name, {:git, repo, ref}} ->
-              repo = :binary.list_to_bin(repo)
-              Build.Warp.UrlRequirement.new(url: String.replace(repo, ".git", ""))
+              {name, {:git, repo, ref}} ->
+                repo = :binary.list_to_bin(repo)
+                Build.Warp.UrlRequirement.new(url: String.replace(repo, ".git", ""))
 
-            {name, version} ->
-              Build.Warp.UrlRequirement.new(
-                url: "https://hex.pm/packages/#{name |> Atom.to_string()}"
-              )
+              {name, version} ->
+                Build.Warp.UrlRequirement.new(
+                  url: "https://hex.pm/packages/#{name |> Atom.to_string()}"
+                )
 
-            name when is_atom(name) ->
-              Build.Warp.DependencyRequirement.new(
-                url: "https://hex.pm/packages/#{name |> Atom.to_string()}"
-              )
-          end
+              name when is_atom(name) ->
+                Build.Warp.DependencyRequirement.new(
+                  url: "https://hex.pm/packages/#{name |> Atom.to_string()}"
+                )
+            end
 
-        Build.Warp.Requirement.new(requirement: {:url, url})
-      end)
+          Build.Warp.Requirement.new(requirement: {:url, url})
+        end)
+      else
+        _ -> []
+      end
 
     {:ok, config} =
       %{}
@@ -309,11 +314,5 @@ defmodule Resolver.Server do
       status: :STATUS_OK,
       signatures: [signature]
     )
-  end
-
-  def read_rebar_config(root) do
-    metadata_config = Path.join(root, "rebar.config")
-    {:ok, metadata} = :file.consult(metadata_config)
-    :maps.from_list(metadata)
   end
 end
