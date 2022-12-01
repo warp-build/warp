@@ -12,6 +12,7 @@
 -export([ast/1]).
 -export([dependency_includes/1]).
 -export([dependency_modules/1]).
+-export([dependency_type_modules/1]).
 -export([exports/1]).
 -export([exported_functions/1]).
 -export([exported_types/1]).
@@ -147,6 +148,10 @@ skip_prelude(Fns) ->
 dependency_modules(#{ modules := Mods, missing_modules := MissingMods }) -> uniq(Mods ++ MissingMods);
 dependency_modules(_) -> [].
 
+-spec dependency_type_modules(mod_desc()) -> [atom() | binary()].
+dependency_type_modules(#{ type_modules := TypeMods, missing_type_modules := MissingTypeMods }) -> uniq(TypeMods ++ MissingTypeMods);
+dependency_type_modules(_) -> [].
+
 -spec dependency_includes(mod_desc()) -> [atom() | binary()].
 dependency_includes(#{ includes := Hrls, missing_includes := MissingHrls }) -> uniq(Hrls ++ MissingHrls);
 dependency_includes(_) -> [].
@@ -168,6 +173,8 @@ do_analyze(Path, IncludePaths, ModMap) ->
 
   {Mods, MissingMods} = mods(Path, ModMap, Ast),
 
+  {TypeMods, MissingTypeMods} = type_mods(Path, ModMap, Ast),
+
   ParseTrans = parse_trans(Ast),
 
   {Includes, MissingIncludes} = get_includes(Ast),
@@ -180,11 +187,13 @@ do_analyze(Path, IncludePaths, ModMap) ->
 
   {Path, #{
            modules => Mods,
+           type_modules => TypeMods,
            includes => Includes ++ RawIncludes,
            functions => Functions,
            exports => Exports,
            missing_includes => MissingIncludes,
            missing_modules => MissingMods,
+           missing_type_modules => MissingTypeMods,
            parse_transforms => ParseTrans,
            ast => fun () -> Ast end
           }}.
@@ -240,6 +249,28 @@ parse_trans(Ast) ->
     end))),
 
   AllMods.
+
+type_mods(CurrPath, ModMap, Ast) ->
+  AllMods = skip_std(uniq(erl_visitor:walk(
+    Ast,
+    _Acc = [],
+    fun
+      (_Ast={remote_type, _Loc1, [{atom, _Loc3, Mod}, _Fun, _Args]}, Acc) ->
+        [Mod | Acc];
+
+      (_Ast, Acc) ->
+        Acc
+    end))),
+
+  {Mods, Missing} = lists:foldl(fun (Mod, {Mods, Missing}) ->
+                             case maps:get(Mod, ModMap, missing) of
+                               missing -> {Mods, [Mod|Missing]};
+                               Path when Path =/= CurrPath -> {[Path|Mods], Missing};
+                               _ -> {Mods, Missing}
+                             end
+                         end, {_Mods = [], _Missing = []}, AllMods),
+
+  {uniq(Mods), uniq(Missing)}.
 
 mods(CurrPath, ModMap, Ast) ->
   AllMods = skip_std(uniq(erl_visitor:walk(

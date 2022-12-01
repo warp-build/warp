@@ -83,6 +83,20 @@ defmodule Analyzer.GenerateSignature do
 
             Build.Warp.Requirement.new(requirement: {:symbol, symbol})
           end)
+          |> Enum.uniq()
+
+        type_modules =
+          Map.get(sig, :type_modules, [])
+          |> Enum.map(fn dep ->
+            symbol =
+              Build.Warp.SymbolRequirement.new(
+                raw: Atom.to_string(dep),
+                kind: "module"
+              )
+
+            Build.Warp.Requirement.new(requirement: {:symbol, symbol})
+          end)
+          |> Enum.uniq()
 
         parse_transforms =
           Map.get(sig, :parse_transforms, [])
@@ -95,14 +109,15 @@ defmodule Analyzer.GenerateSignature do
 
             Build.Warp.Requirement.new(requirement: {:symbol, symbol})
           end)
+          |> Enum.uniq()
 
         includes =
           sig.includes
           |> Enum.map(fn dep ->
             req = {:file, Build.Warp.FileRequirement.new(path: dep)}
-
             Build.Warp.Requirement.new(requirement: req)
           end)
+          |> Enum.uniq()
 
         {:ok, config} =
           sig
@@ -117,7 +132,7 @@ defmodule Analyzer.GenerateSignature do
         Build.Warp.Signature.new(
           name: sig.name,
           rule: sig.rule,
-          deps: includes ++ parse_transforms,
+          deps: includes ++ parse_transforms ++ type_modules,
           runtime_deps: modules,
           config: config
         )

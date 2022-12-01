@@ -52,7 +52,7 @@ analyze_one(File, ModMap, IgnoreModMap, IncludePaths) ->
 
 erlang_script(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis) ->
   case path:extension(File) of
-    <<".erl">> -> get_erlang_script(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis);
+    {ok, <<".erl">>} -> get_erlang_script(File, ModMap, IgnoreModMap, IncludePaths, SourceAnalysis, CompAnalysis);
     _ -> []
   end.
 
@@ -82,15 +82,32 @@ get_erlang_script(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, Com
 
 erlang_libraries(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAnalysis) ->
   ModDeps = case path:extension(File) of
-              <<".hrl">> -> [];
+              {ok, <<".hrl">>} -> [];
               _ -> mods_from_analyses(File, ModMap, IgnoreModMap, CompAnalysis, SourceAnalysis)
             end,
+
+  TypeModDeps = case path:extension(File) of
+                  % NOTE(@ostera): header files don't actually have type dependencies, but they 
+                  % create type-dependencies in the modules that include them.
+                  %
+                  {ok, <<".hrl">>} -> [];
+                  Ext -> 
+                    TypeModDeps0 = erl_analyzer:dependency_type_modules(SourceAnalysis),
+                    TypeModDeps1 = case erl_stdlib:file_to_module(File) of
+                                     {ok, CurrMod} -> [ Mod || Mod <- TypeModDeps0, Mod =/= CurrMod ];
+                                     _ -> TypeModDeps0
+                                   end,
+                    skip_std(uniq(TypeModDeps1))
+                end,
+
+
   IncludeDeps = includes_from_analyses(File, ModMap, CompAnalysis, SourceAnalysis),
 
   [#{
     name => File,
     srcs => [path:filename(File)],
     includes => IncludeDeps,
+    type_modules => TypeModDeps,
     modules => ModDeps,
     parse_transforms => erl_analyzer:parse_transforms(SourceAnalysis), 
     rule => <<"erlang_library">>
@@ -164,7 +181,6 @@ get_prop_tests(File, ModMap, IgnoreModMap, _IncludePaths, SourceAnalysis, CompAn
 
   Properties = lists:filter(fun (Fn) ->
                                 FnName = erlang:atom_to_binary(Fn, utf8),
-                                io:format("prop: ~p\n", [FnName]),
                                 case string:prefix(FnName, <<"prop_">>) of
                                   nomatch -> false;
                                   _ -> true
