@@ -186,6 +186,7 @@ defmodule Analyzer.GetDependencies do
                         {:ref, ref} -> ref
                         {:branch, branch} -> branch
                         {:tag, tag} -> tag
+                        branch -> branch
                       end
 
                     ref =
