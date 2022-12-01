@@ -39,7 +39,7 @@ impl InfoCommand {
         let (result, ()) = futures::future::join(
             warp.execute(
                 &[label.clone()],
-                self.flags.into_build_opts().with_goal(Goal::Run),
+                self.flags.into_build_opts().with_goal(Goal::Build),
             ),
             status_reporter.run(&[label.clone()]),
         )
