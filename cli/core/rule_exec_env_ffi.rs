@@ -90,7 +90,7 @@ pub fn op_ctx_actions_declare_run_script(
     state: &mut OpState,
     args: DeclareRunScript,
 ) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let run_script_map = &inner_state.run_script_map;
 
     let label = args.label;
@@ -120,7 +120,7 @@ pub fn op_ctx_actions_declare_outputs(
     state: &mut OpState,
     args: DeclareOutputs,
 ) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let output_map = &inner_state.output_map;
 
     let label = args.label;
@@ -148,7 +148,7 @@ pub struct DeclareEnv {
 
 #[op]
 pub fn op_ctx_declare_env(state: &mut OpState, args: DeclareEnv) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let env_map = &inner_state.env_map;
 
     let label = args.label;
@@ -166,7 +166,7 @@ pub struct DeclareProvides {
 
 #[op]
 pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let provides_map = &inner_state.provides_map;
 
     provides_map.insert(args.label, args.provides);
@@ -185,7 +185,7 @@ pub fn op_ctx_fetch_provides(
     state: &mut OpState,
     args: FetchProvides,
 ) -> Result<FxHashMap<String, String>, AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let provides_map = &inner_state.provides_map;
 
     let provides = match provides_map.get(&args.label) {
@@ -208,7 +208,7 @@ pub struct SetPermissions {
 
 #[op]
 pub fn op_ctx_set_permissions(state: &mut OpState, args: SetPermissions) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let action_map = &inner_state.action_map;
 
     let label = args.label;
@@ -238,7 +238,7 @@ pub struct Extract {
 
 #[op]
 pub fn op_ctx_extract(state: &mut OpState, args: Extract) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let action_map = &inner_state.action_map;
 
     let label = args.label;
@@ -268,7 +268,7 @@ pub struct VerifyChecksum {
 
 #[op]
 pub fn op_ctx_verify_checksum(state: &mut OpState, args: VerifyChecksum) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let action_map = &inner_state.action_map;
 
     let label = args.label;
@@ -299,7 +299,7 @@ pub struct Download {
 
 #[op]
 pub fn op_ctx_download(state: &mut OpState, args: Download) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let action_map = &inner_state.action_map;
 
     let label = args.label;
@@ -330,7 +330,7 @@ pub struct RunShell {
 
 #[op]
 pub fn op_ctx_actions_run_shell(state: &mut OpState, args: RunShell) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let action_map = &inner_state.action_map;
 
     let label = args.label;
@@ -360,7 +360,7 @@ pub struct WriteFile {
 
 #[op]
 pub fn op_ctx_actions_write_file(state: &mut OpState, args: WriteFile) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let action_map = &inner_state.action_map;
 
     let label = args.label;
@@ -390,7 +390,7 @@ pub struct CopyFile {
 
 #[op]
 pub fn op_ctx_actions_copy(state: &mut OpState, args: CopyFile) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let action_map = &inner_state.action_map;
 
     let label = args.label;
@@ -422,7 +422,7 @@ pub struct Exec {
 
 #[op]
 pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
     let action_map = &inner_state.action_map;
 
     let label = args.label;
@@ -450,7 +450,7 @@ pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyErr
 
 #[op]
 pub fn op_rule_new(state: &mut OpState, rule: Rule) -> Result<(), AnyError> {
-    let inner_state = state.try_borrow_mut::<InnerState>().unwrap();
+    let inner_state = state.borrow::<InnerState>();
 
     debug!("Registering rule: {}", &rule.name);
     inner_state.rule_map.insert(rule.name.to_string(), rule);
