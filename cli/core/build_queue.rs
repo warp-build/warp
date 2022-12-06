@@ -151,6 +151,7 @@ impl BuildQueue {
         self.inner_queue.push(task);
         self.all_queued_labels.insert(label);
         self.event_channel.send(Event::QueuedLabel {
+            label_id: label,
             label: self.label_registry.get_label(label).as_ref().to_owned(),
         });
         Ok(())

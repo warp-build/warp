@@ -41,13 +41,13 @@ impl StatusReporter {
             pb.set_style(style);
             pb.set_prefix("Building");
 
-            let mut current_targets: FxHashSet<Label> = FxHashSet::default();
+            let current_targets: DashSet<Label> = DashSet::default();
 
-            let mut action_count = 0;
-            let mut cache_hits: FxHashSet<Label> = FxHashSet::default();
+            let cache_hits: DashSet<Label> = DashSet::default();
+            let queued_labels: DashSet<String> = DashSet::default();
+
             let mut error_count = 0;
             let mut errored = false;
-            let mut queued_targets = 0;
             let mut target_count: FxHashSet<Label> = FxHashSet::default();
             let hashed_count: DashSet<LabelId> = DashSet::default();
 
@@ -57,8 +57,7 @@ impl StatusReporter {
                 for event in &self.event_consumer {
                     debug!("{:#?}", event);
 
-                    pb.set_length(queued_targets + action_count);
-
+                    pb.set_length(queued_labels.len() as u64);
                     use warp_core::Event::*;
                     match event {
                         HandlingTarget { label, .. } => {
@@ -72,15 +71,7 @@ impl StatusReporter {
                             }
                         }
                         BuildingTarget { label, .. } => {
-                            current_targets.insert(label);
-                            let current_targets_names = current_targets
-                                .iter()
-                                .map(|l| l.name().to_string())
-                                .collect::<Vec<String>>();
-                            pb.set_message(format!(
-                                "Pending: {}",
-                                current_targets_names.join(", ")
-                            ));
+                            current_targets.insert(label.clone());
                         }
 
                         QueuedSkipLabel { label } => {
@@ -94,7 +85,7 @@ impl StatusReporter {
                             }
                         }
 
-                        QueuedLabel { label } => {
+                        QueuedLabel { label, .. } => {
                             if self.flags.show_queued_events {
                                 let line = format!(
                                     "     {} {}",
@@ -103,6 +94,7 @@ impl StatusReporter {
                                 );
                                 pb.println(line);
                             }
+                            queued_labels.insert(label.to_hash_string());
                         }
 
                         QueueingWorkspace => {
@@ -115,7 +107,6 @@ impl StatusReporter {
                         }
 
                         QueuedTargets(count) => {
-                            queued_targets += count;
                             if self.flags.show_queued_events {
                                 let line =
                                     format!("     {} {} targets", info.apply_to("QUEUED"), count,);
@@ -132,7 +123,6 @@ impl StatusReporter {
                             );
                             pb.println(line);
                             pb.set_length(pb.length() + 1);
-                            pb.inc(1)
                         }
 
                         ArchiveVerifying(label) => {
@@ -143,7 +133,6 @@ impl StatusReporter {
                             );
                             pb.println(line);
                             pb.set_length(pb.length() + 1);
-                            pb.inc(1)
                         }
 
                         ArchiveUnpacking(label) => {
@@ -154,10 +143,9 @@ impl StatusReporter {
                             );
                             pb.println(line);
                             pb.set_length(pb.length() + 1);
-                            pb.inc(1)
                         }
 
-                        ActionRunning { .. } => pb.inc(1),
+                        ActionRunning { .. } => (),
 
                         ArchiveDownloading { label, .. } => {
                             let line = format!(
@@ -167,14 +155,9 @@ impl StatusReporter {
                             );
                             pb.println(line);
                             pb.set_length(pb.length() + 1);
-                            pb.inc(1)
                         }
 
-                        PreparingActions {
-                            action_count: ac, ..
-                        } => {
-                            action_count += ac as u64;
-                        }
+                        PreparingActions { .. } => {}
 
                         StartedService { label } => {
                             let line = format!(
@@ -221,13 +204,13 @@ impl StatusReporter {
 
                         CacheHit { label, goal } => {
                             current_targets.remove(&label);
-                            let current_targets_names = current_targets
-                                .iter()
-                                .map(|l| l.name().to_string())
-                                .collect::<Vec<String>>();
                             pb.set_message(format!(
-                                "Pending: {}",
-                                current_targets_names.join(", ")
+                                " {}",
+                                current_targets
+                                    .iter()
+                                    .map(|l| l.to_string())
+                                    .collect::<Vec<String>>()
+                                    .join(", ")
                             ));
 
                             if self.flags.show_cache_hits || goal.is_test() {
@@ -256,13 +239,13 @@ impl StatusReporter {
                             );
                             pb.println(line);
                             current_targets.remove(&label);
-                            let current_targets_names = current_targets
-                                .iter()
-                                .map(|l| l.name().to_string())
-                                .collect::<Vec<String>>();
                             pb.set_message(format!(
-                                "Pending: {}",
-                                current_targets_names.join(", ")
+                                " {}",
+                                current_targets
+                                    .iter()
+                                    .map(|l| l.to_string())
+                                    .collect::<Vec<String>>()
+                                    .join(", ")
                             ));
                             pb.inc(1);
                             target_count.insert(label);
@@ -332,6 +315,7 @@ impl StatusReporter {
                         }
 
                         BuildCompleted(t1) if self.event_consumer.is_empty() => {
+                            pb.set_message("");
                             let line = if targets.is_empty() {
                                 format!(
                                     "{:>12} in {}ms ({} built, {} cached{})",

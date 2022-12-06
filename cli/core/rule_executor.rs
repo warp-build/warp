@@ -363,6 +363,24 @@ pub struct RuleExecutor {
     pub env_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
     pub run_script_map: Arc<DashMap<Label, RunScript>>,
     pub build_results: Arc<BuildResults>,
+    script_count: i32,
+}
+
+impl std::fmt::Debug for RuleExecutor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RuleExecutor")
+            .field("rule_map", &self.rule_map)
+            .field("loaded_rules", &self.loaded_rules)
+            .field("loaded_modules", &self.loaded_modules)
+            .field("action_map", &self.action_map)
+            .field("output_map", &self.output_map)
+            .field("provides_map", &self.provides_map)
+            .field("env_map", &self.env_map)
+            .field("run_script_map", &self.run_script_map)
+            .field("build_results", &self.build_results)
+            .field("script_count", &self.script_count)
+            .finish()
+    }
 }
 
 impl RuleExecutor {
@@ -426,7 +444,7 @@ impl RuleExecutor {
             module_loader: Some(Rc::new(NetModuleLoader {
                 rule_store: shared_state.rule_store.clone(),
             })),
-            v8_platform: Some(v8::Platform::new_single_threaded(false).make_shared()),
+            // v8_platform: Some(v8::Platform::new_single_threaded(true).make_shared()),
             extensions: vec![extension, deno_console::init()],
             ..Default::default()
         };
@@ -443,6 +461,7 @@ impl RuleExecutor {
             runtime,
             loaded_rules: FxHashMap::default(),
             loaded_modules: FxHashMap::default(),
+            script_count: 0,
         };
 
         rule_executor.setup()?;
@@ -602,6 +621,9 @@ impl RuleExecutor {
         transitive_deps: &[LabelId],
         runtime_deps: &[LabelId],
     ) -> Result<ExecutionResult, RuleExecutorError> {
+        self.script_count += 1;
+        trace!("executing script {}", self.script_count);
+
         let config = ConfigExpander
             .expand(rule, target)
             .await
@@ -618,7 +640,10 @@ impl RuleExecutor {
             &config,
         );
 
+        trace!("Executing: {}", compute_program);
+
         let script_name = format!("<target: {:?}>", &target.label.to_string());
+
         self.runtime
             .execute_script(&script_name, &compute_program)
             .map_err(|err| RuleExecutorError::ExecutionError {
@@ -627,6 +652,8 @@ impl RuleExecutor {
                 target: Box::new(target.clone()),
                 rule: rule.clone(),
             })?;
+
+        trace!("Done!");
 
         let actions = self
             .action_map

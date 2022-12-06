@@ -94,7 +94,7 @@ impl LifterReporter {
                             }
                         }
 
-                        QueuedLabel { label } => {
+                        QueuedLabel { label, .. } => {
                             if self.flags.show_queued_events {
                                 let line = format!(
                                     "     {} {}",

@@ -1,7 +1,7 @@
-use std::path::PathBuf;
-
 use super::*;
+use std::path::PathBuf;
 use thiserror::*;
+use tracing::*;
 
 pub struct ConfigExpander;
 
@@ -42,6 +42,7 @@ impl ConfigExpander {
         let mut values: RuleConfig = rule.defaults.clone();
 
         for (key, value_type) in rule.config.as_map() {
+            trace!("Expanding {:?} of type {:?}", key, value_type);
             let value =
                 match target.config.get(key) {
                     Some(value) => value,
@@ -58,10 +59,9 @@ impl ConfigExpander {
             values.insert(key.to_string(), expanded_value);
         }
 
-        values.insert(
-            "name".to_string(),
-            CfgValue::String(target.label.name().to_string()),
-        );
+        let name = CfgValue::String(target.label.name().to_string());
+        trace!("Expanded config for {:?}", name);
+        values.insert("name".to_string(), name);
 
         Ok(values)
     }
@@ -73,6 +73,7 @@ impl ConfigExpander {
         value: CfgValue,
         value_type: &CfgValueType,
     ) -> Result<CfgValue, ConfigExpanderError> {
+        trace!("Expanding value {:?} of type {:?}", value, value_type);
         match (value_type, &value) {
             (CfgValueType::File, CfgValue::File(path)) => {
                 self.expand_glob(label, path.to_str().unwrap())
@@ -87,10 +88,16 @@ impl ConfigExpander {
                 self.expand_list(label, parts.to_vec(), t)
             }
             (CfgValueType::String, CfgValue::String(_)) => Ok(value),
-            _ => Err(ConfigExpanderError::InvalidTypeForField {
-                field: value,
-                expected_type: value_type.clone(),
-            }),
+            _ => {
+                error!(
+                    "Could not expand value {:?} of type {:?}",
+                    value, value_type
+                );
+                Err(ConfigExpanderError::InvalidTypeForField {
+                    field: value,
+                    expected_type: value_type.clone(),
+                })
+            }
         }
     }
 

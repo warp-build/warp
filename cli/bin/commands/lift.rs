@@ -221,7 +221,7 @@ impl LiftCommand {
             }
 
             // NOTE(@ostera): get all dependencies from all the analyzers
-            let mut current_deps = vec![];
+            let current_deps = DashSet::new();
 
             // NOTE(@ostera): the first time we run, we should also load to build the deps that are
             // in the Dependencies.json that are NOT inferrable
@@ -242,7 +242,7 @@ impl LiftCommand {
 
                     queue.push((final_dir.clone(), label.clone()));
                     dep_label_paths.insert(dep.url.to_string(), (final_dir.clone(), label.clone()));
-                    current_deps.push(label);
+                    current_deps.insert(label);
                     deps.insert(dep.url.to_string(), dep.to_owned());
                 }
             }
@@ -286,7 +286,7 @@ impl LiftCommand {
                     // can find its information when we're building
                     deps.insert(dep.url.clone(), dep_json);
 
-                    current_deps.push(label.clone());
+                    current_deps.insert(label.clone());
 
                     queue.push((final_dir.clone(), label.clone()));
                     pending.insert(label.clone());
@@ -314,6 +314,7 @@ impl LiftCommand {
             //
             let download_reporter =
                 DownloadReporter::new(warp.event_channel.clone(), self.flags, Goal::Fetch);
+            let current_deps = current_deps.into_iter().collect::<Vec<Label>>();
             let (results, ()) = futures::future::join(
                 warp.execute(
                     &current_deps,
@@ -490,13 +491,19 @@ impl LiftCommand {
                 }
             }
 
+            pb.println(format!(
+                "{:>12} {}",
+                cyan.apply_to("Analyzed"),
+                label.to_string(),
+            ));
+
             total_files += current_file_count;
         }
 
         pb.set_message("");
         pb.println(format!(
             "{:>12} {} sources in {} dependencies",
-            cyan.apply_to("analyzed"),
+            cyan.apply_to("Analyzed"),
             total_files,
             deps.len(),
         ));

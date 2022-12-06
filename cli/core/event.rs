@@ -73,6 +73,7 @@ pub enum Event {
         action_count: u64,
     },
     QueuedLabel {
+        label_id: LabelId,
         label: Label,
     },
     QueuedSkipLabel {

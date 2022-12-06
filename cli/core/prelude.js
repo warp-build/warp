@@ -1,14 +1,17 @@
 Array.prototype.unique = function() {
-  var arr = [];
-  for (var i = 0; i < this.length; i++) {
-    if (arr.indexOf(this[i]) === -1) {
-      arr.push(this[i]);
-    }
-  }
-  return arr;
+  return [...new Set(this)];
 }
 
-const ffi = (name, args) => Deno.core.opSync(name, args);
+// TODO(@ostera): maybe make this an ffi that uses `trace!` ?
+const trace = (...args) => {
+  // Deno.core.print(args.join(" ")+'\n')
+}
+
+let _FFI_CALL_COUNT = 0;
+const ffi = (name, args) => {
+  trace(`FFI Call #${_FFI_CALL_COUNT++} ${name} with arguments: ${JSON.stringify(args, null, 2)}\n`)
+  return Deno.core.opSync(name, args);
+}
 const panic = x => {
   if (typeof x === "object") {
     x = JSON.stringify(x, null, 2)
@@ -50,19 +53,30 @@ Warp.Rules.getByName = name => {
 
 Warp.Targets = {};
 
-Warp.Targets.compute = target => {
+Warp.Targets.compute = (inputTarget) => {
+  trace(`computing target: ${JSON.stringify(inputTarget.label)}`)
+  const target = inputTarget;
+
   const label = target.label;
+
+  trace(`getting rule: ${target.rule}`)
   const rule = Warp.Rules.getByName(target.rule);
 
-  const config = Object.fromEntries(Object.entries(rule.cfg)
+  const ruleConfig = Object.fromEntries(Object.entries(rule.cfg)
     .map( ([k, type]) => {
       const value = target.cfg[k] === undefined ? rule.defaults[k] : target.cfg[k];
       if (value === undefined) panic(`Expected target  ${target.label}  to have config key '${k}' (of type ${type}) but it was not present in your Build.toml, and it doesn't have a default value.`);
       return [k, value];
     }));
+  const config = JSON.parse(JSON.stringify(ruleConfig));
+  trace(`with config: ${JSON.stringify(config, null, 2)}`)
 
   config.label = label;
   config.cwd = () => Label.path(label);
+
+  let _provides = null;
+  let _env = null;
+  let _actions = [];
 
   const ctx = {
     cfg: () => config,
@@ -83,35 +97,42 @@ Warp.Targets.compute = target => {
 
     path: path => `{{NODE_STORE_PATH}}/${path}`,
 
-    provides: provides => ffi("op_ctx_declare_provides", {label, provides}),
+    provides: provides => { _provides = provides; },
 
-    setEnv: (env = {}) => ffi("op_ctx_declare_env", {label, env}),
+    setEnv: (env = {}) => { _env = env; },
 
     action: () => ({
-      copy: ({src, dst}) => ffi("op_ctx_actions_copy", {label, src, dst}),
+      copy: ({src, dst}) => _actions.push({ ffi: "op_ctx_actions_copy", data: {label, src, dst} }),
 
-      declareOutputs: outs => ffi("op_ctx_actions_declare_outputs", {label, outs}),
+      declareOutputs: outs => _actions.push({ ffi: "op_ctx_actions_declare_outputs", data: {label, outs} }),
 
-      declareRunScript: (runScript, opts = { env: {} }) =>
-        ffi("op_ctx_actions_declare_run_script", {label, runScript, env: opts.env}),
+      declareRunScript: (runScript, opts = { env: {} }) => _actions.push({ ffi: "op_ctx_actions_declare_run_script", data: {label, runScript, env: opts.env}}),
 
-      download: ({url, sha1, output}) => ffi("op_ctx_download", {label, url, sha1, output}),
+      download: ({url, sha1, output}) => _actions.push({ ffi: "op_ctx_download", data: {label, url, sha1, output}}),
 
-      exec: ({env = {}, cmd, args, cwd, needsTty = false}) => ffi("op_ctx_actions_exec", {label, cmd, args, cwd, env, needsTty}),
+      exec: ({env = {}, cmd, args, cwd, needsTty = false}) => _actions.push({ffi: "op_ctx_actions_exec", data: {label, cmd, args, cwd, env, needsTty}}),
 
-      extract: ({src, dst}) => ffi("op_ctx_extract", {label, src, dst}),
+      extract: ({src, dst}) => _actions.push({ffi: "op_ctx_extract", data: {label, src, dst}}),
 
-      runShell: ({script, env = {}, needsTty = false}) => ffi("op_ctx_actions_run_shell", {label, script, env, needsTty}),
+      runShell: ({script, env = {}, needsTty = false}) => _actions.push({ffi: "op_ctx_actions_run_shell", data: {label, script, env, needsTty}}),
 
-      setPermissions: ({file, executable}) => ffi("op_ctx_set_permissions", {label, file, executable}),
+      setPermissions: ({file, executable}) => _actions.push({ffi:"op_ctx_set_permissions", data: {label, file, executable}}),
 
-      writeFile: ({data, dst}) => ffi("op_ctx_actions_write_file", {label, data, dst}),
+      writeFile: ({data, dst}) => _actions.push({ffi:"op_ctx_actions_write_file", data: {label, data, dst}}),
 
-      verifyChecksum: ({file, sha1}) => ffi("op_ctx_verify_checksum", {label, file, sha1}),
+      verifyChecksum: ({file, sha1}) => _actions.push({ffi:"op_ctx_verify_checksum", data: {label, file, sha1}}),
     }),
   };
 
-  rule.impl(ctx)
+  trace(`calling rule implementation`)
+  rule.impl(ctx);
+  trace(`actions: ${JSON.stringify(_actions,null,2)}`)
+  trace(`env: ${JSON.stringify(_env,null,2)}`)
+  trace(`provides: ${JSON.stringify(_provides,null,2)}`)
+
+  if (_provides !== null) ffi("op_ctx_declare_provides", {label, provides: _provides});
+  if (_env !== null) ffi("op_ctx_declare_env", {label, env: _env});
+  _actions.forEach(action => ffi(action.ffi, action.data));
 };
 
 
@@ -212,10 +233,32 @@ Warp.Toolchain = spec => {
 
 const File = {};
 
-File.parent = (path) => ffi("op_file_parent", path);
-File.filename = (path) => ffi("op_file_filename", path);
-File.withExtension = (path, ext) => ffi("op_file_with_extension", {path, ext});
+File.parent = (path) => {
+  trace(`File.parent(${path})`)
+  return ffi("op_file_parent", path);
+  // let parts = path.split("/");
+  // parts.pop();
+  // if (parts.length === 0) return ".";
+  // return parts.join("/");
+}
+
+File.filename = (path) => {
+  return ffi("op_file_filename", path);
+  // let parts = path.split("/");
+  // if (parts.length === 1) return path;
+  // return parts.pop();
+}
+
+File.withExtension = (path, ext) => {
+  return ffi("op_file_with_extension", {path, ext});
+  // let parts = path.split(".");
+  // parts.pop();
+  // if (parts.length === 0) return `${parts}${ext}`
+  // return `${parts.join(".")}${ext}`
+}
+
 File.join = (a, b) => `${a}/${b}`
+
 File.changeRoot = (path, root) => {
   let parts = path.split("/");
   parts.shift(1)
@@ -225,4 +268,5 @@ File.changeRoot = (path, root) => {
 const Label = {};
 
 Label.path = (label) => ffi("op_label_path", label);
+
 Label.name = (label) => ffi("op_label_name", label);
