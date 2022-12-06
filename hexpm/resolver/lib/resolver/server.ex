@@ -95,7 +95,25 @@ defmodule Resolver.Server do
         prepare_erlangmk_workspace(req)
 
       true ->
-        Build.Warp.Dependency.PrepareDependencyResponse.new(status: :STATUS_ERR)
+        {:ok, config} =
+          %{ srcs: Path.wildcard("#{root}/**/*") }
+          |> Jason.encode!()
+          |> Jason.decode!()
+          |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
+
+        signature =
+          Build.Warp.Signature.new(
+            name: Path.basename(root),
+            rule: "files",
+            deps: [],
+            config: config,
+            runtime_deps: []
+          )
+
+        Build.Warp.Dependency.PrepareDependencyResponse.new(
+          status: :STATUS_OK,
+          signatures: [signature]
+        )
     end
   end
 
