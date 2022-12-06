@@ -74,10 +74,16 @@ defmodule Analyzer.GetAst do
     {:ok, ast} = :erl_analyzer.subtree(result, symbol)
 
     source =
-      ast
-      |> :erl_syntax.form_list()
-      |> :erl_prettypr.format(encoding: :utf8)
-      |> :binary.list_to_bin()
+      case symbol do
+        :all ->
+          File.read!(file)
+
+        {:named, _} ->
+          ast
+          |> :erl_syntax.form_list()
+          |> :erl_prettypr.format(encoding: :utf8)
+          |> :binary.list_to_bin()
+      end
 
     Build.Warp.Codedb.GetAstResponse.new(
       status: :STATUS_OK,
