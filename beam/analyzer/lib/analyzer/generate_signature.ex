@@ -129,10 +129,20 @@ defmodule Analyzer.GenerateSignature do
           |> Jason.decode!()
           |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
 
+        deps =
+          includes ++
+            parse_transforms ++
+            type_modules ++
+            if Map.has_key?(sig, :test) do
+              modules
+            else
+              []
+            end
+
         Build.Warp.Signature.new(
           name: sig.name,
           rule: sig.rule,
-          deps: includes ++ parse_transforms ++ type_modules,
+          deps: deps,
           runtime_deps: modules,
           config: config
         )
