@@ -121,7 +121,7 @@ impl CodeDb {
             .map_err(CodeDbError::SqliteError)?;
 
         let mut rows = query
-            .query_map(rusqlite::params![file], |row| {
+            .query_map(rusqlite::params![&file.replace("./", "")], |row| {
                 let label_json: String = row.get(0).unwrap();
                 let label: Label = serde_json::from_str(&label_json).unwrap();
                 Ok(label)
