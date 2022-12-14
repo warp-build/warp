@@ -60,7 +60,7 @@ We expected "{expected_sha}"
 
 But found "{found_sha}"
 
-If this is the right SHA-1 you can fix this in your Workspace.toml file
+If this is the right SHA-1 you can fix this in your Workspace.json file
 under by changing the `sha1` key to this:
 
 sha1 = "{found_sha}"
