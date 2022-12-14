@@ -23,19 +23,17 @@
     "elixir_protobuf": { "version": "0.11.0" },
     "protobuf": {
       "version": "21.9",
-      "sha1": "18f9764dc65b8e294fe3f5781bb901b4794c96fe"
+      "sha1_aarch64": "18f9764dc65b8e294fe3f5781bb901b4794c96fe",
+      "sha1_x86_64": "8e4807ab066583cd8405eab56f61b3a62d23d8e4"
     },
     "rust": {
       "sha1_aarch64": "7187014f920ea013e271bbb303074ef242aa1d96",
-      "toolchains": [
-        "stable-aarch64-apple-darwin"
-      ],
-      "targets": [
-        "aarch64-apple-darwin"
-      ]
+      "toolchains": ["stable-aarch64-apple-darwin"],
+      "targets": ["aarch64-apple-darwin"]
     },
     "cmake": {
-      "sha1": "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
+      "sha1_aarch64": "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
+      "sha1_x86_64": "12627c808674ee5f5bd3a6982176613bbd3ad9db",
       "version": "3.24.2"
     },
     "elixir": {
