@@ -47,7 +47,8 @@
   },
   "cmake": {
     "3.24.2": {
-      "sha1": "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
+      "sha1_aarch64": "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
+      "sha1_x86_64": "12627c808674ee5f5bd3a6982176613bbd3ad9db",
       "version": "3.24.2"
     }
   },
