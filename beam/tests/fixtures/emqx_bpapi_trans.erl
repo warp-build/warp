@@ -85,28 +85,29 @@ finalize(Forms, S) ->
 
 %% Transform an Erlang term to the AST of itself
 typerefl_quote__const(Line, T) when is_tuple(T) ->
-  {tuple, Line, [typerefl_quote__const(Line, I) || I <- tuple_to_list(T)]};
+    {tuple, Line, [typerefl_quote__const(Line, I) || I <- tuple_to_list(T)]};
 typerefl_quote__const(Line, A) when is_atom(A) ->
-  {atom, Line, A};
+    {atom, Line, A};
 typerefl_quote__const(Line, []) ->
-  {nil, Line};
-typerefl_quote__const(Line, [Head|Tail]) ->
-  {cons, Line, typerefl_quote__const(Line, Head), typerefl_quote__const(Line, Tail)};
+    {nil, Line};
+typerefl_quote__const(Line, [Head | Tail]) ->
+    {cons, Line, typerefl_quote__const(Line, Head), typerefl_quote__const(Line, Tail)};
 typerefl_quote__const(Line, I) when is_integer(I) ->
-  {integer, Line, I};
+    {integer, Line, I};
 typerefl_quote__const(Line, F) when is_float(F) ->
-  {float, Line, F};
+    {float, Line, F};
 typerefl_quote__const(Line, Map) when is_map(Map) ->
-  {map, Line,
-   [{map_field_assoc, Line, typerefl_quote__const(Line, Key), typerefl_quote__const(Line, Val)}
-    || {Key, Val} <- maps:to_list(Map)]};
+    {map, Line, [
+        {map_field_assoc, Line, typerefl_quote__const(Line, Key), typerefl_quote__const(Line, Val)}
+     || {Key, Val} <- maps:to_list(Map)
+    ]};
 typerefl_quote__const(Line, Term) ->
-  case io_lib:deep_char_list(Term) of
-    true ->
-      {string, Line, lists:flatten(Term)};
-    false ->
-      error({unknown_term, Term})
-  end.
+    case io_lib:deep_char_list(Term) of
+        true ->
+            {string, Line, lists:flatten(Term)};
+        false ->
+            error({unknown_term, Term})
+    end.
 
 mk_meta_fun(#s{api = API, version = Vsn, targets = Targets}) ->
     Line = 0,

@@ -10,35 +10,8 @@ defmodule Analyzer.GetAst do
   end
 
   defp do_get_erl_ast(req) do
-    # FIXME(@ostera): this is a hack to make the source analyzer find headers
-    #
-    # NOTE(@ostera): we don't want to discover things on the FS root
-    parts =
-      case req.file |> Path.dirname() |> Path.split() do
-        ["/" | parts] -> parts
-        parts -> parts
-      end
-
     include_paths =
-      [
-        "include",
-        Enum.map(req.dependencies, fn dep ->
-          Path.dirname(Path.dirname(dep.store_path))
-        end),
-        for i <- 0..(Enum.count(parts) - 1) do
-          path =
-            case Enum.take(parts, i) do
-              [] -> "."
-              parts -> parts |> Path.join()
-            end
-
-          [path, Path.join(path, "include")]
-        end
-      ]
-      |> List.flatten()
-      |> Enum.sort()
-      |> Enum.uniq()
-
+      Analyzer.ErlangHacks.IncludePaths.from_file_and_deps(req.file, req.dependencies)
       # NOTE(@ostera): this is needed because the tree we will generate after
       # the `:erl_analyzer.subtree` call will contain include paths that use these prefixes
       # and preserves the kind of string they are. So since we are in Elixir, it will all be binaries.
@@ -47,36 +20,63 @@ defmodule Analyzer.GetAst do
       #     {:attribute, 1, :file, {"app/include/header.hrl", 1}}
       |> Enum.map(fn path -> :binary.bin_to_list(path) end)
 
-    Logger.info("splitting ast using include paths:")
+    symbol = build_symbol(req.symbol.sym)
 
-    for p <- include_paths do
-      IO.inspect(p)
-    end
+    {:ok, result} =
+      :erl_tree_splitter.split(%{
+        file: req.file,
+        include_paths: include_paths,
+        symbol: symbol
+      })
 
-    file = req.file
-    {:ok, %{^file => result}} = :erl_analyzer.analyze([file], _ModMap = %{}, include_paths)
+    IO.inspect(result)
 
-    symbol =
-      case req.symbol.sym do
-        {:all, true} ->
-          :all
+    response = handle_result(req, result)
 
-        {:named, sym} ->
-          [f, a] =
-            case sym |> String.split("/") do
-              [sym] -> [sym, "0"]
-              fa -> fa
-            end
+    Build.Warp.Codedb.GetAstResponse.new(response: response)
+    |> IO.inspect()
+  end
 
-          {:named, {String.to_atom(f), String.to_integer(a)}}
+  @doc """
+  Put together a Symbol that can be used to split the tree by the `:erl_tree_splitter` module.
+
+  """
+  defp build_symbol({:all, true}), do: :all
+
+  defp build_symbol({:named, sym}) do
+    [f, a] =
+      case sym |> String.split("/") do
+        [sym] -> [sym, "0"]
+        fa -> fa
       end
 
-    {:ok, ast} = :erl_analyzer.subtree(result, symbol)
+    {:named, {String.to_atom(f), String.to_integer(a)}}
+  end
 
+  defp handle_result(req, {:missing_includes, deps}) do
+    deps =
+      deps
+      |> Enum.uniq()
+      |> Enum.map(fn dep ->
+        req = {:file, Build.Warp.FileRequirement.new(path: dep)}
+        Build.Warp.Requirement.new(requirement: req)
+      end)
+
+    resp =
+      Build.Warp.Codedb.GetAstMissingDepsResponse.new(
+        file: req.file,
+        symbol: req.symbol,
+        dependencies: deps
+      )
+
+    {:missing_deps, resp}
+  end
+
+  defp handle_result(req, {:completed, ast}) do
     source =
-      case symbol do
-        :all ->
-          File.read!(file)
+      case req.symbol.sym do
+        {:all, true} ->
+          File.read!(req.file)
 
         {:named, _} ->
           ast
@@ -85,12 +85,13 @@ defmodule Analyzer.GetAst do
           |> :binary.list_to_bin()
       end
 
-    Build.Warp.Codedb.GetAstResponse.new(
-      status: :STATUS_OK,
-      file: file,
-      symbol: Build.Warp.Symbol.new(sym: req.symbol.sym),
-      ast: Kernel.inspect(ast),
-      source: source
-    )
+    {:ok,
+     Build.Warp.Codedb.GetAstSuccessResponse.new(
+       status: :STATUS_OK,
+       file: req.file,
+       symbol: Build.Warp.Symbol.new(sym: req.symbol.sym),
+       ast: Kernel.inspect(ast),
+       source: source
+     )}
   end
 end

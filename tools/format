@@ -1,0 +1,3 @@
+#!/bin/bash
+warp run @elixir -- mix format ./beam/**/*.{ex,exs}
+warp run @erlang -- ./tools/erlfmt -w "beam/**/*.{erl,hrl}"

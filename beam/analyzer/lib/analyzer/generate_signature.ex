@@ -6,69 +6,78 @@ defmodule Analyzer.GenerateSignature do
 
     cond do
       Path.extname(req.file) in [".erl", ".hrl"] ->
-        gen_sig_erl(req)
+        do_gen_sig_erl(req)
 
       true ->
         Build.Warp.Codedb.GenerateSignatureResponse.new(status: :STATUS_ERR)
     end
   end
 
-  defp gen_sig_erl(req) do
-    # FIXME(@ostera): this is a hack to make the source analyzer find headers
-    #
-
-    # NOTE(@ostera): we don't want to discover things on the FS root
-    parts =
-      case req.file |> Path.dirname() |> Path.split() do
-        ["/" | parts] -> parts
-        parts -> parts
-      end
-
+  defp do_gen_sig_erl(req) do
     include_paths =
-      [
-        "include",
-        Enum.map(req.dependencies, fn dep ->
-          Path.dirname(Path.dirname(dep.store_path))
-        end),
-        for i <- 0..(Enum.count(parts) - 1) do
-          path =
-            case Enum.take(parts, i) do
-              [] -> "."
-              parts -> parts |> Path.join()
-            end
+      Analyzer.ErlangHacks.IncludePaths.from_file_and_deps(req.file, req.dependencies)
 
-          [path, Path.join(path, "include")]
-        end
-      ]
-      |> List.flatten()
-      |> Enum.sort()
+    code_paths =
+      for dep <- req.dependencies do
+        dep.store_path |> Path.dirname()
+      end
       |> Enum.uniq()
 
-    Logger.info("generating signature using include paths:")
+    IO.inspect(["Adding code paths: ", code_paths])
 
-    for p <- include_paths do
-      IO.inspect(p)
-    end
+    {:ok, result} =
+      :erl_generate_signature.generate(%{
+        file: req.file,
+        include_paths: include_paths,
+        code_paths: code_paths
+      })
 
-    signatures =
-      :source_analyzer.analyze_one(
-        req.file,
-        _ModMap = %{},
-        _IgnoreModMap = %{},
-        include_paths
+    IO.inspect(result)
+
+    response = handle_result(req, result)
+
+    Build.Warp.Codedb.GenerateSignatureResponse.new(response: response)
+    |> IO.inspect()
+  end
+
+  defp handle_result(req, {:missing_dependencies, deps}) do
+    includes =
+      (deps[:includes] || [])
+      |> Enum.uniq()
+      |> Enum.map(fn dep ->
+        req = {:file, Build.Warp.FileRequirement.new(path: dep)}
+        Build.Warp.Requirement.new(requirement: req)
+      end)
+
+    parse_transforms =
+      (deps[:parse_transforms] || [])
+      |> Enum.uniq()
+      |> Enum.map(fn dep ->
+        dep = Atom.to_string(dep)
+        req = {:symbol, Build.Warp.SymbolRequirement.new(raw: dep, kind: "module")}
+        Build.Warp.Requirement.new(requirement: req)
+      end)
+
+    type_modules =
+      (deps[:type_modules] || [])
+      |> Enum.uniq()
+      |> Enum.map(fn dep ->
+        dep = Atom.to_string(dep)
+        req = {:symbol, Build.Warp.SymbolRequirement.new(raw: dep, kind: "module")}
+        Build.Warp.Requirement.new(requirement: req)
+      end)
+
+    resp =
+      Build.Warp.Codedb.GetAstMissingDepsResponse.new(
+        file: req.file,
+        symbol: req.symbol,
+        dependencies: includes ++ parse_transforms ++ type_modules
       )
 
-    signatures = :maps.get(:signatures, signatures, [])
+    {:missing_deps, resp}
+  end
 
-    gen_sig =
-      %{
-        :version => 0,
-        :signatures => signatures
-      }
-      |> Jason.encode!()
-
-    IO.inspect(signatures)
-
+  defp handle_result(req, {:completed, signatures}) do
     signatures =
       signatures
       |> Enum.map(fn sig ->
@@ -129,15 +138,31 @@ defmodule Analyzer.GenerateSignature do
           |> Jason.decode!()
           |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
 
+        test_lib = Map.get(sig, :test, nil)
+
+        test_lib =
+          cond do
+            test_lib != nil ->
+              {:ok, test_mod} = :erl_stdlib.file_to_module(test_lib)
+
+              symbol =
+                Build.Warp.SymbolRequirement.new(
+                  raw: Atom.to_string(test_mod),
+                  kind: "module"
+                )
+
+              [Build.Warp.Requirement.new(requirement: {:symbol, symbol})] ++
+                modules
+
+            true ->
+              []
+          end
+
         deps =
           includes ++
             parse_transforms ++
             type_modules ++
-            if Map.has_key?(sig, :test) do
-              modules
-            else
-              []
-            end
+            test_lib
 
         Build.Warp.Signature.new(
           name: sig.name,
@@ -148,11 +173,10 @@ defmodule Analyzer.GenerateSignature do
         )
       end)
 
-    Build.Warp.Codedb.GenerateSignatureResponse.new(
-      status: :STATUS_OK,
-      file: req.file,
-      json_signature: gen_sig,
-      signatures: signatures
-    )
+    {:ok,
+     Build.Warp.Codedb.GenerateSignatureSuccessResponse.new(
+       file: req.file,
+       signatures: signatures
+     )}
   end
 end

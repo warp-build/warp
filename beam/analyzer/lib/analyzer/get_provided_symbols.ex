@@ -16,7 +16,9 @@ defmodule Analyzer.GetProvidedSymbols do
     Logger.info("Analyzing: #{req.file}")
 
     file = req.file
-    {:ok, %{^file => result}} = :erl_analyzer.analyze([file], _ModMap = %{}, _IncludePaths = [])
+
+    {:ok, ast} = :erl_ast.parse_file(file, _include_paths = [])
+    {:ok, result} = :erl_analyzer.analyze(%{ast: ast, file: file, include_paths: []})
 
     requirements =
       case Path.extname(req.file) do

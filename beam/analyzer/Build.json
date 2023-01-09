@@ -11,6 +11,8 @@
       "rule": "mix_library",
       "deps": [
         "//schemas:elixir",
+        "//beam/erlang/analyzer:erl_tree_splitter.erl",
+        "//beam/erlang/analyzer:erl_generate_signature.erl",
         "//beam/erlang/analyzer:erl_analyzer.erl",
         "//beam/erlang/analyzer:source_analyzer.erl",
         "//3rdparty/https/hex.pm/packages/grpc",
