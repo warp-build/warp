@@ -168,6 +168,11 @@ impl LabelResolver {
         self.resolved_labels.insert(label, target);
     }
 
+    #[tracing::instrument(name = "LabelResolver::confirm_signature", skip(self))]
+    pub fn confirm_signature(&self, label: LabelId) {
+        self.source_resolver.confirm_signature(label)
+    }
+
     /// Finds a Target by its AbstractLabel in the Current Workspace.
     ///
     #[tracing::instrument(name = "LabelResolver::find_in_local_workspace", skip(self))]

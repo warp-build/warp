@@ -93,6 +93,7 @@ impl SourceSymbol {
         matches!(&self, Self::All)
     }
 
+    #[tracing::instrument(name = "SourceSymbol::from_label_and_goal")]
     pub fn from_label_and_goal(label: &Label, goal: Goal) -> Self {
         match goal {
             Goal::Build => Self::All,
@@ -120,6 +121,19 @@ impl ToString for SourceSymbol {
     }
 }
 
+impl From<SourceSymbol> for proto::build::warp::Symbol {
+    fn from(symbol: SourceSymbol) -> Self {
+        proto::build::warp::Symbol {
+            sym: Some(match symbol {
+                SourceSymbol::All => proto::build::warp::symbol::Sym::All(true),
+                SourceSymbol::Named(name) => {
+                    proto::build::warp::symbol::Sym::Named(name.to_string())
+                }
+            }),
+        }
+    }
+}
+
 /// A unique identifier for a source. It can only be constructed via `LabelRegistry::register`.
 ///
 #[derive(Copy, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
@@ -138,6 +152,7 @@ pub struct SourceManager {
     global_signatures_path: PathBuf,
     label_registry: Arc<LabelRegistry>,
     sources: DashMap<(LabelId, SourceHash, SourceSymbol), SourceFile>,
+    workspace: Workspace,
 }
 
 #[derive(Error, Debug)]
@@ -147,13 +162,6 @@ pub enum SourceManagerError {
 
     #[error("We don't know how to parse sources with this extension: {}", .label.to_string())]
     UnknownParser { label: Label },
-
-    #[error("Parser {} needs to be built before parsing {}", .parser.to_string(), .label.to_string())]
-    MissingParser {
-        parser_id: LabelId,
-        parser: Label,
-        label: Label,
-    },
 
     #[error("Could not parse {} with parser {}, due to: {err:?}. Full output:\n{ast}", .label.to_string(), .parser.to_string())]
     ParseError {
@@ -198,6 +206,16 @@ pub enum SourceManagerError {
 
     #[error(transparent)]
     AnalyzerServiceError(tonic::Status),
+
+    #[error("Could not chunk source for {} due to missing dependencies: {dep_labels:?}", .label.to_string())]
+    MissingDeps {
+        label: Label,
+        dep_ids: Vec<LabelId>,
+        dep_labels: Vec<Label>,
+    },
+
+    #[error(transparent)]
+    CodeDbError(CodeDbError),
 }
 
 impl SourceManager {
@@ -212,6 +230,7 @@ impl SourceManager {
         _build_opts: BuildOpts,
     ) -> Self {
         Self {
+            workspace: workspace.clone(),
             analyzer_service_manager,
             dependency_manager,
             global_signatures_path: workspace.paths.global_signatures_path.clone(),
@@ -220,6 +239,9 @@ impl SourceManager {
         }
     }
 
+    /// To get a chunk of a source file using a symbol (like the name of a test, or the 'all' symbol
+    /// which means "give me the entire file"), we need to
+    #[tracing::instrument(name = "SourceManager::get_source_chunk_by_symbol", skip(self))]
     pub async fn get_source_chunk_by_symbol(
         &self,
         label_id: LabelId,
@@ -299,14 +321,7 @@ impl SourceManager {
 
             let request = proto::build::warp::codedb::GetAstRequest {
                 file: path.to_string_lossy().to_string(),
-                symbol: Some(proto::build::warp::Symbol {
-                    sym: Some(match symbol {
-                        SourceSymbol::All => proto::build::warp::symbol::Sym::All(true),
-                        SourceSymbol::Named(name) => {
-                            proto::build::warp::symbol::Sym::Named(name.to_string())
-                        }
-                    }),
-                }),
+                symbol: Some(symbol.to_owned().into()),
                 dependencies,
             };
 
@@ -314,28 +329,102 @@ impl SourceManager {
                 .get_ast(request)
                 .await
                 .map_err(SourceManagerError::AnalyzerServiceError)?
-                .into_inner();
+                .into_inner()
+                .response
+                .unwrap();
 
-            let resp_symbol = response.symbol.unwrap().sym.unwrap();
+            let code_db = CodeDb::new(&self.workspace).await.unwrap();
 
-            let source_file = SourceFile {
-                symbol: match resp_symbol {
-                    proto::build::warp::symbol::Sym::All(_) => SourceSymbol::All,
-                    proto::build::warp::symbol::Sym::Named(name) => SourceSymbol::Named(name),
-                },
-                ast_hash: {
-                    let mut s = Sha256::new();
-                    s.update(&response.source);
-                    format!("{:x}", s.finalize())
-                },
-                source_hash,
-                source: response.source,
-                path: path.to_path_buf(),
+            match response {
+                proto::build::warp::codedb::get_ast_response::Response::Ok(response) => {
+                    let resp_symbol = response.symbol.unwrap().sym.unwrap();
+
+                    let source_file = SourceFile {
+                        symbol: match resp_symbol {
+                            proto::build::warp::symbol::Sym::All(_) => SourceSymbol::All,
+                            proto::build::warp::symbol::Sym::Named(name) => {
+                                SourceSymbol::Named(name)
+                            }
+                        },
+                        ast_hash: {
+                            let mut s = Sha256::new();
+                            s.update(&response.source);
+                            format!("{:x}", s.finalize())
+                        },
+                        source_hash,
+                        source: response.source,
+                        path: path.to_path_buf(),
+                    };
+
+                    self._save(&source_key, &source_file).await?;
+                    self.sources.insert(fast_source_key, source_file.clone());
+                    return Ok(source_file);
+                }
+
+                // NOTE(@ostera): in the case where we try to analyze something but we are missing
+                // dependencies for it, we want to use the dependency manager to find the right
+                // label they point to, and surface that so we build those things before analyzing
+                // again.
+                proto::build::warp::codedb::get_ast_response::Response::MissingDeps(
+                    proto::build::warp::codedb::GetAstMissingDepsResponse { dependencies, .. },
+                ) => {
+                    println!("MISSING DEPS!");
+
+                    let mut dep_labels = vec![];
+                    let mut dep_ids = vec![];
+
+                    for dep in dependencies {
+                        let req = dep.requirement.unwrap();
+                        match req {
+                            proto::build::warp::requirement::Requirement::Url(url_req) => {
+                                let url: url::Url = url_req.url.parse().unwrap();
+                                let label: Label = url.clone().into();
+                                dep_labels.push(label.clone());
+                                let dep_id = self.label_registry.register_label(label);
+                                dep_ids.push(dep_id);
+                            }
+
+                            proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
+                                let url = self
+                                    .dependency_manager
+                                    .find_by_package_name(&dep_req.name)
+                                    .map(|dep| dep.url)
+                                    .unwrap_or_else(|| dep_req.url.parse().unwrap());
+                                let label: Label = url.into();
+                                dep_labels.push(label.clone());
+                                let dep_id = self.label_registry.register_label(label);
+                                dep_ids.push(dep_id);
+                            }
+
+                            proto::build::warp::requirement::Requirement::File(file_req) => {
+                                let label = code_db
+                                    .find_label_for_file(&file_req.path)
+                                    .await
+                                    .map_err(SourceManagerError::CodeDbError)?;
+                                dep_labels.push(label.clone());
+                                let dep_id = self.label_registry.register_label(label);
+                                dep_ids.push(dep_id);
+                            }
+
+                            proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
+                                let label = code_db
+                                    .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                                    .await
+                                    .map_err(SourceManagerError::CodeDbError)?;
+                                dep_labels.push(label.clone());
+                                let dep_id = self.label_registry.register_label(label);
+                                dep_ids.push(dep_id);
+                            }
+                        }
+                    }
+
+                    return Err(SourceManagerError::MissingDeps {
+                        label: label.clone(),
+                        dep_ids,
+                        dep_labels,
+                    });
+                }
             };
-
-            self._save(&source_key, &source_file).await?;
-            self.sources.insert(fast_source_key, source_file.clone());
-            return Ok(source_file);
         }
 
         Err(SourceManagerError::UnknownParser {

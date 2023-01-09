@@ -2,7 +2,7 @@ use super::*;
 use std::str::FromStr;
 use thiserror::*;
 
-#[derive(Default, Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Goal {
     #[default]
     Build,
@@ -70,7 +70,7 @@ impl FromStr for Goal {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Task {
     pub label: LabelId,
     pub goal: Goal,

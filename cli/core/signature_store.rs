@@ -8,15 +8,17 @@ use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tracing::*;
 
+type SignatureKey = PathBuf;
+
 #[derive(Debug)]
 pub struct SignatureStore {
     analyzer_service_manager: Arc<AnalyzerServiceManager>,
 
+    artifact_store: Arc<ArtifactStore>,
+
     build_results: Arc<BuildResults>,
 
     event_channel: Arc<EventChannel>,
-
-    generators: DashMap<String, LabelId>,
 
     global_signatures_path: PathBuf,
 
@@ -24,7 +26,9 @@ pub struct SignatureStore {
 
     dependency_manager: Arc<DependencyManager>,
 
-    signatures: DashMap<PathBuf, Arc<Vec<Signature>>>,
+    signatures: DashMap<SignatureKey, Arc<Vec<Signature>>>,
+
+    confirmed_signatures: DashSet<LabelId>,
 
     workspace: Workspace,
 
@@ -73,6 +77,19 @@ pub enum SignatureStoreError {
 
     #[error(transparent)]
     CodeDbError(CodeDbError),
+
+    #[error("Could not find an analyzer suitable for {}", .label.to_string())]
+    MissingAnalyzer { label: Label },
+
+    #[error("Could not generate signature for {} due to missing dependencies: {dep_labels:?}", .label.to_string())]
+    MissingDeps {
+        label: Label,
+        dep_ids: Vec<LabelId>,
+        dep_labels: Vec<Label>,
+    },
+
+    #[error(transparent)]
+    ArtifactStoreError(ArtifactStoreError),
 }
 
 impl SignatureStore {
@@ -80,39 +97,35 @@ impl SignatureStore {
         workspace: &Workspace,
         build_results: Arc<BuildResults>,
         event_channel: Arc<EventChannel>,
-        _artifact_store: Arc<ArtifactStore>,
+        artifact_store: Arc<ArtifactStore>,
         label_registry: Arc<LabelRegistry>,
         analyzer_service_manager: Arc<AnalyzerServiceManager>,
         dependency_manager: Arc<DependencyManager>,
         build_opts: BuildOpts,
     ) -> Self {
-        let generators = DashMap::new();
-        for (ext, generator) in &[
-            ("erl", "https://tools.warp.build/erlang/lifter"),
-            ("hrl", "https://tools.warp.build/erlang/lifter"),
-        ] {
-            let label: Label = generator.parse::<url::Url>().unwrap().into();
-            let label = label_registry.register_label(label);
-            generators.insert(ext.to_string(), label);
-        }
-
         Self {
             analyzer_service_manager,
             build_results,
             dependency_manager,
+            artifact_store,
             event_channel,
-            generators,
             global_signatures_path: workspace.paths.global_signatures_path.clone(),
             label_registry,
             signatures: DashMap::default(),
+            confirmed_signatures: DashSet::default(),
             workspace: workspace.to_owned(),
             build_opts,
         }
     }
 
+    pub fn confirm_signature(&self, label_id: LabelId) {
+        self.confirmed_signatures.insert(label_id);
+    }
+
+    #[tracing::instrument(name = "SignatureStore::generate_signature", skip(self))]
     pub async fn generate_signature(
         &self,
-        _label_id: LabelId,
+        label_id: LabelId,
         label: &Label,
         source_chunk: &SourceFile,
     ) -> Result<Arc<Vec<Signature>>, SignatureStoreError> {
@@ -125,262 +138,17 @@ impl SignatureStore {
             self.signatures.remove(&sig_path);
         }
 
-        if let Some(signatures) = self.signatures.get(&sig_path) {
-            return Ok(signatures.clone());
+        if self.confirmed_signatures.contains(&label_id) {
+            if let Some(signatures) = self.signatures.get(&sig_path) {
+                return Ok(signatures.clone());
+            }
         }
 
-        let gen_sig = if let Ok(mut file) = fs::File::open(&sig_path).await {
-            let mut bytes = vec![];
-            file.read_to_end(&mut bytes).await.map_err(|err| {
-                SignatureStoreError::SignatureReadError {
-                    file: sig_path.clone(),
-                    err,
-                }
-            })?;
-
-            let gen_sig: GeneratedSignature =
-                serde_json::from_slice(&bytes).map_err(|err| SignatureStoreError::ParseError {
-                    err,
-                    json: String::from_utf8(bytes).unwrap(),
-                })?;
-
-            gen_sig
-        } else if let Some(analyzer_id) = self
-            .analyzer_service_manager
-            .find_analyzer_for_local_label(local_label)
-        {
-            let mut analyzer_svc = self
-                .analyzer_service_manager
-                .start(analyzer_id)
-                .await
-                .map_err(SignatureStoreError::AnalyzerServiceManagerError)?;
-
-            // NOTE(@ostera): maybe here we could introduce a step to resolve static dependencies
-            // that are needed for signature generation?
-            //   * get static dependencies
-            //   * ensure they are all built
-            //   * call generate signature passing the dependency outputs
-
-            self.event_channel.send(Event::GeneratingSignature {
-                label: label.to_owned(),
-            });
-
-            // NOTE(@ostera): we are getting all the paths to all the dependencies, since the
-            // signature generators may need to look up certain files here.
-            //
-            let dependencies = self
-                .dependency_manager
-                .labels()
-                .into_iter()
-                .map(|l| {
-                    let label = self.label_registry.get_label(l);
-                    let store_path = label
-                        .workspace()
-                        .map(|p| p.to_path_buf())
-                        .unwrap_or_else(|| PathBuf::from(""))
-                        .join(label.path())
-                        .to_string_lossy()
-                        .to_string();
-
-                    proto::build::warp::Dependency {
-                        name: label.name().to_string(),
-                        store_path,
-                        ..proto::build::warp::Dependency::default()
-                    }
-                })
-                .collect();
-
-            let request = proto::build::warp::codedb::GenerateSignatureRequest {
-                file: local_label.file().to_string_lossy().to_string(),
-                dependencies,
-            };
-            let response = analyzer_svc
-                .generate_signature(request)
-                .await
-                .map_err(SignatureStoreError::AnalyzerServiceError)?
-                .into_inner();
-
-            let code_db = CodeDb::new(&self.workspace).await.unwrap();
-            let mut signatures = vec![];
-            for sig in response.signatures {
-                let deps: DashSet<Label> = DashSet::new();
-                for dep in sig.deps {
-                    let req = dep.requirement.unwrap();
-
-                    match req {
-                        proto::build::warp::requirement::Requirement::Url(url_req) => {
-                            let url: url::Url = url_req.url.parse().unwrap();
-                            let label: Label = url.clone().into();
-                            debug!("DEP: {} -> {}", &url, label.to_string());
-                            deps.insert(label);
-                        }
-
-                        proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
-                            let url = self
-                                .dependency_manager
-                                .find_by_package_name(&dep_req.name)
-                                .map(|dep| dep.url)
-                                .unwrap_or_else(|| dep_req.url.parse().unwrap());
-                            let label: Label = url.into();
-                            debug!("DEP: {} -> {}", &dep_req.name, label.to_string());
-                            deps.insert(label);
-                        }
-
-                        proto::build::warp::requirement::Requirement::File(file_req) => {
-                            let label = code_db
-                                .find_label_for_file(&file_req.path)
-                                .await
-                                .map_err(SignatureStoreError::CodeDbError)?;
-                            debug!("DEP: {} -> {}", &file_req.path, label.to_string());
-                            deps.insert(label);
-                        }
-
-                        proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
-                            let label = code_db
-                                .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
-                                .await
-                                .map_err(SignatureStoreError::CodeDbError)?;
-                            debug!(
-                                "DEP: {}:{} -> {}",
-                                &sym_req.raw,
-                                &sym_req.kind,
-                                label.to_string()
-                            );
-                            deps.insert(label);
-                        }
-                    }
-                }
-
-                let runtime_deps: DashSet<Label> = DashSet::new();
-                for dep in sig.runtime_deps {
-                    let req = dep.requirement.unwrap();
-                    match req {
-                        proto::build::warp::requirement::Requirement::Url(url_req) => {
-                            let url: url::Url = url_req.url.parse().unwrap();
-                            let label: Label = url.clone().into();
-                            debug!("DEP: {} -> {}", &url, label.to_string());
-                            runtime_deps.insert(label);
-                        }
-
-                        proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
-                            let url = self
-                                .dependency_manager
-                                .find_by_package_name(&dep_req.name)
-                                .map(|dep| dep.url)
-                                .unwrap_or_else(|| dep_req.url.parse().unwrap());
-                            let label: Label = url.into();
-                            debug!("DEP: {} -> {}", &dep_req.name, label.to_string());
-                            runtime_deps.insert(label);
-                        }
-
-                        proto::build::warp::requirement::Requirement::File(file_req) => {
-                            let label = code_db
-                                .find_label_for_file(&file_req.path)
-                                .await
-                                .map_err(SignatureStoreError::CodeDbError)?;
-                            debug!("DEP: {} -> {}", &file_req.path, label.to_string());
-                            runtime_deps.insert(label);
-                        }
-
-                        proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
-                            let label = code_db
-                                .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
-                                .await
-                                .map_err(SignatureStoreError::CodeDbError)?;
-                            debug!(
-                                "DEP: {}:{} -> {}",
-                                &sym_req.raw,
-                                &sym_req.kind,
-                                label.to_string()
-                            );
-                            runtime_deps.insert(label);
-                        }
-                    }
-                }
-
-                let signature = Signature {
-                    name: sig.name.parse().unwrap(),
-                    rule: sig.rule,
-                    deps: deps.into_iter().collect(),
-                    runtime_deps: runtime_deps.into_iter().collect(),
-                    config: sig.config.map(|c| c.into()).unwrap_or_default(),
-                };
-
-                signatures.push(signature)
-            }
-
-            let gen_sig = GeneratedSignature { signatures };
-
-            let json_gen_sig = serde_json::to_string_pretty(&gen_sig).unwrap();
-
-            self._save(local_label, source_chunk, json_gen_sig.as_bytes())
-                .await?;
-
+        let gen_sig = if let Ok(gen_sig) = self.read_signature_from_cache(&sig_path).await {
             gen_sig
         } else {
-            let generator = self
-                .generators
-                .get(&*local_label.extension())
-                .map(|r| (*r))
-                .ok_or_else(|| SignatureStoreError::UnknownSignature {
-                    label: label.clone(),
-                })?;
-
-            // 1. build signature generator
-            let generator = self
-                .build_results
-                .get_build_result(generator)
-                .ok_or(SignatureStoreError::MissingGenerator { generator })?;
-
-            self.event_channel.send(Event::GeneratingSignature {
-                label: label.to_owned(),
-            });
-
-            let tmp_dir = tempfile::TempDir::new().unwrap();
-            let tmp_dir = tmp_dir.into_path();
-            let tmp_src = tmp_dir.as_path().join(local_label.file());
-            fs::create_dir_all(tmp_src.parent().unwrap()).await.unwrap();
-            fs::write(&tmp_src, &source_chunk.source).await.unwrap();
-
-            // 2. run generator
-            let cmd = CommandRunner::builder()
-                .cwd(tmp_dir.as_path().into())
-                .manifest(generator.target_manifest.clone())
-                .target(generator.executable_target.clone())
-                .args(vec![
-                    "generate-signature".to_string(),
-                    source_chunk.symbol.to_string(),
-                    local_label.file().to_string_lossy().to_string(),
-                ])
-                .sandboxed(true)
-                .stream_outputs(false)
-                .build()
-                .map_err(SignatureStoreError::CommandRunnerError)?;
-
-            let result = cmd
-                .run()
-                .await
-                .map_err(SignatureStoreError::CommandRunnerError)?;
-
-            if result.status != 0 {
-                return Err(SignatureStoreError::GeneratorError {
-                    stdout: result.stdout,
-                    stderr: result.stderr,
-                    status: result.status,
-                    label: local_label.to_owned().into(),
-                });
-            }
-
-            let gen_sig: GeneratedSignature = serde_json::from_slice(result.stdout.as_bytes())
-                .map_err(|err| SignatureStoreError::ParseError {
-                    err,
-                    json: result.stdout.clone(),
-                })?;
-
-            self._save(local_label, source_chunk, result.stdout.as_bytes())
-                .await?;
-
-            gen_sig
+            self.do_generate_sigature(label, local_label, source_chunk)
+                .await?
         };
 
         // NOTE(@ostera): we support a small file called <filename>.warp that can contain hints for
@@ -481,7 +249,7 @@ impl SignatureStore {
             })
         } else {
             let sigs = Arc::new(sigs);
-            self.signatures.insert(sig_path, sigs.clone());
+            self.signatures.insert(sig_path.clone(), sigs.clone());
             Ok(sigs)
         }
     }
@@ -552,5 +320,305 @@ impl SignatureStore {
         } else {
             Ok(None)
         }
+    }
+
+    #[tracing::instrument(name = "SignatureStore::read_signature_from_cache", skip(self))]
+    async fn read_signature_from_cache(
+        &self,
+        sig_path: &PathBuf,
+    ) -> Result<GeneratedSignature, SignatureStoreError> {
+        let mut file = fs::File::open(&sig_path).await.map_err(|err| {
+            SignatureStoreError::SignatureReadError {
+                file: sig_path.clone(),
+                err,
+            }
+        })?;
+
+        let mut bytes = vec![];
+        file.read_to_end(&mut bytes).await.map_err(|err| {
+            SignatureStoreError::SignatureReadError {
+                file: sig_path.clone(),
+                err,
+            }
+        })?;
+
+        serde_json::from_slice(&bytes).map_err(|err| SignatureStoreError::ParseError {
+            err,
+            json: String::from_utf8(bytes).unwrap(),
+        })
+    }
+
+    #[tracing::instrument(
+        name = "SignatureStore::do_generate_signature",
+        skip(self, source_chunk)
+    )]
+    async fn do_generate_sigature(
+        &self,
+        label: &Label,
+        local_label: &LocalLabel,
+        source_chunk: &SourceFile,
+    ) -> Result<GeneratedSignature, SignatureStoreError> {
+        let analyzer_id = self
+            .analyzer_service_manager
+            .find_analyzer_for_local_label(local_label)
+            .ok_or_else(|| SignatureStoreError::MissingAnalyzer {
+                label: label.clone(),
+            })?;
+
+        let mut analyzer_svc = self
+            .analyzer_service_manager
+            .start(analyzer_id)
+            .await
+            .map_err(SignatureStoreError::AnalyzerServiceManagerError)?;
+
+        let dependencies = self.find_dep_paths().await?;
+
+        let request = proto::build::warp::codedb::GenerateSignatureRequest {
+            file: local_label.file().to_string_lossy().to_string(),
+            symbol: Some(source_chunk.symbol.clone().into()),
+            dependencies,
+        };
+        let response = analyzer_svc
+            .generate_signature(request)
+            .await
+            .map_err(SignatureStoreError::AnalyzerServiceError)?
+            .into_inner()
+            .response
+            .unwrap();
+
+        let code_db = CodeDb::new(&self.workspace).await.unwrap();
+        let mut signatures = vec![];
+        match response {
+            proto::build::warp::codedb::generate_signature_response::Response::Ok(response) => {
+                for sig in response.signatures {
+                    let deps: DashSet<Label> = DashSet::new();
+                    for dep in sig.deps {
+                        let req = dep.requirement.unwrap();
+
+                        match req {
+                            proto::build::warp::requirement::Requirement::Url(url_req) => {
+                                let url: url::Url = url_req.url.parse().unwrap();
+                                let label: Label = url.clone().into();
+                                debug!("DEP: {} -> {}", &url, label.to_string());
+                                deps.insert(label);
+                            }
+
+                            proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
+                                let url = self
+                                    .dependency_manager
+                                    .find_by_package_name(&dep_req.name)
+                                    .map(|dep| dep.url)
+                                    .unwrap_or_else(|| dep_req.url.parse().unwrap());
+                                let label: Label = url.into();
+                                debug!("DEP: {} -> {}", &dep_req.name, label.to_string());
+                                deps.insert(label);
+                            }
+
+                            proto::build::warp::requirement::Requirement::File(file_req) => {
+                                let label = code_db
+                                    .find_label_for_file(&file_req.path)
+                                    .await
+                                    .map_err(SignatureStoreError::CodeDbError)?;
+                                debug!("DEP: {} -> {}", &file_req.path, label.to_string());
+                                deps.insert(label);
+                            }
+
+                            proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
+                                let label = code_db
+                                    .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                                    .await
+                                    .map_err(SignatureStoreError::CodeDbError)?;
+                                debug!(
+                                    "DEP: {}:{} -> {}",
+                                    &sym_req.raw,
+                                    &sym_req.kind,
+                                    label.to_string()
+                                );
+                                deps.insert(label);
+                            }
+                        }
+                    }
+
+                    let runtime_deps: DashSet<Label> = DashSet::new();
+                    for dep in sig.runtime_deps {
+                        let req = dep.requirement.unwrap();
+                        match req {
+                            proto::build::warp::requirement::Requirement::Url(url_req) => {
+                                let url: url::Url = url_req.url.parse().unwrap();
+                                let label: Label = url.clone().into();
+                                debug!("DEP: {} -> {}", &url, label.to_string());
+                                runtime_deps.insert(label);
+                            }
+
+                            proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
+                                let url = self
+                                    .dependency_manager
+                                    .find_by_package_name(&dep_req.name)
+                                    .map(|dep| dep.url)
+                                    .unwrap_or_else(|| dep_req.url.parse().unwrap());
+                                let label: Label = url.into();
+                                debug!("DEP: {} -> {}", &dep_req.name, label.to_string());
+                                runtime_deps.insert(label);
+                            }
+
+                            proto::build::warp::requirement::Requirement::File(file_req) => {
+                                let label = code_db
+                                    .find_label_for_file(&file_req.path)
+                                    .await
+                                    .map_err(SignatureStoreError::CodeDbError)?;
+                                debug!("DEP: {} -> {}", &file_req.path, label.to_string());
+                                runtime_deps.insert(label);
+                            }
+
+                            proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
+                                let label = code_db
+                                    .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                                    .await
+                                    .map_err(SignatureStoreError::CodeDbError)?;
+                                debug!(
+                                    "DEP: {}:{} -> {}",
+                                    &sym_req.raw,
+                                    &sym_req.kind,
+                                    label.to_string()
+                                );
+                                runtime_deps.insert(label);
+                            }
+                        }
+                    }
+
+                    let signature = Signature {
+                        name: sig.name.parse().unwrap(),
+                        rule: sig.rule,
+                        deps: deps.into_iter().collect(),
+                        runtime_deps: runtime_deps.into_iter().collect(),
+                        config: sig.config.map(|c| c.into()).unwrap_or_default(),
+                    };
+
+                    signatures.push(signature)
+                }
+            }
+            // NOTE(@ostera): in the case where we try to analyze something but we are missing
+            // dependencies for it, we want to use the dependency manager to find the right
+            // label they point to, and surface that so we build those things before analyzing
+            // again.
+            proto::build::warp::codedb::generate_signature_response::Response::MissingDeps(
+                proto::build::warp::codedb::GenerateSignatureMissingDepsResponse {
+                    dependencies,
+                    ..
+                },
+            ) => {
+                println!("MISSING DEPS!");
+
+                let mut dep_labels = vec![];
+                let mut dep_ids = vec![];
+
+                for dep in dependencies {
+                    let req = dep.requirement.unwrap();
+                    match req {
+                        proto::build::warp::requirement::Requirement::Url(url_req) => {
+                            let url: url::Url = url_req.url.parse().unwrap();
+                            let label: Label = url.clone().into();
+                            dep_labels.push(label.clone());
+                            let dep_id = self.label_registry.register_label(label);
+                            dep_ids.push(dep_id);
+                        }
+
+                        proto::build::warp::requirement::Requirement::Dependency(dep_req) => {
+                            let url = self
+                                .dependency_manager
+                                .find_by_package_name(&dep_req.name)
+                                .map(|dep| dep.url)
+                                .unwrap_or_else(|| dep_req.url.parse().unwrap());
+                            let label: Label = url.into();
+                            dep_labels.push(label.clone());
+                            let dep_id = self.label_registry.register_label(label);
+                            dep_ids.push(dep_id);
+                        }
+
+                        proto::build::warp::requirement::Requirement::File(file_req) => {
+                            let label = code_db
+                                .find_label_for_file(&file_req.path)
+                                .await
+                                .map_err(SignatureStoreError::CodeDbError)?;
+                            dep_labels.push(label.clone());
+                            let dep_id = self.label_registry.register_label(label);
+                            dep_ids.push(dep_id);
+                        }
+
+                        proto::build::warp::requirement::Requirement::Symbol(sym_req) => {
+                            let label = code_db
+                                .find_label_for_symbol(&sym_req.raw, &sym_req.kind)
+                                .await
+                                .map_err(SignatureStoreError::CodeDbError)?;
+                            dep_labels.push(label.clone());
+                            let dep_id = self.label_registry.register_label(label);
+                            dep_ids.push(dep_id);
+                        }
+                    }
+                }
+
+                return Err(SignatureStoreError::MissingDeps {
+                    label: label.clone(),
+                    dep_ids,
+                    dep_labels,
+                });
+            }
+        }
+
+        self.event_channel.send(Event::GeneratingSignature {
+            label: label.to_owned(),
+        });
+
+        let gen_sig = GeneratedSignature { signatures };
+
+        let json_gen_sig = serde_json::to_string_pretty(&gen_sig).unwrap();
+
+        self._save(local_label, source_chunk, json_gen_sig.as_bytes())
+            .await?;
+
+        Ok(gen_sig)
+    }
+
+    async fn find_dep_paths(
+        &self,
+    ) -> Result<Vec<proto::build::warp::Dependency>, SignatureStoreError> {
+        // NOTE(@ostera): we are getting all the paths to all the dependencies, since the
+        // signature generators may need to look up certain files here.
+        //
+        let mut dependencies = vec![];
+        for l in self.dependency_manager.labels().into_iter() {
+            let label = self.label_registry.get_label(l);
+            let store_path = label
+                .workspace()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| PathBuf::from(""))
+                .join(label.path())
+                .to_string_lossy()
+                .to_string();
+
+            if let Some(r) = self.build_results.get_build_result(l) {
+                let store_path = self
+                    .artifact_store
+                    .absolute_path_by_node(&r.executable_target)
+                    .await
+                    .map_err(SignatureStoreError::ArtifactStoreError)?;
+
+                dependencies.extend(r.target_manifest.outs.iter().map(|out| {
+                    proto::build::warp::Dependency {
+                        name: label.name().to_string(),
+                        store_path: store_path.join(out).to_string_lossy().to_string(),
+                        ..proto::build::warp::Dependency::default()
+                    }
+                }));
+            };
+
+            dependencies.push(proto::build::warp::Dependency {
+                name: label.name().to_string(),
+                store_path,
+                ..proto::build::warp::Dependency::default()
+            });
+        }
+
+        Ok(dependencies)
     }
 }

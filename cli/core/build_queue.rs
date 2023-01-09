@@ -1,6 +1,7 @@
 use super::Event;
 use super::*;
-use dashmap::DashSet;
+use dashmap::{DashMap, DashSet};
+use fxhash::FxHashSet;
 use std::sync::{Arc, Mutex, RwLock};
 use thiserror::*;
 use tracing::*;
@@ -37,7 +38,10 @@ pub struct BuildQueue {
     inner_queue: Arc<crossbeam::deque::Injector<Task>>,
 
     /// A backup queue used for set-aside targets.
-    wait_queue: Arc<RwLock<Vec<Task>>>,
+    wait_queue: Arc<RwLock<FxHashSet<Task>>>,
+
+    /// The list of dependencies needed for a target to be pushed out of the wait queue.
+    wait_queue_deps: Arc<DashMap<Task, DashSet<LabelId>>>,
 
     /// Targets already built.
     build_results: Arc<BuildResults>,
@@ -65,7 +69,8 @@ impl BuildQueue {
             busy_targets: Arc::new(DashSet::new()),
             in_queue_targets: Arc::new(DashSet::new()),
             inner_queue: Arc::new(crossbeam::deque::Injector::new()),
-            wait_queue: Arc::new(RwLock::new(vec![])),
+            wait_queue: Arc::new(RwLock::new(FxHashSet::default())),
+            wait_queue_deps: Arc::new(DashMap::new()),
             build_results,
             all_queued_labels: Arc::new(DashSet::default()),
             label_registry,
@@ -81,7 +86,35 @@ impl BuildQueue {
             let task = if let crossbeam::deque::Steal::Success(task) = self.inner_queue.steal() {
                 task
             } else if let Ok(mut wait_queue) = self.wait_queue.write() {
-                (*wait_queue).pop()?
+                debug!("Inspecting wait_queue");
+                let mut task: Option<Task> = None;
+
+                'wait_queue: for t in &*wait_queue {
+                    debug!(
+                        "Found task {:?}",
+                        self.label_registry.get_label(t.label).to_string()
+                    );
+                    if let Some(deps) = self.wait_queue_deps.get(t) {
+                        for dep in (*deps).iter() {
+                            debug!("-> {:?}", self.label_registry.get_label(*dep).to_string());
+                            if !self.build_results.is_label_built(*dep) {
+                                debug!("not built! skipping");
+                                continue 'wait_queue;
+                            }
+                        }
+                        task = Some(*t);
+                    } else {
+                        task = Some(*t);
+                    }
+                }
+
+                let task = task?;
+                debug!(
+                    "pulling {}",
+                    self.label_registry.get_label(task.label).to_string()
+                );
+                wait_queue.remove(&task);
+                task
             } else {
                 return None;
             };
@@ -112,7 +145,7 @@ impl BuildQueue {
     #[tracing::instrument(name = "BuildQueue::nack", skip(self))]
     pub fn nack(&self, task: Task) {
         self.busy_targets.remove(&task.label);
-        self.wait_queue.write().unwrap().push(task);
+        self.wait_queue.write().unwrap().insert(task);
     }
 
     #[tracing::instrument(name = "BuildQueue::nack", skip(self))]
@@ -161,6 +194,9 @@ impl BuildQueue {
         self.build_results
             .add_dependencies(task.label, deps)
             .map_err(QueueError::DependencyCycle)?;
+
+        self.wait_queue_deps
+            .insert(task, deps.to_vec().into_iter().collect());
 
         for dep in deps {
             self.queue(Task::build(*dep))?;

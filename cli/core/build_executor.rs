@@ -449,13 +449,13 @@ impl BuildExecutor {
                             if meta.file_type().is_dir() {
                                 label.to_abstract().unwrap()
                             } else {
-                                label.to_owned()
+                                label.clone()
                             }
                         } else {
-                            label.to_owned()
+                            label.clone()
                         }
                     } else {
-                        label.to_owned()
+                        label.clone()
                     };
 
                     let label = label_registry.register_label(label);

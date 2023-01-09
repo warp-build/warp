@@ -24,6 +24,11 @@ impl SourceResolver {
         }
     }
 
+    #[tracing::instrument(name = "SourceResolver::forget_signature", skip(self))]
+    pub fn confirm_signature(&self, label: LabelId) {
+        self.signature_store.confirm_signature(label)
+    }
+
     #[tracing::instrument(name = "SourceResolver::resolve", skip(self))]
     pub async fn resolve(
         &self,

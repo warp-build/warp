@@ -151,13 +151,6 @@ impl BuildWorker {
                 return self.requeue(task, &[resolver]).await;
             }
 
-            Err(LabelResolverError::SourceManagerError(SourceManagerError::MissingParser {
-                parser_id,
-                ..
-            })) => {
-                return self.requeue(task, &[parser_id]).await;
-            }
-
             Err(LabelResolverError::SignatureStoreError(
                 SignatureStoreError::MissingGenerator { generator, .. },
             )) => {
@@ -180,6 +173,22 @@ impl BuildWorker {
                 ),
             )) => {
                 return self.requeue(task, &[service_id]).await;
+            }
+
+            Err(LabelResolverError::SourceManagerError(SourceManagerError::MissingDeps {
+                dep_ids,
+                dep_labels,
+                ..
+            })) => {
+                return self.requeue(task, &dep_ids).await;
+            }
+
+            Err(LabelResolverError::SignatureStoreError(SignatureStoreError::MissingDeps {
+                dep_ids,
+                dep_labels,
+                ..
+            })) => {
+                return self.requeue(task, &dep_ids).await;
             }
 
             Err(LabelResolverError::SourceManagerError(
@@ -245,6 +254,8 @@ impl BuildWorker {
 
             Ok(executable_target) => executable_target,
         };
+
+        self.label_resolver.confirm_signature(task.label);
 
         if task.goal.is_fetch() {
             self.build_results.add_fetch_result(task.label);

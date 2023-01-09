@@ -68,6 +68,9 @@ pub struct TargetManifest {
     pub hash: String,
 
     #[serde(default)]
+    pub store_path: PathBuf,
+
+    #[serde(default)]
     pub cached: bool,
 
     #[serde(default)]
@@ -185,6 +188,7 @@ impl TargetManifest {
             toolchains,
             transitive_deps,
             runtime_deps,
+            store_path: store_path.to_path_buf(),
         }
     }
 

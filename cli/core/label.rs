@@ -903,6 +903,5 @@ mod tests {
     #[test]
     fn parse_from_string_url() {
         let label: Label = serde_json::from_str("https://hello.world").unwrap();
-        dbg!(label);
     }
 }
