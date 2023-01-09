@@ -28,13 +28,27 @@ message GetDependenciesResponse {
 message GenerateSignatureRequest {
   string file = 1;
   repeated Dependency dependencies = 2;
+  Symbol symbol = 3;
 }
 
 message GenerateSignatureResponse {
+  oneof response {
+    GenerateSignatureSuccessResponse ok = 1;
+    GenerateSignatureMissingDepsResponse missing_deps = 3;
+  }
+}
+
+message GenerateSignatureSuccessResponse {
   Status status = 1;
   string file = 2;
   string json_signature = 3;
   repeated Signature signatures = 4;
+}
+
+message GenerateSignatureMissingDepsResponse {
+  string file = 1;
+  Symbol symbol = 2;
+  repeated Requirement dependencies = 3;
 }
 
 message GetAstRequest {
@@ -44,11 +58,23 @@ message GetAstRequest {
 }
 
 message GetAstResponse {
-  Status status = 1;
-  string file = 2;
-  Symbol symbol = 3;
-  string source = 4;
-  string ast = 5;
+  oneof response {
+    GetAstSuccessResponse ok = 1;
+    GetAstMissingDepsResponse missing_deps = 3;
+  }
+}
+
+message GetAstMissingDepsResponse {
+  string file = 1;
+  Symbol symbol = 2;
+  repeated Requirement dependencies = 3;
+}
+
+message GetAstSuccessResponse {
+  string file = 1;
+  Symbol symbol = 2;
+  string source = 3;
+  string ast = 4;
 }
 
 message GetInterestedPathsRequest {}

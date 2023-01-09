@@ -67,6 +67,8 @@ message Requirement {
 }
 
 
+// The Dependency message is used to communicate dependencies that have already
+// been resolved.
 message Dependency {
   string name = 1;
   string version = 2;
