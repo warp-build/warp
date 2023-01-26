@@ -1,17 +1,11 @@
-endi:
-  name: Endilie Yacop Sucipto
-  title: Maintainer of Docusaurus
-  url: https://github.com/endiliey
-  image_url: https://github.com/endiliey.png
+leostera:
+  name: Leandro Ostera
+  title: Founder and CEO
+  url: https://linkedin.com/in/ostera
+  image_url: https://github.com/ostera.png 
 
-yangshun:
-  name: Yangshun Tay
-  title: Front End Engineer @ Facebook
-  url: https://github.com/yangshun
-  image_url: https://github.com/yangshun.png
-
-slorber:
-  name: Sébastien Lorber
-  title: Docusaurus maintainer
-  url: https://sebastienlorber.com
-  image_url: https://github.com/slorber.png
+enkrona:
+  name: Robin Moe
+  title: Cofounder
+  url: https://linkedin.com/in/robin-moe
+  image_url: https://github.com/enkronan.png
