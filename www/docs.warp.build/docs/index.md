@@ -2,46 +2,63 @@
 sidebar_position: 1
 ---
 
-# What is warp?
+# Welcome to Warp! 🖖
 
-Let's discover **Docusaurus in less than 5 minutes**.
+warp is a **wholistic build system** that helps you ship software faster
+than ever by giving you instant feedback, shared with your team, and
+making sure that every task is only done once and as fast as
+possible with fully managed toolchains.
 
-## Getting Started
+You can use warp to ensure every commit passes all your tests very
+cheaply, to improve CI feedback times, and to have a common workflow
+across every system and developer on your entire organization.
 
-Get started by **creating a new site**.
+warp works by analyzing your code, and automatically maintaining a build graph that it optimizes to make sure only the bare minimum work is done on every command.
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+It then executes these commands locally or remotely, to give you the fastest build, tests, and linting times possible.
 
-### What you'll need
+## What is a wholistic build system?
 
-- [Node.js](https://nodejs.org/en/download/) version 16.14 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
+Normally your build tools are specialized for a subset of all the tasks you want to achieve:
 
-## Generate a new site
+* Some tools install system-level dependencies, like `brew`, `nix`, or `pacman`
+* Some tools install language-level dependencies, like `yarn`, `mix`, or `pip`
+* Some tools operate within the scope of a specific project, like `mix format` or `yarn run prettier -w`
+* Some tools orchestrate higher level flows that use all the tools from above, like `make deploy` or bash scripts like `./scripts/deploy-assets-to-s3.sh`
 
-Generate a new Docusaurus site using the **classic template**.
+Warp considers everything you need to ship your application as a dependency to it, and handles all of these tools in a single graph.
 
-The classic template will automatically be added to your project after you run the command:
+Take for example, an Elixir application written using Elixir 1.14, with the Phoenix framework, expecting a Postgres 11 database. The application is deployed using Docker to Fly.io.
 
-```bash
-npm init docusaurus@latest my-website classic
+An approximation of Warp's build graph for this application will look like this:
+
+```mermaid
+graph TD;
+    Elixir-->Erlang;
+    Erlang-->OpenSSL;
+    Phoenix-->Elixir;
+    Ecto-->Elixir;
+    Ecto-->Postgres;
+    MyApp-->Phoenix;
+    MyApp-->Ecto;
+    Fly.io-->Docker;
+    Fly.io-->Postgres;
+    R((Deploy))-->MyApp;
+    R((Deploy))-->Fly.io;
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
+This lets warp figure out what needs to be rebuilt or re-executed,
+and what things have already been done and can be retrieved from a
+cache.
 
-The command also installs all necessary dependencies you need to run Docusaurus.
+## warp provides a more reliable software lifecycle
 
-## Start your site
+* No longer figure out what the difference between your and mine machine are – we all run all our commands with the same version of every tool
 
-Run the development server:
+* Save developer and CI time by never rerunning anything twice – our collaborative caching lets everyone in the team benefit from the test results and build artifacts created on CI runs or on other teammates computers
 
-```bash
-cd my-website
-npm run start
-```
+* Ensure a uniform developer flow – warp is so fast that running it as a git precommit hook is even recommended; it helps ensure all the code is formatted, linted, built, and tested correctly on every commit. This is ideal for Trunk-based Development!
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+# How do I get started?
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
-
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+We welcome you to our <a href="http://waitlist.warp.build/">early-access waitlist</a> to make sure we get you onboard as soon as Warp works for your use-case.
