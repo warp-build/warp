@@ -88,7 +88,7 @@ right technological development to push us to an entire new age. For us
 software developers at least, tho I don't see any Vulcan's greeting your team
 anytime soon.
 
-So I set out to build the equivalent of a warp drive for the whole software lifecycle, and I am calling it **warp**.
+So I set out to build the equivalent of a engine but for the whole software lifecycle, and I am calling it (drumroll 🥁): **warp**.
 
 **Warp** is built on the shoulders of giants, but it makes some radically
 different and novel decisions.
@@ -103,7 +103,7 @@ what it really means for a code database to be semantic, and what we can do
 with it. Right now it allows us to answer with incredible granularity questions
 like "should I run this test?" and "what is the impact of this refactor?".
 
-It is built to help teams start fast and _continue_ fast while they grow. From a founding team of 3 people up to an org of 100, the principles that we're building with scale with your entire team.
+It is built to help teams start fast and _continue_ fast while they grow. From a founding team of 3 people up to an org of 100, the principles that we're building on scale with your entire team.
 
 
 ### Join us!
