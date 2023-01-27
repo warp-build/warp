@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Welcome to Warp! 🚀
+# What is warp?
 
 Let's discover **Docusaurus in less than 5 minutes**.
 

@@ -7,7 +7,7 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Warp Docs',
-  tagline: '',
+  tagline: 'Your base for learning warp and contributing to the craft of build engineering',
   url: 'https://docs.warp.build',
   baseUrl: '/',
   onBrokenLinks: 'throw',
@@ -34,6 +34,7 @@ const config = {
       ({
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
+          routeBasePath: '/',
         },
         blog: {
           path: 'blog',
@@ -59,7 +60,7 @@ const config = {
         items: [
           {
             type: 'doc',
-            docId: 'intro',
+            docId: 'index',
             position: 'left',
             label: 'Docs',
           },
