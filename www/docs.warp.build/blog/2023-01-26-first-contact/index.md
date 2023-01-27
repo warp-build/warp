@@ -88,7 +88,7 @@ right technological development to push us to an entire new age. For us
 software developers at least, tho I don't see any Vulcan's greeting your team
 anytime soon.
 
-So I set out to build the equivalent of a engine but for the whole software lifecycle, and I am calling it (drumroll 🥁): **warp**.
+So I set out to build the equivalent engine but for the whole software lifecycle, and I am calling it (drumroll 🥁): **warp**.
 
 **Warp** is built on the shoulders of giants, but it makes some radically
 different and novel decisions.
