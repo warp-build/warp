@@ -1,0 +1,8 @@
+{
+  "label": "Rulebook",
+  "position": 3,
+  "link": {
+    "type": "generated-index",
+    "description": "This is a collection of rules that can be used to tell Warp how to build something. This collection is always growing and changing."
+  }
+}
