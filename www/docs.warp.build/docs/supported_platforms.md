@@ -13,4 +13,5 @@ and usually an Analyzer.
 | Platform | Toolchains | Build | Test | Ship| 
 |----------|------------|-------|------|-----|
 | Erlang | ✅ | ✅ | ✅ | 🚧 |
-| Elixir | ✅ | ✅ | 🚧 | 🚧 |
+| Elixir | ✅ | 🚧 | 🚧 | 🚧 |
+
