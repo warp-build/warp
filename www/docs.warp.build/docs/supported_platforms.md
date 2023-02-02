@@ -16,7 +16,7 @@ You can find recommended versions and hashes in the [registry](https://github.co
 
 #### Rules
 
-We can currently build several rules as seen in the [Rulebook](/rulebook), including:
+We can currently build several rules as seen in the [Rulebook](/category/rulebook), including:
 
 * [`erlang_library`](/rulebook/erlang/erlang_library) -- for low-level Erlang libraries that require no rebar3/make
 * [`erlang_proto_library`](/rulebook/erlang/erlang_proto_library) -- for generating Erlang source code from a .proto file
@@ -38,10 +38,10 @@ You can find recommended versions and hashes in the [registry](https://github.co
 
 #### Rules
 
-We can currently build several rules as seen in the [Rulebook](/rulebook), including:
+We can currently build several rules as seen in the [Rulebook](/category/rulebook), including:
 
 * [`elixir_library`](/rulebook/elixir/elixir_library) -- for low-level Elixir libraries that don't require `mix`
-* [`elixir_proto_library`](/rulebook/erlang/elixir_proto_library) -- for generating Elixir source code from a .proto file
+* [`elixir_proto_library`](/rulebook/elixir/elixir_proto_library) -- for generating Elixir source code from a .proto file
 * [`eex_library`](/rulebook/elixir/eex_library) -- for bundling Elixir templated files
 * [`elixir_script`](/rulebook/elixir/elixir_script) -- for bundling Elixir binaries
 * [`mix_library`](/rulebook/elixir/mix_library) -- for building [mix](https://elixir-lang.org/getting-started/mix-otp/introduction-to-mix.html) libraries
