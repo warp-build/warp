@@ -66,7 +66,7 @@ analyze(#{file := File, include_paths := IncludePaths, code_paths := CodePaths})
     {ok, OutDir} = tempdir:new(),
     io:format("compiling in ~p\n", [OutDir]),
     _ = code:add_path(path:to_string(OutDir)),
-    ok = code:add_paths(CodePaths),
+    [code:add_path(path:to_string(CodePath)) || CodePath <- CodePaths],
 
     CompilerOpts = [
         {outdir, path:to_string(OutDir)} | [{i, path:to_string(P)} || P <- IncludePaths]
