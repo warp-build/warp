@@ -68,7 +68,7 @@ defmodule Analyzer.GenerateSignature do
       end)
 
     resp =
-      Build.Warp.Codedb.GetAstMissingDepsResponse.new(
+      Build.Warp.Codedb.GenerateSignatureMissingDepsResponse.new(
         file: req.file,
         symbol: req.symbol,
         dependencies: includes ++ parse_transforms ++ type_modules
