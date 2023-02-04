@@ -1,4 +1,4 @@
-const impl = ctx => {
+const impl = (ctx) => {
   const {
     label,
     name,
@@ -8,11 +8,11 @@ const impl = ctx => {
     make_opts,
     make_flags,
     targets,
-    outs
+    outs,
   } = ctx.cfg();
 
   const root = Label.path(label);
-  ctx.action().declareOutputs(outs.map(out => File.join(root, out)));
+  ctx.action().declareOutputs(outs.map((out) => File.join(root, out)));
 
   ctx.action().runShell({
     script: `#!/bin/bash -xe
@@ -21,14 +21,14 @@ cd ${Label.path(label)}
 
 ${
   needs_configure === "true"
-  ? `${configure_file} ${configure_flags.join(" ")}`
-  : ""
+    ? `${configure_file} ${configure_flags.join(" ")}`
+    : ""
 }
 
 make ${make_opts.join(" ")} ${targets.join(" ")}
 
 `,
-  })
+  });
 };
 
 export default Warp.Rule({
@@ -47,7 +47,7 @@ export default Warp.Rule({
     targets: [string()],
   },
   defaults: {
-    srcs: [ "./**/*" ],
+    srcs: ["./**/*"],
     outs: [],
     deps: [],
     needs_configure: "false",
@@ -61,4 +61,3 @@ export default Warp.Rule({
   },
   toolchains: [],
 });
-

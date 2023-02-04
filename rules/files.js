@@ -1,4 +1,4 @@
-const impl = ctx => {
+const impl = (ctx) => {
   const { srcs } = ctx.cfg();
   ctx.action().declareOutputs(srcs);
 };
@@ -10,5 +10,5 @@ export default Warp.Rule({
   cfg: {
     name: label(),
     srcs: [file()],
-  }
+  },
 });

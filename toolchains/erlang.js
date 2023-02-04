@@ -4,19 +4,19 @@ export const HEADER_EXT = ".hrl";
 export const BEAM_EXT = ".beam";
 export const ERL_EXT = ".erl";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { version, sha1, configure_flags, make_flags, build_size } = ctx.cfg();
   const { host } = ctx.env();
 
-  const output = "erlang.tar.gz"
+  const output = "erlang.tar.gz";
 
-  const prefix = `otp_src_${version}`
+  const prefix = `otp_src_${version}`;
 
-  const url = `https://github.com/erlang/otp/releases/download/OTP-${version}/${prefix}.tar.gz`
+  const url = `https://github.com/erlang/otp/releases/download/OTP-${version}/${prefix}.tar.gz`;
 
-  ctx.action().download({ url, sha1, output })
+  ctx.action().download({ url, sha1, output });
 
-  ctx.action().extract({ src: output, dst: "." })
+  ctx.action().extract({ src: output, dst: "." });
 
   ctx.action().runShell({
     script: `
@@ -25,10 +25,10 @@ cd ${prefix}
 
 ${
   build_size === "tiny"
-  ? "OTP_TINY_BUILD=true"
-  : build_size === "small"
-  ? "OTP_SMALL_BUILD=true"
-  : ""
+    ? "OTP_TINY_BUILD=true"
+    : build_size === "small"
+    ? "OTP_SMALL_BUILD=true"
+    : ""
 }
 
 export OTP_SMALL_BUILD OTP_TINY_BUILD
@@ -48,7 +48,8 @@ fi
 
 make all install ${make_flags.join(" ")} || exit 1
 
-`});
+`,
+  });
 
   const root = `${prefix}/dist`;
   ctx.action().declareOutputs([root]);
@@ -97,5 +98,5 @@ export default Warp.Toolchain({
     ],
     make_flags: [],
   },
-  toolchains: [OpenSSLToolchain]
+  toolchains: [OpenSSLToolchain],
 });

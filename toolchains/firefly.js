@@ -1,6 +1,6 @@
 import ErlangToolchain from "https://rules.warp.build/toolchains/erlang.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { version, release_date, sha1 } = ctx.cfg();
   const { host } = ctx.env();
 
@@ -11,34 +11,30 @@ const impl = ctx => {
 
   let platform = "";
   if (host.os === "darwin") {
-    platform = `x86_64-apple-darwin`
+    platform = `x86_64-apple-darwin`;
   }
 
-  const url = `https://github.com/GetFirefly/firefly/releases/download/${version}-${release_date}/lumen-${version}-nightly-${platform}.tar.gz`
+  const url = `https://github.com/GetFirefly/firefly/releases/download/${version}-${release_date}/lumen-${version}-nightly-${platform}.tar.gz`;
 
-  ctx.action().download({ url, sha1, output })
+  ctx.action().download({ url, sha1, output });
 
-  ctx.action().extract({ src: output, dst: "." })
+  ctx.action().extract({ src: output, dst: "." });
 
-  ctx.action().declareOutputs([
-    `lumen/bin`,
-    `lumen/lib`,
-    `lumen/etc`,
-  ]);
+  ctx.action().declareOutputs([`lumen/bin`, `lumen/lib`, `lumen/etc`]);
 
-  ctx.action().writeFile({ dst: "version", data: "1" })
+  ctx.action().writeFile({ dst: "version", data: "1" });
 
   ctx.action().runShell({
-    script: `mv lumen/bin/lumen lumen/bin/firefly`
-  })
+    script: `mv lumen/bin/lumen lumen/bin/firefly`,
+  });
 
   ctx.provides({
     firefly: `lumen/bin/firefly`,
-  })
+  });
 
   ctx.setEnv({
     FIREFLY_ROOT: ctx.path(`lumen`),
-  })
+  });
 };
 
 export default Warp.Toolchain({
@@ -50,5 +46,5 @@ export default Warp.Toolchain({
     release_date: string(),
     sha1: string(),
   },
-  toolchains: [ErlangToolchain]
+  toolchains: [ErlangToolchain],
 });

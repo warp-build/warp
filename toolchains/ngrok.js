@@ -1,7 +1,7 @@
-const impl = ctx => {
+const impl = (ctx) => {
   const { unarchivedRoot } = ctx.cfg();
 
-  let binRoot = unarchivedRoot
+  let binRoot = unarchivedRoot;
   const GLEAM = File.join(binRoot, "gleam");
   ctx.provides({ GLEAM });
   ctx.action().declareOutputs([]);
@@ -16,5 +16,3 @@ export default Warp.Toolchain({
     sha1: string(),
   },
 });
-
-

@@ -6,7 +6,10 @@ const impl = (ctx) => {
   const output = "ruby.tar.gz";
   const prefix = `ruby-${version}`;
 
-  const url = `https://cache.ruby-lang.org/pub/ruby/${version.slice(0,3)}/ruby-${version}.tar.gz`;
+  const url = `https://cache.ruby-lang.org/pub/ruby/${version.slice(
+    0,
+    3
+  )}/ruby-${version}.tar.gz`;
 
   ctx.action().download({ url, sha1, output });
 
@@ -48,5 +51,5 @@ export default Warp.Toolchain({
     version: string(),
     sha1: string(),
   },
-  toolchains: [OpenSSLToolchain]
+  toolchains: [OpenSSLToolchain],
 });

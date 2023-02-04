@@ -1,6 +1,6 @@
-const impl = ctx => {
-  const { label, name, deps, srcs, } = ctx.cfg();
-  const cwd = Label.path(label)
+const impl = (ctx) => {
+  const { label, name, deps, srcs } = ctx.cfg();
+  const cwd = Label.path(label);
 
   const tarball = `${name}.node_module.tar`;
   const outputs = [`${cwd}/${tarball}`];
@@ -26,10 +26,7 @@ export default Warp.Rule({
     deps: [label()],
   },
   defaults: {
-    srcs: [
-      "package.json",
-    ],
+    srcs: ["package.json"],
     deps: [],
-  }
+  },
 });
-

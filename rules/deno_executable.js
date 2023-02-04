@@ -1,10 +1,12 @@
-import DenoToolchain, {JS_EXT} from "https://rules.warp.build/toolchains/deno.js";
+import DenoToolchain, {
+  JS_EXT,
+} from "https://rules.warp.build/toolchains/deno.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { label, name, deps, src, permissions } = ctx.cfg();
-  const cwd = Label.path(label)
+  const cwd = Label.path(label);
 
-  const bin = `${cwd}/${name}`
+  const bin = `${cwd}/${name}`;
   ctx.action().declareOutputs([bin]);
   ctx.action().declareRunScript(bin);
 
@@ -15,7 +17,7 @@ cd ${cwd}
 deno compile ${permissions.join(" ")} ${File.filename(src)}
 
 `,
-  })
+  });
 };
 
 export default Warp.Rule({
@@ -32,5 +34,5 @@ export default Warp.Rule({
     deps: [],
     permissions: [],
   },
-  toolchains: [DenoToolchain]
+  toolchains: [DenoToolchain],
 });

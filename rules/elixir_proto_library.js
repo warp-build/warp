@@ -3,7 +3,7 @@ import ProtobufToolchain from "https://rules.warp.build/toolchains/protobuf.js";
 import ElixirToolchain from "https://rules.warp.build/toolchains/elixir.js";
 import ErlangToolchain from "https://rules.warp.build/toolchains/erlang.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { cwd, name, deps, protos, flags, out_dir } = ctx.cfg();
 
   let gen_dir = `${cwd()}/generated/elixir`;
@@ -38,5 +38,5 @@ export default Warp.Rule({
     ElixirToolchain,
     ErlangToolchain,
     ProtobufToolchain,
-  ]
+  ],
 });

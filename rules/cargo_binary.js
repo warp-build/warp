@@ -1,9 +1,9 @@
 import RustToolchain from "https://rules.warp.build/toolchains/rust.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { cwd, label, name, bin } = ctx.cfg();
 
-  const exe = `${cwd()}/target/debug/${bin}`
+  const exe = `${cwd()}/target/debug/${bin}`;
   ctx.action().declareOutputs([exe]);
   ctx.action().declareRunScript(exe);
   ctx.provides({ [bin]: exe });
@@ -15,7 +15,7 @@ cd ${cwd()}
 cargo build
 
 `,
-  })
+  });
 };
 
 export default Warp.Rule({
@@ -31,5 +31,5 @@ export default Warp.Rule({
   defaults: {
     deps: [],
   },
-  toolchains: [RustToolchain]
+  toolchains: [RustToolchain],
 });

@@ -1,18 +1,22 @@
-import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://rules.warp.build/toolchains/erlang.js";
+import ErlangToolchain, {
+  HEADER_EXT,
+  BEAM_EXT,
+  ERL_EXT,
+} from "https://rules.warp.build/toolchains/erlang.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { label, name, deps, test, props } = ctx.cfg();
 
-  const extraLibPaths = ctx.transitiveDeps()
-    .flatMap(dep => dep.outs)
-    .filter(path => path.endsWith(BEAM_EXT))
+  const extraLibPaths = ctx
+    .transitiveDeps()
+    .flatMap((dep) => dep.outs)
+    .filter((path) => path.endsWith(BEAM_EXT))
     .map(File.parent)
-    .map(path => `"${path}"`)
+    .map((path) => `"${path}"`)
     .unique();
 
   const cwd = Label.path(label);
   const runner = `${cwd}/${name}_prop_runner.erl`;
-
 
   /*
    * NOTE(@ostera): we create a script that runs proper and spits out the results.
@@ -31,11 +35,13 @@ main(_argv) ->
   logger:set_handler_config(default, formatter, {logger_formatter, #{}}),
   ?LOG_INFO("Starting prop runner for: ${cwd}/${name}"),
 
-  CodePaths = [ ${ extraLibPaths.join(", \n") } ],
+  CodePaths = [ ${extraLibPaths.join(", \n")} ],
   [ code:add_path(P) || P <- CodePaths ],
 
   Props = [
-    ${ props.map(prop => `{${File.filename(test).replace(ERL_EXT, "")} , ${prop}}`).join(",\n") }
+    ${props
+      .map((prop) => `{${File.filename(test).replace(ERL_EXT, "")} , ${prop}}`)
+      .join(",\n")}
   ],
 
   ?LOG_INFO("Running ~p properties:\n", [length(Props)]),
@@ -63,14 +69,16 @@ main(_argv) ->
       erlang:halt(1)
   end.
   
-`
+`,
   });
 
-  ctx.action().runShell({ script: `
+  ctx.action().runShell({
+    script: `
 
 escript ${runner} || exit 1
 
-  `});
+  `,
+  });
 
   ctx.action().declareOutputs([]);
 };
@@ -89,5 +97,5 @@ export default Warp.Rule({
     deps: [],
     props: [],
   },
-  toolchains: [ErlangToolchain]
+  toolchains: [ErlangToolchain],
 });

@@ -2,7 +2,7 @@ import ProtobufToolchain from "https://rules.warp.build/toolchains/protobuf.js";
 import ErlangToolchain from "https://rules.warp.build/toolchains/erlang.js";
 import ErlangProtobufToolchain from "https://rules.warp.build/toolchains/erlang_protobuf.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { cwd, name, deps, protos, flags, out_dir } = ctx.cfg();
 
   let gen_dir = `${cwd()}/generated/erlang`;
@@ -32,9 +32,5 @@ export default Warp.Rule({
   defaults: {
     deps: [],
   },
-  toolchains: [
-    ErlangProtobufToolchain,
-    ErlangToolchain,
-    ProtobufToolchain,
-  ]
+  toolchains: [ErlangProtobufToolchain, ErlangToolchain, ProtobufToolchain],
 });

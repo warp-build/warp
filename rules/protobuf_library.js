@@ -1,6 +1,6 @@
 import ProtobufToolchain from "https://rules.warp.build/toolchains/protobuf.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { cwd, name, deps, protos, flags, out_dir } = ctx.cfg();
 
   ctx.action().runShell({
@@ -28,5 +28,5 @@ export default Warp.Rule({
   defaults: {
     deps: [],
   },
-  toolchains: [ProtobufToolchain]
+  toolchains: [ProtobufToolchain],
 });

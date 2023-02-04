@@ -1,7 +1,7 @@
 import ElixirToolchain from "https://rules.warp.build/toolchains/elixir.js";
 
-const impl = ctx => {
-  const { name, deps, srcs, } = ctx.cfg();
+const impl = (ctx) => {
+  const { name, deps, srcs } = ctx.cfg();
 
   ctx.action().declareOutputs(srcs);
 };
@@ -16,9 +16,8 @@ export default Warp.Rule({
     srcs: [file()],
   },
   defaults: {
-    srcs: [ "*.eex", "lib/**/*.eex" ],
+    srcs: ["*.eex", "lib/**/*.eex"],
     deps: [],
   },
-  toolchains: [ElixirToolchain]
+  toolchains: [ElixirToolchain],
 });
-

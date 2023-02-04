@@ -37,7 +37,7 @@ const impl = (ctx) => {
     ]);
 
   ctx.provides({
-    python: `${prefix}/dist/bin/python3`
+    python: `${prefix}/dist/bin/python3`,
   });
 };
 
@@ -49,5 +49,5 @@ export default Warp.Toolchain({
     version: string(),
     sha1: string(),
   },
-  toolchains: [OpenSSLToolchain]
+  toolchains: [OpenSSLToolchain],
 });

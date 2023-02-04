@@ -4,21 +4,21 @@ export const BEAM_EXT = ".beam";
 export const EX_EXT = ".ex";
 export const EXS_EXT = ".exs";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { kind, version, sha1 } = ctx.cfg();
 
-  const output = "Precompiled.zip"
+  const output = "Precompiled.zip";
 
   const url =
     kind === "source"
-    ? `https://github.com/elixir-lang/elixir/archive/v${version}.tar.gz`
-    : `https://github.com/elixir-lang/elixir/releases/download/v${version}/Precompiled.zip`
+      ? `https://github.com/elixir-lang/elixir/archive/v${version}.tar.gz`
+      : `https://github.com/elixir-lang/elixir/releases/download/v${version}/Precompiled.zip`;
 
-  ctx.action().download({ url, sha1, output })
+  ctx.action().download({ url, sha1, output });
 
-  ctx.action().extract({ src: output, dst: "." })
+  ctx.action().extract({ src: output, dst: "." });
 
-  let elixir_path = `elixir-${version}`
+  let elixir_path = `elixir-${version}`;
   let MIX_ARCHIVES = `${elixir_path}/.mix/archives`;
 
   if (kind === "source") {
@@ -37,8 +37,8 @@ make -C ${elixir_path}
 ${elixir_path}/bin/mix local.hex --force
 ${elixir_path}/bin/mix local.rebar --force
 
-`
-    })
+`,
+    });
   }
 
   const binRoot = `elixir-${version}/bin`;
@@ -47,10 +47,10 @@ ${elixir_path}/bin/mix local.rebar --force
   const iex = File.join(binRoot, "iex");
   const mix = File.join(binRoot, "mix");
 
-  ctx.action().setPermissions({ file: elixir, executable: true })
-  ctx.action().setPermissions({ file: elixirc, executable: true })
-  ctx.action().setPermissions({ file: iex, executable: true })
-  ctx.action().setPermissions({ file: mix, executable: true })
+  ctx.action().setPermissions({ file: elixir, executable: true });
+  ctx.action().setPermissions({ file: elixirc, executable: true });
+  ctx.action().setPermissions({ file: iex, executable: true });
+  ctx.action().setPermissions({ file: mix, executable: true });
 
   ctx.action().declareOutputs([elixir_path]);
 
@@ -71,5 +71,5 @@ export default Warp.Toolchain({
     sha1: string(),
     kind: string(),
   },
-  toolchains: [ErlangToolchain]
+  toolchains: [ErlangToolchain],
 });

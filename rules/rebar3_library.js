@@ -1,13 +1,13 @@
-import ErlangToolchain, { BEAM_EXT } from "https://rules.warp.build/toolchains/erlang.js";
+import ErlangToolchain, {
+  BEAM_EXT,
+} from "https://rules.warp.build/toolchains/erlang.js";
 import Rebar3Toolchain from "https://rules.warp.build/toolchains/rebar3.js";
 import CMakeToolchain from "https://rules.warp.build/toolchains/cmake.js";
 
 const impl = (ctx) => {
   const { cwd, label, name, deps, srcs } = ctx.cfg();
 
-  ctx.action().declareOutputs([
-    `${cwd()}/_build/default/lib/${name}`
-  ]);
+  ctx.action().declareOutputs([`${cwd()}/_build/default/lib/${name}`]);
 
   ctx.action().runShell({
     script: `

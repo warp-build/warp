@@ -1,55 +1,80 @@
 import { TAR_EXT } from "https://rules.warp.build/rules/archive.js";
-import ElixirToolchain, {EX_EXT} from "https://rules.warp.build/toolchains/elixir.js";
-import ErlangToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/erlang.js";
+import ElixirToolchain, {
+  EX_EXT,
+} from "https://rules.warp.build/toolchains/elixir.js";
+import ErlangToolchain, {
+  BEAM_EXT,
+} from "https://rules.warp.build/toolchains/erlang.js";
 
-const impl = ctx => {
-  const { label, name, deps, srcs, modules, elixirc_opts} = ctx.cfg();
+const impl = (ctx) => {
+  const { label, name, deps, srcs, modules, elixirc_opts } = ctx.cfg();
 
-  const prefix = Label.path(label)
-  const relativeRoot = prefix.split('/').map(_ => `..`).join("/")
+  const prefix = Label.path(label);
+  const relativeRoot = prefix
+    .split("/")
+    .map((_) => `..`)
+    .join("/");
 
   // NOTE(@ostera): we are enforcing some naming conventions here, and 1 module
   // per .ex file. We could also just request a list of module names that are
   // being defined.
-  let outputs = modules.map(name => `${prefix}/Elixir.${name}.beam`)
+  let outputs = modules.map((name) => `${prefix}/Elixir.${name}.beam`);
   if (outputs.length == 0) {
-    outputs = srcs
-      .map(label => {
-        let [path, ext] = label
-          .replace(prefix+"/lib/", "")
-          .split(".")
+    outputs = srcs.map((label) => {
+      let [path, ext] = label.replace(prefix + "/lib/", "").split(".");
 
-        let modPath = path.split("/")
-          .map(part => part[0].toUpperCase() + part.slice(1))
-          .map(part => part.split("_").map(word => word[0].toUpperCase() + word.slice(1)).join(""))
-          .reduce((acc, part) => {
-            if (acc.length == 0) { return [part] }
-            if (acc[acc.length - 1 ] == part) { return acc }
-            return acc.concat([part])
-          }, [])
+      let modPath = path
+        .split("/")
+        .map((part) => part[0].toUpperCase() + part.slice(1))
+        .map((part) =>
+          part
+            .split("_")
+            .map((word) => word[0].toUpperCase() + word.slice(1))
+            .join("")
+        )
+        .reduce((acc, part) => {
+          if (acc.length == 0) {
+            return [part];
+          }
+          if (acc[acc.length - 1] == part) {
+            return acc;
+          }
+          return acc.concat([part]);
+        }, []);
 
-        let modName = modPath.join(".") + `.${ext}`
+      let modName = modPath.join(".") + `.${ext}`;
 
-        return File.join(prefix, File.withExtension(`Elixir.${modName}`, BEAM_EXT))
-      });
+      return File.join(
+        prefix,
+        File.withExtension(`Elixir.${modName}`, BEAM_EXT)
+      );
+    });
   }
   ctx.action().declareOutputs(outputs);
 
   const transitiveDeps = ctx.transitiveDeps();
-  const elixirLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://rules.warp.build/rules/elixir_library");
-  const mixLibraries = transitiveDeps.filter(dep => dep.ruleName == "https://rules.warp.build/rules/mix_library");
+  const elixirLibraries = transitiveDeps.filter(
+    (dep) => dep.ruleName == "https://rules.warp.build/rules/elixir_library"
+  );
+  const mixLibraries = transitiveDeps.filter(
+    (dep) => dep.ruleName == "https://rules.warp.build/rules/mix_library"
+  );
 
   const extraPaths = [
     ...mixLibraries
-      .map((dep) => `${Label.path(dep.label)}/_build/prod/lib/${Label.name(dep.label)}/ebin`)
+      .map(
+        (dep) =>
+          `${Label.path(dep.label)}/_build/prod/lib/${Label.name(
+            dep.label
+          )}/ebin`
+      )
       .unique(),
-    ...elixirLibraries
-      .flatMap(dep =>
-        dep.outs
-          .filter((out) => out.endsWith(BEAM_EXT))
-          .map((path) => File.parent(path))
-          .unique()
-      ),
+    ...elixirLibraries.flatMap((dep) =>
+      dep.outs
+        .filter((out) => out.endsWith(BEAM_EXT))
+        .map((path) => File.parent(path))
+        .unique()
+    ),
   ]
     .flatMap((path) => ["-pa", path])
     .join(" ");
@@ -74,7 +99,7 @@ elixirc \
   ${elixirc_opts.join(" ")} \
   -o ${prefix} \
   ${srcs.join(" ")}
-`
+`,
   });
 };
 
@@ -87,13 +112,13 @@ export default Warp.Rule({
     deps: [label()],
     srcs: [file()],
     elixirc_opts: [string()],
-    modules: [string()]
+    modules: [string()],
   },
   defaults: {
-    srcs: [ "*.ex", "lib/**/*.ex" ],
+    srcs: ["*.ex", "lib/**/*.ex"],
     deps: [],
     modules: [],
-    elixirc_opts: [ "--warnings-as-errors" ],
+    elixirc_opts: ["--warnings-as-errors"],
   },
-  toolchains: [ElixirToolchain, ErlangToolchain]
+  toolchains: [ElixirToolchain, ErlangToolchain],
 });

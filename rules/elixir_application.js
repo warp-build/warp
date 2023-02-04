@@ -1,28 +1,31 @@
-import ElixirToolchain, {EX_EXT} from "https://rules.warp.build/toolchains/elixir.js";
-import ErlangToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/erlang.js";
+import ElixirToolchain, {
+  EX_EXT,
+} from "https://rules.warp.build/toolchains/elixir.js";
+import ErlangToolchain, {
+  BEAM_EXT,
+} from "https://rules.warp.build/toolchains/erlang.js";
 
-const impl = ctx => {
-  const { label, name, app_name, mod, apps} = ctx.cfg();
+const impl = (ctx) => {
+  const { label, name, app_name, mod, apps } = ctx.cfg();
 
-  const ebin = File.join(Label.path(label), "ebin")
+  const ebin = File.join(Label.path(label), "ebin");
 
-  const beams =
-    ctx.deps()
-    .flatMap( dep => dep.outs )
-    .filter( out => out.endsWith(BEAM_EXT) )
+  const beams = ctx
+    .deps()
+    .flatMap((dep) => dep.outs)
+    .filter((out) => out.endsWith(BEAM_EXT));
 
-  const ebinBeams =
-    beams
-    .map( out => File.join(ebin, File.filename(out)) )
+  const ebinBeams = beams.map((out) => File.join(ebin, File.filename(out)));
 
-  const appFile = `${ebin}/${app_name}.app`
+  const appFile = `${ebin}/${app_name}.app`;
 
-  ctx.action().declareOutputs([
-    ...ebinBeams,
-    appFile,
-    `${Label.path(label)}/${name}.ebin.tar`
-  ]);
-
+  ctx
+    .action()
+    .declareOutputs([
+      ...ebinBeams,
+      appFile,
+      `${Label.path(label)}/${name}.ebin.tar`,
+    ]);
 
   ctx.action().runShell({
     script: `#/bin/bash -xe
@@ -31,7 +34,8 @@ mkdir -p ${ebin}
 
 mv ${beams.join(" ")} ${ebin}
 
-` })
+`,
+  });
 
   ctx.action().writeFile({
     dst: appFile,
@@ -42,16 +46,16 @@ mv ${beams.join(" ")} ${ebin}
   {mod, {'Elixir.${mod}', []}},
   {applications, [${apps.join(",")}]}
 ]}.
-`
-  })
+`,
+  });
 
   ctx.action().runShell({
     script: `#/bin/bash -xe
 
 tar cf ${Label.path(label)}/${name}.ebin.tar ${Label.path(label)}/ebin
 
-` })
-
+`,
+  });
 };
 
 export default Warp.Rule({
@@ -71,6 +75,5 @@ export default Warp.Rule({
     deps: [],
     config: "config.exs",
   },
-  toolchains: [ElixirToolchain, ErlangToolchain]
+  toolchains: [ElixirToolchain, ErlangToolchain],
 });
-

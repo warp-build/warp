@@ -1,6 +1,10 @@
-import ErlangToolchain, {HEADER_EXT, BEAM_EXT, ERL_EXT} from "https://rules.warp.build/toolchains/erlang.js";
+import ErlangToolchain, {
+  HEADER_EXT,
+  BEAM_EXT,
+  ERL_EXT,
+} from "https://rules.warp.build/toolchains/erlang.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { name, deps, srcs, headers, behaviors } = ctx.cfg();
 
   ctx.action().declareOutputs([]);
@@ -18,5 +22,5 @@ export default Warp.Rule({
   defaults: {
     deps: [],
   },
-  toolchains: [ErlangToolchain]
+  toolchains: [ErlangToolchain],
 });

@@ -1,6 +1,8 @@
-import DenoToolchain, {JS_EXT} from "https://rules.warp.build/toolchains/deno.js";
+import DenoToolchain, {
+  JS_EXT,
+} from "https://rules.warp.build/toolchains/deno.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { label, name, srcs } = ctx.cfg();
   ctx.action().declareOutputs(srcs);
 };
@@ -15,8 +17,8 @@ export default Warp.Rule({
     deps: [label()],
   },
   defaults: {
-    srcs: [ "*.js" ],
+    srcs: ["*.js"],
     deps: [],
   },
-  toolchains: [DenoToolchain]
+  toolchains: [DenoToolchain],
 });

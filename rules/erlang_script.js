@@ -1,4 +1,7 @@
-import ErlangToolchain, { BEAM_EXT, HEADER_EXT } from "https://rules.warp.build/toolchains/erlang.js";
+import ErlangToolchain, {
+  BEAM_EXT,
+  HEADER_EXT,
+} from "https://rules.warp.build/toolchains/erlang.js";
 import Rebar3Toolchain from "https://rules.warp.build/toolchains/rebar3.js";
 
 const impl = (ctx) => {
@@ -6,27 +9,35 @@ const impl = (ctx) => {
 
   const cwd = Label.path(label);
 
-  const transitiveDeps = ctx.transitiveDeps().flatMap(dep => dep.outs);
-  const runtimeDeps = ctx.runtimeDeps().flatMap(dep => dep.outs);
+  const transitiveDeps = ctx.transitiveDeps().flatMap((dep) => dep.outs);
+  const runtimeDeps = ctx.runtimeDeps().flatMap((dep) => dep.outs);
 
   const includePaths = transitiveDeps
-    .filter(path => path.endsWith(HEADER_EXT))
+    .filter((path) => path.endsWith(HEADER_EXT))
     .unique();
 
   const beamFiles = transitiveDeps
     .concat(runtimeDeps)
-    .filter(path => path.endsWith(BEAM_EXT) || path.endsWith(".app") || path.endsWith(".app.src"))
+    .filter(
+      (path) =>
+        path.endsWith(BEAM_EXT) ||
+        path.endsWith(".app") ||
+        path.endsWith(".app.src")
+    )
     .unique();
 
-  const transitiveApps = ctx.transitiveDeps()
+  const transitiveApps = ctx
+    .transitiveDeps()
     .concat(ctx.runtimeDeps())
-    .flatMap(dep => {
-      let app = dep.outs.find(path => path.endsWith(".app"));
+    .flatMap((dep) => {
+      let app = dep.outs.find((path) => path.endsWith(".app"));
       if (app) {
-        return [{
-          name: File.filename(app).replace(".app", ""),
-          ebin: File.parent(app),
-        }];
+        return [
+          {
+            name: File.filename(app).replace(".app", ""),
+            ebin: File.parent(app),
+          },
+        ];
       }
       return [];
     })
@@ -34,7 +45,9 @@ const impl = (ctx) => {
 
   ctx.action().runShell({ script: `mkdir -p ${cwd}/ebin` });
   transitiveApps.forEach((app) => {
-    ctx.action().runShell({ script: `cp -R ${app.ebin} ${cwd}/ebin/${app.name}`})
+    ctx
+      .action()
+      .runShell({ script: `cp -R ${app.ebin} ${cwd}/ebin/${app.name}` });
   });
 
   const build = `${cwd}/${name}_escript_builder.erl`;
@@ -63,23 +76,19 @@ main(_argv) ->
 
   % The raw list of files.
   DepBeamFiles = [
-    ${
-      beamFiles
-      .map(dep => `"${dep}"`)
-      .join(",\n    ")
-    }
+    ${beamFiles.map((dep) => `"${dep}"`).join(",\n    ")}
   ],
 
   DepApps = maps:from_list([
-    ${
-      transitiveApps
-      .map(({name}) => `{<<"${name}">>, <<"${cwd}/ebin/${name}/${name}.app">>}`)
-      .join(",\n    ")
-    }
+    ${transitiveApps
+      .map(
+        ({ name }) => `{<<"${name}">>, <<"${cwd}/ebin/${name}/${name}.app">>}`
+      )
+      .join(",\n    ")}
   ]),
 
   AppNames = [
-    ${apps.map(dep => `<<"${dep}">>`).join(",\n    ")}
+    ${apps.map((dep) => `<<"${dep}">>`).join(",\n    ")}
   ],
 
   Apps = lists:flatmap(fun (AppName) ->
@@ -119,11 +128,7 @@ main(_argv) ->
   end, DepBeamFiles),
 
   SrcFiles = [
-    ${
-      [main]
-      .map(dep => `"${dep}"`)
-      .join(",\n    ")
-    }
+    ${[main].map((dep) => `"${dep}"`).join(",\n    ")}
   ],
 
   ?LOG_INFO("Compiling sources into .beam files..."),
@@ -149,7 +154,7 @@ main(_argv) ->
 
   {ok, Bin} = escript:create(binary, Cfg),
   ok = file:write_file(<<"${File.filename(run)}">>, Bin).
-`
+`,
   });
 
   /*
@@ -163,10 +168,11 @@ escript ${build} || exit 1
 
 mv ${File.filename(run)} ${run}
 
-` })
+`,
+  });
 
   ctx.action().declareOutputs([run]);
-  ctx.action().setPermissions({file: run, executable: true});
+  ctx.action().setPermissions({ file: run, executable: true });
   ctx.action().declareRunScript(run);
   ctx.provides({ [name]: run });
 };

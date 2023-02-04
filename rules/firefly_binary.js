@@ -1,9 +1,9 @@
 import FireflyToolchain from "https://rules.warp.build/toolchains/firefly.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { cwd, label, name, src, deps, opt_level } = ctx.cfg();
 
-  ctx.action().declareOutputs([ name ]);
+  ctx.action().declareOutputs([name]);
 
   ctx.action().runShell({
     script: `
@@ -11,11 +11,11 @@ const impl = ctx => {
 firefly compile ${File.parent(src)}
 
 `,
-  })
+  });
 
   ctx.provides({
-    [name]: name
-  })
+    [name]: name,
+  });
 };
 
 export default Warp.Rule({
@@ -32,6 +32,5 @@ export default Warp.Rule({
     opt_level: "3",
     deps: [],
   },
-  toolchains: [FireflyToolchain]
+  toolchains: [FireflyToolchain],
 });
-

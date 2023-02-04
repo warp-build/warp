@@ -1,16 +1,16 @@
-import NgrokToolchain from "https://rules.warp.build/toolchains/ngrok.js"
+import NgrokToolchain from "https://rules.warp.build/toolchains/ngrok.js";
 
-const impl = ctx => {
-  const { label, args} = ctx.cfg()
-  ctx.action().declareOutputs([])
+const impl = (ctx) => {
+  const { label, args } = ctx.cfg();
+  ctx.action().declareOutputs([]);
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
 ngrok ${args.join(" ")}
 
-    `
-  })
-}
+    `,
+  });
+};
 
 export default Warp.Rule({
   runnable: true,
@@ -25,5 +25,5 @@ export default Warp.Rule({
   defaults: {
     deps: [],
   },
-  toolchains: [NgrokToolchain]
-})
+  toolchains: [NgrokToolchain],
+});

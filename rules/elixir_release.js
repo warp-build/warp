@@ -1,12 +1,16 @@
-import ElixirToolchain, {EX_EXT} from "https://rules.warp.build/toolchains/elixir.js";
-import ErlangToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/erlang.js";
+import ElixirToolchain, {
+  EX_EXT,
+} from "https://rules.warp.build/toolchains/elixir.js";
+import ErlangToolchain, {
+  BEAM_EXT,
+} from "https://rules.warp.build/toolchains/erlang.js";
 
-const impl = ctx => {
-  const { name, deps, } = ctx.cfg();
+const impl = (ctx) => {
+  const { name, deps } = ctx.cfg();
   ctx.action().writeFile({
     dst: name,
-    data: `${name}`
-  })
+    data: `${name}`,
+  });
   ctx.action().declareOutputs([name]);
 };
 
@@ -21,6 +25,5 @@ export default Warp.Rule({
   defaults: {
     deps: [],
   },
-  toolchains: [ElixirToolchain, ErlangToolchain]
+  toolchains: [ElixirToolchain, ErlangToolchain],
 });
-

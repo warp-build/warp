@@ -1,4 +1,4 @@
-const impl = ctx => {
+const impl = (ctx) => {
   ctx.action().declareOutputs([]);
 };
 
@@ -9,5 +9,5 @@ export default Warp.Rule({
   cfg: {
     name: label(),
   },
-  toolchains: []
+  toolchains: [],
 });

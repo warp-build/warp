@@ -1,17 +1,21 @@
-import ErlangToolchain, {BEAM_EXT} from "https://rules.warp.build/toolchains/erlang.js"
-import GleamToolchain, {GLEAM_EXT} from "https://rules.warp.build/toolchains/gleam.js"
+import ErlangToolchain, {
+  BEAM_EXT,
+} from "https://rules.warp.build/toolchains/erlang.js";
+import GleamToolchain, {
+  GLEAM_EXT,
+} from "https://rules.warp.build/toolchains/gleam.js";
 
-const impl = ctx => {
-  const { label, name, deps } = ctx.cfg()
+const impl = (ctx) => {
+  const { label, name, deps } = ctx.cfg();
 
-  ctx.action().declareOutputs([])
+  ctx.action().declareOutputs([]);
 
   ctx.action().runShell({
     script: `#!/bin/bash -xe
     ${GleamToolchain.provides().GLEAM} build
-    `
-  })
-}
+    `,
+  });
+};
 
 export default Warp.Rule({
   name: "https://rules.warp.build/rules/gleam_package",
@@ -24,5 +28,5 @@ export default Warp.Rule({
   defaults: {
     deps: [],
   },
-  toolchains: [GleamToolchain, ErlangToolchain]
-})
+  toolchains: [GleamToolchain, ErlangToolchain],
+});

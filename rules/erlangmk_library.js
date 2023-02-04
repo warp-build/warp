@@ -1,11 +1,12 @@
-import ErlangToolchain, {BEAM_EXT, ERL_EXT} from "https://rules.warp.build/toolchains/erlang.js";
+import ErlangToolchain, {
+  BEAM_EXT,
+  ERL_EXT,
+} from "https://rules.warp.build/toolchains/erlang.js";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { label, name, deps, srcs, headers } = ctx.cfg();
 
-  ctx.action().declareOutputs([
-    `_build/default/lib/${name}`
-  ]);
+  ctx.action().declareOutputs([`_build/default/lib/${name}`]);
 
   ctx.action().runShell({
     script: `#!/bin/bash
@@ -22,7 +23,7 @@ mkdir -p _build/default/lib/${name}
 mv ebin _build/default/lib/${name}
 
 `,
-  })
+  });
 };
 
 export default Warp.Rule({
@@ -33,16 +34,15 @@ export default Warp.Rule({
     name: label(),
     srcs: [file()],
     deps: [label()],
-    headers: [file()]
+    headers: [file()],
   },
   defaults: {
-    srcs: [ "*.erl", "src/**/*.erl", "erlang.mk", "Makefile" ],
+    srcs: ["*.erl", "src/**/*.erl", "erlang.mk", "Makefile"],
     deps: [],
-    headers: [ "*.hrl", "src/**/*.hrl", "include/**/*.hrl" ],
+    headers: ["*.hrl", "src/**/*.hrl", "include/**/*.hrl"],
   },
   sandbox: {
     mode: "copy",
   },
-  toolchains: [ErlangToolchain]
+  toolchains: [ErlangToolchain],
 });
-

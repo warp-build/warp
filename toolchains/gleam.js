@@ -1,9 +1,9 @@
 export const GLEAM_EXT = ".gleam";
 
-const impl = ctx => {
+const impl = (ctx) => {
   const { unarchivedRoot, archiveKind } = ctx.cfg();
 
-  let binRoot = unarchivedRoot
+  let binRoot = unarchivedRoot;
   // if (archiveKind === "source") {
   //   ctx.action().exec({
   //     cmd: "make",
@@ -27,4 +27,3 @@ export default Warp.Toolchain({
     sha1: string(),
   },
 });
-
