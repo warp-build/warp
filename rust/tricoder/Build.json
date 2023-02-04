@@ -1,0 +1,10 @@
+{
+    "signatures": [
+	{
+	    "name": "tricoder",
+	    "rule": "cargo_binary",
+	    "bin": "tricoder",
+	    "srcs": ["**/*"]
+	}
+    ]
+}
