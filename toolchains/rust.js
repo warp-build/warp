@@ -3,8 +3,15 @@ export const TS_EXT = ".ts";
 
 const impl = (ctx) => {
   const { host } = ctx.env();
-  const { cwd, sha1_aarch64, toolchains, targets, profile, components } =
-    ctx.cfg();
+  const {
+    cwd,
+    sha1_aarch64,
+    sha1_x86_64,
+    toolchains,
+    targets,
+    profile,
+    components,
+  } = ctx.cfg();
 
   let arch = host.arch;
   let sha1 = sha1_aarch64;
@@ -12,12 +19,13 @@ const impl = (ctx) => {
     sha1 = sha1_x86_64;
   }
 
-  const url = `https://static.rust-lang.org/rustup/dist/aarch64-apple-darwin/rustup-init`;
+  const url = `https://static.rust-lang.org/rustup/dist/${host.triple}/rustup-init`;
   const rustup_init = "rustup-init";
 
   ctx.action().download({ url, sha1, output: rustup_init });
   ctx.action().setPermissions({ file: rustup_init, executable: true });
 
+  const defaultToolchain = toolchains.find((t) => t.includes(host.triple));
   ctx.action().writeFile({ dst: "version", data: "0" });
   ctx.action().runShell({
     script: `
@@ -26,25 +34,22 @@ export RUSTUP_HOME=$(pwd)/.rustup
 
 ./${rustup_init} -y --no-modify-path \
   --profile ${profile} \
-  --default-toolchain ${toolchains[0]} \
-  ${targets.map((t) => `-t ${t}`).join(" \n")}
-  ${components.map((c) => `-c ${c}`).join(" \n")}
-
+  --default-toolchain ${defaultToolchain} \
+  --target ${targets.join(" ")} \
+  --component ${components.join(" ")}
 `,
   });
 
   let outputs = [
     `.rustup/settings.toml`,
-    ...toolchains.flatMap((t) => [
-      `.rustup/toolchains/${t}/bin`,
-      `.rustup/toolchains/${t}/lib`,
-      `.rustup/toolchains/${t}/libexec`,
-    ]),
+    `.rustup/toolchains/${defaultToolchain}/bin`,
+    `.rustup/toolchains/${defaultToolchain}/lib`,
+    `.rustup/toolchains/${defaultToolchain}/libexec`,
   ];
 
   ctx.action().declareOutputs(outputs);
 
-  let root = `.rustup/toolchains/${toolchains[0]}/bin`;
+  let root = `.rustup/toolchains/${defaultToolchain}/bin`;
   ctx.provides({
     cargo: `${root}/cargo`,
     "cargo-clippy": `${root}/cargo-clippy`,
@@ -69,9 +74,9 @@ export default Warp.Toolchain({
     targets: [string()],
     components: [string()],
     sha1_aarch64: string(),
+    sha1_x86_64: string(),
   },
   defaults: {
-    components: [],
     profile: "default",
   },
 });
