@@ -45,6 +45,14 @@
       "extensions": ["erl", "hrl"]
     }
   },
+  "rust": {
+    "1.67.0": {
+      "sha1": "aijong",
+      "version": "1.67.0",
+      "analyzer": "https://tools.warp.build/rust/tricoder",
+      "extensions": [".rs"]
+    }
+  },
   "cmake": {
     "3.24.2": {
       "sha1_aarch64": "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
