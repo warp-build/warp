@@ -1,23 +1,25 @@
 use super::*;
+use crate::planner::*;
+use crate::resolver::*;
 
 #[derive(Default, Debug, Copy, Clone)]
-pub enum TargetFilter {
+pub enum SignatureFilter {
     OnlyTests,
     #[default]
     Everything,
 }
 
-impl TargetFilter {
-    pub fn passes(&self, target: &Target) -> bool {
+impl SignatureFilter {
+    pub fn passes(&self, sig: &Signature) -> bool {
         match self {
-            TargetFilter::OnlyTests => target.rule_name.ends_with("_test"),
-            TargetFilter::Everything => true,
+            Self::OnlyTests => sig.rule.ends_with("_test"),
+            Self::Everything => true,
         }
     }
 }
 
 #[derive(Default, Debug, Copy, Clone)]
-pub struct BuildOpts {
+pub struct Options {
     pub concurrency_limit: usize,
     pub experimental_file_mode: bool,
     pub experimental_force_rebuild: bool,
@@ -26,17 +28,17 @@ pub struct BuildOpts {
     pub experimental_stream_analyzer_outputs: bool,
     pub disable_remote_cache: bool,
     pub goal: Goal,
-    pub target_filter: TargetFilter,
+    pub signature_filter: SignatureFilter,
 }
 
-impl BuildOpts {
+impl Options {
     pub fn with_goal(mut self, goal: Goal) -> Self {
         self.goal = goal;
         self
     }
 
-    pub fn with_target_filter(mut self, target_filter: TargetFilter) -> Self {
-        self.target_filter = target_filter;
+    pub fn with_signature_filter(mut self, signature_filter: SignatureFilter) -> Self {
+        self.signature_filter = signature_filter;
         self
     }
 }

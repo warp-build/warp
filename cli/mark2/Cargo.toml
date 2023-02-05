@@ -1,3 +1,5 @@
+[workspace]
+
 [package]
 name = "warp-core-mark2"
 version = "0.0.0"

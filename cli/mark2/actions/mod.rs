@@ -1,12 +1,12 @@
-pub mod action;
-pub mod copy;
-pub mod download;
-pub mod exec;
-pub mod extract;
-pub mod run_shell;
-pub mod set_permissions;
-pub mod verify_checksum;
-pub mod write_file;
+mod action;
+mod copy;
+mod download;
+mod exec;
+mod extract;
+mod run_shell;
+mod set_permissions;
+mod verify_checksum;
+mod write_file;
 
 pub use action::*;
 pub use copy::*;
