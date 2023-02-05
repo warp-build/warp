@@ -1,8 +1,6 @@
 {
-  "label": "Getting Started",
+  "label": "Get started with Warp",
   "position": 3,
-  "link": {
-    "type": "generated-index",
-    "description": "Everything you need to get started with Warp."
-  }
+  "collapsed": false,
+  "link": null,
 }
