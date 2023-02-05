@@ -2,6 +2,7 @@
 members = [
   "bin",
   "core",
+  "mark2",
 ]
 resolver="2"
 
