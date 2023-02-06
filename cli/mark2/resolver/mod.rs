@@ -1,3 +1,5 @@
+//! # Resolves what a given target points to in the project graph
+//!
 mod goal;
 mod target;
 mod target_id;

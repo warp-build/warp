@@ -7,6 +7,33 @@ use thiserror::*;
 #[derive(Error, Debug)]
 pub enum LocalWorkerError {}
 
+#[cfg_attr(doc, aquamarine::aquamarine)]
+/// A Local build execution worker.
+///
+/// The `LocalWorker` takes care of running one-task at a time out of the `TaskQueue` that lives in
+/// the `SharedContext`.
+///
+/// It orchestrates its lifecycle by checking with the `Coordinator` (also in the `SharedContext`).
+///
+/// It's flow goes:
+///
+/// ```mermaid
+/// graph TD
+///   Idle -->|run| loop
+///   loop -->|has next task| execute
+///
+///   execute
+///   --> resolve_target
+///   --> plan_signature
+///   --> execute_plan
+///   --> cache_results
+///   --> should_stop
+///
+///   loop -->|no next task| should_stop
+///   should_stop -->|is main && has all results| signal_shutdown
+///   should_stop -->|no| sleep
+///   sleep -->|timeout| loop
+/// ```
 pub struct LocalWorker {
     role: Role,
     ctx: SharedContext,

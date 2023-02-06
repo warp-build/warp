@@ -13,6 +13,7 @@ path = "lib.rs"
 [dependencies]
 
 anyhow = "1.0"
+aquamarine = "0.2.2"
 assert_matches = "1"
 async-compression = { version = "0.3", features = ["all"] }
 async-stream = "0.3"

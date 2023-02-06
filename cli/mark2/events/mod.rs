@@ -1,11 +1,11 @@
-/// A module defining a series of Events that are wire-friendly.
-///
-/// None of these events include references to existing data, and they are all self-contained with
-/// primitives that make them easy to encode in a wire-friendly format like Protobuf.
-///
-/// NOTE(@ostera): This module is likely going to become the interface of a form of log-streamer
-/// protocol that we can use to receive and print feedback from local and remote builds.
-///
+//! # Wire-friendly Build Execution Events
+//!
+//! None of these events include references to existing data, and they are all self-contained with
+//! primitives that make them easy to encode in a wire-friendly format like Protobuf.
+//!
+//! NOTE(@ostera): This module is likely going to become the interface of a form of log-streamer
+//! protocol that we can use to receive and print feedback from local and remote builds.
+//!
 use std::path::PathBuf;
 use std::sync::Arc;
 

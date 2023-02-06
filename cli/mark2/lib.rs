@@ -1,10 +1,15 @@
+//! # Warp Drive Mark II
+//!
+//! This crate implements the build system in [RFC001: A Build System from the Future](https://www.notion.so/warp-build/RFC001-A-Build-System-from-the-Future-6e1d61d44cc3435881887c7e7c899d07).
+//!
+
+/// Protobuf generated code.
 mod proto {
     include!(concat!(env!("OUT_DIR"), "/_include.rs"));
 }
 
 mod events;
 mod executor;
-mod model;
 mod planner;
 mod resolver;
 mod rules;

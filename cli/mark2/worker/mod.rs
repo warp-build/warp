@@ -1,5 +1,8 @@
+//! # Location-transparent, parallel worker pools
+
 mod coordinator;
 mod env;
+
 mod local_worker;
 mod opts;
 mod pool;
