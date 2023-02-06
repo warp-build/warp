@@ -66,7 +66,7 @@ const config = {
           },
           {to: '/blog', label: 'Blog', position: 'left'},
           {
-            href: 'http://waitlist.warp.build',
+            href: 'https://warp.build/#pricing',
             label: 'Get Warp',
             position: 'right',
           },

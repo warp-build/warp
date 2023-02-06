@@ -61,4 +61,4 @@ cache.
 
 # How do I get started?
 
-We welcome you to our <a href="http://waitlist.warp.build/">early-access waitlist</a> to make sure we get you onboard as soon as Warp works for your use-case.
+We welcome you to <a href="https://warp.build/discord">join our community</a> to make sure we get you onboard as soon as Warp works for your use-case.

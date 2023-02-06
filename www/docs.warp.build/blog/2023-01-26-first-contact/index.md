@@ -111,7 +111,7 @@ It is built to help teams start fast and _continue_ fast while they grow. From a
 It's been a crazy ride from dusting off the original prototype I had built years ago, to figuring out what really needed to be built, to rebuilding it.
 
 But as we approach the end of Q1 2023, the team and I are absolutely thrilled to welcome y'all to our <a
-href="http://waitlist.warp.build/">early-access waitlist</a>!
+href="https://warp.build/discord">community server</a>!
 
 Expect a small email every now and then with some updates on how things are going :)
 
