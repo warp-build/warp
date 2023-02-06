@@ -81,13 +81,8 @@ impl LocalWorker {
         let target = task.target;
 
         self.ctx.event_channel.send(Event::HandlingTarget {
-            target: self
-                .ctx
-                .target_registry
-                .get_target(target)
-                .as_ref()
-                .to_owned(),
-            goal: task.goal,
+            target: self.ctx.target_registry.get_target(target).to_string(),
+            goal: task.goal.to_string(),
         });
 
         Ok(())

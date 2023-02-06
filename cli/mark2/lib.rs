@@ -10,9 +10,15 @@ mod resolver;
 mod rules;
 mod worker;
 
+#[macro_use]
+extern crate derive_builder;
+
 #[cfg(test)]
 #[macro_use]
 extern crate assert_matches;
 
-#[macro_use]
-extern crate derive_builder;
+#[cfg(test)]
+extern crate quickcheck;
+#[cfg(test)]
+#[macro_use(quickcheck)]
+extern crate quickcheck_macros;

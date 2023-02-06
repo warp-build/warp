@@ -46,6 +46,8 @@ opentelemetry-jaeger = { version = "0.16.0", features = ["rt-tokio"]  }
 petgraph = "0.6"
 prost = "0.11.2"
 prost-types = "0.10"
+quickcheck = "1"
+quickcheck_macros = "1"
 rand = "0.8.5"
 regex = "1"
 reqwest = { version = "0.11", features = ["stream", "json", "gzip"] }
@@ -71,7 +73,6 @@ tracing-subscriber = "0.3"
 url = "2"
 uuid = { version = "1.1", features = ["v4", "fast-rng", "macro-diagnostics" ] }
 v8 = "0.51"
-
 
 [build-dependencies]
 

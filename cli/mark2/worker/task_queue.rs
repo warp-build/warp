@@ -177,7 +177,7 @@ impl TaskQueue {
             || self.in_queue_targets.contains(&target)
         {
             self.event_channel.send(Event::QueuedSkipTarget {
-                target: self.target_registry.get_target(target).as_ref().to_owned(),
+                target: self.target_registry.get_target(target).to_string(),
             });
             return Ok(());
         }
@@ -186,8 +186,8 @@ impl TaskQueue {
         self.inner_queue.push(task);
         self.all_queued_targets.insert(target);
         self.event_channel.send(Event::QueuedTarget {
-            target_id: target,
-            target: self.target_registry.get_target(target).as_ref().to_owned(),
+            target_id: target.to_string(),
+            target: self.target_registry.get_target(target).to_string(),
         });
         Ok(())
     }

@@ -75,3 +75,15 @@ impl FromStr for Goal {
         }
     }
 }
+
+impl ToString for Goal {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Run => "run",
+            Self::Test => "test",
+            Self::Build => "build",
+            Self::Fetch => "get",
+        }
+        .to_string()
+    }
+}
