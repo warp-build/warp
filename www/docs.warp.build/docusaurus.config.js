@@ -101,7 +101,7 @@ const config = {
 
   scripts: [
     {
-      src: 'https://plausible.io/js/script.js', defer: true, 'data-domain': 'docs.warp.build'
+      src: 'https://plausible.io/js/plausible.outbound-links.js', defer: true, 'data-domain': 'docs.warp.build'
     }
   ],
 
