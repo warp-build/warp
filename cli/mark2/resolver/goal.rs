@@ -87,3 +87,16 @@ impl ToString for Goal {
         .to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl quickcheck::Arbitrary for Goal {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            g.choose(&[Self::Build, Self::Test, Self::Run, Self::Fetch])
+                .unwrap()
+                .to_owned()
+        }
+    }
+}

@@ -14,3 +14,14 @@ impl TargetId {
         Self(uuid::Uuid::new_v4().to_u128_le())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl quickcheck::Arbitrary for TargetId {
+        fn arbitrary(_g: &mut quickcheck::Gen) -> Self {
+            TargetId::next()
+        }
+    }
+}

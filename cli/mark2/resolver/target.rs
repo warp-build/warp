@@ -125,3 +125,48 @@ impl ToString for FsTarget {
         self.path.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    impl quickcheck::Arbitrary for Target {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            let fs = Self::Fs(FsTarget::arbitrary(g));
+            let remote = Self::Remote(RemoteTarget::arbitrary(g));
+            let alias = Self::Alias(AliasTarget::arbitrary(g));
+            g.choose(&[fs, remote, alias]).unwrap().to_owned()
+        }
+    }
+
+    impl quickcheck::Arbitrary for FsTarget {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            Self {
+                path: std::path::PathBuf::arbitrary(g)
+                    .to_string_lossy()
+                    .to_string(),
+            }
+        }
+    }
+
+    impl quickcheck::Arbitrary for AliasTarget {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            Self {
+                alias: format!("@{}", String::arbitrary(g)),
+            }
+        }
+    }
+
+    impl quickcheck::Arbitrary for RemoteTarget {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            Self {
+                url: format!(
+                    "https://{}",
+                    std::path::PathBuf::arbitrary(g)
+                        .to_string_lossy()
+                        .to_string()
+                ),
+            }
+        }
+    }
+}

@@ -26,9 +26,15 @@ pub enum TaskQueueError {
     */
 }
 
+#[derive(Debug, Clone)]
+pub enum QueuedTask {
+    Skipped,
+    Queued,
+}
+
 /// A thread-safe queue for compilation targets, to be consumed by workers.
 ///
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct TaskQueue {
     /// Targets currently being built.
     busy_targets: Arc<DashSet<TargetId>>,
@@ -167,7 +173,7 @@ impl TaskQueue {
     }
 
     #[tracing::instrument(name = "TaskQueue::queue", skip(self))]
-    pub fn queue(&self, task: Task) -> Result<(), TaskQueueError> {
+    pub fn queue(&self, task: Task) -> Result<QueuedTask, TaskQueueError> {
         let target = task.target;
         if self.target_registry.get_target(target).is_all() {
             return Err(TaskQueueError::CannotQueueTargetAll);
@@ -179,7 +185,7 @@ impl TaskQueue {
             self.event_channel.send(Event::QueuedSkipTarget {
                 target: self.target_registry.get_target(target).to_string(),
             });
-            return Ok(());
+            return Ok(QueuedTask::Skipped);
         }
         self.task_results.add_expected_target(target);
         self.in_queue_targets.insert(target);
@@ -189,7 +195,7 @@ impl TaskQueue {
             target_id: target.to_string(),
             target: self.target_registry.get_target(target).to_string(),
         });
-        Ok(())
+        Ok(QueuedTask::Queued)
     }
 
     pub fn queue_deps(&self, task: Task, deps: &[TargetId]) -> Result<(), TaskQueueError> {
@@ -198,7 +204,7 @@ impl TaskQueue {
             .map_err(TaskQueueError::DependencyCycle)?;
 
         self.wait_queue_deps
-            .insert(task, deps.to_vec().into_iter().collect());
+            .insert(task, deps.iter().copied().collect());
 
         for dep in deps {
             self.queue(Task::build(*dep))?;
@@ -210,18 +216,131 @@ impl TaskQueue {
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn queue_emptiness() {}
+    use super::*;
 
     #[test]
-    fn contiguous_duplicates_are_discarded() {}
+    fn new_queues_are_always_empty() {
+        let q = TaskQueue::default();
+        assert!(q.next().is_none());
+        assert!(q.is_empty());
+    }
 
-    #[tokio::test]
-    async fn already_built_targets_are_ignored_when_queueing_new_targets() {}
+    #[quickcheck]
+    fn queues_with_tasks_are_not_empty(goal: Goal, target: Target) {
+        let q = TaskQueue::default();
+        let target_id = q.target_registry.register_target(target);
+        let task = Task::new(goal, target_id);
+        assert!(q.queue(task).is_ok());
+        assert!(!q.is_empty());
+    }
 
-    #[tokio::test]
-    async fn once_a_target_is_built_we_discard_it() {}
+    #[quickcheck]
+    fn consuming_from_the_queue_removes_the_task(goal: Goal, target: Target) {
+        let q = TaskQueue::default();
+        let target_id = q.target_registry.register_target(target);
+        let task = Task::new(goal, target_id);
+        assert!(q.queue(task).is_ok());
+        assert!(q.next().is_some());
+        assert!(q.is_empty());
+        assert!(q.next().is_none());
+    }
 
-    #[test]
-    fn nexting_a_target_requires_a_nack_to_get_it_again() {}
+    #[quickcheck]
+    fn queue_preserves_task_integrity(goal: Goal, target: Target) {
+        let q = TaskQueue::default();
+        let target_id = q.target_registry.register_target(target);
+        let task = Task::new(goal, target_id);
+        assert!(q.queue(task).is_ok());
+        assert_eq!(q.next().unwrap(), task);
+    }
+
+    #[quickcheck]
+    fn queue_preserves_ordering(gts: Vec<(Goal, Target)>) {
+        let q = TaskQueue::default();
+
+        let mut tasks = vec![];
+        for (goal, target) in &gts {
+            let target_id = q.target_registry.register_target(target);
+            let task = Task::new(*goal, target_id);
+            if let QueuedTask::Queued = q.queue(task).unwrap() {
+                tasks.push(task);
+            }
+        }
+
+        dbg!(&tasks);
+        for task in tasks {
+            assert_eq!(q.next().unwrap(), task);
+        }
+
+        assert!(q.is_empty());
+    }
+
+    #[quickcheck]
+    #[should_panic]
+    fn queueing_an_unregistered_target_is_an_error(task: Task) {
+        let q = TaskQueue::default();
+        q.queue(task).unwrap();
+    }
+
+    #[quickcheck]
+    fn queuing_a_registered_target_makes_the_queue_nonempty(goal: Goal, target: Target) {
+        let q = TaskQueue::default();
+        let target_id = q.target_registry.register_target(target);
+        let task = Task::new(goal, target_id);
+        assert!(q.queue(task).is_ok());
+        assert!(q.next().is_some());
+    }
+
+    #[quickcheck]
+    fn contiguous_duplicates_are_discarded(goal: Goal, target: Target) {
+        let q = TaskQueue::default();
+        let target_id = q.target_registry.register_target(target);
+        let task = Task::new(goal, target_id);
+
+        assert!(q.queue(task).is_ok());
+        assert!(q.queue(task).is_ok());
+        assert!(q.queue(task).is_ok());
+
+        assert!(q.next().is_some());
+        assert!(q.next().is_none());
+    }
+
+    #[quickcheck]
+    fn nack_returns_task_to_queue(goal: Goal, target: Target) {
+        let q = TaskQueue::default();
+        let target_id = q.target_registry.register_target(target);
+        let task = Task::new(goal, target_id);
+
+        assert!(q.queue(task).is_ok());
+        let q_task = q.next().unwrap();
+
+        assert!(q.next().is_none());
+
+        q.nack(q_task);
+
+        assert_eq!(q.next().unwrap(), task);
+    }
+
+    #[quickcheck]
+    fn completed_tasks_are_skipped_when_queueing(goal: Goal, target: Target) {
+        let q = TaskQueue::default();
+        let target_id = q.target_registry.register_target(target);
+        let task = Task::new(goal, target_id);
+
+        q.task_results.add_target_manifest(target_id, (), ());
+
+        assert_matches!(q.queue(task), Ok(QueuedTask::Skipped));
+    }
+
+    #[quickcheck]
+    fn completed_tasks_are_skipped_when_consuming(goal: Goal, target: Target) {
+        let q = TaskQueue::default();
+        let target_id = q.target_registry.register_target(target);
+        let task = Task::new(goal, target_id);
+
+        assert_matches!(q.queue(task), Ok(QueuedTask::Queued));
+        q.task_results.add_target_manifest(target_id, (), ());
+
+        assert!(q.next().is_none());
+    }
 }
