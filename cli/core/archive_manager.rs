@@ -102,6 +102,68 @@ impl ArchiveManager {
             .with_extension(file_ext)
     }
 
+    #[tracing::instrument(name = "ArchiveManager::exists", skip(self))]
+    pub async fn exists(
+        &self,
+        url: &Url,
+        file_name: &str,
+        file_ext: &str,
+    ) -> Result<bool, ArchiveManagerError> {
+        let path = self._archive_path(url, file_name, file_ext);
+
+        match fs::metadata(&path).await {
+            Ok(_) => Ok(true),
+            _ => Ok(false),
+        }
+    }
+
+    #[tracing::instrument(name = "ArchiveManager::download_unhashed", skip(self))]
+    pub async fn download_unhashed(
+        &self,
+        url: &Url,
+        file_name: &str,
+        file_ext: &str,
+    ) -> Result<(PathBuf, String), ArchiveManagerError> {
+        self.event_channel.send(Event::ArchiveDownloading {
+            label: url.to_owned().into(),
+            url: url.to_string(),
+        });
+
+        let response = self.client.get(url.clone()).send().await.map_err(|err| {
+            ArchiveManagerError::CouldNotDownload {
+                url: url.clone(),
+                err,
+            }
+        })?;
+
+        if response.status().is_success() {
+            self.stream_response_preserve_file_name(url, response, file_name, file_ext)
+                .await
+                .map_err(|err| ArchiveManagerError::StreamingError {
+                    url: url.clone(),
+                    err,
+                })
+        } else {
+            Err(ArchiveManagerError::DownloadFailed {
+                url: url.clone(),
+                err: response.status(),
+            })
+        }
+    }
+
+    #[tracing::instrument(name = "ArchiveManager::get_path", skip(self))]
+    pub async fn get_path(
+        &self,
+        url: &Url,
+        file_name: &str,
+        file_ext: &str,
+    ) -> Result<(PathBuf, String), ArchiveManagerError> {
+        Ok((
+            self._archive_path(url, file_name, file_ext),
+            file_name.to_string(),
+        ))
+    }
+
     #[tracing::instrument(name = "ArchiveManager::download", skip(self))]
     pub async fn download(
         &self,
@@ -247,6 +309,34 @@ impl ArchiveManager {
         tempfile.persist(&path)?;
 
         Ok((path, hash))
+    }
+
+    async fn stream_response_preserve_file_name(
+        &self,
+        url: &Url,
+        response: reqwest::Response,
+        file_name: &str,
+        file_ext: &str,
+    ) -> Result<(PathBuf, String), std::io::Error> {
+        let mut byte_stream = response
+            .bytes_stream()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
+
+        let tmp_root = self.global_archives_root.join("_tmp");
+        fs::create_dir_all(&tmp_root).await?;
+
+        let tempfile = tempfile::NamedTempFile::new_in(&tmp_root)?;
+        let mut outfile = fs::File::from_std(tempfile.reopen()?);
+
+        while let Some(chunk) = byte_stream.next().await {
+            outfile.write_all_buf(&mut chunk?).await?;
+        }
+
+        let path = self._archive_path(url, file_name, file_ext);
+        fs::create_dir_all(&path.parent().unwrap()).await?;
+        tempfile.persist(&path)?;
+
+        Ok((path, file_name.to_string()))
     }
 
     #[tracing::instrument(name = "ArchiveManager::extract", skip(self))]

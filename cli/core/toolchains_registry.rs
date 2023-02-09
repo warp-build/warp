@@ -10,6 +10,7 @@ use url::Url;
 
 pub const REMOTE_TOOLCHAINS_REGISTRY_URL: &str =
     "https://rules.warp.build/toolchains/registry.json";
+pub const REMOTE_TOOLCHAINS_REGISTRY_FILENAME: &str = "registry";
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ToolchainId {
@@ -56,10 +57,22 @@ impl ToolchainsRegistry {
         let archive_manager = ArchiveManager::from_paths(workspace_paths, event_channel);
         let remote_url = Url::parse(REMOTE_TOOLCHAINS_REGISTRY_URL).unwrap();
 
-        let (path, _) = archive_manager
-            .download(&remote_url, "json")
+        let file_found = archive_manager
+            .exists(&remote_url, REMOTE_TOOLCHAINS_REGISTRY_FILENAME, "json")
             .await
             .map_err(ToolchainsRegistryError::ArchiveManagerError)?;
+
+        let (path, _) = if !file_found {
+            archive_manager
+                .download_unhashed(&remote_url, REMOTE_TOOLCHAINS_REGISTRY_FILENAME, "json")
+                .await
+                .map_err(ToolchainsRegistryError::ArchiveManagerError)?
+        } else {
+            archive_manager
+                .get_path(&remote_url, REMOTE_TOOLCHAINS_REGISTRY_FILENAME, "json")
+                .await
+                .map_err(ToolchainsRegistryError::ArchiveManagerError)?
+        };
 
         let file =
             fs::File::open(&path)
