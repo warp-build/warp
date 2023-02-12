@@ -21,7 +21,6 @@ service TricorderService {
   //
   rpc GetDependencies(GetDependenciesRequest) returns (GetDependenciesResponse);
 
-
   // Generates a Warp Signature for a given source and symbol. This is used
   // during the Target Resolution phase, to understand how to build, test, or
   // run a given target.
@@ -39,6 +38,8 @@ service TricorderService {
   rpc GenerateSignature(GenerateSignatureRequest) returns (GenerateSignatureResponse);
 }
 
+message EnsureReadyRequest {}
+message EnsureReadyResponse {}
 
 message GetDependenciesRequest {
   // The root of the workspace that the Tricorder will be analyzing.
@@ -128,6 +129,6 @@ message GenerateSignatureMissingDepsResponse {
   // A non-empty collection of requirements. These specify new dependencies
   // that are needed to generate the signature.
   //
-  repeated Requirement dependencies = 5;
+  repeated Requirement requirements = 5;
 }
 
