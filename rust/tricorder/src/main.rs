@@ -1,6 +1,12 @@
-use tonic::{transport::Server};
-use tricoder::*;
-use tricoder::build::warp::codedb::analyzer_service_server::AnalyzerServiceServer;
+mod proto {
+    include!(concat!(env!("OUT_DIR"), "/_include.rs"));
+}
+mod analyzer_service;
+mod get_ast;
+
+use crate::analyzer_service::AnalyzerServiceImpl;
+use crate::proto::build::warp::codedb::analyzer_service_server::AnalyzerServiceServer;
+use tonic::transport::Server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

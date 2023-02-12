@@ -1,5 +1,5 @@
 [package]
-name = "tricoder"
+name = "tricorder"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,8 +8,9 @@ tonic = "0.8.2"
 tokio = { version = "1", features = ["full"] }
 prost = "0.11.2"
 
-[lib]
-path = "src/lib.rs"
+[[bin]]
+name = "rust-tricorder"
+path = "src/main.rs"
 
 [build-dependencies]
 tonic-build = "0.8.2"
