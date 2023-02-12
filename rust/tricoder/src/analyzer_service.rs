@@ -1,6 +1,6 @@
 use tonic::{Request, Response, Status};
 use crate::proto::build::warp::codedb::analyzer_service_server::{AnalyzerService};
-use crate::proto::build::warp::{Dependency, Symbol, symbol};
+use crate::proto::build::warp::{Dependency};
 use crate::proto::build::warp::codedb::*;
 
 #[derive(Default)]
@@ -12,7 +12,7 @@ impl AnalyzerService for AnalyzerServiceImpl {
         &self,
         _request: Request<GetDependenciesRequest>,
     ) -> Result<Response<GetDependenciesResponse>, Status> {
-        let response = GetDependenciesResponse {
+	let response = GetDependenciesResponse {
 	    status: 1,
 	    dependencies: vec![
 		Dependency{
@@ -53,17 +53,10 @@ impl AnalyzerService for AnalyzerServiceImpl {
 
     async fn get_ast(
         &self,
-        _request: Request<GetAstRequest>,
+        request: Request<GetAstRequest>,
     ) -> Result<Response<GetAstResponse>, Status> {
-        let response = GetAstResponse {
-	    response: Some(crate::proto::build::warp::codedb::get_ast_response::Response::Ok(GetAstSuccessResponse{
-		file: "test.rs".to_string(),
-		symbol: Some(Symbol{sym: Some(symbol::Sym::All(true))}),
-		source: "source.rs".to_string(),
-		ast: "ast()".to_string()
-	    
-	    }))};
-        Ok(Response::new(response))
+	crate::get_ast::GetAst::get_dependencies(request)
+
     }
 
     async fn generate_signature(

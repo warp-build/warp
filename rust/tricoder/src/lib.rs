@@ -3,6 +3,8 @@ mod proto {
 }
 
 mod analyzer_service;
+mod get_ast;
 
 pub use analyzer_service::*;
 pub use proto::*;
+pub use get_ast::*;
