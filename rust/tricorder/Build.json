@@ -1,9 +1,9 @@
 {
     "signatures": [
 	{
-	    "name": "tricoder",
+	    "name": "tricorder",
 	    "rule": "cargo_binary",
-	    "bin": "tricoder",
+	    "bin": "tricorder",
 	    "srcs": ["**/*"]
 	}
     ]
