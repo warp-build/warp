@@ -53,7 +53,7 @@ impl AnalyzerService for AnalyzerServiceImpl {
         &self,
         request: Request<GetAstRequest>,
     ) -> Result<Response<GetAstResponse>, Status> {
-        crate::get_ast::GetAst::get_dependencies(request)
+        crate::get_ast::GetAst::get_dependencies(request).await
     }
 
     async fn generate_signature(

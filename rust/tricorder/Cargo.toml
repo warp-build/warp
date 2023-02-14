@@ -4,8 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0"
+deno_core = "0.154"
+thiserror = "1.0"
 tonic = "0.8.2"
 tokio = { version = "1", features = ["full"] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-opentelemetry = "0.17"
+tracing-subscriber = "0.3"
 prost = "0.11.2"
 
 [[bin]]
