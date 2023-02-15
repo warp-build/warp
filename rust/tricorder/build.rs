@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 fn main() {
     tonic_build::configure()
         .build_server(true)
@@ -12,4 +14,12 @@ fn main() {
             &["../.."],
         )
         .unwrap_or_else(|e| panic!("protobuf compile error: {}", e));
+
+    let dir: PathBuf = ["vendor/tree-sitter-rust", "src"].iter().collect();
+
+    cc::Build::new()
+        .include(&dir)
+        .file(dir.join("parser.c"))
+        .file(dir.join("scanner.c"))
+        .compile("tree-sitter-rust");
 }
