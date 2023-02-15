@@ -2,7 +2,9 @@ mod proto {
     include!(concat!(env!("OUT_DIR"), "/_include.rs"));
 }
 mod analyzer_service;
+mod generate_signature;
 mod get_ast;
+mod rs_generate_signature;
 
 use crate::analyzer_service::AnalyzerServiceImpl;
 use crate::proto::build::warp::codedb::analyzer_service_server::AnalyzerServiceServer;

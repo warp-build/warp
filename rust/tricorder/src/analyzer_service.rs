@@ -58,20 +58,8 @@ impl AnalyzerService for AnalyzerServiceImpl {
 
     async fn generate_signature(
         &self,
-        _request: Request<GenerateSignatureRequest>,
+        request: Request<GenerateSignatureRequest>,
     ) -> Result<Response<GenerateSignatureResponse>, Status> {
-        let response = GenerateSignatureResponse {
-            response: Some(
-                crate::proto::build::warp::codedb::generate_signature_response::Response::Ok(
-                    GenerateSignatureSuccessResponse {
-                        status: 1,
-                        file: "warp.rs".to_string(),
-                        json_signature: "warp_signature.json".to_string(),
-                        signatures: vec![],
-                    },
-                ),
-            ),
-        };
-        Ok(Response::new(response))
+        crate::generate_signature::GenerateSignature::generate_signature(request).await
     }
 }

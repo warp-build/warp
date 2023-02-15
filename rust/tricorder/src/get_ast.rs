@@ -1,13 +1,15 @@
 use crate::proto::build::warp::codedb::*;
-use crate::proto::build::warp::{Symbol};
+use crate::proto::build::warp::Symbol;
 use std::path::Path;
 use thiserror::*;
 use tokio::fs;
 use tonic::{Request, Response, Status};
 use tracing::*;
-use tree_sitter::{Parser, Language, Tree};
+use tree_sitter::{Language, Parser, Tree};
 
-extern "C" { fn tree_sitter_rust() -> Language; }
+extern "C" {
+    fn tree_sitter_rust() -> Language;
+}
 
 #[derive(Default)]
 pub struct GetAst {}
@@ -35,21 +37,20 @@ impl GetAst {
     }
 
     async fn do_get_rs_ast(request: GetAstRequest) -> GetAstResponse {
-	let mut parser = Parser::new();
-	let language = unsafe { tree_sitter_rust() };
-	parser.set_language(language).unwrap();
+        let mut parser = Parser::new();
+        let language = unsafe { tree_sitter_rust() };
+        parser.set_language(language).unwrap();
 
-	let source = fs::read_to_string(&request.file)
-	    .await
-	    .map_err(|err| {
-                GetAstError::CouldNotReadFile {
+        let source =
+            fs::read_to_string(&request.file)
+                .await
+                .map_err(|err| GetAstError::CouldNotReadFile {
                     file: request.file.clone(),
                     err,
-                }
-        });
+                });
 
-	let src = source.unwrap();
-	let ast = parser.parse(src.clone(), None).unwrap();
+        let src = source.unwrap();
+        let ast = parser.parse(src.clone(), None).unwrap();
 
         let response = GetAst::handle_result(request, ast, &src).await;
 
@@ -60,18 +61,16 @@ impl GetAst {
 
     async fn handle_result(
         request: GetAstRequest,
-	ast: Tree,
-	source: &str
+        ast: Tree,
+        source: &str,
     ) -> Result<crate::proto::build::warp::codedb::get_ast_response::Response, GetAstError> {
-	let symbol = request.symbol.unwrap();
+        let symbol = request.symbol.unwrap();
 
         Ok(
             crate::proto::build::warp::codedb::get_ast_response::Response::Ok(
                 GetAstSuccessResponse {
                     file: request.file,
-                    symbol: Some(Symbol {
-                        sym: symbol.sym
-                    }),
+                    symbol: Some(Symbol { sym: symbol.sym }),
                     source: source.to_string(),
                     ast: format!("{:?}", ast),
                 },
