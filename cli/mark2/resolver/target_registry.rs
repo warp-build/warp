@@ -17,9 +17,6 @@ pub struct TargetRegistry {
     _register_lock: Arc<Mutex<()>>,
 }
 
-#[derive(Error, Debug)]
-pub enum TargetRegistryError {}
-
 impl TargetRegistry {
     pub fn new() -> Self {
         Self::default()
@@ -89,5 +86,60 @@ impl TargetRegistry {
     #[tracing::instrument(name = "TargetRegistry::get", skip(self))]
     pub fn get_target(&self, id: TargetId) -> Arc<Target> {
         (*self.targets.get(&id).unwrap()).clone()
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum TargetRegistryError {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::*;
+
+    #[quickcheck]
+    fn registering_a_target_returns_a_valid_handle_to_it(target: Target) {
+        let reg = TargetRegistry::new();
+        let handle = reg.register_target(target.clone());
+        assert_eq!(*reg.get_target(handle), target);
+    }
+
+    #[quickcheck]
+    fn searching_for_a_target_returns_a_valid_handle_if_the_target_is_registered(target: Target) {
+        let reg = TargetRegistry::new();
+        let handle = reg.register_target(target.clone());
+        assert_eq!(reg.find_target(&target).unwrap(), handle);
+    }
+
+    #[quickcheck]
+    fn searching_for_a_target_returns_nothing_if_the_target_is_not_registered(target: Target) {
+        let reg = TargetRegistry::new();
+        assert!(reg.find_target(&target).is_none());
+    }
+
+    #[quickcheck]
+    #[should_panic]
+    fn getting_a_target_with_an_unregistered_handle_is_a_panic(target_id: TargetId) {
+        let reg = TargetRegistry::new();
+        reg.get_target(target_id);
+    }
+
+    #[quickcheck]
+    fn updating_a_handle_to_point_to_a_new_target(target_a: Target, target_b: Target) {
+        let reg = TargetRegistry::new();
+        let handle = reg.register_target(target_a.clone());
+        assert_eq!(*reg.get_target(handle), target_a);
+        reg.update_target(handle, target_b.clone());
+        assert_eq!(*reg.get_target(handle), target_b);
+    }
+
+    #[quickcheck]
+    fn registering_many_targets_skips_duplicates(target: Target) {
+        let reg = TargetRegistry::new();
+        // NOTE(@ostera): we are registering the same target twice
+        let targets = &[target.clone(), target];
+        let handles = reg.register_many_targets(targets);
+        assert!(handles.len() <= targets.len());
+        assert_eq!(handles[0], handles[1]);
     }
 }

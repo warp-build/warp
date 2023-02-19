@@ -42,7 +42,7 @@ impl std::str::FromStr for Target {
     type Err = TargetError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.starts_with("@") {
+        if s.starts_with('@') {
             return Ok(Self::Alias(AliasTarget {
                 alias: s.to_string(),
             }));
