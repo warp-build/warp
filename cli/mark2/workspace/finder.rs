@@ -19,7 +19,7 @@ pub struct WorkspaceFinder;
 ///
 impl WorkspaceFinder {
     pub async fn find(opts: &Config) -> Result<Workspace, WorkspaceFinderError> {
-        let (root, warpfile) = Self::find_upwards(&opts.invocation_dir()).await?;
+        let (root, warpfile) = Self::find_upwards(opts.invocation_dir()).await?;
 
         let workspace = Workspace::builder()
             .root(root)

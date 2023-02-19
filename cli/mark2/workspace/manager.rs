@@ -48,7 +48,7 @@ impl WorkspaceManager {
         &self,
         opts: &Config,
     ) -> Result<WorkspaceId, WorkspaceManagerError> {
-        let workspace = WorkspaceFinder::find(&opts).await?;
+        let workspace = WorkspaceFinder::find(opts).await?;
 
         let current_workspace_id = self.register_local_workspace(workspace)?;
         self.set_current_workspace(current_workspace_id);
