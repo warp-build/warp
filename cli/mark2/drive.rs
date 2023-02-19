@@ -1,19 +1,15 @@
-use std::sync::Arc;
-
 use super::*;
 use crate::events::EventChannel;
 use crate::resolver::Target;
-use crate::worker::{TaskResults, WorkerPool, WorkerPoolError};
-use crate::workspace::Workspace;
+use crate::worker::{SharedContext, TaskResults, WorkerPool, WorkerPoolError};
+use crate::workspace::{Workspace, WorkspaceManagerError};
+use std::sync::Arc;
 use thiserror::*;
+use tracing::*;
 
-#[derive(Error, Debug)]
-pub enum WarpDriveError {
-    #[error(transparent)]
-    WorkerPoolError(WorkerPoolError),
-}
-
-/// The MarkII of the Warp Engine starts with this struct.
+/// # Warp Engine Mark II
+///
+/// This struct orchestrates the top-level flow of Warp.
 ///
 /// Here we find our `Workspace`, initialize our shared state for our `WorkerPool`, and eventually
 /// queue up `Target`s to be built.
@@ -23,45 +19,49 @@ pub enum WarpDriveError {
 ///
 #[derive(Debug, Clone)]
 pub struct WarpDriveMarkII {
-    event_channel: Arc<EventChannel>,
     worker_pool: WorkerPool,
-    opts: WarpOptions,
-    workspace: Workspace,
+    shared_ctx: SharedContext,
+    opts: Config,
 }
 
 impl WarpDriveMarkII {
-    pub async fn new(opts: WarpOptions) -> Result<Self, WarpDriveError> {
+    #[tracing::instrument(name = "WarpDriveMarkII::new")]
+    pub async fn new(opts: Config) -> Result<Self, WarpDriveError> {
         let event_channel = Arc::new(EventChannel::new());
 
-        let workspace = workspace::WorkspaceFinder::find(opts).await?;
+        let shared_ctx = SharedContext::new(event_channel.clone(), opts.clone());
+        let worker_pool = WorkerPool::from_shared_context(shared_ctx.clone());
 
-        let ctx = worker::SharedContext::new(event_channel.clone(), opts).await?;
-        let worker_pool = WorkerPool::from_shared_context(ctx);
+        shared_ctx
+            .workspace_manager
+            .load_current_workspace(&opts)
+            .await?;
 
         Ok(Self {
-            event_channel,
             opts,
+            shared_ctx,
             worker_pool,
-            workspace,
         })
     }
 
     /// Execute the `targets`.
     ///
+    #[tracing::instrument(name = "WarpDriveMarkII::execute")]
     pub async fn execute(
         &mut self,
         targets: &[Target],
     ) -> Result<Arc<TaskResults>, WarpDriveError> {
-        self.event_channel
-            .send(events::Event::BuildStarted(self.start_time));
+        self.shared_ctx
+            .event_channel
+            .send(events::Event::BuildStarted(self.opts.created_at()));
 
         self.go_to_workspace_root()?;
 
-        let results = self
-            .worker_pool
-            .execute(targets)
-            .await
-            .map_err(WarpDriveError::WorkerPoolError)?;
+        let target_ids = self
+            .shared_ctx
+            .target_registry
+            .register_many_targets(targets);
+        let results = self.worker_pool.execute(&target_ids).await?;
 
         self.return_to_invocation_dir()?;
 
@@ -69,20 +69,50 @@ impl WarpDriveMarkII {
     }
 
     fn go_to_workspace_root(&self) -> Result<(), WarpDriveError> {
-        std::env::set_current_dir(&self.workspace.paths.workspace_root).map_err(|err| {
+        let current_workspace = self.shared_ctx.workspace_manager.current_workspace();
+        let workspace_root = current_workspace.root();
+
+        std::env::set_current_dir(&workspace_root).map_err(|err| {
             WarpDriveError::CouldNotSetCurrentDir {
                 err,
-                root: self.workspace.paths.workspace_root.to_path_buf(),
+                root: workspace_root.to_path_buf(),
             }
         })
     }
 
     fn return_to_invocation_dir(&self) -> Result<(), WarpDriveError> {
-        std::env::set_current_dir(&self.invocation_dir).map_err(|err| {
+        std::env::set_current_dir(&self.opts.invocation_dir()).map_err(|err| {
             WarpDriveError::CouldNotSetCurrentDir {
                 err,
-                root: self.opts.invocation_dir.clone(),
+                root: self.opts.invocation_dir().into(),
             }
         })
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum WarpDriveError {
+    #[error(transparent)]
+    WorkerPoolError(WorkerPoolError),
+
+    #[error(transparent)]
+    WorkspaceManagerError(WorkspaceManagerError),
+
+    #[error("Could not set the current directory to {root:?} due to {err:?}")]
+    CouldNotSetCurrentDir {
+        err: std::io::Error,
+        root: std::path::PathBuf,
+    },
+}
+
+impl From<WorkspaceManagerError> for WarpDriveError {
+    fn from(err: WorkspaceManagerError) -> Self {
+        Self::WorkspaceManagerError(err)
+    }
+}
+
+impl From<WorkerPoolError> for WarpDriveError {
+    fn from(err: WorkerPoolError) -> Self {
+        Self::WorkerPoolError(err)
     }
 }

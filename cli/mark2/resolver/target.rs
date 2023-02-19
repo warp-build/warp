@@ -3,9 +3,6 @@ use thiserror::*;
 
 static ALIAS_ALL: &str = "@all";
 
-#[derive(Error, Debug)]
-pub enum TargetError {}
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Target {
     Alias(AliasTarget),
@@ -125,6 +122,9 @@ impl ToString for FsTarget {
         self.path.clone()
     }
 }
+
+#[derive(Error, Debug)]
+pub enum TargetError {}
 
 #[cfg(test)]
 mod tests {

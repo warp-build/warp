@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::*;
 use crate::events::Event;
 use crate::resolver::TargetId;
@@ -5,13 +7,10 @@ use thiserror::*;
 use tokio_util::task::LocalPoolHandle;
 use tracing::*;
 
-#[derive(Error, Debug)]
-pub enum WorkerPoolError {
-    #[error(transparent)]
-    WorkerError(LocalWorkerError),
-}
-
 /// The WorkerPool spins up a pool of workers that can execute work.
+///
+/// This pool is _lazy_ and will only spin up workers at execution time. However, at that time it
+/// is _eager_, and will spin up as many workers as allowed in `Config.concurrency_limit`.
 ///
 #[derive(Clone, Debug)]
 pub struct WorkerPool {
@@ -21,33 +20,37 @@ pub struct WorkerPool {
 
 impl WorkerPool {
     #[tracing::instrument(name = "WorkerPool::from_shared_context", skip(ctx))]
-    pub async fn from_shared_context(ctx: SharedContext) -> Result<Self, WorkerPoolError> {
+    pub fn from_shared_context(ctx: SharedContext) -> Self {
         let worker_pool = LocalPoolHandle::new({
             let max = num_cpus::get();
-            let curr = ctx.options.concurrency_limit + 2;
+            let curr = ctx.options.max_local_workers() + 2;
             curr.min(max)
         });
 
-        Ok(Self {
+        Self {
             worker_pool,
             ctx: ctx.clone(),
-        })
+        }
     }
 
+    /// Execute a number of `Target`s. The order of execution is only guaranteed to follow some
+    /// topographical-sort over the dependency graph of the targets.
+    ///
     #[tracing::instrument(name = "WorkerPool::execute", skip(self))]
-    pub async fn execute(&self, targets: &[TargetId]) -> Result<(), WorkerPoolError> {
+    pub async fn execute(&self, targets: &[TargetId]) -> Result<Arc<TaskResults>, WorkerPoolError> {
         if targets.is_empty() {
             self.ctx
                 .event_channel
                 .send(Event::BuildCompleted(std::time::Instant::now()));
-            return Ok(());
+            let empty_results = Arc::new(TaskResults::default());
+            return Ok(empty_results);
         }
 
         let main_worker = self.spawn_worker(Role::MainWorker);
 
-        // NOTE(@ostera): we are leaving 2 threads for the main worker and the queuer
+        // NOTE(@ostera): we are skipping the 1st threads since that's the main worker.
         let mut worker_tasks = vec![];
-        for worker_id in 2..self.worker_pool.num_threads() {
+        for worker_id in 1..self.worker_pool.num_threads() {
             worker_tasks.push(self.spawn_worker(Role::HelperWorker(worker_id)));
         }
 
@@ -59,7 +62,7 @@ impl WorkerPool {
         }
         main_result.unwrap()?;
 
-        Ok(())
+        Ok(self.ctx.task_results.clone())
     }
 
     fn spawn_worker(&self, role: Role) -> tokio::task::JoinHandle<Result<(), WorkerPoolError>> {
@@ -73,6 +76,12 @@ impl WorkerPool {
                 .map_err(WorkerPoolError::WorkerError)
         })
     }
+}
+
+#[derive(Error, Debug)]
+pub enum WorkerPoolError {
+    #[error(transparent)]
+    WorkerError(LocalWorkerError),
 }
 
 #[cfg(test)]

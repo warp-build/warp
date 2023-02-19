@@ -34,6 +34,7 @@ pub enum LocalWorkerError {}
 ///   should_stop -->|no| sleep
 ///   sleep -->|timeout| loop
 /// ```
+///
 pub struct LocalWorker {
     role: Role,
     ctx: SharedContext,
@@ -105,29 +106,14 @@ impl LocalWorker {
             None => return Ok(()),
         };
 
+        dbg!(self.ctx.target_registry.get_target(task.target));
+
         let target = task.target;
 
         self.ctx.event_channel.send(Event::HandlingTarget {
             target: self.ctx.target_registry.get_target(target).to_string(),
             goal: task.goal.to_string(),
         });
-
-        Ok(())
-    }
-
-    #[inline]
-    async fn requeue(&self, task: Task, deps: &[TargetId]) -> Result<(), LocalWorkerError> {
-        /*
-        if let Err(QueueError::DependencyCycle(err)) = self.build_queue.queue_deps(task, deps) {
-            self.ctx.event_channel.send(Event::BuildError {
-                target: (*self.ctx.target_registry.get_target(task.target)).to_owned(),
-                error: BuildError::BuildResultError(err),
-            });
-            self.ctx.coordinator.signal_shutdown();
-        }
-
-        self.build_queue.nack(task);
-        */
 
         Ok(())
     }
