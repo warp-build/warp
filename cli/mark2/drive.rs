@@ -2,7 +2,7 @@ use super::*;
 use crate::events::EventChannel;
 use crate::resolver::Target;
 use crate::worker::{SharedContext, TaskResults, WorkerPool, WorkerPoolError};
-use crate::workspace::{Workspace, WorkspaceManagerError};
+use crate::workspace::WorkspaceManagerError;
 use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
@@ -72,7 +72,7 @@ impl WarpDriveMarkII {
         let current_workspace = self.shared_ctx.workspace_manager.current_workspace();
         let workspace_root = current_workspace.root();
 
-        std::env::set_current_dir(&workspace_root).map_err(|err| {
+        std::env::set_current_dir(workspace_root).map_err(|err| {
             WarpDriveError::CouldNotSetCurrentDir {
                 err,
                 root: workspace_root.to_path_buf(),
@@ -81,7 +81,7 @@ impl WarpDriveMarkII {
     }
 
     fn return_to_invocation_dir(&self) -> Result<(), WarpDriveError> {
-        std::env::set_current_dir(&self.opts.invocation_dir()).map_err(|err| {
+        std::env::set_current_dir(self.opts.invocation_dir()).map_err(|err| {
             WarpDriveError::CouldNotSetCurrentDir {
                 err,
                 root: self.opts.invocation_dir().into(),

@@ -27,10 +27,7 @@ impl WorkerPool {
             curr.min(max)
         });
 
-        Self {
-            worker_pool,
-            ctx: ctx.clone(),
-        }
+        Self { worker_pool, ctx }
     }
 
     /// Execute a number of `Target`s. The order of execution is only guaranteed to follow some

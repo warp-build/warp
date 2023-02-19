@@ -63,7 +63,7 @@ impl FileScanner {
         let mut builder = GlobSetBuilder::new();
 
         for pattern in patterns {
-            let pattern = format!("*{}*", pattern);
+            let pattern = format!("*{pattern}*");
             let glob = Glob::new(&pattern).map_err(FileScannerError::InvalidPattern)?;
             builder.add(glob);
         }
