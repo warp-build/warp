@@ -14,6 +14,8 @@ path = "lib.rs"
 
 anyhow = "1.0"
 aquamarine = "0.2.2"
+assert_cmd = {version = "2.0.8", features = ["color"]}
+assert_fs = {version = "1.0.10", features = ["color"]}
 assert_matches = "1"
 async-compression = { version = "0.3", features = ["all"] }
 async-stream = "0.3"
@@ -28,6 +30,7 @@ dashmap = "5.2"
 deno_console = "0.72"
 deno_core = "0.154"
 derive_builder = "0.11.2"
+dir-diff = "0.3.2"
 directories = "4.0"
 env_logger="0.9"
 fixedbitset = "0.4"
@@ -40,6 +43,7 @@ guess_host_triple = "0.1"
 ignore = "0.4"
 json_comments = "0.2"
 log = "0.4"
+loom = { version = "0.5.6", features = ["futures", "pin-utils", "serde", "serde_json", "checkpoint"] }
 num_cpus = "1"
 once_cell = "1.14"
 opentelemetry = { version = "0.17.0", features = ["rt-tokio"] }
@@ -52,6 +56,7 @@ quickcheck_macros = "1"
 rand = "0.8.5"
 regex = "1"
 reqwest = { version = "0.11", features = ["stream", "json", "gzip"] }
+rexpect = "0.5.0"
 rusqlite = "0.28.0"
 rust-crypto = "0.2"
 serde = "1.0"
@@ -60,6 +65,7 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 sha2 = "0.10"
 structopt = "0.3"
 tar = "0.4.38"
+tempdir = "0.3.7"
 tempfile = "3.3"
 termcolor = "1.1"
 thiserror = "1.0"
