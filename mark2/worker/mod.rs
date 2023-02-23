@@ -18,6 +18,7 @@ use task::*;
 use task_queue::*;
 pub use task_results::*;
 
+use crate::sync::*;
 use async_trait::async_trait;
 use std::fmt::Debug;
 use thiserror::*;
@@ -28,9 +29,14 @@ pub enum WorkerError {
     LocalWorkerError(LocalWorkerError),
 }
 
+pub trait Context: Send + Debug + Clone + Sized {
+    fn results(&self) -> Arc<TaskResults>;
+}
+
 #[async_trait]
 pub trait Worker: Debug + Sized {
-    fn new(role: Role, ctx: SharedContext) -> Result<Self, WorkerError>;
+    type Context: Context;
+    fn new(role: Role, ctx: Self::Context) -> Result<Self, WorkerError>;
     async fn setup_and_run(&mut self) -> Result<(), WorkerError>;
 }
 

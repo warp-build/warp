@@ -2,8 +2,8 @@ use super::*;
 use crate::config::Config;
 use crate::events::EventChannel;
 use crate::resolver::*;
-use crate::workspace::WorkspaceManager;
 use crate::sync::Arc;
+use crate::workspace::WorkspaceManager;
 
 /// A shared execution context for workers. This includes all of subsystems that need to be
 /// available for workers to execute their work correctly:
@@ -15,7 +15,7 @@ use crate::sync::Arc;
 /// * a Workspace Manager to get information about the current workspace
 ///
 #[derive(Debug, Clone)]
-pub struct SharedContext {
+pub struct LocalSharedContext {
     pub(crate) coordinator: Arc<Coordinator>,
     pub(crate) event_channel: Arc<EventChannel>,
     pub(crate) options: Config,
@@ -25,7 +25,7 @@ pub struct SharedContext {
     pub(crate) workspace_manager: Arc<WorkspaceManager>,
 }
 
-impl SharedContext {
+impl LocalSharedContext {
     #[tracing::instrument(name = "SharedContext::new")]
     pub fn new(event_channel: Arc<EventChannel>, options: Config) -> Self {
         let workspace_manager = Arc::new(WorkspaceManager::new());
@@ -51,5 +51,11 @@ impl SharedContext {
             task_results,
             workspace_manager,
         }
+    }
+}
+
+impl Context for LocalSharedContext {
+    fn results(&self) -> Arc<TaskResults> {
+        self.task_results.clone()
     }
 }

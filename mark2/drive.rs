@@ -2,7 +2,7 @@ use super::*;
 use crate::events::EventChannel;
 use crate::resolver::Target;
 use crate::sync::Arc;
-use crate::worker::{LocalWorker, SharedContext, TaskResults, WorkerPool, WorkerPoolError};
+use crate::worker::{LocalSharedContext, LocalWorker, TaskResults, WorkerPool, WorkerPoolError};
 use crate::workspace::WorkspaceManagerError;
 use thiserror::*;
 use tracing::*;
@@ -20,7 +20,7 @@ use tracing::*;
 #[derive(Debug)]
 pub struct WarpDriveMarkII {
     worker_pool: WorkerPool<LocalWorker>,
-    shared_ctx: SharedContext,
+    shared_ctx: LocalSharedContext,
     opts: Config,
 }
 
@@ -29,8 +29,12 @@ impl WarpDriveMarkII {
     pub async fn new(opts: Config) -> Result<Self, WarpDriveError> {
         let event_channel = Arc::new(EventChannel::new());
 
-        let shared_ctx = SharedContext::new(event_channel.clone(), opts.clone());
-        let worker_pool = WorkerPool::from_shared_context(shared_ctx.clone());
+        let shared_ctx = LocalSharedContext::new(event_channel.clone(), opts.clone());
+        let worker_pool = WorkerPool::from_shared_context(
+            event_channel.clone(),
+            opts.clone(),
+            shared_ctx.clone(),
+        );
 
         shared_ctx
             .workspace_manager

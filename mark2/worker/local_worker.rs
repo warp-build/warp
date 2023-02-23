@@ -1,4 +1,4 @@
-use super::shared_context::SharedContext;
+use super::shared_context::LocalSharedContext;
 use super::*;
 use crate::events::Event;
 use thiserror::*;
@@ -7,9 +7,9 @@ use thiserror::*;
 /// A Local build execution worker.
 ///
 /// The `LocalWorker` takes care of running one-task at a time out of the `TaskQueue` that lives in
-/// the `SharedContext`.
+/// the `LocalSharedContext`.
 ///
-/// It orchestrates its lifecycle by checking with the `Coordinator` (also in the `SharedContext`).
+/// It orchestrates its lifecycle by checking with the `Coordinator` (also in the `LocalSharedContext`).
 ///
 /// It's flow goes:
 ///
@@ -34,14 +34,16 @@ use thiserror::*;
 #[derive(Debug)]
 pub struct LocalWorker {
     role: Role,
-    ctx: SharedContext,
+    ctx: LocalSharedContext,
     env: ExecutionEnvironment,
     // target_planner: TargetPlanner,
 }
 
 #[async_trait]
 impl Worker for LocalWorker {
-    fn new(role: Role, ctx: SharedContext) -> Result<Self, WorkerError> {
+    type Context = LocalSharedContext;
+
+    fn new(role: Role, ctx: Self::Context) -> Result<Self, WorkerError> {
         let env = ExecutionEnvironment::new();
 
         /*

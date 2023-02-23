@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::sync::Arc;
+use crate::Config;
 
 use super::*;
-use crate::events::Event;
+use crate::events::{Event, EventChannel};
 use crate::resolver::TargetId;
 use thiserror::*;
 use tokio_util::task::LocalPoolHandle;
@@ -17,24 +18,26 @@ use tracing::*;
 #[derive(Debug)]
 pub struct WorkerPool<W: Worker> {
     worker_pool: LocalPoolHandle,
-    ctx: SharedContext,
+    event_channel: Arc<EventChannel>,
+    ctx: W::Context,
     _worker: PhantomData<W>,
 }
 
-impl<W: Worker> WorkerPool<W> {
+impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
     #[tracing::instrument(name = "WorkerPool::from_shared_context", skip(ctx))]
-    pub fn from_shared_context(ctx: SharedContext) -> Self {
+    pub fn from_shared_context(event_channel: Arc<EventChannel>, cfg: Config, ctx: Ctx) -> Self {
         let worker_pool = LocalPoolHandle::new({
             // NOTE(@ostera): we want to make sure you don't ask for more workers than the number
             // of CPUs available.
             let max = num_cpus::get();
             // magic + 1 here means "however many workers you want + the main worker"
-            let ask = ctx.options.max_local_workers() + 1;
+            let ask = cfg.max_local_workers() + 1;
             ask.min(max)
         });
 
         Self {
             worker_pool,
+            event_channel,
             ctx,
             _worker: PhantomData::default(),
         }
@@ -46,19 +49,18 @@ impl<W: Worker> WorkerPool<W> {
     #[tracing::instrument(name = "WorkerPool::execute", skip(self))]
     pub async fn execute(&self, targets: &[TargetId]) -> Result<Arc<TaskResults>, WorkerPoolError> {
         if targets.is_empty() {
-            self.ctx
-                .event_channel
+            self.event_channel
                 .send(Event::BuildCompleted(std::time::Instant::now()));
             let empty_results = Arc::new(TaskResults::default());
             return Ok(empty_results);
         }
 
-        let main_worker = self.spawn_worker(Role::MainWorker);
+        let main_worker = self.spawn_worker(Role::MainWorker, Some(targets));
 
         // NOTE(@ostera): we are skipping the 1st threads since that's the main worker.
         let mut worker_tasks = vec![];
         for worker_id in 1..self.worker_pool.num_threads() {
-            worker_tasks.push(self.spawn_worker(Role::HelperWorker(worker_id)));
+            worker_tasks.push(self.spawn_worker(Role::HelperWorker(worker_id), None));
         }
 
         let (main_result, helper_results) =
@@ -69,10 +71,14 @@ impl<W: Worker> WorkerPool<W> {
         }
         main_result.unwrap()?;
 
-        Ok(self.ctx.task_results.clone())
+        Ok(self.ctx.results().clone())
     }
 
-    fn spawn_worker(&self, role: Role) -> tokio::task::JoinHandle<Result<(), WorkerPoolError>> {
+    fn spawn_worker(
+        &self,
+        role: Role,
+        targets: Option<&[TargetId]>,
+    ) -> tokio::task::JoinHandle<Result<(), WorkerPoolError>> {
         let ctx = self.ctx.clone();
         self.worker_pool.spawn_pinned(move || async move {
             let mut worker = W::new(role, ctx)?;
@@ -98,7 +104,7 @@ impl From<WorkerError> for WorkerPoolError {
 mod tests {
     use super::*;
     use crate::events::EventChannel;
-    use crate::resolver::Target;
+    use crate::resolver::{Target, TargetRegistry};
     use crate::Config;
     use assert_fs::prelude::*;
 
@@ -107,22 +113,20 @@ mod tests {
 
     #[async_trait]
     impl Worker for NoopWorker {
-        fn new(_role: Role, _ctx: SharedContext) -> Result<Self, WorkerError> {
+        type Context = LocalSharedContext;
+        fn new(_role: Role, _ctx: Self::Context) -> Result<Self, WorkerError> {
             Ok(NoopWorker)
         }
         async fn setup_and_run(&mut self) -> Result<(), WorkerError> {
-            loop {
-                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-            }
             Ok(())
         }
     }
 
-    fn new_pool<W: Worker>() -> WorkerPool<W> {
+    fn new_pool<W: Worker<Context = LocalSharedContext>>() -> WorkerPool<W> {
         let ec = Arc::new(EventChannel::new());
         let config = Config::default();
-        let ctx = SharedContext::new(ec, config);
-        WorkerPool::from_shared_context(ctx)
+        let ctx = LocalSharedContext::new(ec.clone(), config.clone());
+        WorkerPool::from_shared_context(ec, config, ctx)
     }
 
     #[tokio::test]
@@ -137,54 +141,61 @@ mod tests {
         // Create a temporary folder for our test workspace.
         let root = assert_fs::TempDir::new().unwrap();
 
-        // Configure Warp to use our test workspace as the invocation dir.
-        // In practice this may not hold, but in the test its easier to just go to the workspace
-        // than to go somewhere _within it_.
-        let ec = Arc::new(EventChannel::new());
-        let config = Config::builder()
-            .invocation_dir(root.path().into())
-            .max_local_workers(0)
-            .build()
-            .unwrap();
-        let ctx = SharedContext::new(ec, config);
-
         // Create a file that we will use as a target.
         let input_file = root.child("foo.txt");
         input_file.touch().unwrap();
 
         // Make our new file our target
+        let target_registry = Arc::new(TargetRegistry::new());
         let target: Target = input_file.path().into();
-        let target_id = ctx.target_registry.register_target(target);
+        let target_id = target_registry.register_target(target);
 
-        /*
+        #[derive(Debug, Clone)]
+        struct FixtureContext {
+            target_id: TargetId,
+            task_results: Arc<TaskResults>,
+        }
+        impl Context for FixtureContext {
+            fn results(&self) -> Arc<TaskResults> {
+                self.task_results.clone()
+            }
+        }
+        let ctx = FixtureContext {
+            target_id,
+            task_results: Arc::new(TaskResults::new(target_registry.clone())),
+        };
+
         #[derive(Debug)]
         struct FixtureWorker {
-            ctx: SharedContext,
+            ctx: FixtureContext,
         }
 
         #[async_trait]
         impl Worker for FixtureWorker {
-            fn new(_role: Role, ctx: SharedContext) -> Result<Self, WorkerError> {
-                Ok(FixtureWorker(ctx))
+            type Context = FixtureContext;
+            fn new(_role: Role, ctx: Self::Context) -> Result<Self, WorkerError> {
+                Ok(FixtureWorker { ctx })
             }
 
-            async fn setup_and_run(&mut self) -> Result<(), LocalWorkerError> {
-                loop {
-                    tokio::time::sleep(std::time::Duration::from_millis(1)).await;
-                    self.ctx.task_results.add_target_manifest(
-                        target,
-                        executable_target,
-                        target_manifest,
-                    )
-                }
+            async fn setup_and_run(&mut self) -> Result<(), WorkerError> {
+                self.ctx
+                    .task_results
+                    .add_target_manifest(self.ctx.target_id, (), ());
                 Ok(())
             }
         }
-        */
 
-        // let pool: WorkerPool<FixtureWorker> = WorkerPool::from_shared_context(ctx);
-        //  let results = pool.execute(&[target_id]).await.unwrap();
-        // assert!(results.len() == 0);
-        assert!(false);
+        let ec = Arc::new(EventChannel::new());
+        // Configure Warp to use our test workspace as the invocation dir.
+        // In practice this may not hold, but in the test its easier to just go to the workspace
+        // than to go somewhere _within it_.
+        let config = Config::builder()
+            .invocation_dir(root.path().into())
+            .max_local_workers(0)
+            .build()
+            .unwrap();
+        let pool: WorkerPool<FixtureWorker> = WorkerPool::from_shared_context(ec, config, ctx);
+        let results = pool.execute(&[target_id]).await.unwrap();
+        assert_eq!(results.len(), 1);
     }
 }
