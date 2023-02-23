@@ -1,11 +1,7 @@
 use super::shared_context::SharedContext;
 use super::*;
 use crate::events::Event;
-use crate::resolver::*;
 use thiserror::*;
-
-#[derive(Error, Debug)]
-pub enum LocalWorkerError {}
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
 /// A Local build execution worker.
@@ -35,6 +31,7 @@ pub enum LocalWorkerError {}
 ///   sleep -->|timeout| loop
 /// ```
 ///
+#[derive(Debug)]
 pub struct LocalWorker {
     role: Role,
     ctx: SharedContext,
@@ -42,8 +39,9 @@ pub struct LocalWorker {
     // target_planner: TargetPlanner,
 }
 
-impl LocalWorker {
-    pub fn new(role: Role, ctx: SharedContext) -> Result<Self, LocalWorkerError> {
+#[async_trait]
+impl Worker for LocalWorker {
+    fn new(role: Role, ctx: SharedContext) -> Result<Self, WorkerError> {
         let env = ExecutionEnvironment::new();
 
         /*
@@ -66,7 +64,7 @@ impl LocalWorker {
     }
 
     #[tracing::instrument(name = "LocalWorker::setup_and_run", skip(self))]
-    pub async fn setup_and_run(&mut self) -> Result<(), LocalWorkerError> {
+    async fn setup_and_run(&mut self) -> Result<(), WorkerError> {
         loop {
             // NOTE(@ostera): we don't want things to burn CPU cycles
             tokio::time::sleep(std::time::Duration::from_micros(10)).await;
@@ -74,7 +72,7 @@ impl LocalWorker {
             if result.is_err() {
                 self.ctx.coordinator.signal_shutdown();
                 self.finish();
-                return result;
+                break result?;
             }
             if self.should_stop() {
                 self.finish();
@@ -83,7 +81,9 @@ impl LocalWorker {
         }
         Ok(())
     }
+}
 
+impl LocalWorker {
     pub fn should_stop(&self) -> bool {
         if Role::MainWorker == self.role && self.ctx.task_results.has_all_expected_targets() {
             self.ctx.coordinator.signal_shutdown();
@@ -116,6 +116,15 @@ impl LocalWorker {
         });
 
         Ok(())
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum LocalWorkerError {}
+
+impl From<LocalWorkerError> for WorkerError {
+    fn from(err: LocalWorkerError) -> Self {
+        Self::LocalWorkerError(err)
     }
 }
 
