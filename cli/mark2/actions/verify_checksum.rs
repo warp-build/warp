@@ -5,7 +5,7 @@ use anyhow::*;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use std::path::PathBuf;
-use std::sync::Arc;
+use crate::sync::Arc;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 

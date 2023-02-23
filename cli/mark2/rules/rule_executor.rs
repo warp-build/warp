@@ -14,7 +14,7 @@ use fxhash::FxHashSet;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::Arc;
+use crate::sync::Arc;
 use thiserror::*;
 use tokio::fs;
 use tracing::*;

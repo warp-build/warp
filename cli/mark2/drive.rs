@@ -1,9 +1,9 @@
 use super::*;
 use crate::events::EventChannel;
 use crate::resolver::Target;
-use crate::worker::{SharedContext, TaskResults, WorkerPool, WorkerPoolError};
+use crate::sync::Arc;
+use crate::worker::{LocalWorker, SharedContext, TaskResults, WorkerPool, WorkerPoolError};
 use crate::workspace::WorkspaceManagerError;
-use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
 
@@ -17,9 +17,9 @@ use tracing::*;
 /// All results are made available via a shared reference into the `TaskResults` of the
 /// `WorkerPool`.
 ///
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct WarpDriveMarkII {
-    worker_pool: WorkerPool,
+    worker_pool: WorkerPool<LocalWorker>,
     shared_ctx: SharedContext,
     opts: Config,
 }

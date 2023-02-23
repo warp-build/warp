@@ -1,23 +1,11 @@
 use crate::resolver::*;
+use crate::sync::Arc;
 use daggy::{Dag, NodeIndex};
 use dashmap::DashMap;
 use dashmap::DashSet;
 use fxhash::*;
-use std::sync::Arc;
 use thiserror::*;
 use tracing::*;
-
-#[derive(Error, Debug)]
-pub enum TaskResultError {
-    #[error("Dependency cycle found starting at {}", .target.to_string())]
-    DepGraphError {
-        target: Target,
-        inner_error: daggy::WouldCycle<()>,
-    },
-
-    #[error(transparent)]
-    Unknown(anyhow::Error),
-}
 
 #[derive(Debug, Clone)]
 pub struct TaskResult {
@@ -63,7 +51,7 @@ impl TaskResults {
         self.ready_marker.insert(true);
     }
 
-    pub fn result_count(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.results.len()
     }
 
@@ -181,6 +169,18 @@ impl TaskResults {
     pub fn is_target_built(&self, target: TargetId) -> bool {
         self.results.contains_key(&target)
     }
+}
+
+#[derive(Error, Debug)]
+pub enum TaskResultError {
+    #[error("Dependency cycle found starting at {}", .target.to_string())]
+    DepGraphError {
+        target: Target,
+        inner_error: daggy::WouldCycle<()>,
+    },
+
+    #[error(transparent)]
+    Unknown(anyhow::Error),
 }
 
 #[cfg(test)]

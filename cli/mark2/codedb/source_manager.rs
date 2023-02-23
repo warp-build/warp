@@ -7,7 +7,7 @@ use sha2::Sha256;
 use std::fmt::Display;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
+use crate::sync::Arc;
 use thiserror::*;
 use tokio::fs;
 use tokio::io::AsyncReadExt;

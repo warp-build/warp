@@ -6,7 +6,7 @@ use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use futures::StreamExt;
 use std::path::PathBuf;
-use std::sync::Arc;
+use crate::sync::Arc;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;

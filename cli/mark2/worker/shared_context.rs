@@ -3,7 +3,7 @@ use crate::config::Config;
 use crate::events::EventChannel;
 use crate::resolver::*;
 use crate::workspace::WorkspaceManager;
-use std::sync::Arc;
+use crate::sync::Arc;
 
 /// A shared execution context for workers. This includes all of subsystems that need to be
 /// available for workers to execute their work correctly:

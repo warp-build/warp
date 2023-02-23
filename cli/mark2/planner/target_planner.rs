@@ -1,5 +1,5 @@
 use super::*;
-use std::sync::Arc;
+use crate::sync::Arc;
 use thiserror::*;
 
 pub struct TargetPlanner {

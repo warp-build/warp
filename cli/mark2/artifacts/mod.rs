@@ -4,7 +4,7 @@ use super::*;
 use dashmap::DashMap;
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
+use crate::sync::Arc;
 use thiserror::*;
 use tokio::fs;
 use tracing::*;

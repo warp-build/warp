@@ -3,7 +3,7 @@ use crate::event_channel::*;
 use crate::Label;
 use async_compression::futures::bufread::GzipDecoder;
 use std::path::PathBuf;
-use std::sync::Arc;
+use crate::sync::Arc;
 use tokio::fs;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 

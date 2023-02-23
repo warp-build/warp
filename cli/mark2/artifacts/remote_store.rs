@@ -3,7 +3,7 @@ use super::*;
 use async_compression::tokio::write::GzipEncoder;
 use futures::stream::TryStreamExt;
 use std::path::PathBuf;
-use std::sync::Arc;
+use crate::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tracing::*;

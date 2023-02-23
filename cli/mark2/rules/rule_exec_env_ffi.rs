@@ -6,7 +6,7 @@ use fxhash::*;
 use serde::*;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use crate::sync::Arc;
 use tracing::*;
 
 #[derive(Default, Clone, Debug)]

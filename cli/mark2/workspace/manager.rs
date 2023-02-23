@@ -1,7 +1,7 @@
 use super::*;
 use crate::Config;
 use dashmap::DashMap;
-use std::sync::{Arc, RwLock};
+use crate::sync::{Arc, RwLock};
 use thiserror::*;
 
 /// # Find, register, and access different workspaces.

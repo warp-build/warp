@@ -7,7 +7,7 @@
 //! protocol that we can use to receive and print feedback from local and remote builds.
 //!
 use std::path::PathBuf;
-use std::sync::Arc;
+use crate::sync::Arc;
 
 type TargetId = String;
 type Target = String;

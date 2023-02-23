@@ -11,7 +11,7 @@ fn main() -> Result<(), anyhow::Error> {
         will_snapshot: true,
         ..Default::default()
     };
-    let mut isolate = JsRuntime::new(options);
+    let isolate = JsRuntime::new(options);
 
     let snapshot = isolate.snapshot();
     let snapshot_slice: &[u8] = &snapshot;
