@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use serde::{Deserialize, Serialize};
 use thiserror::*;
 
@@ -13,6 +15,12 @@ pub enum Target {
 impl From<url::Url> for Target {
     fn from(url: url::Url) -> Self {
         Self::Remote(url.into())
+    }
+}
+
+impl From<&Path> for Target {
+    fn from(value: &Path) -> Self {
+        Self::Fs(value.into())
     }
 }
 
@@ -120,6 +128,14 @@ pub struct FsTarget {
 impl ToString for FsTarget {
     fn to_string(&self) -> String {
         self.path.clone()
+    }
+}
+
+impl From<&Path> for FsTarget {
+    fn from(value: &Path) -> Self {
+        Self {
+            path: value.to_string_lossy().to_string(),
+        }
     }
 }
 
