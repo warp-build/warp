@@ -1,6 +1,6 @@
 use super::*;
+use crate::sync::{Arc, Mutex};
 use dashmap::DashMap;
-use std::sync::{Arc, Mutex};
 use thiserror::*;
 use tracing::*;
 
@@ -40,7 +40,6 @@ impl TargetRegistry {
             let id = TargetId::next();
             self.ids.insert(target.clone(), id);
             self.targets.insert(id, target);
-
             id
         }
     }
@@ -87,6 +86,10 @@ impl TargetRegistry {
     pub fn get_target(&self, id: TargetId) -> Arc<Target> {
         (*self.targets.get(&id).unwrap()).clone()
     }
+
+    pub fn len(&self) -> usize {
+        self.ids.len()
+    }
 }
 
 #[derive(Error, Debug)]
@@ -97,11 +100,37 @@ mod tests {
     use super::*;
     use quickcheck::*;
 
-    #[quickcheck]
-    fn registering_a_target_returns_a_valid_handle_to_it(target: Target) {
-        let reg = TargetRegistry::new();
-        let handle = reg.register_target(target.clone());
-        assert_eq!(*reg.get_target(handle), target);
+    #[cfg(shuttle)]
+    #[test]
+    fn conc_registering_the_same_target_returns_the_same_id() {
+        use crate::sync::*;
+
+        shuttle::check_dfs(
+            move || {
+                let mut gen = quickcheck::Gen::new(10);
+                let target = Target::arbitrary(&mut gen);
+                let reg = Arc::new(TargetRegistry::new());
+                let id = reg.register_target(target.clone());
+
+                let mut handles = vec![];
+                for _ in 0..3 {
+                    let reg = reg.clone();
+                    let target = target.clone();
+                    let handle = thread::spawn(move || {
+                        reg.register_target(target.clone());
+                    });
+                    handles.push(handle);
+                }
+
+                for handle in handles {
+                    handle.join().unwrap()
+                }
+
+                assert_eq!(id, reg.find_target(&target).unwrap());
+                assert_eq!(reg.len(), 1);
+            },
+            None,
+        );
     }
 
     #[quickcheck]

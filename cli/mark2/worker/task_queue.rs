@@ -1,9 +1,9 @@
 use super::*;
 use crate::events::{Event, EventChannel};
 use crate::resolver::*;
+use crate::sync::{Arc, Mutex, RwLock};
 use dashmap::{DashMap, DashSet};
 use fxhash::FxHashSet;
-use std::sync::{Arc, Mutex, RwLock};
 use thiserror::*;
 use tracing::*;
 
@@ -216,6 +216,8 @@ impl TaskQueue {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     #[test]
@@ -342,5 +344,80 @@ mod tests {
         q.task_results.add_target_manifest(target_id, (), ());
 
         assert!(q.next().is_none());
+    }
+
+    #[cfg(shuttle)]
+    #[test]
+    fn conc_no_double_consumption() {
+        use std::{collections::HashSet, time::Duration};
+
+        use crate::sync::*;
+        use quickcheck::*;
+
+        const TASK_COUNT: usize = 50;
+        const ITER: usize = 1_000;
+
+        shuttle::check_random(
+            move || {
+                let mut gen = quickcheck::Gen::new(100);
+
+                // Fill in the queue with arbitrary targets.
+                let gts: Vec<(Goal, Target)> = (0..TASK_COUNT)
+                    .map(|_| Arbitrary::arbitrary(&mut gen))
+                    .collect();
+                let q = Arc::new(TaskQueue::default());
+                for (goal, target) in &gts {
+                    let target_id = q.target_registry.register_target(target);
+                    let task = Task::new(*goal, target_id);
+                    q.queue(task).unwrap();
+                }
+                assert!(!q.is_empty());
+
+                // Consume the queue from different threads and collect the results
+                let consumed: Arc<RwLock<HashMap<usize, HashSet<Task>>>> =
+                    Arc::new(RwLock::new(HashMap::default()));
+                let mut handles = vec![];
+                for id in 0..4 {
+                    let q = q.clone();
+                    let consumed = consumed.clone();
+                    let handle = thread::spawn(move || {
+                        let mut tasks = vec![];
+                        while let Some(task) = q.next() {
+                            tasks.push(task);
+                            q.ack(task);
+                        }
+                        let tasks: HashSet<Task> = tasks.into_iter().collect();
+                        (*consumed.write().unwrap()).insert(id, tasks);
+                    });
+                    handles.push(handle);
+                }
+
+                // Wait for all threads to be finished consuming the queue
+                for handle in handles {
+                    handle.join().unwrap()
+                }
+                assert!(consumed.read().unwrap().len() > 0);
+                assert!(q.is_empty());
+
+                // Verify all the threads consumed different tasks
+                let set_0 = consumed.read().unwrap().get(&0).unwrap().clone();
+                let set_1 = consumed.read().unwrap().get(&1).unwrap().clone();
+                let set_2 = consumed.read().unwrap().get(&2).unwrap().clone();
+                let set_3 = consumed.read().unwrap().get(&3).unwrap().clone();
+                assert!(set_0.is_disjoint(&set_1));
+                assert!(set_0.is_disjoint(&set_2));
+                assert!(set_0.is_disjoint(&set_3));
+                assert!(set_1.is_disjoint(&set_0));
+                assert!(set_1.is_disjoint(&set_2));
+                assert!(set_1.is_disjoint(&set_3));
+                assert!(set_2.is_disjoint(&set_0));
+                assert!(set_2.is_disjoint(&set_1));
+                assert!(set_2.is_disjoint(&set_3));
+                assert!(set_3.is_disjoint(&set_0));
+                assert!(set_3.is_disjoint(&set_1));
+                assert!(set_3.is_disjoint(&set_2));
+            },
+            ITER,
+        );
     }
 }
