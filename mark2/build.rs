@@ -24,10 +24,10 @@ fn main() -> Result<(), anyhow::Error> {
         .compile_well_known_types(true)
         .compile(
             &[
-                "../../schemas/build/warp/tricorder.proto",
-                "../../schemas/build/warp/common.proto",
+                "../schemas/build/warp/tricorder.proto",
+                "../schemas/build/warp/common.proto",
             ],
-            &["../../"],
+            &["../"],
         )?;
 
     Ok(())
