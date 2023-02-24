@@ -11,5 +11,8 @@
     "@nuxtjs/tailwindcss": "^6.4.1",
     "@sidebase/nuxt-auth": "^0.4.2",
     "nuxt": "^3.2.2"
+  },
+  "dependencies": {
+    "octokit": "^2.0.14"
   }
 }
