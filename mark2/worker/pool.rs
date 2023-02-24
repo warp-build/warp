@@ -71,6 +71,9 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
         }
         main_result.unwrap()?;
 
+        self.event_channel
+            .send(Event::BuildCompleted(std::time::Instant::now()));
+
         Ok(self.ctx.results().clone())
     }
 
@@ -82,7 +85,7 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
         let ctx = self.ctx.clone();
         self.worker_pool.spawn_pinned(move || async move {
             let mut worker = W::new(role, ctx)?;
-            worker.setup_and_run().await?;
+            worker.run().await?;
             Ok(())
         })
     }
@@ -104,28 +107,45 @@ impl From<WorkerError> for WorkerPoolError {
 mod tests {
     use super::*;
     use crate::events::EventChannel;
-    use crate::resolver::{Target, TargetRegistry};
+    use crate::resolver::{Goal, ResolutionFlow, Resolver, ResolverError, Target, TargetRegistry};
     use crate::Config;
     use assert_fs::prelude::*;
+
+    #[derive(Clone)]
+    struct NoopResolver;
+
+    #[async_trait]
+    impl Resolver for NoopResolver {
+        async fn resolve(
+            &self,
+            _goal: Goal,
+            _target_id: TargetId,
+        ) -> Result<ResolutionFlow, ResolverError> {
+            Ok(ResolutionFlow::MissingDependencies)
+        }
+    }
 
     #[derive(Debug)]
     struct NoopWorker;
 
     #[async_trait]
     impl Worker for NoopWorker {
-        type Context = LocalSharedContext;
+        type Context = LocalSharedContext<NoopResolver>;
         fn new(_role: Role, _ctx: Self::Context) -> Result<Self, WorkerError> {
             Ok(NoopWorker)
         }
-        async fn setup_and_run(&mut self) -> Result<(), WorkerError> {
+        async fn run(&mut self) -> Result<(), WorkerError> {
             Ok(())
         }
     }
 
-    fn new_pool<W: Worker<Context = LocalSharedContext>>() -> WorkerPool<W> {
+    fn new_pool<W>() -> WorkerPool<W>
+    where
+        W: Worker<Context = LocalSharedContext<NoopResolver>>,
+    {
         let ec = Arc::new(EventChannel::new());
         let config = Config::default();
-        let ctx = LocalSharedContext::new(ec.clone(), config.clone());
+        let ctx = LocalSharedContext::new(ec.clone(), config.clone(), NoopResolver);
         WorkerPool::from_shared_context(ec, config, ctx)
     }
 
@@ -177,7 +197,7 @@ mod tests {
                 Ok(FixtureWorker { ctx })
             }
 
-            async fn setup_and_run(&mut self) -> Result<(), WorkerError> {
+            async fn run(&mut self) -> Result<(), WorkerError> {
                 self.ctx
                     .task_results
                     .add_target_manifest(self.ctx.target_id, (), ());

@@ -18,6 +18,10 @@ impl Coordinator {
         }
     }
 
+    pub fn should_run(&self) -> bool {
+        *(self.status.read().unwrap()) == Status::Running
+    }
+
     pub fn should_shutdown(&self) -> bool {
         *(self.status.read().unwrap()) == Status::Shutdown
     }

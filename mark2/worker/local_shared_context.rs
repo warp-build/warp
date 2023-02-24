@@ -15,7 +15,7 @@ use crate::workspace::WorkspaceManager;
 /// * a Workspace Manager to get information about the current workspace
 ///
 #[derive(Debug, Clone)]
-pub struct LocalSharedContext {
+pub struct LocalSharedContext<R: Resolver> {
     pub(crate) coordinator: Arc<Coordinator>,
     pub(crate) event_channel: Arc<EventChannel>,
     pub(crate) options: Config,
@@ -23,11 +23,12 @@ pub struct LocalSharedContext {
     pub(crate) task_queue: Arc<TaskQueue>,
     pub(crate) task_results: Arc<TaskResults>,
     pub(crate) workspace_manager: Arc<WorkspaceManager>,
+    pub(crate) resolver: Arc<R>,
 }
 
-impl LocalSharedContext {
-    #[tracing::instrument(name = "SharedContext::new")]
-    pub fn new(event_channel: Arc<EventChannel>, options: Config) -> Self {
+impl<R: Resolver> LocalSharedContext<R> {
+    #[tracing::instrument(name = "SharedContext::new", skip(event_channel, resolver))]
+    pub fn new(event_channel: Arc<EventChannel>, options: Config, resolver: R) -> Self {
         let workspace_manager = Arc::new(WorkspaceManager::new());
 
         let coordinator = Arc::new(Coordinator::new());
@@ -42,11 +43,14 @@ impl LocalSharedContext {
             event_channel.clone(),
         ));
 
+        let resolver = Arc::new(resolver);
+
         Self {
             coordinator,
             event_channel,
             options,
             target_registry,
+            resolver,
             task_queue,
             task_results,
             workspace_manager,
@@ -54,7 +58,7 @@ impl LocalSharedContext {
     }
 }
 
-impl Context for LocalSharedContext {
+impl<R: Resolver> Context for LocalSharedContext<R> {
     fn results(&self) -> Arc<TaskResults> {
         self.task_results.clone()
     }

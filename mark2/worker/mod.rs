@@ -2,18 +2,18 @@
 
 mod coordinator;
 mod env;
+mod local_shared_context;
 mod local_worker;
 mod pool;
-mod shared_context;
 mod task;
 mod task_queue;
 mod task_results;
 
 use coordinator::*;
 use env::*;
+pub use local_shared_context::*;
 pub use local_worker::*;
 pub use pool::*;
-pub use shared_context::*;
 use task::*;
 use task_queue::*;
 pub use task_results::*;
@@ -29,15 +29,15 @@ pub enum WorkerError {
     LocalWorkerError(LocalWorkerError),
 }
 
-pub trait Context: Send + Debug + Clone + Sized {
+pub trait Context: Sync + Send + Clone + Sized {
     fn results(&self) -> Arc<TaskResults>;
 }
 
 #[async_trait]
-pub trait Worker: Debug + Sized {
+pub trait Worker: Sized {
     type Context: Context;
     fn new(role: Role, ctx: Self::Context) -> Result<Self, WorkerError>;
-    async fn setup_and_run(&mut self) -> Result<(), WorkerError>;
+    async fn run(&mut self) -> Result<(), WorkerError>;
 }
 
 /// The role that a given worker has. The MainWorker is in charge of terminating execution
@@ -53,5 +53,10 @@ pub enum Role {
 impl Role {
     pub fn is_main_worker(&self) -> bool {
         matches!(&self, Role::MainWorker)
+    }
+}
+impl WorkerError {
+    pub(crate) fn ResolverError(err: crate::resolver::ResolverError) -> WorkerError {
+        todo!()
     }
 }
