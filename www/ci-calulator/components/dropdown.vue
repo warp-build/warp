@@ -2,7 +2,7 @@
 <div>
   <label id="listbox-label" class="block text-sm font-medium text-gray-700">Organization</label>
   <div @click="toggleMenu()" class="relative mt-1">
-    <button type="button" class="relative w-full cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm" aria-haspopup="listbox" aria-expanded="true" aria-labelledby="listbox-label">
+    <button type="button" class="relative w-full cursor-pointer rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm" aria-haspopup="listbox" aria-expanded="true" aria-labelledby="listbox-label">
       <span class="flex items-center">
         <img src="/github-mark.png" alt="" class="h-6 w-6 flex-shrink-0 rounded-full">
         <span class="ml-3 block truncate">Select Github Organization</span>
@@ -77,7 +77,6 @@ const menuOpen = ref(false);
 function toggleMenu() {
   menuOpen.value = !menuOpen.value
 }
-
 
 
 </script>
