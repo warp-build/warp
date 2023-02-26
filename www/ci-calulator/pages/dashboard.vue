@@ -18,6 +18,7 @@
     <div class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
       <!-- Replace with your content -->
       <Dropdown :organizations="propsToPass()"/>
+      <DropdownRepos :repositories="reposToPass()" :disabled="true"/>
       <!-- /End replace -->
     </div>
   </main>
@@ -31,35 +32,34 @@
 const { status, data } = useSession()
 
 const headers = useRequestHeaders(['cookie']) as HeadersInit;
-const { data: organizations } = await useFetch('/api/github_organizations', { headers });
+const { data: organizations } = await useFetch('/api/github/organizations', { headers });
 // const { data: repositories } = await useFetch('/api/github_repos', { headers });
 
 
-// const [{ data: repositories }, { data: repos }] = await Promise.all([
-//       useFetch(`https://api.github.com/orgs/nuxt`),
-//       useFetch(`https://api.github.com/orgs/nuxt/repos`)
-//     ])
-
 function propsToPass() {
-  let props: any[] = []
 
-  let user_org = {
+  const user_added = organizations.value.filter((x) => x.login === data.value?.user?.email)
+  if (user_added.length === 0) {
+    let user_org = {
     login: data.value?.user?.email,
     avatar_url: data.value?.user?.image,
     node_id: data.value?.user?.email,
     selected: false,
   }
 
-  props.push(user_org)
+    organizations.value.push(user_org)
+  }
 
   if (organizations) {
-    organizations.value.push(user_org)
     return organizations.value
   } else {
-    return props
+    return []
   }
 }
 
+function reposToPass() {
+  return []
+}
 
 </script>
 

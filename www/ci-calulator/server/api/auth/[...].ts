@@ -15,19 +15,23 @@ export default NuxtAuthHandler({
         }),
     ],
     callbacks: {
-        async jwt({ token, account }) {
+        async jwt({ token, account, profile }) {
           // Persist the OAuth access_token and or the user id to the token right after signin
           if (account) {
             token.accessToken = account.access_token
           }
+
+          if (profile) {
+            token.login = profile.login
+          }
           return token
         },
-      //   async session({ session, token }) {
-      //       // Send properties to the client, like an access_token and user id from a provider.
-      //       session.user.login = token.login
+        // async session({ session, token }) {
+        //     // Send properties to the client, like an access_token and user id from a provider.
+        //     session.user.login = token.login
             
-      //       return session
-      //     }
-      // }
+        //     return session
+        //   }
+      }
 
 })

@@ -6,7 +6,7 @@
         <div class="lg:max-w-lg">
           <h2 class="text-base font-semibold leading-7 text-indigo-600">Understand your CI</h2>
           <p class="mt-2 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Shipping with confidence</p>
-          <p class="mt-6 text-lg leading-8 text-gray-600">Understand how much time is being used to build, test & deploy on CI to figure out how much time and money could be saved by improving those metrics.</p>
+          <p class="mt-6 text-lg leading-8 text-gray-600">Understand how much time is being used to build, test & deploy on CI. Figure out how much time and money could be saved by improving those metrics.</p>
           <dl class="mt-10 max-w-xl space-y-8 text-base leading-7 text-gray-600 lg:max-w-none">
             <div class="relative pl-9">
               <dt class="inline font-semibold text-gray-900">

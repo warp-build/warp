@@ -4,7 +4,7 @@
   <div @click="toggleMenu()" class="relative mt-1">
     <button type="button" class="relative w-full cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm" aria-haspopup="listbox" aria-expanded="true" aria-labelledby="listbox-label">
       <span class="flex items-center">
-        <img src="/github-mark.png" alt="" class="h-6 w-6 flex-shrink-0 rounded-full">
+        <img src="/git-branch-512.webp" alt="" class="h-6 w-6 flex-shrink-0 rounded-full">
         <span class="ml-3 block truncate">Select Github Repository</span>
       </span>
       <span class="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
@@ -69,6 +69,10 @@ defineProps({
     repositories: {
         type: Array<Repository>,
         default: []
+    },
+    disabled: {
+      type: Boolean,
+      default: false
     }
 })
 
