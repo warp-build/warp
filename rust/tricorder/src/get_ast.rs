@@ -5,11 +5,7 @@ use thiserror::*;
 use tokio::fs;
 use tonic::{Request, Response, Status};
 use tracing::*;
-use tree_sitter::{Language, Parser, Tree};
-
-extern "C" {
-    fn tree_sitter_rust() -> Language;
-}
+use tree_sitter::{Parser, Tree};
 
 #[derive(Default)]
 pub struct GetAst {}
@@ -38,8 +34,7 @@ impl GetAst {
 
     async fn do_get_rs_ast(request: GetAstRequest) -> GetAstResponse {
         let mut parser = Parser::new();
-        let language = unsafe { tree_sitter_rust() };
-        parser.set_language(language).unwrap();
+	parser.set_language(tree_sitter_rust::language()).expect("Error loading Rust grammar");
 
         let source =
             fs::read_to_string(&request.file)
