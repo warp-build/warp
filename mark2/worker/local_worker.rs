@@ -91,7 +91,9 @@ impl<R: Resolver> LocalWorker<R> {
     }
 
     pub async fn handle_task(&self, task: Task) -> Result<WorkerFlow, LocalWorkerError> {
-        let _signature = match self.ctx.resolver.resolve(task.goal, task.target).await? {
+        let target = self.ctx.target_registry.get_target(task.target);
+
+        let _signature = match self.ctx.resolver.resolve(task.goal, target).await? {
             ResolutionFlow::Resolved { signature } => signature,
             _flow => return Ok(WorkerFlow::RetryLater),
         };
@@ -151,7 +153,7 @@ mod tests {
         async fn resolve(
             &self,
             _goal: Goal,
-            _target_id: TargetId,
+            _target: Arc<Target>,
         ) -> Result<ResolutionFlow, ResolverError> {
             Ok(ResolutionFlow::MissingDependencies)
         }
@@ -179,7 +181,7 @@ mod tests {
             async fn resolve(
                 &self,
                 _goal: Goal,
-                _target_id: TargetId,
+                _target: Arc<Target>,
             ) -> Result<ResolutionFlow, ResolverError> {
                 Err(ResolverError::Unknown("test error".to_string()))
             }

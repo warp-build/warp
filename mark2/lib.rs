@@ -23,6 +23,7 @@ mod planner;
 pub mod resolver;
 mod rules;
 pub mod sync;
+mod tricorder;
 mod util;
 mod worker;
 mod workspace;
