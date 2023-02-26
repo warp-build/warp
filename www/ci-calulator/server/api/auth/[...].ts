@@ -1,7 +1,6 @@
 // file: ~/server/api/auth/[...].ts
 import { NuxtAuthHandler } from '#auth'
 import GithubProvider from 'next-auth/providers/github'
-import CredentialsProvider from 'next-auth/providers/credentials'
 export default NuxtAuthHandler({
     secret: process.env.NUXT_SECRET,
     pages: {
@@ -16,21 +15,19 @@ export default NuxtAuthHandler({
         }),
     ],
     callbacks: {
-        async jwt({ token, account, profile }) {
+        async jwt({ token, account }) {
           // Persist the OAuth access_token and or the user id to the token right after signin
           if (account) {
             token.accessToken = account.access_token
-            token.id = profile.id
           }
           return token
         },
-        async session({ session, token, user }) {
-            // Send properties to the client, like an access_token and user id from a provider.
-            session.accessToken = token.accessToken
-            session.user.id = token.id
+      //   async session({ session, token }) {
+      //       // Send properties to the client, like an access_token and user id from a provider.
+      //       session.user.login = token.login
             
-            return session
-          }
-      }
+      //       return session
+      //     }
+      // }
 
 })

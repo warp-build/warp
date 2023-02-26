@@ -11,15 +11,13 @@
   <Navbar/>
   <header class="bg-white shadow">
     <div class="mx-auto max-w-7xl py-6 px-4 sm:px-6 lg:px-8">
-      <h1 class="text-3xl font-bold tracking-tight text-gray-900">Dashboard</h1>
+      <h1 class="text-3xl font-bold tracking-tight text-gray-900">New Github Actions Analysis</h1>
     </div>
   </header>
   <main>
     <div class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
       <!-- Replace with your content -->
-      <div class="px-4 py-6 sm:px-0">
-        <div class="h-96 rounded-lg border-4 border-dashed border-gray-200"></div>
-      </div>
+      <Dropdown :organizations="propsToPass()"/>
       <!-- /End replace -->
     </div>
   </main>
@@ -30,16 +28,38 @@
 </template>
 
 <script setup lang="ts">
-const { status, data, signIn, signOut } = useSession()
+const { status, data } = useSession()
 
 const headers = useRequestHeaders(['cookie']) as HeadersInit;
-const { data: token } = await useFetch('/api/token', { headers });
+const { data: organizations } = await useFetch('/api/github_organizations', { headers });
+// const { data: repositories } = await useFetch('/api/github_repos', { headers });
 
 
-// const [{ data: organization }, { data: repos }] = await Promise.all([
+// const [{ data: repositories }, { data: repos }] = await Promise.all([
 //       useFetch(`https://api.github.com/orgs/nuxt`),
 //       useFetch(`https://api.github.com/orgs/nuxt/repos`)
 //     ])
+
+function propsToPass() {
+  let props: any[] = []
+
+  let user_org = {
+    login: data.value?.user?.email,
+    avatar_url: data.value?.user?.image,
+    node_id: data.value?.user?.email,
+    selected: false,
+  }
+
+  props.push(user_org)
+
+  if (organizations) {
+    organizations.value.push(user_org)
+    return organizations.value
+  } else {
+    return props
+  }
+}
+
 
 </script>
 
