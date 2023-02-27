@@ -1,4 +1,5 @@
 mod config_file;
+mod host_env;
 
 use super::*;
 use std::collections::HashMap;
@@ -7,6 +8,8 @@ use std::time::Instant;
 use thiserror::*;
 
 pub use config_file::*;
+use host_env::*;
+use url::Url;
 
 pub const WARPFILE: &str = "Warpfile";
 
@@ -49,6 +52,18 @@ pub struct Config {
     /// The root of warp's operating directory. By default this is `/warp`
     #[builder(default = "self.default_warp_root()")]
     warp_root: PathBuf,
+
+    /// The host environment in which warp is currently running.
+    #[builder(default)]
+    host_env: HostEnv,
+
+    /// The location of the public store.
+    #[builder(default = "self.default_public_store_url()")]
+    public_store_url: Url,
+
+    /// The location of the store in the current host.
+    #[builder(default = "self.default_store_root()")]
+    store_root: PathBuf,
 }
 
 impl Default for Config {
@@ -93,11 +108,33 @@ impl Config {
     pub fn current_user(&self) -> &str {
         self.current_user.as_ref()
     }
+
+    pub fn host_env(&self) -> &HostEnv {
+        &self.host_env
+    }
+
+    pub fn public_store_url(&self) -> &str {
+        self.public_store_url.as_ref()
+    }
+
+    pub fn store_root(&self) -> &PathBuf {
+        &self.store_root
+    }
 }
 
 impl ConfigBuilder {
     fn default_warp_root(&self) -> PathBuf {
         PathBuf::from("/warp")
+    }
+
+    fn default_store_root(&self) -> PathBuf {
+        self.warp_root
+            .unwrap_or_else(|| self.default_warp_root())
+            .join("store")
+    }
+
+    fn default_public_store_url(&self) -> Url {
+        "https://public.store.warp.build".parse::<Url>().unwrap()
     }
 
     fn default_offline(&self) -> bool {
