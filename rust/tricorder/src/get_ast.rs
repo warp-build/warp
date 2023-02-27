@@ -1,11 +1,11 @@
 use crate::proto::build::warp::codedb::*;
-use crate::proto::build::warp::Symbol;
+use crate::proto::build::warp::symbol::Sym::*;
+use crate::proto::build::warp::{Dependency, Symbol};
 use std::path::Path;
-use thiserror::*;
+pub(crate) use thiserror::*;
 use tokio::fs;
 use tonic::{Request, Response, Status};
 use tracing::*;
-use tree_sitter::{Parser, Tree};
 
 #[derive(Default)]
 pub struct GetAst {}
@@ -14,10 +14,13 @@ pub struct GetAst {}
 pub enum GetAstError {
     #[error("Could not load file at {file:?} due to {err:?}")]
     CouldNotReadFile { file: String, err: std::io::Error },
+
+    #[error("Could not parse file {file:?} due to {err:?}")]
+    CouldNotParseFile { file: String, err: syn::Error },
 }
 
 impl GetAst {
-    pub async fn get_dependencies(
+    pub async fn get_ast(
         request: Request<GetAstRequest>,
     ) -> Result<Response<GetAstResponse>, Status> {
         let request_data = request.into_inner();
@@ -25,51 +28,73 @@ impl GetAst {
         println!("Analyzing: {:?}", filename.clone());
 
         match Path::new(&filename).extension() {
-            Some(ext) if ext == "rs" => {
-                Ok(Response::new(GetAst::do_get_rs_ast(request_data).await))
-            }
+            Some(ext) if ext == "rs" => match request_data.symbol.unwrap().sym.unwrap() {
+                All(_) => Ok(Response::new(GetAstResponse {
+                    response: Some(
+                        GetAst::do_get_all_rs_ast(&request_data.file, request_data.dependencies)
+                            .await,
+                    ),
+                })),
+                Named(name) => Ok(Response::new(GetAstResponse {
+                    response: Some(
+                        GetAst::do_get_named_rs_ast(
+                            &request_data.file,
+                            &name,
+                            request_data.dependencies,
+                        )
+                        .await,
+                    ),
+                })),
+            },
             _ => Ok(Response::new(GetAstResponse::default())),
         }
     }
 
-    async fn do_get_rs_ast(request: GetAstRequest) -> GetAstResponse {
-        let mut parser = Parser::new();
-	parser.set_language(tree_sitter_rust::language()).expect("Error loading Rust grammar");
-
-        let source =
-            fs::read_to_string(&request.file)
-                .await
-                .map_err(|err| GetAstError::CouldNotReadFile {
-                    file: request.file.clone(),
-                    err,
-                });
+    async fn do_get_all_rs_ast(file: &str, _deps: Vec<Dependency>) -> get_ast_response::Response {
+        let source = fs::read_to_string(&file)
+            .await
+            .map_err(|err| GetAstError::CouldNotReadFile {
+                file: file.clone().to_string(),
+                err,
+            });
 
         let src = source.unwrap();
-        let ast = parser.parse(src.clone(), None).unwrap();
+        let ast = syn::parse_file(&src)
+            .map_err(|err| GetAstError::CouldNotParseFile {
+                file: file.clone().to_string(),
+                err,
+            })
+            .unwrap();
 
-        let response = GetAst::handle_result(request, ast, &src).await;
-
-        GetAstResponse {
-            response: Some(response.unwrap()),
-        }
+        crate::proto::build::warp::codedb::get_ast_response::Response::Ok(GetAstSuccessResponse {
+            file: file.to_string(),
+            symbol: Some(Symbol {
+                sym: Some(All(true)),
+            }),
+            source: src.to_string(),
+            ast: format!("{:#?}", ast.items),
+        })
     }
 
-    async fn handle_result(
-        request: GetAstRequest,
-        ast: Tree,
-        source: &str,
-    ) -> Result<crate::proto::build::warp::codedb::get_ast_response::Response, GetAstError> {
-        let symbol = request.symbol.unwrap();
+    async fn do_get_named_rs_ast(
+        file: &str,
+        symbol_name: &str,
+        _deps: Vec<Dependency>,
+    ) -> get_ast_response::Response {
+        let source = fs::read_to_string(&file)
+            .await
+            .map_err(|err| GetAstError::CouldNotReadFile {
+                file: file.clone().to_string(),
+                err,
+            });
 
-        Ok(
-            crate::proto::build::warp::codedb::get_ast_response::Response::Ok(
-                GetAstSuccessResponse {
-                    file: request.file,
-                    symbol: Some(Symbol { sym: symbol.sym }),
-                    source: source.to_string(),
-                    ast: format!("{:?}", ast),
-                },
-            ),
-        )
+        crate::proto::build::warp::codedb::get_ast_response::Response::Ok(GetAstSuccessResponse {
+            file: file.to_string(),
+            symbol: Some(Symbol {
+                sym: Some(Named(symbol_name.to_string())),
+            }),
+            source: source.unwrap().to_string(),
+            ast: "".to_string(),
+        })
     }
 }
