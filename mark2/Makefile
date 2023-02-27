@@ -1,7 +1,7 @@
 setup:
 	rustup default stable
 	rustup target add x86_64-apple-darwin
-	cargo install hyperfine cargo-strip cargo-insta mdbook flamegraph miri cargo-asm cargo-tarpaulin
+	cargo install hyperfine cargo-strip cargo-insta mdbook flamegraph miri cargo-asm
 
 test:
 	cargo test

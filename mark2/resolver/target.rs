@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use thiserror::*;
@@ -118,23 +118,33 @@ impl From<url::Url> for RemoteTarget {
     }
 }
 
-#[derive(
-    Builder, Default, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
+#[derive(Builder, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct FsTarget {
-    path: String,
+    path: PathBuf,
+}
+
+impl FsTarget {
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+}
+
+impl Default for FsTarget {
+    fn default() -> Self {
+        Self { path: PathBuf::from(".") }
+    }
 }
 
 impl ToString for FsTarget {
     fn to_string(&self) -> String {
-        self.path.clone()
+           self.path.to_string_lossy().to_string()
     }
 }
 
 impl From<&Path> for FsTarget {
     fn from(value: &Path) -> Self {
         Self {
-            path: value.to_string_lossy().to_string(),
+            path: value.to_path_buf(),
         }
     }
 }

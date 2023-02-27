@@ -6,8 +6,8 @@
 //! NOTE(@ostera): This module is likely going to become the interface of a form of log-streamer
 //! protocol that we can use to receive and print feedback from local and remote builds.
 //!
-use std::path::PathBuf;
 use crate::sync::Arc;
+use std::path::PathBuf;
 
 type TargetId = String;
 type Target = String;

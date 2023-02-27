@@ -7,6 +7,7 @@ mod signature;
 mod target;
 mod target_id;
 mod target_registry;
+mod concrete_target;
 
 use std::fmt::Debug;
 
@@ -17,6 +18,7 @@ pub use signature::*;
 pub use target::*;
 pub use target_id::*;
 pub use target_registry::*;
+pub use concrete_target::*;
 
 use crate::sync::*;
 use async_trait::async_trait;
@@ -29,6 +31,9 @@ pub enum ResolverError {
 
     #[error("Could not resolve target {target:?} for goal {goal:?}")]
     CouldNotResolveTarget { goal: Goal, target: Target },
+
+    #[error(transparent)]
+    FsResolverError(FsResolverError),
 }
 
 #[derive(Debug)]
