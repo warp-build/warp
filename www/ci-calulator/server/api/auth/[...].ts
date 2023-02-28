@@ -26,12 +26,14 @@ export default NuxtAuthHandler({
           }
           return token
         },
-        // async session({ session, token }) {
-        //     // Send properties to the client, like an access_token and user id from a provider.
-        //     session.user.login = token.login
+        async session({ session, token }) {
+            // Send properties to the client, like an access_token and user id from a provider.
+            if (session.user) {
+              session.user.login = token.login
+            }
             
-        //     return session
-        //   }
+            return session
+          }
       }
 
 })

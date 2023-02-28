@@ -17,7 +17,7 @@
       <p class="mt-2 text-lg leading-8 text-gray-600">Aute magna irure deserunt veniam aliqua magna enim voluptate.</p>
     </div>
       <div class="mx-auto mt-16 max-w-xl sm:mt-20">
-        <Dropdown :organizations="propsToPass()"/>
+        <Dropdown @selectedOption="fetchRepos" :organizations="propsToPass()"/>
         <DropdownRepos :repositories="reposToPass()" :disabled="true"/>
         <div class="mt-10">
           <button type="submit" class="block w-full rounded-md bg-indigo-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Let's go!</button>
@@ -33,18 +33,23 @@
 
 <script setup lang="ts">
 const { status, data } = useSession()
+const repositories = reactive([])
 
 const headers = useRequestHeaders(['cookie']) as HeadersInit;
 const { data: organizations } = await useFetch('/api/github/organizations', { headers });
-// const { data: repositories } = await useFetch('/api/github_repos', { headers });
+
+
+async function fetchRepos(repoName: string) {
+  repositories.value = await useFetch(`/api/github/${repoName}`, { headers });
+}
 
 
 function propsToPass() {
 
-  const user_added = organizations.value.filter((x) => x.login === data.value?.user?.email)
+  const user_added = organizations.value.filter((x) => x.login === data.value?.user?.login)
   if (user_added.length === 0) {
     let user_org = {
-    login: data.value?.user?.email,
+    login: data.value?.user?.login,
     avatar_url: data.value?.user?.image,
     node_id: data.value?.user?.email,
     selected: false,

@@ -31,7 +31,7 @@
         Highlighted: "text-white bg-indigo-600", Not Highlighted: "text-gray-900"
       -->
 
-      <li v-for="item in $props.organizations" :key="item.node_id" class="text-gray-900 relative cursor-default select-none py-2 pl-3 pr-9" id="listbox-option-0" role="option">
+      <li @click="$emit('selectedOption', item.login)" v-for="item in $props.organizations" :key="item.node_id" class="text-gray-900 relative cursor-default select-none py-2 pl-3 pr-9" id="listbox-option-0" role="option">
         <div class="flex items-center">
           <img :src="item.avatar_url" alt="" class="h-6 w-6 flex-shrink-0 rounded-full">
           <!-- Selected: "font-semibold", Not Selected: "font-normal" -->
@@ -57,6 +57,8 @@
 </template>
 
 <script setup lang="ts">
+
+const emit = defineEmits(['selectedOption'])
 
 interface Organization {
     login: string;
