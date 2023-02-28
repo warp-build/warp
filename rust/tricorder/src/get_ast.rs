@@ -87,14 +87,23 @@ impl GetAst {
                 file: file.clone().to_string(),
                 err,
             });
+	
+	let src = source.unwrap();
+        let ast = syn::parse_file(&src)
+            .map_err(|err| GetAstError::CouldNotParseFile {
+                file: file.clone().to_string(),
+                err,
+            })
+            .unwrap();
 
+	println!("{:#?}", &ast.items);
         crate::proto::build::warp::codedb::get_ast_response::Response::Ok(GetAstSuccessResponse {
             file: file.to_string(),
             symbol: Some(Symbol {
                 sym: Some(Named(symbol_name.to_string())),
             }),
-            source: source.unwrap().to_string(),
-            ast: "".to_string(),
+            source: src.to_string(),
+            ast: format!("{:#?}", ast.items)
         })
     }
 }
