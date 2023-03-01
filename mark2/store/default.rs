@@ -42,7 +42,7 @@ impl Store for DefaultStore {
 
         let mut downloads = vec![];
         for key in package_manifest
-            .cache_keys()
+            .keys()
             .get(self.config.host_env().host_triple())
             .unwrap()
         {
