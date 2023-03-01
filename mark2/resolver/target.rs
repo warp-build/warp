@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use thiserror::*;
 
+use super::TargetId;
+
 static ALIAS_ALL: &str = "@all";
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -61,8 +63,8 @@ impl std::str::FromStr for Target {
         }
 
         Ok(Self::Fs(FsTarget {
-            path: s.to_string(),
-            // TODO(@ostera): split by : to get the symbol name
+            path: PathBuf::from(s), // TODO(@ostera): split by : to get the symbol name
+            deps: vec![],
         }))
     }
 }
@@ -75,6 +77,14 @@ impl Target {
                 alias
             }) if alias == ALIAS_ALL
         )
+    }
+
+    pub fn deps(&self) -> &[TargetId] {
+        match self {
+            Target::Alias(_) => &[],
+            Target::Remote(_) => &[],
+            Target::Fs(f) => f.deps(),
+        }
     }
 }
 
@@ -121,23 +131,32 @@ impl From<url::Url> for RemoteTarget {
 #[derive(Builder, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct FsTarget {
     path: PathBuf,
+    #[serde(skip)]
+    deps: Vec<TargetId>,
 }
 
 impl FsTarget {
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
+
+    pub fn deps(&self) -> &[TargetId] {
+        &self.deps
+    }
 }
 
 impl Default for FsTarget {
     fn default() -> Self {
-        Self { path: PathBuf::from(".") }
+        Self {
+            path: PathBuf::from("."),
+            deps: Default::default(),
+        }
     }
 }
 
 impl ToString for FsTarget {
     fn to_string(&self) -> String {
-           self.path.to_string_lossy().to_string()
+        self.path.to_string_lossy().to_string()
     }
 }
 
@@ -145,6 +164,7 @@ impl From<&Path> for FsTarget {
     fn from(value: &Path) -> Self {
         Self {
             path: value.to_path_buf(),
+            deps: Default::default(),
         }
     }
 }
@@ -168,9 +188,8 @@ mod tests {
     impl quickcheck::Arbitrary for FsTarget {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
             Self {
-                path: std::path::PathBuf::arbitrary(g)
-                    .to_string_lossy()
-                    .to_string(),
+                path: std::path::PathBuf::arbitrary(g),
+                deps: Default::default(),
             }
         }
     }

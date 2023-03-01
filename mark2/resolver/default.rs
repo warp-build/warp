@@ -1,19 +1,23 @@
-use super::{
-    ConcreteTarget, FsResolver, Goal, ResolutionFlow, Resolver, ResolverError, Target, TargetId,
-    TargetRegistry,
-};
+use super::{ConcreteTarget, FsResolver, Goal, ResolutionFlow, Resolver, ResolverError, Target};
+use crate::store::DefaultStore;
 use crate::sync::*;
+use crate::tricorder::{GrpcTricorder, Tricorder, TricorderManager};
 use async_trait::async_trait;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct DefaultResolver {
     fs_resolver: Arc<FsResolver>,
+    tricorder_manager: Arc<TricorderManager<GrpcTricorder, DefaultStore>>,
 }
 
 impl DefaultResolver {
-    pub fn new() -> Self {
+    pub fn new(store: Arc<DefaultStore>) -> Self {
         let fs_resolver = Arc::new(FsResolver::new());
-        Self { fs_resolver }
+        let tricorder_manager = Arc::new(TricorderManager::new(store));
+        Self {
+            fs_resolver,
+            tricorder_manager,
+        }
     }
 
     async fn concretize_target(
@@ -31,6 +35,7 @@ impl DefaultResolver {
     }
 }
 
+#[async_trait]
 impl Resolver for DefaultResolver {
     async fn resolve(
         &self,
@@ -40,9 +45,14 @@ impl Resolver for DefaultResolver {
         let concrete_target = self.concretize_target(goal, target).await?;
 
         // 1. find and ready the tricorder
-        let tricorder = self.tricorder_manager.find_and_ready(concrete_target).await?;
+        let mut tricorder = self
+            .tricorder_manager
+            .find_and_ready(&concrete_target)
+            .await?;
 
         // 2. generate signature for this concrete target
-        match tricorder.generate_signature(concrete_target).await? {}
+        tricorder.generate_signature(&concrete_target).await?;
+
+        todo!()
     }
 }

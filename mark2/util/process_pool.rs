@@ -12,7 +12,7 @@ pub struct ProcessPool<P> {
     _process_type: PhantomData<P>,
 }
 
-pub struct ProcessSpec<P> {
+pub struct ProcessSpec<P: ?Sized> {
     bin_path: PathBuf,
     args: Vec<String>,
     env: HashMap<String, String>,

@@ -64,6 +64,11 @@ pub struct Config {
     /// The location of the store in the current host.
     #[builder(default = "self.default_store_root()")]
     store_root: PathBuf,
+
+    /// The HTTP Client to be used across the application.
+    /// NOTE(@ostera): this is safe to clone since it is really an [Arc] to a client pool.
+    #[builder(default = "self.default_http_client()")]
+    http_client: reqwest::Client,
 }
 
 impl Default for Config {
@@ -113,12 +118,16 @@ impl Config {
         &self.host_env
     }
 
-    pub fn public_store_url(&self) -> &str {
-        self.public_store_url.as_ref()
+    pub fn public_store_url(&self) -> &Url {
+        &self.public_store_url
     }
 
     pub fn store_root(&self) -> &PathBuf {
         &self.store_root
+    }
+
+    pub fn http_client(&self) -> &reqwest::Client {
+        &self.http_client
     }
 }
 
@@ -128,9 +137,12 @@ impl ConfigBuilder {
     }
 
     fn default_store_root(&self) -> PathBuf {
-        self.warp_root
-            .unwrap_or_else(|| self.default_warp_root())
-            .join("store")
+        let root = self
+            .warp_root
+            .clone()
+            .unwrap_or_else(|| self.default_warp_root());
+
+        root.join("store")
     }
 
     fn default_public_store_url(&self) -> Url {
@@ -155,6 +167,10 @@ impl ConfigBuilder {
 
     fn default_created_at(&self) -> Instant {
         Instant::now()
+    }
+
+    fn default_http_client(&self) -> reqwest::Client {
+        reqwest::Client::new()
     }
 
     fn default_env(&self) -> Result<HashMap<String, String>, ConfigError> {

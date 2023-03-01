@@ -1,5 +1,4 @@
 //! # Implementation the BuildScript language
-mod config;
+pub mod config;
 
-pub use config::*;
 pub type RuleName = String;

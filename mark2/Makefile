@@ -5,7 +5,7 @@ setup:
 
 test:
 	cargo test
-	RUSTFLAGS="--cfg shuttle" cargo test conc --release
+	RUSTFLAGS="--cfg shuttle" cargo test conc_ --release
 
 cov:
 	cargo llvm-cov --open

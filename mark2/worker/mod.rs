@@ -55,8 +55,3 @@ impl Role {
         matches!(&self, Role::MainWorker)
     }
 }
-impl WorkerError {
-    pub(crate) fn ResolverError(err: crate::resolver::ResolverError) -> WorkerError {
-        todo!()
-    }
-}

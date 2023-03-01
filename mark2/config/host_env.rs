@@ -1,7 +1,8 @@
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 
 /// The host environment.
 ///
+#[derive(Clone, Debug)]
 pub struct HostEnv {
     host_triple: String,
 }

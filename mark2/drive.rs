@@ -1,6 +1,8 @@
 use super::*;
+use crate::archive::ArchiveManager;
 use crate::events::EventChannel;
 use crate::resolver::{DefaultResolver, Target};
+use crate::store::DefaultStore;
 use crate::sync::Arc;
 use crate::worker::{LocalSharedContext, LocalWorker, TaskResults, WorkerPool, WorkerPoolError};
 use crate::workspace::WorkspaceManagerError;
@@ -17,34 +19,39 @@ use tracing::*;
 /// All results are made available via a shared reference into the `TaskResults` of the
 /// `WorkerPool`.
 ///
-#[derive(Debug)]
 pub struct WarpDriveMarkII {
     worker_pool: WorkerPool<LocalWorker<DefaultResolver>>,
     shared_ctx: LocalSharedContext<DefaultResolver>,
-    opts: Config,
+    config: Config,
 }
 
 impl WarpDriveMarkII {
     #[tracing::instrument(name = "WarpDriveMarkII::new")]
-    pub async fn new(opts: Config) -> Result<Self, WarpDriveError> {
+    pub async fn new(config: Config) -> Result<Self, WarpDriveError> {
         let event_channel = Arc::new(EventChannel::new());
 
-        let shared_ctx =
-            LocalSharedContext::new(event_channel.clone(), opts.clone(), DefaultResolver::new());
+        let archive_manager = ArchiveManager::new(&config).into();
+        let store = DefaultStore::new(config.clone(), archive_manager).into();
+
+        let shared_ctx = LocalSharedContext::new(
+            event_channel.clone(),
+            config.clone(),
+            DefaultResolver::new(store),
+        );
 
         let worker_pool = WorkerPool::from_shared_context(
             event_channel.clone(),
-            opts.clone(),
+            config.clone(),
             shared_ctx.clone(),
         );
 
         shared_ctx
             .workspace_manager
-            .load_current_workspace(&opts)
+            .load_current_workspace(&config)
             .await?;
 
         Ok(Self {
-            opts,
+            config,
             shared_ctx,
             worker_pool,
         })
@@ -52,14 +59,14 @@ impl WarpDriveMarkII {
 
     /// Execute the `targets`.
     ///
-    #[tracing::instrument(name = "WarpDriveMarkII::execute")]
+    #[tracing::instrument(name = "WarpDriveMarkII::execute", skip(self))]
     pub async fn execute(
         &mut self,
         targets: &[Target],
     ) -> Result<Arc<TaskResults>, WarpDriveError> {
         self.shared_ctx
             .event_channel
-            .send(events::Event::BuildStarted(self.opts.created_at()));
+            .send(events::Event::BuildStarted(self.config.created_at()));
 
         self.go_to_workspace_root()?;
 
@@ -87,10 +94,10 @@ impl WarpDriveMarkII {
     }
 
     fn return_to_invocation_dir(&self) -> Result<(), WarpDriveError> {
-        std::env::set_current_dir(self.opts.invocation_dir()).map_err(|err| {
+        std::env::set_current_dir(self.config.invocation_dir()).map_err(|err| {
             WarpDriveError::CouldNotSetCurrentDir {
                 err,
-                root: self.opts.invocation_dir().into(),
+                root: self.config.invocation_dir().into(),
             }
         })
     }

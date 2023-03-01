@@ -1,5 +1,6 @@
 //! # Resolves what a given target points to in the project graph
 //!
+mod concrete_target;
 mod default;
 mod fs_resolver;
 mod goal;
@@ -7,10 +8,8 @@ mod signature;
 mod target;
 mod target_id;
 mod target_registry;
-mod concrete_target;
 
-use std::fmt::Debug;
-
+pub use concrete_target::*;
 pub use default::*;
 use fs_resolver::*;
 pub use goal::*;
@@ -18,10 +17,11 @@ pub use signature::*;
 pub use target::*;
 pub use target_id::*;
 pub use target_registry::*;
-pub use concrete_target::*;
 
 use crate::sync::*;
+use crate::tricorder::{TricorderError, TricorderManagerError};
 use async_trait::async_trait;
+use std::fmt::Debug;
 use thiserror::*;
 
 #[derive(Error, Debug)]
@@ -34,6 +34,24 @@ pub enum ResolverError {
 
     #[error(transparent)]
     FsResolverError(FsResolverError),
+
+    #[error(transparent)]
+    TricorderManagerError(TricorderManagerError),
+
+    #[error(transparent)]
+    TricorderError(TricorderError),
+}
+
+impl From<TricorderError> for ResolverError {
+    fn from(value: TricorderError) -> Self {
+        Self::TricorderError(value)
+    }
+}
+
+impl From<TricorderManagerError> for ResolverError {
+    fn from(value: TricorderManagerError) -> Self {
+        Self::TricorderManagerError(value)
+    }
 }
 
 #[derive(Debug)]

@@ -10,19 +10,16 @@
 //! the results of the execution.
 //!
 
-/// Protobuf generated code.
-mod proto {
-    include!(concat!(env!("OUT_DIR"), "/_include.rs"));
-}
-
+mod archive;
 mod config;
 mod drive;
 mod events;
 mod executor;
 mod planner;
-pub mod resolver;
+mod resolver;
 mod rules;
-pub mod sync;
+mod store;
+mod sync;
 mod tricorder;
 mod util;
 mod worker;

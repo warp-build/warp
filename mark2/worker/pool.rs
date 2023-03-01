@@ -119,7 +119,7 @@ mod tests {
         async fn resolve(
             &self,
             _goal: Goal,
-            _target_id: TargetId,
+            _target: Arc<Target>,
         ) -> Result<ResolutionFlow, ResolverError> {
             Ok(ResolutionFlow::MissingDependencies)
         }
