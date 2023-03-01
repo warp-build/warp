@@ -10,14 +10,14 @@ use url::Url;
 #[derive(Builder)]
 pub struct ArchiveManager {
     client: reqwest::Client,
-    archives_root: PathBuf,
+    archive_root: PathBuf,
 }
 
 impl ArchiveManager {
     pub fn new(config: &Config) -> Self {
         Self {
-            client: reqwest::Client::new(),
-            archives_root: config.warp_root().join("archives"),
+            client: config.http_client().clone(),
+            archive_root: config.archive_root().to_path_buf(),
         }
     }
 
@@ -50,7 +50,7 @@ impl ArchiveManager {
             .bytes_stream()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
 
-        let tmp_root = self.archives_root.join("_tmp");
+        let tmp_root = self.archive_root.join("_tmp");
         fs::create_dir_all(&tmp_root).await?;
 
         let tempfile = tempfile::NamedTempFile::new_in(&tmp_root)?;
@@ -74,7 +74,7 @@ impl ArchiveManager {
 
     fn archive_path(&self, url: &Url, hash: &str) -> PathBuf {
         let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
-        self.archives_root.join(scheme_and_host).join(hash)
+        self.archive_root.join(scheme_and_host).join(hash)
     }
 }
 
@@ -108,5 +108,55 @@ impl From<reqwest::Error> for ArchiveManagerError {
 impl From<ArchiveBuilderError> for ArchiveManagerError {
     fn from(value: ArchiveBuilderError) -> Self {
         ArchiveManagerError::ArchiveBuilderError(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn downloads_file_to_archives_folder() {
+        let archive_root = assert_fs::TempDir::new().unwrap();
+
+        let config = Config::builder()
+            .archive_root(archive_root.path().to_path_buf())
+            .build()
+            .unwrap();
+        let am = ArchiveManager::new(&config);
+
+        let _m = mockito::mock("GET", "/sample_artifact.tar.gz")
+            .with_status(200)
+            .with_body(include_bytes!("./fixtures/sample_artifact.tar.gz"))
+            .create();
+
+        let url: Url = format!("{}/sample_artifact.tar.gz", mockito::server_url())
+            .parse()
+            .unwrap();
+        let archive = am.download(&url).await.unwrap();
+        let final_path = archive
+            .final_path()
+            .strip_prefix(archive_root.path())
+            .unwrap();
+
+        assert_eq!(
+            final_path.to_string_lossy().to_string(),
+            "http/127.0.0.1/bc9dafed273baa380bdea9345edf41732ae1e0b42fc0369215625e84ccd9c9e2"
+        );
+    }
+
+    #[tokio::test]
+    async fn fails_if_url_is_not_downloadable() {
+        let config = Config::default();
+        let am = ArchiveManager::new(&config);
+
+        let _m = mockito::mock("GET", "/sample_artifact.tar.gz")
+            .with_status(400)
+            .create();
+
+        let url: Url = format!("{}/sample_artifact.tar.gz", mockito::server_url())
+            .parse()
+            .unwrap();
+        assert!(am.download(&url).await.is_err());
     }
 }

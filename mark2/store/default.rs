@@ -61,3 +61,8 @@ impl From<PublicStoreError> for StoreError {
         StoreError::PublicStoreError(value)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+}

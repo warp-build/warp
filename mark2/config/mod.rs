@@ -65,6 +65,10 @@ pub struct Config {
     #[builder(default = "self.default_store_root()")]
     store_root: PathBuf,
 
+    /// The location of the archives in the current host.
+    #[builder(default = "self.default_archive_root()")]
+    archive_root: PathBuf,
+
     /// The HTTP Client to be used across the application.
     /// NOTE(@ostera): this is safe to clone since it is really an [Arc] to a client pool.
     #[builder(default = "self.default_http_client()")]
@@ -129,20 +133,29 @@ impl Config {
     pub fn http_client(&self) -> &reqwest::Client {
         &self.http_client
     }
+
+    pub fn archive_root(&self) -> &PathBuf {
+        &self.archive_root
+    }
 }
 
 impl ConfigBuilder {
+    fn _warp_root(&self) -> PathBuf {
+        self.warp_root
+            .clone()
+            .unwrap_or_else(|| self.default_warp_root())
+    }
+
     fn default_warp_root(&self) -> PathBuf {
         PathBuf::from("/warp")
     }
 
-    fn default_store_root(&self) -> PathBuf {
-        let root = self
-            .warp_root
-            .clone()
-            .unwrap_or_else(|| self.default_warp_root());
+    fn default_archive_root(&self) -> PathBuf {
+        self._warp_root().join("archives")
+    }
 
-        root.join("store")
+    fn default_store_root(&self) -> PathBuf {
+        self._warp_root().join("store")
     }
 
     fn default_public_store_url(&self) -> Url {
