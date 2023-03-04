@@ -65,14 +65,17 @@ impl From<StoreError> for TricorderManagerError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::store::{ManifestUrl, StoreError};
+    use crate::store::{ArtifactManifest, ManifestUrl, StoreError};
     use async_trait::async_trait;
 
     pub struct NoopStore;
 
     #[async_trait]
     impl Store for NoopStore {
-        async fn install_from_manifest_url(&self, _url: &ManifestUrl) -> Result<(), StoreError> {
+        async fn install_from_manifest_url(
+            &self,
+            _url: &ManifestUrl,
+        ) -> Result<ArtifactManifest, StoreError> {
             todo!()
         }
     }
@@ -83,6 +86,5 @@ mod tests {
         // let mgr = TricorderManager::new(store);
 
         // let ct = ConcreteTarget::new(goal, original_target, path);
-        assert!(true)
     }
 }

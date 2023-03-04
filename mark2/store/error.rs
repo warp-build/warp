@@ -1,3 +1,4 @@
+use super::LocalStoreError;
 use super::ManifestUrl;
 use super::PublicStoreError;
 use crate::archive::ArchiveManagerError;
@@ -24,6 +25,9 @@ pub enum StoreError {
 
     #[error(transparent)]
     PublicStoreError(PublicStoreError),
+
+    #[error(transparent)]
+    LocalStoreError(LocalStoreError),
 
     #[error(
         "Could not find the current host architecture in the package manifest to be installed"

@@ -1,5 +1,7 @@
-use super::public_store::PublicStoreError;
-use super::{ArtifactId, ManifestUrl, PackageManifest, PublicStore, Store, StoreError};
+use super::{
+    ArtifactId, ArtifactManifest, LocalStore, LocalStoreError, ManifestUrl, PackageManifest,
+    PublicStore, PublicStoreError, Store, StoreError,
+};
 use crate::archive::ArchiveManager;
 use crate::sync::*;
 use crate::Config;
@@ -9,12 +11,14 @@ pub struct DefaultStore {
     config: Config,
     archive_manager: Arc<ArchiveManager>,
     public_store: PublicStore,
+    local_store: LocalStore,
 }
 
 impl DefaultStore {
     pub fn new(config: Config, archive_manager: Arc<ArchiveManager>) -> Self {
         Self {
             public_store: PublicStore::new(config.clone()),
+            local_store: LocalStore::new(config.clone()),
             config,
             archive_manager,
         }
@@ -30,7 +34,10 @@ impl DefaultStore {
 impl Store for DefaultStore {
     /// Installs packages from the store via a Manifest Url.
     ///
-    async fn install_from_manifest_url(&self, url: &ManifestUrl) -> Result<(), StoreError> {
+    async fn install_from_manifest_url(
+        &self,
+        url: &ManifestUrl,
+    ) -> Result<ArtifactManifest, StoreError> {
         let archive = self.archive_manager.download(url.url()).await?;
 
         let package_manifest = PackageManifest::from_file(archive.final_path())
@@ -41,13 +48,14 @@ impl Store for DefaultStore {
             })?;
 
         let mut downloads = vec![];
-        for key in package_manifest
+        let artifact_keys = package_manifest
             .keys()
             .get(self.config.host_env().host_triple())
             .ok_or_else(|| StoreError::CouldNotFindHostTripleInManifest {
                 host: self.config.host_env().host_triple().to_string(),
-            })?
-        {
+            })?;
+
+        for key in artifact_keys {
             let key = ArtifactId::new(key);
             downloads.push(self.download_from_public_store(key))
         }
@@ -56,13 +64,21 @@ impl Store for DefaultStore {
             result?;
         }
 
-        Ok(())
+        let main_artifact = ArtifactId::new(artifact_keys.get(0).unwrap());
+        let manifest = self.local_store.get_manifest(main_artifact).await?;
+        Ok(manifest.unwrap())
     }
 }
 
 impl From<PublicStoreError> for StoreError {
     fn from(value: PublicStoreError) -> Self {
         StoreError::PublicStoreError(value)
+    }
+}
+
+impl From<LocalStoreError> for StoreError {
+    fn from(value: LocalStoreError) -> Self {
+        StoreError::LocalStoreError(value)
     }
 }
 

@@ -114,6 +114,10 @@ impl ArtifactManifest {
             bytes: String::from_utf8_lossy(&bytes).to_string(),
         })
     }
+
+    pub fn target(&self) -> &str {
+        self.target.as_ref()
+    }
 }
 
 #[cfg(test)]
