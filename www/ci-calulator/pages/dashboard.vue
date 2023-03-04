@@ -18,7 +18,7 @@
     </div>
       <div class="mx-auto mt-16 max-w-xl sm:mt-20">
         <Dropdown @selectedOption="fetchRepos" :organizations="propsToPass()"/>
-        <DropdownRepos :repositories="reposToPass()" :disabled="true"/>
+        <DropdownRepos :repositories="repositories"/>
         <div class="mt-10">
           <button type="submit" class="block w-full rounded-md bg-indigo-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Let's go!</button>
         </div>
@@ -33,14 +33,14 @@
 
 <script setup lang="ts">
 const { status, data } = useSession()
-const repositories = reactive([])
+const repositories = ref([])
 
 const headers = useRequestHeaders(['cookie']) as HeadersInit;
 const { data: organizations } = await useFetch('/api/github/organizations', { headers });
 
 
 async function fetchRepos(repoName: string) {
-  repositories.value = await useFetch(`/api/github/${repoName}`, { headers });
+  repositories.value = await useFetch(`/api/github/${repoName}`, { headers }).data.value;
 }
 
 

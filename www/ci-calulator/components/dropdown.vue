@@ -60,12 +60,12 @@
 
 const emit = defineEmits(['selectedOption'])
 
-const selectedOrg: Organization = useState('selected-org', () => ({
+const selectedOrg: Organization = reactive({
   login: 'Select Github Organization',
   avatar_url: '/github-mark.png',
   node_id: '',
   selected: false
-}))
+})
 
 
 interface Organization {
@@ -76,8 +76,11 @@ interface Organization {
 }
 
 function selectOption(option: Organization) {
-  selectedOrg = useState('selected-org', option)
-  emit("selectedOption", option)
+  selectedOrg.login = option.login
+  selectedOrg.avatar_url = option.avatar_url
+  selectedOrg.node_id = option.node_id
+  selectedOrg.selected = true
+  emit("selectedOption", option.login)
 }
 
 defineProps({

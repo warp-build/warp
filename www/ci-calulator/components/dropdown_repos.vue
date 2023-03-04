@@ -1,11 +1,11 @@
 <template>
-<div>
+<div v-if="$props.repositories.length > 0">
   <label id="listbox-label" class="block text-sm font-medium text-gray-700">Repository</label>
   <div @click="toggleMenu()" class="relative mt-1">
-    <button :disabled="$props.disabled" :class="{ 'cursor-not-allowed': $props.disabled }" type="button" class="relative w-full cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm" aria-haspopup="listbox" aria-expanded="true" aria-labelledby="listbox-label">
+    <button type="button" class="relative w-full cursor-default rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm" aria-haspopup="listbox" aria-expanded="true" aria-labelledby="listbox-label">
       <span class="flex items-center">
         <img src="/git-branch-512.webp" alt="" class="h-6 w-6 flex-shrink-0 rounded-full">
-        <span class="ml-3 block truncate">Select Github Repository</span>
+        <span class="ml-3 block truncate">{{selectedRepo.name}}</span>
       </span>
       <span class="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
         <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -31,11 +31,11 @@
         Highlighted: "text-white bg-indigo-600", Not Highlighted: "text-gray-900"
       -->
 
-      <li v-for="item in $props.repositories" :key="item.node_id" class="text-gray-900 relative cursor-default select-none py-2 pl-3 pr-9" id="listbox-option-0" role="option">
+      <li @click="selectOption(item)" v-for="item in $props.repositories" :key="item.node_id" class="text-gray-900 relative cursor-default select-none py-2 pl-3 pr-9" id="listbox-option-0" role="option">
         <div class="flex items-center">
-          <img :src="item.avatar_url" alt="" class="h-6 w-6 flex-shrink-0 rounded-full">
+          <!-- <img :src="item.avatar_url" alt="" class="h-6 w-6 flex-shrink-0 rounded-full"> -->
           <!-- Selected: "font-semibold", Not Selected: "font-normal" -->
-          <span class="font-normal ml-3 block truncate">{{item.login}}</span>
+          <span class="font-normal ml-3 block truncate">{{item.name}}</span>
         </div>
 
         <!--
@@ -59,21 +59,38 @@
 <script setup lang="ts">
 
 interface Repository {
-    login: string;
+    name: string;
     avatar_url: string;
     node_id: string;
     selected: boolean;
 }
 
-defineProps({
+const selectedRepo: Repository = reactive({
+  name: 'Select Github Repository',
+  avatar_url: '/git-branch-512.webp',
+  node_id: '',
+  selected: false
+})
+
+function selectOption(option: Repository) {
+  selectedRepo.name = option.name
+  selectedRepo.avatar_url = option.avatar_url
+  selectedRepo.node_id = option.node_id
+  selectedRepo.selected = true
+}
+
+const props = defineProps({
     repositories: {
         type: Array<Repository>,
         default: []
-    },
-    disabled: {
-      type: Boolean,
-      default: true
     }
+})
+
+watch(props.repositories, async (newRepos, oldrepos) => {
+  selectedRepo.name = 'Select Github Repository'
+  selectedRepo.avatar_url = '/git-branch-512.webp',
+  selectedRepo.node_id = ''
+  selectedRepo.selected = false
 })
 
 const menuOpen = ref(false); 
