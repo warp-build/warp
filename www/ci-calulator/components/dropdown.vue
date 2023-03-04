@@ -4,8 +4,8 @@
   <div @click="toggleMenu()" class="relative mt-1">
     <button type="button" class="relative w-full cursor-pointer rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-left shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm" aria-haspopup="listbox" aria-expanded="true" aria-labelledby="listbox-label">
       <span class="flex items-center">
-        <img src="/github-mark.png" alt="" class="h-6 w-6 flex-shrink-0 rounded-full">
-        <span class="ml-3 block truncate">Select Github Organization</span>
+        <img :src="selectedOrg.avatar_url" alt="" class="h-6 w-6 flex-shrink-0 rounded-full">
+        <span class="ml-3 block truncate">{{selectedOrg.login}}</span>
       </span>
       <span class="pointer-events-none absolute inset-y-0 right-0 ml-3 flex items-center pr-2">
         <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -31,7 +31,7 @@
         Highlighted: "text-white bg-indigo-600", Not Highlighted: "text-gray-900"
       -->
 
-      <li @click="$emit('selectedOption', item.login)" v-for="item in $props.organizations" :key="item.node_id" class="text-gray-900 relative cursor-default select-none py-2 pl-3 pr-9" id="listbox-option-0" role="option">
+      <li @click="selectOption(item)" v-for="item in $props.organizations" :key="item.node_id" class="text-gray-900 relative cursor-default select-none py-2 pl-3 pr-9" id="listbox-option-0" role="option">
         <div class="flex items-center">
           <img :src="item.avatar_url" alt="" class="h-6 w-6 flex-shrink-0 rounded-full">
           <!-- Selected: "font-semibold", Not Selected: "font-normal" -->
@@ -60,11 +60,24 @@
 
 const emit = defineEmits(['selectedOption'])
 
+const selectedOrg: Organization = useState('selected-org', () => ({
+  login: 'Select Github Organization',
+  avatar_url: '/github-mark.png',
+  node_id: '',
+  selected: false
+}))
+
+
 interface Organization {
-    login: string;
-    avatar_url: string;
-    node_id: string;
-    selected: boolean;
+  login: string;
+  avatar_url: string;
+  node_id: string;
+  selected: boolean;
+}
+
+function selectOption(option: Organization) {
+  selectedOrg = useState('selected-org', option)
+  emit("selectedOption", option)
 }
 
 defineProps({
