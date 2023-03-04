@@ -89,13 +89,13 @@ mod tests {
 
     #[tokio::test]
     async fn can_install_from_valid_manifest_url() {
-        let store_root = assert_fs::TempDir::new().unwrap();
+        let warp_root = assert_fs::TempDir::new().unwrap();
         // NOTE(@ostera): this line is useful for debugging the output directory when something
         // goes wrong.
         // let store_root = store_root.into_persistent();
 
         let config = Config::builder()
-            .store_root(store_root.path().to_path_buf())
+            .warp_root(warp_root.path().to_path_buf())
             .public_store_url(mockito::server_url().parse().unwrap())
             .build()
             .unwrap();
@@ -121,8 +121,8 @@ mod tests {
     "keys": {
         "aarch64-apple-darwin": [ "a-hash", "b-hash" ],
         "x86_64-apple-darwin": [ "a-hash", "b-hash" ],
-        "aarch64-unknown-linux": [ "a-hash", "b-hash" ],
-        "x86_64-unknown-linux": [ "a-hash", "b-hash" ]
+        "aarch64-unknown-linux-gnu": [ "a-hash", "b-hash" ],
+        "x86_64-unknown-linux-gnu": [ "a-hash", "b-hash" ]
     }
 }
                 "#,
@@ -139,25 +139,23 @@ mod tests {
         );
         let manifest = ds.install_from_manifest_url(&manifest_url).await.unwrap();
 
-        dbg!(&store_root.path());
-        assert!(store_root.child("a-hash/Manifest.json").exists());
-        assert!(store_root.child("b-hash/Manifest.json").exists());
-
         assert_eq!(
             manifest.target(),
             "https://rules.warp.build/toolchains/erlang".to_string()
         );
+        assert!(warp_root.child("store/a-hash/Manifest.json").exists());
+        assert!(warp_root.child("store/b-hash/Manifest.json").exists());
     }
 
     #[tokio::test]
     async fn fails_when_public_store_cannot_download_artifact() {
-        let store_root = assert_fs::TempDir::new().unwrap();
+        let warp_root = assert_fs::TempDir::new().unwrap();
         // NOTE(@ostera): this line is useful for debugging the output directory when something
         // goes wrong.
         // let store_root = store_root.into_persistent();
 
         let config = Config::builder()
-            .store_root(store_root.path().to_path_buf())
+            .warp_root(warp_root.path().to_path_buf())
             .public_store_url(mockito::server_url().parse().unwrap())
             .build()
             .unwrap();
@@ -178,8 +176,8 @@ mod tests {
     "keys": {
         "aarch64-apple-darwin": [ "a-hash", "b-hash" ],
         "x86_64-apple-darwin": [ "a-hash", "b-hash" ],
-        "aarch64-unknown-linux": [ "a-hash", "b-hash" ],
-        "x86_64-unknown-linux": [ "a-hash", "b-hash" ]
+        "aarch64-unknown-linux-gnu": [ "a-hash", "b-hash" ],
+        "x86_64-unknown-linux-gnu": [ "a-hash", "b-hash" ]
     }
 }
                 "#,
@@ -206,13 +204,13 @@ mod tests {
 
     #[tokio::test]
     async fn fails_when_we_cannot_find_artifact_keys_to_download() {
-        let store_root = assert_fs::TempDir::new().unwrap();
+        let warp_root = assert_fs::TempDir::new().unwrap();
         // NOTE(@ostera): this line is useful for debugging the output directory when something
         // goes wrong.
         // let store_root = store_root.into_persistent();
 
         let config = Config::builder()
-            .store_root(store_root.path().to_path_buf())
+            .warp_root(warp_root.path().to_path_buf())
             .public_store_url(mockito::server_url().parse().unwrap())
             .build()
             .unwrap();
