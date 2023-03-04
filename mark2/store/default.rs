@@ -137,11 +137,16 @@ mod tests {
                 .parse()
                 .unwrap(),
         );
-        ds.install_from_manifest_url(&manifest_url).await.unwrap();
+        let manifest = ds.install_from_manifest_url(&manifest_url).await.unwrap();
 
         dbg!(&store_root.path());
         assert!(store_root.child("a-hash/Manifest.json").exists());
         assert!(store_root.child("b-hash/Manifest.json").exists());
+
+        assert_eq!(
+            manifest.target(),
+            "https://rules.warp.build/toolchains/erlang".to_string()
+        );
     }
 
     #[tokio::test]
