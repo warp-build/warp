@@ -28,7 +28,7 @@ pub enum StoreError {
     #[error(
         "Could not find the current host architecture in the package manifest to be installed"
     )]
-    InvalidHostTripleInManifest { host: String },
+    CouldNotFindHostTripleInManifest { host: String },
 }
 
 impl From<ArchiveManagerError> for StoreError {

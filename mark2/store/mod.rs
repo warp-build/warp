@@ -1,4 +1,5 @@
 mod artifact_id;
+mod artifact_manifest;
 mod default;
 mod error;
 mod manifest_url;
@@ -6,6 +7,7 @@ mod package_manifest;
 mod public_store;
 
 pub use artifact_id::*;
+pub use artifact_manifest::*;
 pub use default::*;
 pub use error::*;
 pub use manifest_url::*;

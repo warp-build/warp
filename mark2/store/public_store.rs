@@ -102,11 +102,11 @@ mod tests {
             .await
             .is_ok());
 
-        let actual_file = store_root.child("sample_artifact/sample_file");
+        let actual_file = store_root.child("sample_artifact/Manifest.json");
 
         assert!(actual_file.exists());
 
-        let expected_file = include_str!("./fixtures/sample_file");
+        let expected_file = include_str!("./fixtures/Manifest.json");
         actual_file.assert(expected_file);
     }
 

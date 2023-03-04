@@ -1,0 +1,47 @@
+{
+  "version": "V0",
+  "target": "https://rules.warp.build/toolchains/erlang",
+  "rule_name": "https://rules.warp.build/toolchains/erlang",
+  "hash": "c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706",
+  "store_path": "",
+  "cached": true,
+  "is_valid": true,
+  "srcs": [],
+  "outs": [
+    "otp_src_24.3.4.6/dist/lib/erlang/lib/megaco-4.3/src/text/megaco_pretty_text_encoder.erl",
+    "otp_src_24.3.4.6/dist/lib/erlang/lib/snmp-5.12/src/agent/snmpa_notification_delivery_info_receiver.erl",
+    "otp_src_24.3.4.6/dist/lib/erlang/lib/erl_interface-5.2.2/src/decode/decode_list_header.c",
+    "otp_src_24.3.4.6/dist/lib/erlang/lib/wx-2.1.4/src/gen/wxFilePickerCtrl.erl",
+    "otp_src_24.3.4.6/dist/lib/erlang/lib/edoc-1.1/ebin/edoc.appup"
+  ],
+  "buildstamps": {
+    "plan_started_at": "2022-11-03T14:11:29.541954+00:00",
+    "plan_ended_at": "2022-11-03T14:11:29.544024+00:00",
+    "plan_elapsed_time": 2,
+    "build_started_at": "2022-11-03T14:11:29.544178+00:00",
+    "build_completed_at": "2022-11-03T14:14:26.349068+00:00",
+    "build_elapsed_time": 176804
+  },
+  "provides": {
+    "ct_run": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin/ct_run",
+    "dialyzer": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin/dialyzer",
+    "erl": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin/erl",
+    "erlc": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin/erlc",
+    "escript": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin/escript"
+  },
+  "deps": {},
+  "runtime_deps": {},
+  "transitive_deps": {},
+  "toolchains": {
+    "rules.warp.build/toolchains/openssl": "bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5"
+  },
+  "env": {
+    "ERL_INCLUDE_PATH": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/lib/erlang/usr/include",
+    "ERL_LIB_PATH": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/lib/erlang/usr/lib",
+    "ERL_ROOT": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin",
+    "OpenSSL_HOME": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5-openssl/openssl-OpenSSL_1_1_1q/dist",
+    "OpenSSL_INCLUDE": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5-openssl/openssl-OpenSSL_1_1_1q/dist/include",
+    "OpenSSL_LIB": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5-openssl/openssl-OpenSSL_1_1_1q/dist/lib",
+    "PATH": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin:/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5-openssl/openssl-OpenSSL_1_1_1q/dist/bin"
+  }
+}
