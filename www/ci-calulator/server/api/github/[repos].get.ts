@@ -7,8 +7,9 @@ export default eventHandler(async (event) => {
   if(token) {
       const octokit = new Octokit({ auth: token.accessToken });
       const repoName = event.context.params.repos
+      const url = (repoName != token.login) ? `GET /orgs/${repoName}/repos` : `GET /user/repos`
     
-      const repos = await octokit.request(`GET /orgs/${repoName}/repos`, {
+      const repos = await octokit.request(url, {
         headers: {
           'X-GitHub-Api-Version': '2022-11-28'
         }
