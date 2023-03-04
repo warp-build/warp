@@ -80,7 +80,7 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
     fn spawn_worker(
         &self,
         role: Role,
-        targets: Option<&[TargetId]>,
+        _targets: Option<&[TargetId]>,
     ) -> tokio::task::JoinHandle<Result<(), WorkerPoolError>> {
         let ctx = self.ctx.clone();
         self.worker_pool.spawn_pinned(move || async move {

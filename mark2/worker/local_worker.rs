@@ -109,6 +109,8 @@ impl<R: Resolver> LocalWorker<R> {
             flow => return Ok(flow)
         };
 
+        self.ctx.store.save(manifest).await?;
+
         self.ctx.task_results.add(task.target, manifest, executable_spec);
         */
 

@@ -13,10 +13,10 @@ pub struct ProcessPool<P> {
 }
 
 pub struct ProcessSpec<P: ?Sized> {
-    bin_path: PathBuf,
-    args: Vec<String>,
-    env: HashMap<String, String>,
-    current_dir: Option<PathBuf>,
+    pub bin_path: PathBuf,
+    pub args: Vec<String>,
+    pub env: HashMap<String, String>,
+    pub current_dir: Option<PathBuf>,
     _process_type: PhantomData<P>,
 }
 

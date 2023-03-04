@@ -7,10 +7,7 @@ use std::path::PathBuf;
 ///
 #[derive(Builder, Debug)]
 pub struct Archive {
-    /// The final path on disk an archive has. Usually this is prefixed by `/warp/archives`
     final_path: PathBuf,
-
-    /// The hash of the downloaded contents.
     hash: String,
 }
 
@@ -19,10 +16,12 @@ impl Archive {
         ArchiveBuilder::default()
     }
 
+    /// The final path on disk an archive has. Usually this is prefixed by `/warp/archives`
     pub fn final_path(&self) -> &PathBuf {
         &self.final_path
     }
 
+    /// The hash of the downloaded contents.
     pub fn hash(&self) -> &str {
         self.hash.as_ref()
     }

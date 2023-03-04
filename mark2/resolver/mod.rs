@@ -1,5 +1,6 @@
 //! # Resolves what a given target points to in the project graph
 //!
+
 mod concrete_target;
 mod default;
 mod fs_resolver;

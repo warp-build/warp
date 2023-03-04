@@ -25,7 +25,7 @@ impl ArchiveManager {
         let response = self.client.get(url.clone()).send().await?;
 
         if response.status().is_success() {
-            let (final_path, hash) = self.stream_response(response, &url).await?;
+            let (final_path, hash) = self.stream_response(response, url).await?;
 
             let archive = Archive::builder()
                 .final_path(final_path)

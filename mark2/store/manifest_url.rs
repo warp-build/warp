@@ -6,6 +6,11 @@ use url::Url;
 pub struct ManifestUrl(Url);
 
 impl ManifestUrl {
+    #[cfg(test)]
+    pub fn new(url: Url) -> Self {
+        Self(url)
+    }
+
     pub fn url(&self) -> &Url {
         &self.0
     }
@@ -21,6 +26,6 @@ impl TryFrom<Url> for ManifestUrl {
                 return Ok(Self(url));
             }
         }
-        return Err(StoreError::UrlIsNotInstallable { url });
+        Err(StoreError::UrlIsNotInstallable { url })
     }
 }

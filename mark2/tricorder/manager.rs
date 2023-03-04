@@ -33,6 +33,10 @@ impl<T: Tricorder, S: Store> TricorderManager<T, S> {
             .install_from_manifest_url(&tricorder_url)
             .await?;
 
+        // let handler_tricorder = self.process_pool.spawn(Spec { bin_path: manifest.provides.main_path }).await?;
+
+        // tricorder.ensure_ready().await?;
+
         todo!()
     }
 }
