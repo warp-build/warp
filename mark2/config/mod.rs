@@ -57,9 +57,13 @@ pub struct Config {
     #[builder(default)]
     host_env: HostEnv,
 
-    /// The location of the public store.
-    #[builder(default = "self.default_public_store_url()")]
-    public_store_url: Url,
+    /// The location of the public store CDN
+    #[builder(default = "self.default_public_store_cdn_url()")]
+    public_store_cdn_url: Url,
+
+    /// The location of the public store Manifests
+    #[builder(default = "self.default_public_store_metadata_url()")]
+    public_store_metadata_url: Url,
 
     /// The location of the store in the current host.
     #[builder(default = "self.default_store_root()")]
@@ -122,8 +126,12 @@ impl Config {
         &self.host_env
     }
 
-    pub fn public_store_url(&self) -> &Url {
-        &self.public_store_url
+    pub fn public_store_cdn_url(&self) -> &Url {
+        &self.public_store_cdn_url
+    }
+
+    pub fn public_store_metadata_url(&self) -> &Url {
+        &self.public_store_metadata_url
     }
 
     pub fn store_root(&self) -> &PathBuf {
@@ -158,7 +166,11 @@ impl ConfigBuilder {
         self._warp_root().join("store")
     }
 
-    fn default_public_store_url(&self) -> Url {
+    fn default_public_store_metadata_url(&self) -> Url {
+        "https://store.warp.build".parse::<Url>().unwrap()
+    }
+
+    fn default_public_store_cdn_url(&self) -> Url {
         "https://public.store.warp.build".parse::<Url>().unwrap()
     }
 

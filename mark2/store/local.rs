@@ -16,6 +16,10 @@ impl LocalStore {
         }
     }
 
+    pub fn get_absolute_path(&self, key: ArtifactId) -> PathBuf {
+        self.store_root.join(key.inner())
+    }
+
     pub async fn get_manifest(
         &self,
         key: ArtifactId,

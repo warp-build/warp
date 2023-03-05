@@ -1,4 +1,4 @@
-use crate::util::from_file::{FromFile, FromFileError};
+use crate::util::from_file::FromFileError;
 use chrono::{DateTime, Utc};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;

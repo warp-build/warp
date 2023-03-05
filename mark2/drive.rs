@@ -33,11 +33,8 @@ impl WarpDriveMarkII {
         let archive_manager = ArchiveManager::new(&config).into();
         let store = DefaultStore::new(config.clone(), archive_manager).into();
 
-        let shared_ctx = LocalSharedContext::new(
-            event_channel.clone(),
-            config.clone(),
-            DefaultResolver::new(store),
-        );
+        let resolver = DefaultResolver::new(config.clone(), store);
+        let shared_ctx = LocalSharedContext::new(event_channel.clone(), config.clone(), resolver);
 
         let worker_pool = WorkerPool::from_shared_context(
             event_channel.clone(),

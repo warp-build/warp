@@ -1,5 +1,5 @@
 use super::*;
-use crate::resolver::{ResolutionFlow, Resolver, ResolverError, Signature};
+use crate::resolver::{ResolutionFlow, Resolver, ResolverError};
 use thiserror::*;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]

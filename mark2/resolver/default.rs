@@ -1,7 +1,7 @@
 use super::{ConcreteTarget, FsResolver, Goal, ResolutionFlow, Resolver, ResolverError, Target};
 use crate::store::DefaultStore;
-use crate::sync::*;
 use crate::tricorder::{GrpcTricorder, Tricorder, TricorderManager};
+use crate::{sync::*, Config};
 use async_trait::async_trait;
 
 #[derive(Clone)]
@@ -11,9 +11,9 @@ pub struct DefaultResolver {
 }
 
 impl DefaultResolver {
-    pub fn new(store: Arc<DefaultStore>) -> Self {
+    pub fn new(config: Config, store: Arc<DefaultStore>) -> Self {
         let fs_resolver = Arc::new(FsResolver::new());
-        let tricorder_manager = Arc::new(TricorderManager::new(store));
+        let tricorder_manager = Arc::new(TricorderManager::new(config, store));
         Self {
             fs_resolver,
             tricorder_manager,
@@ -45,7 +45,7 @@ impl Resolver for DefaultResolver {
         let concrete_target = self.concretize_target(goal, target).await?;
 
         // 1. find and ready the tricorder
-        let mut tricorder = self
+        let tricorder = self
             .tricorder_manager
             .find_and_ready(&concrete_target)
             .await?;

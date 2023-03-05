@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::{
     ArtifactId, ArtifactManifest, LocalStore, LocalStoreError, ManifestUrl, PackageManifest,
     PublicStore, PublicStoreError, Store, StoreError,
@@ -7,6 +9,9 @@ use crate::sync::*;
 use crate::Config;
 use async_trait::async_trait;
 
+/// The Default store implements the interface of an artifact store that orchestrates between the
+/// Public and Local stores to download, cache, and save artifacts.
+///
 pub struct DefaultStore {
     config: Config,
     archive_manager: Arc<ArchiveManager>,
@@ -68,6 +73,16 @@ impl Store for DefaultStore {
         let manifest = self.local_store.get_manifest(main_artifact).await?;
         Ok(manifest.unwrap())
     }
+
+    fn canonicalize_provided_artifact<N: AsRef<str>>(
+        &self,
+        am: &ArtifactManifest,
+        name: N,
+    ) -> Option<PathBuf> {
+        let manifest_root = self.local_store.get_absolute_path(am.id());
+        am.provides(name.as_ref())
+            .map(|rel_path| manifest_root.join(rel_path))
+    }
 }
 
 impl From<PublicStoreError> for StoreError {
@@ -96,7 +111,7 @@ mod tests {
 
         let config = Config::builder()
             .warp_root(warp_root.path().to_path_buf())
-            .public_store_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mockito::server_url().parse().unwrap())
             .build()
             .unwrap();
 
@@ -156,7 +171,7 @@ mod tests {
 
         let config = Config::builder()
             .warp_root(warp_root.path().to_path_buf())
-            .public_store_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mockito::server_url().parse().unwrap())
             .build()
             .unwrap();
 
@@ -211,7 +226,7 @@ mod tests {
 
         let config = Config::builder()
             .warp_root(warp_root.path().to_path_buf())
-            .public_store_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mockito::server_url().parse().unwrap())
             .build()
             .unwrap();
 

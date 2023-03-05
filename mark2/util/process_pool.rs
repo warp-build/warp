@@ -12,14 +12,6 @@ pub struct ProcessPool<P> {
     _process_type: PhantomData<P>,
 }
 
-pub struct ProcessSpec<P: ?Sized> {
-    pub bin_path: PathBuf,
-    pub args: Vec<String>,
-    pub env: HashMap<String, String>,
-    pub current_dir: Option<PathBuf>,
-    _process_type: PhantomData<P>,
-}
-
 impl<P> ProcessPool<P> {
     pub fn new() -> Self {
         Self {
@@ -32,7 +24,7 @@ impl<P> ProcessPool<P> {
         &self,
         process_spec: ProcessSpec<P>,
     ) -> Result<ProcessId<P>, ProcessPoolError> {
-        let mut cmd = Command::new(process_spec.bin_path.clone());
+        let mut cmd = Command::new(process_spec.bin.clone());
 
         cmd.env_clear()
             .envs(process_spec.env.clone())
@@ -50,6 +42,15 @@ impl<P> ProcessPool<P> {
 
         Ok(ProcessId(next_id, PhantomData::default()))
     }
+}
+
+#[derive(Debug, Default)]
+pub struct ProcessSpec<P: ?Sized> {
+    pub bin: PathBuf,
+    pub args: Vec<String>,
+    pub env: HashMap<String, String>,
+    pub current_dir: Option<PathBuf>,
+    pub _process_type: PhantomData<P>,
 }
 
 #[derive(Error, Debug)]

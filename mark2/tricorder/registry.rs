@@ -1,4 +1,4 @@
-use crate::sync::*;
+use crate::{sync::*, Config};
 use fxhash::FxHashMap;
 use std::path::{Path, PathBuf};
 use thiserror::*;
@@ -14,11 +14,12 @@ pub struct TricorderRegistry {
 }
 
 impl TricorderRegistry {
-    pub fn new() -> Self {
+    pub fn new(config: Config) -> Self {
         // NOTE(@ostera): This is currently hard-coded as we are only working with the Erlang/Elixir
         // tricorders, but should become a remote registry like the toolchains registry in the future.
+        let default_host = config.public_store_metadata_url().to_string();
         let data = [(
-            "https://store.warp.build/tricorder/beam/manifest.json"
+            format!("{default_host}tricorder/beam/manifest.json")
                 .parse::<Url>()
                 .unwrap(),
             vec![

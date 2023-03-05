@@ -7,6 +7,8 @@ mod manifest_url;
 mod package_manifest;
 mod public;
 
+use std::path::PathBuf;
+
 pub use artifact_id::*;
 pub use artifact_manifest::*;
 pub use default::*;
@@ -26,4 +28,10 @@ pub trait Store {
         &self,
         url: &ManifestUrl,
     ) -> Result<ArtifactManifest, StoreError>;
+
+    fn canonicalize_provided_artifact<N: AsRef<str>>(
+        &self,
+        am: &ArtifactManifest,
+        name: N,
+    ) -> Option<PathBuf>;
 }

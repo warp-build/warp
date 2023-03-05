@@ -5,6 +5,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use tokio::io::AsyncReadExt;
 
+use super::ArtifactId;
+
 pub const ARTIFACT_MANIFEST_FILE: &str = "Manifest.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,6 +92,10 @@ pub struct ArtifactManifest {
 }
 
 impl ArtifactManifest {
+    pub fn id(&self) -> ArtifactId {
+        ArtifactId::new(&self.hash)
+    }
+
     // TODO(@ostera): fix util::FromFile to derive this function there
     pub async fn from_file(path: &Path) -> Result<Self, FromFileError> {
         let mut file =
@@ -117,6 +123,10 @@ impl ArtifactManifest {
 
     pub fn target(&self) -> &str {
         self.target.as_ref()
+    }
+
+    pub fn provides(&self, binary: &str) -> Option<&PathBuf> {
+        self.provides.get(binary)
     }
 }
 

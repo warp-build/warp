@@ -22,7 +22,7 @@ impl PublicStore {
     }
 
     pub async fn try_fetch(&self, id: &ArtifactId) -> Result<(), PublicStoreError> {
-        let mut url = self.config.public_store_url().clone();
+        let mut url = self.config.public_store_cdn_url().clone();
         url.set_path(&format!("{}.tar.gz", id.inner()));
 
         let response = self.client.get(url).send().await?;
@@ -87,7 +87,7 @@ mod tests {
 
         let config = Config::builder()
             .store_root(store_root.path().to_path_buf())
-            .public_store_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mockito::server_url().parse().unwrap())
             .build()
             .unwrap();
         let ps = PublicStore::new(config);
@@ -113,7 +113,7 @@ mod tests {
     #[tokio::test]
     async fn fails_on_non_targz_payload() {
         let config = Config::builder()
-            .public_store_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mockito::server_url().parse().unwrap())
             .build()
             .unwrap();
         let ps = PublicStore::new(config);
@@ -132,7 +132,7 @@ mod tests {
     #[tokio::test]
     async fn fails_on_empty_payload() {
         let config = Config::builder()
-            .public_store_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mockito::server_url().parse().unwrap())
             .build()
             .unwrap();
         let ps = PublicStore::new(config);

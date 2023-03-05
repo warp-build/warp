@@ -6,8 +6,9 @@ pub use grpc::*;
 pub use manager::*;
 pub use registry::*;
 
-use crate::{resolver::ConcreteTarget, util::process_pool::ProcessSpec};
+use crate::resolver::ConcreteTarget;
 use async_trait::async_trait;
+use std::fmt::Debug;
 use thiserror::*;
 
 #[derive(Error, Debug)]
@@ -24,16 +25,23 @@ pub enum SignatureGenerationFlow {
     //MissingRequirements { requirements: Vec<Requirement> },
 }
 
+const DEFAULT_TRICODER_BINARY_NAME: &str = "tricorder";
+
+#[derive(Debug, Clone, Copy)]
+pub struct Connection {
+    port: u16,
+}
+
 #[async_trait]
-pub trait Tricorder {
-    fn process_spec(&self) -> &ProcessSpec<Self>
+pub trait Tricorder: Send + Sync + Debug {
+    async fn connect(connection: Connection) -> Result<Self, TricorderError>
     where
         Self: Sized;
 
     async fn ensure_ready(&self) -> Result<(), TricorderError>;
 
     async fn generate_signature(
-        &mut self,
+        &self,
         concrete_target: &ConcreteTarget,
     ) -> Result<SignatureGenerationFlow, TricorderError>;
 }
