@@ -1,8 +1,7 @@
+use super::ResolverError;
+use crate::model::{FsTarget, Goal};
 use std::path::PathBuf;
-
 use thiserror::*;
-
-use super::{FsTarget, Goal, ResolverError};
 
 /// The `FsResolver` knows how to resolve a particular `Target` by looking into the file system and
 /// determining if this is in fact a file on disk, and sending the sources to a `Tricorder` for

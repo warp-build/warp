@@ -1,11 +1,9 @@
-use std::marker::PhantomData;
-
-use crate::sync::Arc;
-use crate::Config;
-
 use super::*;
 use crate::events::{Event, EventChannel};
-use crate::resolver::TargetId;
+use crate::model::TargetId;
+use crate::sync::Arc;
+use crate::Config;
+use std::marker::PhantomData;
 use thiserror::*;
 use tokio_util::task::LocalPoolHandle;
 use tracing::*;
@@ -107,7 +105,8 @@ impl From<WorkerError> for WorkerPoolError {
 mod tests {
     use super::*;
     use crate::events::EventChannel;
-    use crate::resolver::{Goal, ResolutionFlow, Resolver, ResolverError, Target, TargetRegistry};
+    use crate::model::{Goal, Target};
+    use crate::resolver::{ResolutionFlow, Resolver, ResolverError, TargetRegistry};
     use crate::Config;
     use assert_fs::prelude::*;
 

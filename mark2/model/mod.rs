@@ -1,11 +1,11 @@
-// pub use archive::*;
-// pub use build_opts::*;
-// pub use dependency::*;
-// pub use execution_environment::*;
-// pub use output_manifest::*;
-// pub use remote_workspace::*;
-// pub use rule::*;
-// pub use signature::*;
-// pub use target_manifest::*;
-// pub use task::*;
-// pub use workspace::*;
+mod concrete_target;
+mod goal;
+mod target;
+mod target_id;
+
+pub use concrete_target::*;
+pub use goal::*;
+pub use target::*;
+pub use target_id::*;
+
+pub type RuleName = String;

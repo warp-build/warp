@@ -15,6 +15,7 @@ mod config;
 mod drive;
 mod events;
 mod executor;
+mod model;
 mod planner;
 mod resolver;
 mod rules;

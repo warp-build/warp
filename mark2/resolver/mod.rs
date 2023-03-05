@@ -1,24 +1,14 @@
-//! # Resolves what a given target points to in the project graph
-//!
-
-mod concrete_target;
 mod default;
 mod fs_resolver;
-mod goal;
 mod signature;
-mod target;
-mod target_id;
 mod target_registry;
 
-pub use concrete_target::*;
 pub use default::*;
 use fs_resolver::*;
-pub use goal::*;
 pub use signature::*;
-pub use target::*;
-pub use target_id::*;
 pub use target_registry::*;
 
+use crate::model::{Goal, Target};
 use crate::sync::*;
 use crate::tricorder::{TricorderError, TricorderManagerError};
 use async_trait::async_trait;

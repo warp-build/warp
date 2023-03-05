@@ -1,7 +1,7 @@
 use super::*;
 use crate::config::Config;
 use crate::events::EventChannel;
-use crate::resolver::*;
+use crate::resolver::{Resolver, TargetRegistry};
 use crate::sync::Arc;
 use crate::workspace::WorkspaceManager;
 

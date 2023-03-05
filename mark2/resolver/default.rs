@@ -1,6 +1,7 @@
-use super::{ConcreteTarget, FsResolver, Goal, ResolutionFlow, Resolver, ResolverError, Target};
+use super::{FsResolver, ResolutionFlow, Resolver, ResolverError};
+use crate::model::{ConcreteTarget, Goal, Target};
 use crate::store::DefaultStore;
-use crate::tricorder::{GrpcTricorder, Tricorder, TricorderManager};
+use crate::tricorder::{GrpcTricorder, TricorderManager};
 use crate::{sync::*, Config};
 use async_trait::async_trait;
 

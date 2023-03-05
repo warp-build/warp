@@ -2,7 +2,7 @@ use super::{
     Connection, Tricorder, TricorderError, TricorderRegistry, TricorderRegistryError,
     DEFAULT_TRICODER_BINARY_NAME,
 };
-use crate::resolver::ConcreteTarget;
+use crate::model::ConcreteTarget;
 use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
 use crate::sync::*;
 use crate::util::port_finder::PortFinder;
@@ -129,7 +129,7 @@ impl From<StoreError> for TricorderManagerError {
 mod tests {
     use super::*;
     use crate::archive::ArchiveManager;
-    use crate::resolver::{Goal, Target};
+    use crate::model::{Goal, Target};
     use crate::store::{ArtifactManifest, DefaultStore, ManifestUrl, StoreError};
     use crate::tricorder::{Connection, SignatureGenerationFlow};
     use crate::Config;

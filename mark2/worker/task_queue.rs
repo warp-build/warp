@@ -1,6 +1,7 @@
 use super::*;
 use crate::events::{Event, EventChannel};
-use crate::resolver::*;
+use crate::model::TargetId;
+use crate::resolver::TargetRegistry;
 use crate::sync::{Arc, Mutex, RwLock};
 use dashmap::{DashMap, DashSet};
 use fxhash::FxHashSet;
@@ -216,7 +217,7 @@ impl TaskQueue {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use crate::model::{Goal, Target};
 
     use super::*;
 
@@ -349,10 +350,11 @@ mod tests {
     #[cfg(shuttle)]
     #[test]
     fn conc_no_double_consumption() {
-        use std::{collections::HashSet, time::Duration};
-
+        use crate::model::{Goal, Target};
         use crate::sync::*;
         use quickcheck::*;
+        use std::collections::{HashMap, HashSet};
+        use std::time::Duration;
 
         const TASK_COUNT: usize = 50;
         const ITER: usize = 1_000;

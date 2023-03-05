@@ -1,5 +1,5 @@
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
-use crate::resolver::ConcreteTarget;
+use crate::model::ConcreteTarget;
 use crate::sync::*;
 use async_trait::async_trait;
 

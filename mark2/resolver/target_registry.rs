@@ -1,4 +1,5 @@
 use super::*;
+use crate::model::{Target, TargetId};
 use crate::sync::{Arc, Mutex};
 use dashmap::DashMap;
 use thiserror::*;

@@ -1,4 +1,6 @@
-use crate::resolver::*;
+use crate::model::Target;
+use crate::model::TargetId;
+use crate::resolver::TargetRegistry;
 use crate::sync::Arc;
 use daggy::{Dag, NodeIndex};
 use dashmap::DashMap;

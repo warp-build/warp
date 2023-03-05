@@ -1,9 +1,7 @@
-use std::path::{Path, PathBuf};
-
-use serde::{Deserialize, Serialize};
-use thiserror::*;
-
 use super::TargetId;
+use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
+use thiserror::*;
 
 static ALIAS_ALL: &str = "@all";
 

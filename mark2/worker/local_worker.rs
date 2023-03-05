@@ -144,7 +144,7 @@ mod tests {
 
     use super::*;
     use crate::events::EventChannel;
-    use crate::resolver::{Goal, Target, TargetId};
+    use crate::model::{Goal, Target, TargetId};
     use crate::{sync::*, Config};
 
     #[derive(Clone)]

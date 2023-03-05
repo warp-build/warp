@@ -1,4 +1,4 @@
-use crate::resolver::Target;
+use crate::model::Target;
 use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;

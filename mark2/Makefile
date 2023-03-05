@@ -3,8 +3,12 @@ setup:
 	rustup target add x86_64-apple-darwin
 	cargo install hyperfine cargo-strip cargo-insta mdbook flamegraph miri cargo-asm
 
-test:
+test: test.unit test.conc
+
+test.unit:
 	cargo test
+
+test.conc:
 	RUSTFLAGS="--cfg shuttle" cargo test conc_ --release
 
 cov:

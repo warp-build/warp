@@ -1,4 +1,4 @@
-use crate::resolver::*;
+use crate::model::{Goal, TargetId};
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Task {

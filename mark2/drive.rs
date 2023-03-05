@@ -1,7 +1,8 @@
 use super::*;
 use crate::archive::ArchiveManager;
 use crate::events::EventChannel;
-use crate::resolver::{DefaultResolver, Target};
+use crate::model::Target;
+use crate::resolver::DefaultResolver;
 use crate::store::DefaultStore;
 use crate::sync::Arc;
 use crate::worker::{LocalSharedContext, LocalWorker, TaskResults, WorkerPool, WorkerPoolError};

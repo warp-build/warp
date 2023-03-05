@@ -1,4 +1,4 @@
-use crate::rules::RuleName;
+use super::RuleName;
 use std::str::FromStr;
 use thiserror::*;
 

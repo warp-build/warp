@@ -6,7 +6,7 @@ pub use grpc::*;
 pub use manager::*;
 pub use registry::*;
 
-use crate::resolver::ConcreteTarget;
+use crate::model::ConcreteTarget;
 use async_trait::async_trait;
 use std::fmt::Debug;
 use thiserror::*;

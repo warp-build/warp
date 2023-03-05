@@ -1,9 +1,8 @@
-use crate::rules::{config::Config, RuleName};
+use crate::model::{RuleName, Target};
+use crate::rules::config::Config;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::*;
-
-use super::Target;
 
 pub const BUILDFILE: &str = "Build.json";
 
