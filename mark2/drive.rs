@@ -5,6 +5,7 @@ use crate::model::Target;
 use crate::resolver::DefaultResolver;
 use crate::store::DefaultStore;
 use crate::sync::Arc;
+use crate::tricorder::GrpcTricorder;
 use crate::worker::{LocalSharedContext, LocalWorker, TaskResults, WorkerPool, WorkerPoolError};
 use crate::workspace::WorkspaceManagerError;
 use thiserror::*;
@@ -21,8 +22,8 @@ use tracing::*;
 /// `WorkerPool`.
 ///
 pub struct WarpDriveMarkII {
-    worker_pool: WorkerPool<LocalWorker<DefaultResolver>>,
-    shared_ctx: LocalSharedContext<DefaultResolver>,
+    worker_pool: WorkerPool<LocalWorker<DefaultResolver<GrpcTricorder>>>,
+    shared_ctx: LocalSharedContext<DefaultResolver<GrpcTricorder>>,
     config: Config,
 }
 
@@ -34,7 +35,7 @@ impl WarpDriveMarkII {
         let archive_manager = ArchiveManager::new(&config).into();
         let store = DefaultStore::new(config.clone(), archive_manager).into();
 
-        let resolver = DefaultResolver::new(config.clone(), store);
+        let resolver: DefaultResolver<GrpcTricorder> = DefaultResolver::new(config.clone(), store);
         let shared_ctx = LocalSharedContext::new(event_channel.clone(), config.clone(), resolver);
 
         let worker_pool = WorkerPool::from_shared_context(

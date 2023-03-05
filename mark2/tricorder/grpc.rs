@@ -10,7 +10,7 @@ mod proto {
 
 /// An implementation of the Tricorder framework that works over gRPC.
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GrpcTricorder {
     conn: Connection,
     client: Arc<

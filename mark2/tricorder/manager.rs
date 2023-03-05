@@ -55,6 +55,7 @@ where
             .install_from_manifest_url(&tricorder_url)
             .await?;
 
+        // 3. start it
         let port = PortFinder::next().unwrap();
         let bin = self
             .artifact_store
@@ -72,9 +73,11 @@ where
         };
         let pid = self.process_pool.spawn(spec).await?;
 
+        // 4. connect to it
         let conn = Connection { port };
         let tricorder = Arc::new(T::connect(conn).await?);
 
+        // 5. ready it
         tricorder.ensure_ready().await?;
 
         self.tricorders.insert(tricorder_url, (pid, conn));
@@ -130,7 +133,7 @@ mod tests {
     use super::*;
     use crate::archive::ArchiveManager;
     use crate::model::{Goal, Target};
-    use crate::store::{ArtifactManifest, DefaultStore, ManifestUrl, StoreError};
+    use crate::store::DefaultStore;
     use crate::tricorder::{Connection, SignatureGenerationFlow};
     use crate::Config;
     use assert_fs::prelude::*;
@@ -142,8 +145,8 @@ mod tests {
         let warp_root = assert_fs::TempDir::new().unwrap();
         // NOTE(@ostera): this line is useful for debugging the output directory when something
         // goes wrong.
-        let warp_root = warp_root.into_persistent();
-        dbg!(&warp_root.path());
+        // let warp_root = warp_root.into_persistent();
+        // dbg!(&warp_root.path());
 
         let config = Config::builder()
             .warp_root(warp_root.path().to_path_buf())

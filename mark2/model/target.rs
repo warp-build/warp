@@ -18,6 +18,18 @@ impl From<url::Url> for Target {
     }
 }
 
+impl From<&str> for Target {
+    fn from(value: &str) -> Self {
+        Self::Fs(value.into())
+    }
+}
+
+impl From<PathBuf> for Target {
+    fn from(value: PathBuf) -> Self {
+        Self::Fs(value.into())
+    }
+}
+
 impl From<&Path> for Target {
     fn from(value: &Path) -> Self {
         Self::Fs(value.into())
@@ -155,6 +167,24 @@ impl Default for FsTarget {
 impl ToString for FsTarget {
     fn to_string(&self) -> String {
         self.path.to_string_lossy().to_string()
+    }
+}
+
+impl From<&str> for FsTarget {
+    fn from(value: &str) -> Self {
+        Self {
+            path: value.into(),
+            deps: Default::default(),
+        }
+    }
+}
+
+impl From<PathBuf> for FsTarget {
+    fn from(value: PathBuf) -> Self {
+        Self {
+            path: value,
+            deps: Default::default(),
+        }
     }
 }
 
