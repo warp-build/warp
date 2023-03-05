@@ -1,7 +1,7 @@
 use super::{FsResolver, ResolutionFlow, Resolver, ResolverError};
 use crate::model::{ConcreteTarget, Goal, Target};
 use crate::store::DefaultStore;
-use crate::tricorder::{GrpcTricorder, TricorderManager};
+use crate::tricorder::{GrpcTricorder, SignatureGenerationFlow, TricorderManager};
 use crate::{sync::*, Config};
 use async_trait::async_trait;
 
@@ -51,9 +51,22 @@ impl Resolver for DefaultResolver {
             .find_and_ready(&concrete_target)
             .await?;
 
-        // 2. generate signature for this concrete target
-        tricorder.generate_signature(&concrete_target).await?;
+        // TODO(@ostera):  at this stage, we want to use the concrete target and the tricorder to
+        // call the CodeManager and ask it to tree-split, so we can avoid regenerating signatures
+        // if parts of the file we don't care about haven't changed.
 
-        todo!()
+        // 2. generate signature for this concrete target
+        let sig_flow = tricorder.generate_signature(&concrete_target).await?;
+
+        match sig_flow {
+            SignatureGenerationFlow::GeneratedSignatures { signatures } if signatures.len() > 0 => {
+                let signature = signatures.into_iter().nth(0).unwrap();
+                Ok(ResolutionFlow::Resolved { signature })
+            }
+            SignatureGenerationFlow::MissingRequirements { requirements } => {
+                Ok(ResolutionFlow::MissingDependencies { requirements })
+            }
+            _ => todo!(),
+        }
     }
 }

@@ -1,5 +1,4 @@
-use crate::model::{RuleName, Target};
-use crate::rules::config::Config;
+use super::{Config, RuleName, Target};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::*;

@@ -6,7 +6,7 @@ pub use grpc::*;
 pub use manager::*;
 pub use registry::*;
 
-use crate::model::ConcreteTarget;
+use crate::model::{ConcreteTarget, Requirement, Signature};
 use async_trait::async_trait;
 use std::fmt::Debug;
 use thiserror::*;
@@ -21,8 +21,8 @@ pub enum TricorderError {
 }
 
 pub enum SignatureGenerationFlow {
-    //GeneratedSignatures { signatures: Vec<Signature> },
-    //MissingRequirements { requirements: Vec<Requirement> },
+    GeneratedSignatures { signatures: Vec<Signature> },
+    MissingRequirements { requirements: Vec<Requirement> },
 }
 
 const DEFAULT_TRICODER_BINARY_NAME: &str = "tricorder";

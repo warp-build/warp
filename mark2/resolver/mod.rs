@@ -1,14 +1,12 @@
 mod default;
 mod fs_resolver;
-mod signature;
 mod target_registry;
 
 pub use default::*;
 use fs_resolver::*;
-pub use signature::*;
 pub use target_registry::*;
 
-use crate::model::{Goal, Target};
+use crate::model::{Goal, Requirement, Signature, Target};
 use crate::sync::*;
 use crate::tricorder::{TricorderError, TricorderManagerError};
 use async_trait::async_trait;
@@ -49,7 +47,7 @@ impl From<TricorderManagerError> for ResolverError {
 pub enum ResolutionFlow {
     Resolved { signature: Signature },
     IncompatibleTarget,
-    MissingDependencies,
+    MissingDependencies { requirements: Vec<Requirement> },
 }
 
 #[async_trait]

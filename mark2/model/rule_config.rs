@@ -1,7 +1,9 @@
-use crate::model::Target;
+use super::Target;
 use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+
+pub type RuleName = String;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {

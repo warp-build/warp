@@ -144,7 +144,7 @@ mod tests {
 
     use super::*;
     use crate::events::EventChannel;
-    use crate::model::{Goal, Target, TargetId};
+    use crate::model::{Goal, Target};
     use crate::{sync::*, Config};
 
     #[derive(Clone)]
@@ -157,7 +157,7 @@ mod tests {
             _goal: Goal,
             _target: Arc<Target>,
         ) -> Result<ResolutionFlow, ResolverError> {
-            Ok(ResolutionFlow::MissingDependencies)
+            Ok(ResolutionFlow::IncompatibleTarget)
         }
     }
 

@@ -120,7 +120,7 @@ mod tests {
             _goal: Goal,
             _target: Arc<Target>,
         ) -> Result<ResolutionFlow, ResolverError> {
-            Ok(ResolutionFlow::MissingDependencies)
+            Ok(ResolutionFlow::IncompatibleTarget)
         }
     }
 
