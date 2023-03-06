@@ -1,5 +1,12 @@
+use core::future::Future;
+use std::pin::Pin;
+
 use super::*;
-use crate::resolver::{ResolutionFlow, Resolver, ResolverError};
+use crate::{
+    planner::{DefaultPlannerContext, Planner, PlanningFlow},
+    resolver::{ResolutionFlow, Resolver, ResolverError},
+};
+use futures::FutureExt;
 use thiserror::*;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
@@ -32,9 +39,10 @@ use thiserror::*;
 /// ```
 ///
 #[derive(Debug)]
-pub struct LocalWorker<R: Resolver> {
+pub struct LocalWorker<R: Resolver, P: Planner> {
     role: Role,
     ctx: LocalSharedContext<R>,
+    planner: P,
     env: ExecutionEnvironment,
 }
 
@@ -43,42 +51,54 @@ pub enum WorkerFlow {
     RetryLater,
 }
 
-#[async_trait]
-impl<R: Resolver> Worker for LocalWorker<R> {
+impl<R, P, PCtx> Worker for LocalWorker<R, P>
+where
+    R: Resolver,
+    P: Planner<Context = PCtx>,
+    PCtx: From<LocalSharedContext<R>>,
+{
     type Context = LocalSharedContext<R>;
 
     fn new(role: Role, ctx: Self::Context) -> Result<Self, WorkerError> {
         let env = ExecutionEnvironment::new();
-        Ok(Self { role, ctx, env })
+        let planner = P::new(ctx.clone().into())?;
+        Ok(Self {
+            role,
+            ctx,
+            env,
+            planner,
+        })
     }
 
-    #[tracing::instrument(name = "LocalWorker::run", skip(self))]
-    async fn run(&mut self) -> Result<(), WorkerError> {
-        for task in self.role.tasks() {
-            let _ = self.ctx.task_queue.queue(*task)?;
-        }
-        if self.role.is_main_worker() {
-            self.ctx.task_results.mark_as_ready();
-        }
-
-        while self.ctx.coordinator.should_run() {
-            // NOTE(@ostera): we don't want things to burn CPU cycles
-            tokio::time::sleep(std::time::Duration::from_micros(10)).await;
-            if let Err(err) = self.poll().await {
-                self.ctx.coordinator.signal_shutdown();
-                return Err(WorkerError::LocalWorkerError(err));
+    fn run<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), WorkerError>> + 'a>> {
+        async move {
+            for task in self.role.tasks() {
+                let _ = self.ctx.task_queue.queue(*task)?;
+            }
+            if self.role.is_main_worker() {
+                self.ctx.task_results.mark_as_ready();
             }
 
-            if self.role.is_main_worker() && self.ctx.task_results.has_all_expected_targets() {
-                self.ctx.coordinator.signal_shutdown();
-                break;
+            while self.ctx.coordinator.should_run() {
+                // NOTE(@ostera): we don't want things to burn CPU cycles
+                tokio::time::sleep(std::time::Duration::from_micros(10)).await;
+                if let Err(err) = self.poll().await {
+                    self.ctx.coordinator.signal_shutdown();
+                    return Err(WorkerError::LocalWorkerError(err));
+                }
+
+                if self.role.is_main_worker() && self.ctx.task_results.has_all_expected_targets() {
+                    self.ctx.coordinator.signal_shutdown();
+                    break;
+                }
             }
+            Ok(())
         }
-        Ok(())
+        .boxed_local()
     }
 }
 
-impl<R: Resolver> LocalWorker<R> {
+impl<R: Resolver, P: Planner> LocalWorker<R, P> {
     pub async fn poll(&mut self) -> Result<(), LocalWorkerError> {
         let task = match self.ctx.task_queue.next() {
             Some(task) => task,
@@ -97,32 +117,29 @@ impl<R: Resolver> LocalWorker<R> {
         }
     }
 
-    pub async fn handle_task(&self, task: Task) -> Result<WorkerFlow, LocalWorkerError> {
+    pub async fn handle_task(&mut self, task: Task) -> Result<WorkerFlow, LocalWorkerError> {
         let target = self.ctx.target_registry.get_target(task.target);
 
-        let _signature = match self.ctx.resolver.resolve(task.goal, target).await? {
+        let signature = match self.ctx.resolver.resolve(task.goal, target).await? {
             ResolutionFlow::Resolved { signature } => signature,
             _flow => return Ok(WorkerFlow::RetryLater),
         };
 
-        /*
-        let executable_spec = match self.planner.plan(task, signature, &self.env)? {
-            WorkerFlow::Planned(spec) => spec,
-            flow => return Ok(flow)
+        let _executable_spec = match self.planner.plan(signature, self.env.clone()).await? {
+            PlanningFlow::Planned { spec } => spec,
+            _flow => return Ok(WorkerFlow::RetryLater),
         };
 
-        let manifest = match self.executor.execute(executable_spec)? {
-            WorkerFlow::Executed(manifest) => manifest,
-            flow => return Ok(flow)
+        /*
+        let artifact_manifest = match self.executor.execute(executable_spec)? {
+            WorkerFlow::Executed(manifest) => artifact_manifest,
+            _flow => return Ok(WorkerFlow::RetryLater),
         };
 
         self.ctx.store.save(manifest).await?;
 
         self.ctx.task_results.add(task.target, manifest, executable_spec);
         */
-
-        self.ctx.task_queue.ack(task);
-
         Ok(WorkerFlow::TaskCompleted(task))
     }
 }
@@ -131,6 +148,15 @@ impl<R: Resolver> LocalWorker<R> {
 pub enum LocalWorkerError {
     #[error(transparent)]
     ResolverError(ResolverError),
+
+    #[error(transparent)]
+    PlannerError(PlannerError),
+}
+
+impl From<PlannerError> for WorkerError {
+    fn from(value: PlannerError) -> Self {
+        WorkerError::PlannerError(value)
+    }
 }
 
 impl From<TaskQueueError> for WorkerError {
@@ -151,14 +177,53 @@ impl From<ResolverError> for LocalWorkerError {
     }
 }
 
+impl From<PlannerError> for LocalWorkerError {
+    fn from(value: PlannerError) -> Self {
+        LocalWorkerError::PlannerError(value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use quickcheck::Arbitrary;
-
     use super::*;
     use crate::events::EventChannel;
-    use crate::model::{Goal, Target};
+    use crate::model::{Goal, Signature, Target};
+    use crate::planner::PlannerError;
     use crate::{sync::*, Config};
+    use async_trait::async_trait;
+    use quickcheck::Arbitrary;
+
+    #[derive(Clone)]
+    struct NoopPlanner;
+    #[derive(Debug, Clone)]
+    struct NoopContext;
+
+    impl<R: Resolver> From<LocalSharedContext<R>> for NoopContext {
+        fn from(_value: LocalSharedContext<R>) -> Self {
+            Self
+        }
+    }
+
+    impl Planner for NoopPlanner {
+        type Context = NoopContext;
+
+        fn new(_ctx: Self::Context) -> Result<Self, PlannerError> {
+            Ok(Self)
+        }
+
+        fn plan(
+            &mut self,
+            sig: Signature,
+            env: ExecutionEnvironment,
+        ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>>>> {
+            async move {
+                Ok(PlanningFlow::MissingDeps {
+                    requirements: vec![],
+                })
+            }
+            .boxed_local()
+        }
+    }
 
     #[derive(Clone)]
     struct NoopResolver;
@@ -182,7 +247,8 @@ mod tests {
 
         ctx.coordinator.signal_shutdown();
 
-        let mut w = LocalWorker::new(Role::MainWorker(vec![]), ctx).unwrap();
+        let mut w: LocalWorker<NoopResolver, NoopPlanner> =
+            LocalWorker::new(Role::MainWorker(vec![]), ctx).unwrap();
         w.run().await.unwrap();
     }
 
@@ -190,7 +256,6 @@ mod tests {
     async fn on_resolver_error_worker_signal_shutdown() {
         #[derive(Clone)]
         struct ErrResolver;
-
         #[async_trait]
         impl Resolver for ErrResolver {
             async fn resolve(
@@ -214,7 +279,8 @@ mod tests {
         ctx.task_queue.queue(task).unwrap();
         assert!(!ctx.task_queue.is_empty());
 
-        let mut w = LocalWorker::new(Role::MainWorker(vec![]), ctx.clone()).unwrap();
+        let mut w: LocalWorker<ErrResolver, NoopPlanner> =
+            LocalWorker::new(Role::MainWorker(vec![]), ctx.clone()).unwrap();
         let result = w.run().await;
 
         assert!(result.is_err());

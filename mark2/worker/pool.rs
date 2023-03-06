@@ -1,6 +1,5 @@
 use super::*;
 use crate::events::{Event, EventChannel};
-use crate::model::TargetId;
 use crate::sync::Arc;
 use crate::Config;
 use std::marker::PhantomData;
@@ -101,10 +100,13 @@ impl From<WorkerError> for WorkerPoolError {
 mod tests {
     use super::*;
     use crate::events::EventChannel;
-    use crate::model::{Goal, Target};
+    use crate::model::{Goal, Signature, Target, TargetId};
+    use crate::planner::{Planner, PlanningFlow};
     use crate::resolver::{ResolutionFlow, Resolver, ResolverError, TargetRegistry};
     use crate::Config;
     use assert_fs::prelude::*;
+    use async_trait::async_trait;
+    use futures::FutureExt;
 
     #[derive(Clone)]
     struct NoopResolver;
@@ -120,17 +122,42 @@ mod tests {
         }
     }
 
+    #[derive(Clone)]
+    struct NoopPlanner;
+    #[derive(Debug, Clone)]
+    struct NoopContext;
+
+    impl Planner for NoopPlanner {
+        type Context = NoopContext;
+
+        fn new(_ctx: Self::Context) -> Result<Self, PlannerError> {
+            Ok(Self)
+        }
+
+        fn plan(
+            &mut self,
+            sig: Signature,
+            env: ExecutionEnvironment,
+        ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>>>> {
+            async move {
+                Ok(PlanningFlow::MissingDeps {
+                    requirements: vec![],
+                })
+            }
+            .boxed_local()
+        }
+    }
+
     #[derive(Debug)]
     struct NoopWorker;
 
-    #[async_trait]
     impl Worker for NoopWorker {
         type Context = LocalSharedContext<NoopResolver>;
         fn new(_role: Role, _ctx: Self::Context) -> Result<Self, WorkerError> {
             Ok(NoopWorker)
         }
-        async fn run(&mut self) -> Result<(), WorkerError> {
-            Ok(())
+        fn run(&mut self) -> Pin<Box<dyn Future<Output = Result<(), WorkerError>>>> {
+            async move { Ok(()) }.boxed_local()
         }
     }
 
@@ -185,18 +212,22 @@ mod tests {
             ctx: FixtureContext,
         }
 
-        #[async_trait]
         impl Worker for FixtureWorker {
             type Context = FixtureContext;
             fn new(_role: Role, ctx: Self::Context) -> Result<Self, WorkerError> {
                 Ok(FixtureWorker { ctx })
             }
 
-            async fn run(&mut self) -> Result<(), WorkerError> {
-                self.ctx
-                    .task_results
-                    .add_target_manifest(self.ctx.target_id, (), ());
-                Ok(())
+            fn run<'a>(
+                &'a mut self,
+            ) -> Pin<Box<dyn Future<Output = Result<(), WorkerError>> + 'a>> {
+                async move {
+                    self.ctx
+                        .task_results
+                        .add_target_manifest(self.ctx.target_id, (), ());
+                    Ok(())
+                }
+                .boxed_local()
             }
         }
 

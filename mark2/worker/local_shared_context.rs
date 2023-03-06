@@ -1,6 +1,7 @@
 use super::*;
 use crate::config::Config;
 use crate::events::EventChannel;
+use crate::planner::DefaultPlannerContext;
 use crate::resolver::{Resolver, TargetRegistry};
 use crate::sync::Arc;
 use crate::workspace::WorkspaceManager;
@@ -59,5 +60,11 @@ impl<R: Resolver> LocalSharedContext<R> {
 impl<R: Resolver> Context for LocalSharedContext<R> {
     fn results(&self) -> Arc<TaskResults> {
         self.task_results.clone()
+    }
+}
+
+impl<R: Resolver> From<LocalSharedContext<R>> for DefaultPlannerContext {
+    fn from(_value: LocalSharedContext<R>) -> Self {
+        Self
     }
 }

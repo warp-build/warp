@@ -54,6 +54,7 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
         // TODO(@ostera): at this stage, we want to use the concrete target and the tricorder to
         // call the CodeManager and ask it to tree-split, so we can avoid regenerating signatures
         // if parts of the file we don't care about haven't changed.
+        // get_ast
 
         // 2. generate signature for this concrete target
         let sig_flow = tricorder.generate_signature(&concrete_target).await?;

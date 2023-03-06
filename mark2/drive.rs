@@ -2,7 +2,9 @@ use super::*;
 use crate::archive::ArchiveManager;
 use crate::events::EventChannel;
 use crate::model::{Goal, Target};
+use crate::planner::DefaultPlanner;
 use crate::resolver::DefaultResolver;
+use crate::rules::JsRuleExecutor;
 use crate::store::DefaultStore;
 use crate::sync::Arc;
 use crate::tricorder::GrpcTricorder;
@@ -12,6 +14,11 @@ use crate::worker::{
 use crate::workspace::WorkspaceManagerError;
 use thiserror::*;
 use tracing::*;
+
+type MainResolver = DefaultResolver<GrpcTricorder>;
+type MainPlanner = DefaultPlanner<JsRuleExecutor>;
+type DefaultWorker = LocalWorker<MainResolver, MainPlanner>;
+type DefaultCtxt = LocalSharedContext<MainResolver>;
 
 /// # Warp Engine Mark II
 ///
@@ -24,8 +31,8 @@ use tracing::*;
 /// `WorkerPool`.
 ///
 pub struct WarpDriveMarkII {
-    worker_pool: WorkerPool<LocalWorker<DefaultResolver<GrpcTricorder>>>,
-    shared_ctx: LocalSharedContext<DefaultResolver<GrpcTricorder>>,
+    worker_pool: WorkerPool<DefaultWorker>,
+    shared_ctx: DefaultCtxt,
     config: Config,
 }
 

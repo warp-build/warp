@@ -2,7 +2,6 @@ use self::proto::build::warp::tricorder::generate_signature_response::Response;
 use self::proto::build::warp::tricorder::EnsureReadyRequest;
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
 use crate::model::{ConcreteTarget, Signature, SignatureError};
-use crate::sync::*;
 use async_trait::async_trait;
 
 /// Protobuf generated code.
