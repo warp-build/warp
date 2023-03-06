@@ -46,9 +46,9 @@ impl WorkspaceManager {
     ///
     pub async fn load_current_workspace(
         &self,
-        opts: &Config,
+        config: &Config,
     ) -> Result<WorkspaceId, WorkspaceManagerError> {
-        let workspace = WorkspaceFinder::find(opts).await?;
+        let workspace = WorkspaceFinder::find(config).await?;
 
         let current_workspace_id = self.register_local_workspace(workspace)?;
         self.set_current_workspace(current_workspace_id);
@@ -80,5 +80,79 @@ pub enum WorkspaceManagerError {
 impl From<WorkspaceFinderError> for WorkspaceManagerError {
     fn from(err: WorkspaceFinderError) -> Self {
         Self::WorkspaceFinderError(err)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::WARPFILE;
+    use assert_fs::prelude::*;
+
+    #[tokio::test]
+    async fn loading_current_workspace_at_the_root() {
+        let curr_workspace = assert_fs::TempDir::new().unwrap();
+
+        let warpfile = curr_workspace.child(WARPFILE);
+        warpfile
+            .write_str(
+                r#"
+        {
+            "workspace": {
+                "name": "test-from-root"
+            }
+        }
+        "#,
+            )
+            .unwrap();
+
+        let config = Config::builder()
+            .invocation_dir(curr_workspace.path().to_path_buf())
+            .build()
+            .unwrap();
+
+        let wm = WorkspaceManager::new();
+        let _wid = wm.load_current_workspace(&config).await.unwrap();
+
+        assert_eq!(
+            wm.current_workspace().root(),
+            &curr_workspace.path().to_path_buf()
+        );
+        assert_eq!(wm.current_workspace().name(), "test-from-root");
+    }
+
+    #[tokio::test]
+    async fn loading_current_workspace_from_subdirs() {
+        let curr_workspace = assert_fs::TempDir::new().unwrap();
+
+        let warpfile = curr_workspace.child(WARPFILE);
+        warpfile
+            .write_str(
+                r#"
+        {
+            "workspace": {
+                "name": "test_from_subdir"
+            }
+        }
+        "#,
+            )
+            .unwrap();
+
+        let subdir = curr_workspace.child("some/deep/sub/folder");
+        subdir.create_dir_all().unwrap();
+
+        let config = Config::builder()
+            .invocation_dir(subdir.path().to_path_buf())
+            .build()
+            .unwrap();
+
+        let wm = WorkspaceManager::new();
+        let _wid = wm.load_current_workspace(&config).await.unwrap();
+
+        assert_eq!(
+            wm.current_workspace().root(),
+            &curr_workspace.path().to_path_buf()
+        );
+        assert_eq!(wm.current_workspace().name(), "test_from_subdir");
     }
 }

@@ -18,8 +18,8 @@ pub struct WorkspaceFinder;
 /// This allows us to run `warp` anywhere within a `Workspace` and still find it.
 ///
 impl WorkspaceFinder {
-    pub async fn find(opts: &Config) -> Result<Workspace, WorkspaceFinderError> {
-        let (root, warpfile) = Self::find_upwards(opts.invocation_dir()).await?;
+    pub async fn find(config: &Config) -> Result<Workspace, WorkspaceFinderError> {
+        let (root, warpfile) = Self::find_upwards(config.invocation_dir()).await?;
 
         let workspace = Workspace::builder()
             .root(root)
