@@ -1,0 +1,85 @@
+---
+source: tests/tree_splitter_tests.rs
+expression: ast
+---
+File {
+    shebang: None,
+    attrs: [],
+    items: [
+        Fn(
+            ItemFn {
+                attrs: [],
+                vis: Inherited,
+                sig: Signature {
+                    constness: None,
+                    asyncness: None,
+                    unsafety: None,
+                    abi: None,
+                    fn_token: Fn,
+                    ident: Ident(
+                        potato,
+                    ),
+                    generics: Generics {
+                        lt_token: None,
+                        params: [],
+                        gt_token: None,
+                        where_clause: None,
+                    },
+                    paren_token: Paren,
+                    inputs: [],
+                    variadic: None,
+                    output: Type(
+                        RArrow,
+                        Path(
+                            TypePath {
+                                qself: None,
+                                path: Path {
+                                    leading_colon: None,
+                                    segments: [
+                                        PathSegment {
+                                            ident: Ident(
+                                                bool,
+                                            ),
+                                            arguments: None,
+                                        },
+                                    ],
+                                },
+                            },
+                        ),
+                    ),
+                },
+                block: Block {
+                    brace_token: Brace,
+                    stmts: [
+                        Expr(
+                            Call(
+                                ExprCall {
+                                    attrs: [],
+                                    func: Path(
+                                        ExprPath {
+                                            attrs: [],
+                                            qself: None,
+                                            path: Path {
+                                                leading_colon: None,
+                                                segments: [
+                                                    PathSegment {
+                                                        ident: Ident(
+                                                            whatever,
+                                                        ),
+                                                        arguments: None,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ),
+                                    paren_token: Paren,
+                                    args: [],
+                                },
+                            ),
+                        ),
+                    ],
+                },
+            },
+        ),
+    ],
+}

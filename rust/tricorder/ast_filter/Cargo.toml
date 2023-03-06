@@ -16,8 +16,12 @@ prost = "0.11.2"
 syn = { version = "1.0.109", features = ["full", "parsing", "extra-traits"] }
 insta = "1.28.0"
 
+[lib]
+name = "tricorder"
+path = "src/lib.rs"
+
 [[bin]]
-name = "rust-tricorder"
+name = "tricorder"
 path = "src/main.rs"
 
 [build-dependencies]
