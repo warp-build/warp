@@ -11,15 +11,16 @@ pub struct DefaultPlanner<RE: RuleExecutor> {
     rule_executor: RE,
 }
 
-impl<RE> Planner for DefaultPlanner<RE>
+impl<RE, Ctx> Planner for DefaultPlanner<RE>
 where
-    RE: RuleExecutor<Context = SharedJsContext>,
+    RE: RuleExecutor<Context = Ctx>,
+    Ctx: From<DefaultPlannerContext>,
 {
     type Context = DefaultPlannerContext;
 
     fn new(ctx: Self::Context) -> Result<Self, PlannerError> {
         Ok(Self {
-            rule_executor: RE::new(ctx.into_js_ctx())?,
+            rule_executor: RE::new(ctx.clone().into())?,
             ctx,
         })
     }

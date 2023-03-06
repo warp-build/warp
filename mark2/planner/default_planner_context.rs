@@ -1,10 +1,12 @@
 use crate::rules::SharedJsContext;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DefaultPlannerContext;
 
-impl DefaultPlannerContext {
-    pub fn into_js_ctx(&self) -> SharedJsContext {
-        todo!()
+impl DefaultPlannerContext {}
+
+impl From<DefaultPlannerContext> for SharedJsContext {
+    fn from(value: DefaultPlannerContext) -> Self {
+        SharedJsContext::default()
     }
 }

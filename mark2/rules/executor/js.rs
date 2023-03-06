@@ -12,7 +12,7 @@ pub struct JsRuleExecutor {
     script_count: i32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct SharedJsContext {
     /*
     rule_map: Arc<DashMap<String, Rule>>,
@@ -88,9 +88,7 @@ impl RuleExecutor for JsRuleExecutor {
 
         let rt_options = deno_core::RuntimeOptions {
             startup_snapshot: Some(deno_core::Snapshot::Static(JS_SNAPSHOT)),
-            module_loader: Some(Rc::new(NetModuleLoader {
-                rule_store: todo!(),
-            })),
+            module_loader: Some(Rc::new(NetModuleLoader {})),
             // v8_platform: Some(v8::Platform::new_single_threaded(true).make_shared()),
             extensions: vec![extension, deno_console::init()],
             ..Default::default()
