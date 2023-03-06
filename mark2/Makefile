@@ -3,7 +3,12 @@ setup:
 	rustup target add x86_64-apple-darwin
 	cargo install hyperfine cargo-strip cargo-insta mdbook flamegraph miri cargo-asm
 
-test: test.unit test.conc
+test: test.tricorder test.unit test.conc
+
+test.tricorder:
+	cd tests/test_tricorder/ \
+		&& cargo build \
+		&& tar czf package.tar.gz target/debug/tricorder Manifest.json
 
 test.unit:
 	cargo test

@@ -18,7 +18,6 @@ use crate::workspace::WorkspaceManager;
 pub struct LocalSharedContext<R: Resolver> {
     pub(crate) coordinator: Arc<Coordinator>,
     pub(crate) event_channel: Arc<EventChannel>,
-    pub(crate) options: Config,
     pub(crate) target_registry: Arc<TargetRegistry>,
     pub(crate) task_queue: Arc<TaskQueue>,
     pub(crate) task_results: Arc<TaskResults>,
@@ -48,7 +47,6 @@ impl<R: Resolver> LocalSharedContext<R> {
         Self {
             coordinator,
             event_channel,
-            options,
             target_registry,
             resolver,
             task_queue,

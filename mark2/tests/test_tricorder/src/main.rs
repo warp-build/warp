@@ -1,0 +1,71 @@
+include!(concat!(env!("OUT_DIR"), "/_include.rs"));
+
+use build::warp::tricorder::generate_signature_response;
+use build::warp::tricorder::tricorder_service_server::{TricorderService, TricorderServiceServer};
+use build::warp::tricorder::*;
+use build::warp::Signature;
+use tonic::{transport::Server, Request, Response, Status};
+
+#[derive(Default)]
+struct TestTricorder;
+
+#[tonic::async_trait]
+impl TricorderService for TestTricorder {
+    async fn ensure_ready(
+        &self,
+        _: Request<EnsureReadyRequest>,
+    ) -> Result<Response<EnsureReadyResponse>, Status> {
+        println!("Tricorder ready!");
+        Ok(Response::new(EnsureReadyResponse::default()))
+    }
+
+    async fn get_dependencies(
+        &self,
+        _: Request<GetDependenciesRequest>,
+    ) -> Result<Response<GetDependenciesResponse>, Status> {
+        todo!()
+    }
+
+    async fn generate_signature(
+        &self,
+        req: Request<GenerateSignatureRequest>,
+    ) -> Result<Response<GenerateSignatureResponse>, Status> {
+        let req = req.into_inner();
+        println!("Generating signature!");
+        let res = GenerateSignatureResponse {
+            response: Some(generate_signature_response::Response::Ok(
+                GenerateSignatureSuccessResponse {
+                    workspace_root: req.workspace_root,
+                    file: req.file,
+                    symbol: req.symbol,
+                    signatures: vec![Signature {
+                        rule: "test-rule".to_string(),
+                        ..Default::default()
+                    }],
+                },
+            )),
+        };
+        Ok(Response::new(res))
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    dbg!(&std::env::args());
+    let port: i32 = std::env::args()
+        .into_iter()
+        .nth(2)
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    let addr = format!("0.0.0.0:{}", port).parse().unwrap();
+    println!("Started gRPC server on 0.0.0.0:{}", port);
+
+    Server::builder()
+        .add_service(TricorderServiceServer::new(TestTricorder))
+        .serve(addr)
+        .await?;
+
+    Ok(())
+}

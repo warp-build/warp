@@ -6,7 +6,7 @@ pub use grpc::*;
 pub use manager::*;
 pub use registry::*;
 
-use crate::model::{ConcreteTarget, Requirement, Signature};
+use crate::model::{ConcreteTarget, Requirement, Signature, SignatureError};
 use async_trait::async_trait;
 use std::fmt::Debug;
 use thiserror::*;
@@ -18,6 +18,9 @@ pub enum TricorderError {
 
     #[error("Something went wrong with a gRPC tricorder: {0:?}")]
     GrpcError(tonic::Status),
+
+    #[error(transparent)]
+    SignatureError(SignatureError),
 }
 
 pub enum SignatureGenerationFlow {
@@ -38,10 +41,10 @@ pub trait Tricorder: Send + Sync + Debug {
     where
         Self: Sized;
 
-    async fn ensure_ready(&self) -> Result<(), TricorderError>;
+    async fn ensure_ready(&mut self) -> Result<(), TricorderError>;
 
     async fn generate_signature(
-        &self,
+        &mut self,
         concrete_target: &ConcreteTarget,
     ) -> Result<SignatureGenerationFlow, TricorderError>;
 }

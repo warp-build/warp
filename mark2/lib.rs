@@ -28,6 +28,7 @@ mod workspace;
 
 pub use config::*;
 pub use drive::*;
+pub use model::{Goal, Target};
 
 #[macro_use]
 extern crate derive_builder;

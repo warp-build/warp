@@ -39,14 +39,14 @@ where
     pub async fn find_and_ready(
         &self,
         concrete_target: &ConcreteTarget,
-    ) -> Result<Arc<dyn Tricorder>, TricorderManagerError> {
+    ) -> Result<impl Tricorder, TricorderManagerError> {
         // 1. find exactly which tricorder we need
         let tricorder_url = self.registry.find_by_path(concrete_target.path()).await?;
 
         if let Some(entry) = self.tricorders.get(&tricorder_url) {
             let (_pid, conn) = &*entry;
             let tricorder = T::connect(*conn).await?;
-            return Ok(Arc::new(tricorder));
+            return Ok(tricorder);
         }
 
         // 2. install it
@@ -75,7 +75,7 @@ where
 
         // 4. connect to it
         let conn = Connection { port };
-        let tricorder = Arc::new(T::connect(conn).await?);
+        let mut tricorder = T::connect(conn).await?;
 
         // 5. ready it
         tricorder.ensure_ready().await?;
@@ -195,12 +195,12 @@ mod tests {
                 Ok(Self)
             }
 
-            async fn ensure_ready(&self) -> Result<(), TricorderError> {
+            async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
                 Ok(())
             }
 
             async fn generate_signature(
-                &self,
+                &mut self,
                 _: &ConcreteTarget,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
@@ -267,12 +267,12 @@ mod tests {
                 unreachable!();
             }
 
-            async fn ensure_ready(&self) -> Result<(), TricorderError> {
+            async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
                 unreachable!();
             }
 
             async fn generate_signature(
-                &self,
+                &mut self,
                 _: &ConcreteTarget,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
@@ -347,12 +347,12 @@ mod tests {
                 Err(TricorderError::Unknown)
             }
 
-            async fn ensure_ready(&self) -> Result<(), TricorderError> {
+            async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
                 unreachable!()
             }
 
             async fn generate_signature(
-                &self,
+                &mut self,
                 _: &ConcreteTarget,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
@@ -427,12 +427,12 @@ mod tests {
                 Ok(Self)
             }
 
-            async fn ensure_ready(&self) -> Result<(), TricorderError> {
+            async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
                 Err(TricorderError::Unknown)
             }
 
             async fn generate_signature(
-                &self,
+                &mut self,
                 _: &ConcreteTarget,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();

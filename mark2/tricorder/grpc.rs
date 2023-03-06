@@ -1,5 +1,7 @@
+use self::proto::build::warp::tricorder::generate_signature_response::Response;
+use self::proto::build::warp::tricorder::EnsureReadyRequest;
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
-use crate::model::ConcreteTarget;
+use crate::model::{ConcreteTarget, Signature, SignatureError};
 use crate::sync::*;
 use async_trait::async_trait;
 
@@ -13,12 +15,8 @@ mod proto {
 #[derive(Debug, Clone)]
 pub struct GrpcTricorder {
     conn: Connection,
-    client: Arc<
-        RwLock<
-            proto::build::warp::tricorder::tricorder_service_client::TricorderServiceClient<
-                tonic::transport::Channel,
-            >,
-        >,
+    client: proto::build::warp::tricorder::tricorder_service_client::TricorderServiceClient<
+        tonic::transport::Channel,
     >,
 }
 
@@ -37,21 +35,19 @@ impl Tricorder for GrpcTricorder {
             }
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
         };
-        Ok(Self {
-            conn,
-            client: Arc::new(RwLock::new(client)),
-        })
+        Ok(Self { conn, client })
     }
 
-    async fn ensure_ready(&self) -> Result<(), TricorderError> {
-        Err(TricorderError::Unknown)
+    async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
+        let req = EnsureReadyRequest::default();
+        let _ = self.client.ensure_ready(req).await?;
+        Ok(())
     }
 
     async fn generate_signature(
-        &self,
+        &mut self,
         concrete_target: &ConcreteTarget,
     ) -> Result<SignatureGenerationFlow, TricorderError> {
-        /*
         let request = proto::build::warp::tricorder::GenerateSignatureRequest {
             workspace_root: Default::default(),
             file: concrete_target.path().to_string_lossy().to_string(),
@@ -59,23 +55,41 @@ impl Tricorder for GrpcTricorder {
             dependencies: vec![],
         };
 
-        let response = {
-            let client = self.client.try_write().unwrap();
-            client
-                .generate_signature(request)
-                .await?
-                .into_inner()
-                .response
-                .unwrap();
-        };
-        */
+        let res = self
+            .client
+            .generate_signature(request)
+            .await?
+            .into_inner()
+            .response
+            .unwrap();
 
-        todo!();
+        match res {
+            Response::Ok(res) => {
+                let mut signatures = vec![];
+                for proto_sig in res.signatures.into_iter() {
+                    let sig = Signature::builder()
+                        .rule(proto_sig.rule)
+                        .target(concrete_target.clone())
+                        .build()?;
+                    signatures.push(sig);
+                }
+                Ok(SignatureGenerationFlow::GeneratedSignatures { signatures })
+            }
+            Response::MissingDeps(_) => Ok(SignatureGenerationFlow::MissingRequirements {
+                requirements: vec![],
+            }),
+        }
     }
 }
 
 impl From<tonic::Status> for TricorderError {
     fn from(value: tonic::Status) -> Self {
         TricorderError::GrpcError(value)
+    }
+}
+
+impl From<SignatureError> for TricorderError {
+    fn from(value: SignatureError) -> Self {
+        TricorderError::SignatureError(value)
     }
 }

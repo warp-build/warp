@@ -14,10 +14,11 @@ use env::*;
 pub use local_shared_context::*;
 pub use local_worker::*;
 pub use pool::*;
-use task::*;
+pub use task::*;
 use task_queue::*;
 pub use task_results::*;
 
+use crate::model::TargetId;
 use crate::sync::*;
 use async_trait::async_trait;
 use std::fmt::Debug;
@@ -27,6 +28,9 @@ use thiserror::*;
 pub enum WorkerError {
     #[error(transparent)]
     LocalWorkerError(LocalWorkerError),
+
+    #[error(transparent)]
+    TaskQueueError(TaskQueueError),
 }
 
 pub trait Context: Sync + Send + Clone + Sized {
@@ -44,14 +48,21 @@ pub trait Worker: Sized {
 /// normally, whereas the HelperWorker(id) are there to speed things up if more cores are
 /// available.
 ///
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Role {
-    MainWorker,
+    MainWorker(Vec<Task>),
     HelperWorker(usize),
 }
 
 impl Role {
     pub fn is_main_worker(&self) -> bool {
-        matches!(&self, Role::MainWorker)
+        matches!(&self, Role::MainWorker(_))
+    }
+
+    pub fn tasks(&self) -> &[Task] {
+        match self {
+            Role::MainWorker(ts) => ts,
+            Role::HelperWorker(_) => &[],
+        }
     }
 }

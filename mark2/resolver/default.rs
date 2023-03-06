@@ -46,7 +46,7 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
         let concrete_target = self.concretize_target(goal, target).await?;
 
         // 1. find and ready the tricorder
-        let tricorder = self
+        let mut tricorder = self
             .tricorder_manager
             .find_and_ready(&concrete_target)
             .await?;
@@ -68,7 +68,7 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
             SignatureGenerationFlow::MissingRequirements { requirements } => {
                 Ok(ResolutionFlow::MissingDependencies { requirements })
             }
-            _ => todo!(),
+            _ => Err(ResolverError::Unknown("unimplemented".to_string())),
         }
     }
 }
@@ -111,12 +111,12 @@ mod tests {
                 unreachable!()
             }
 
-            async fn ensure_ready(&self) -> Result<(), TricorderError> {
+            async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
                 unreachable!()
             }
 
             async fn generate_signature(
-                &self,
+                &mut self,
                 _: &ConcreteTarget,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
@@ -167,12 +167,12 @@ mod tests {
                 Ok(Self)
             }
 
-            async fn ensure_ready(&self) -> Result<(), TricorderError> {
+            async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
                 Ok(())
             }
 
             async fn generate_signature(
-                &self,
+                &mut self,
                 concrete_target: &ConcreteTarget,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 Ok(SignatureGenerationFlow::GeneratedSignatures {

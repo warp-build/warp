@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use thiserror::*;
 
 #[derive(Builder, Debug, Clone)]
+#[builder(build_fn(error = "SignatureError"))]
 pub struct Signature {
     target: ConcreteTarget,
 
@@ -65,4 +66,13 @@ pub enum SignatureError {
 
     #[error("Could not open file at {file:?} due to {err:?}")]
     FileOpenError { file: PathBuf, err: std::io::Error },
+
+    #[error(transparent)]
+    BuilderError(derive_builder::UninitializedFieldError),
+}
+
+impl From<derive_builder::UninitializedFieldError> for SignatureError {
+    fn from(value: derive_builder::UninitializedFieldError) -> Self {
+        SignatureError::BuilderError(value)
+    }
 }

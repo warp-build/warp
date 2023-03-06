@@ -18,21 +18,29 @@ impl TricorderRegistry {
         // NOTE(@ostera): This is currently hard-coded as we are only working with the Erlang/Elixir
         // tricorders, but should become a remote registry like the toolchains registry in the future.
         let default_host = config.public_store_metadata_url().to_string();
-        let data = [(
-            format!("{default_host}tricorder/beam/manifest.json")
-                .parse::<Url>()
-                .unwrap(),
-            vec![
-                "ex",
-                "exs",
-                "erl",
-                "hrl",
-                "rebar.config",
-                "erl.mk",
-                "rebar.lock",
-                "mix.lock",
-            ],
-        )];
+        let data = [
+            (
+                format!("{default_host}tricorder/test/manifest.json")
+                    .parse::<Url>()
+                    .unwrap(),
+                vec!["warp_test"],
+            ),
+            (
+                format!("{default_host}tricorder/beam/manifest.json")
+                    .parse::<Url>()
+                    .unwrap(),
+                vec![
+                    "ex",
+                    "exs",
+                    "erl",
+                    "hrl",
+                    "rebar.config",
+                    "erl.mk",
+                    "rebar.lock",
+                    "mix.lock",
+                ],
+            ),
+        ];
 
         let mut tricorders = FxHashMap::default();
 

@@ -45,20 +45,20 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
     /// topographical-sort over the dependency graph of the targets.
     ///
     #[tracing::instrument(name = "WorkerPool::execute", skip(self))]
-    pub async fn execute(&self, targets: &[TargetId]) -> Result<Arc<TaskResults>, WorkerPoolError> {
-        if targets.is_empty() {
+    pub async fn execute(&self, tasks: &[Task]) -> Result<Arc<TaskResults>, WorkerPoolError> {
+        if tasks.is_empty() {
             self.event_channel
                 .send(Event::BuildCompleted(std::time::Instant::now()));
             let empty_results = Arc::new(TaskResults::default());
             return Ok(empty_results);
         }
 
-        let main_worker = self.spawn_worker(Role::MainWorker, Some(targets));
+        let main_worker = self.spawn_worker(Role::MainWorker(tasks.to_vec()));
 
         // NOTE(@ostera): we are skipping the 1st threads since that's the main worker.
         let mut worker_tasks = vec![];
         for worker_id in 1..self.worker_pool.num_threads() {
-            worker_tasks.push(self.spawn_worker(Role::HelperWorker(worker_id), None));
+            worker_tasks.push(self.spawn_worker(Role::HelperWorker(worker_id)));
         }
 
         let (main_result, helper_results) =
@@ -72,14 +72,10 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
         self.event_channel
             .send(Event::BuildCompleted(std::time::Instant::now()));
 
-        Ok(self.ctx.results().clone())
+        Ok(self.ctx.results())
     }
 
-    fn spawn_worker(
-        &self,
-        role: Role,
-        _targets: Option<&[TargetId]>,
-    ) -> tokio::task::JoinHandle<Result<(), WorkerPoolError>> {
+    fn spawn_worker(&self, role: Role) -> tokio::task::JoinHandle<Result<(), WorkerPoolError>> {
         let ctx = self.ctx.clone();
         self.worker_pool.spawn_pinned(move || async move {
             let mut worker = W::new(role, ctx)?;
@@ -214,7 +210,10 @@ mod tests {
             .build()
             .unwrap();
         let pool: WorkerPool<FixtureWorker> = WorkerPool::from_shared_context(ec, config, ctx);
-        let results = pool.execute(&[target_id]).await.unwrap();
+        let results = pool
+            .execute(&[Task::new(Goal::Build, target_id)])
+            .await
+            .unwrap();
         assert_eq!(results.len(), 1);
     }
 }

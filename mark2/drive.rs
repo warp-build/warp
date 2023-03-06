@@ -1,12 +1,14 @@
 use super::*;
 use crate::archive::ArchiveManager;
 use crate::events::EventChannel;
-use crate::model::Target;
+use crate::model::{Goal, Target};
 use crate::resolver::DefaultResolver;
 use crate::store::DefaultStore;
 use crate::sync::Arc;
 use crate::tricorder::GrpcTricorder;
-use crate::worker::{LocalSharedContext, LocalWorker, TaskResults, WorkerPool, WorkerPoolError};
+use crate::worker::{
+    LocalSharedContext, LocalWorker, Task, TaskResults, WorkerPool, WorkerPoolError,
+};
 use crate::workspace::WorkspaceManagerError;
 use thiserror::*;
 use tracing::*;
@@ -61,6 +63,7 @@ impl WarpDriveMarkII {
     #[tracing::instrument(name = "WarpDriveMarkII::execute", skip(self))]
     pub async fn execute(
         &mut self,
+        goal: Goal,
         targets: &[Target],
     ) -> Result<Arc<TaskResults>, WarpDriveError> {
         self.shared_ctx
@@ -73,7 +76,13 @@ impl WarpDriveMarkII {
             .shared_ctx
             .target_registry
             .register_many_targets(targets);
-        let results = self.worker_pool.execute(&target_ids).await?;
+
+        let tasks: Vec<Task> = target_ids
+            .into_iter()
+            .map(|target_id| Task::new(goal, target_id))
+            .collect();
+
+        let results = self.worker_pool.execute(&tasks).await?;
 
         self.return_to_invocation_dir()?;
 

@@ -54,6 +54,13 @@ impl<R: Resolver> Worker for LocalWorker<R> {
 
     #[tracing::instrument(name = "LocalWorker::run", skip(self))]
     async fn run(&mut self) -> Result<(), WorkerError> {
+        for task in self.role.tasks() {
+            let _ = self.ctx.task_queue.queue(*task)?;
+        }
+        if self.role.is_main_worker() {
+            self.ctx.task_results.mark_as_ready();
+        }
+
         while self.ctx.coordinator.should_run() {
             // NOTE(@ostera): we don't want things to burn CPU cycles
             tokio::time::sleep(std::time::Duration::from_micros(10)).await;
@@ -126,6 +133,12 @@ pub enum LocalWorkerError {
     ResolverError(ResolverError),
 }
 
+impl From<TaskQueueError> for WorkerError {
+    fn from(err: TaskQueueError) -> Self {
+        WorkerError::TaskQueueError(err)
+    }
+}
+
 impl From<LocalWorkerError> for WorkerError {
     fn from(err: LocalWorkerError) -> Self {
         Self::LocalWorkerError(err)
@@ -169,7 +182,7 @@ mod tests {
 
         ctx.coordinator.signal_shutdown();
 
-        let mut w = LocalWorker::new(Role::MainWorker, ctx).unwrap();
+        let mut w = LocalWorker::new(Role::MainWorker(vec![]), ctx).unwrap();
         w.run().await.unwrap();
     }
 
@@ -201,7 +214,7 @@ mod tests {
         ctx.task_queue.queue(task).unwrap();
         assert!(!ctx.task_queue.is_empty());
 
-        let mut w = LocalWorker::new(Role::MainWorker, ctx.clone()).unwrap();
+        let mut w = LocalWorker::new(Role::MainWorker(vec![]), ctx.clone()).unwrap();
         let result = w.run().await;
 
         assert!(result.is_err());
