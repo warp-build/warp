@@ -1,5 +1,7 @@
 include!(concat!(env!("OUT_DIR"), "/_include.rs"));
 
+use std::collections::HashMap;
+
 use build::warp::tricorder::generate_signature_response;
 use build::warp::tricorder::tricorder_service_server::{TricorderService, TricorderServiceServer};
 use build::warp::tricorder::*;
@@ -36,11 +38,35 @@ impl TricorderService for TestTricorder {
             response: Some(generate_signature_response::Response::Ok(
                 GenerateSignatureSuccessResponse {
                     workspace_root: req.workspace_root,
-                    file: req.file,
+                    file: req.file.clone(),
                     symbol: req.symbol,
                     signatures: vec![Signature {
-                        rule: "test-rule".to_string(),
-                        ..Default::default()
+                        rule: "test_rule".to_string(),
+                        name: req.file.clone(),
+                        deps: vec![],
+                        runtime_deps: vec![],
+                        config: Some(google::protobuf::Struct {
+                            fields: {
+                                let mut config = HashMap::default();
+                                config.insert(
+                                    "srcs".to_string(),
+                                    google::protobuf::Value {
+                                        kind: Some(google::protobuf::value::Kind::ListValue(
+                                            google::protobuf::ListValue {
+                                                values: vec![google::protobuf::Value {
+                                                    kind: Some(
+                                                        google::protobuf::value::Kind::StringValue(
+                                                            req.file,
+                                                        ),
+                                                    ),
+                                                }],
+                                            },
+                                        )),
+                                    },
+                                );
+                                config
+                            },
+                        }),
                     }],
                 },
             )),

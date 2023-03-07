@@ -1,5 +1,6 @@
 const impl = (ctx) => {
-  panic("oh no");
+  const { srcs } = ctx.cfg();
+  ctx.action().declareOutputs(srcs);
 };
 
 export default Warp.Rule({
@@ -8,5 +9,6 @@ export default Warp.Rule({
   impl,
   cfg: {
     name: target(),
+    srcs: [file()],
   },
 });

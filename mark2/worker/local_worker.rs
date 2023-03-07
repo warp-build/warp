@@ -136,7 +136,7 @@ where
             _flow => return Ok(WorkerFlow::RetryLater),
         };
 
-        let _executable_spec = match self.planner.plan(signature, self.env.clone()).await? {
+        let executable_spec = match self.planner.plan(signature, self.env.clone()).await? {
             PlanningFlow::Planned { spec } => spec,
             _flow => return Ok(WorkerFlow::RetryLater),
         };

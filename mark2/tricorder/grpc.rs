@@ -1,7 +1,7 @@
 use self::proto::build::warp::tricorder::generate_signature_response::Response;
 use self::proto::build::warp::tricorder::EnsureReadyRequest;
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
-use crate::model::{ConcreteTarget, Signature, SignatureError};
+use crate::model::{rule, ConcreteTarget, Signature, SignatureError};
 use async_trait::async_trait;
 
 /// Protobuf generated code.
@@ -65,10 +65,14 @@ impl Tricorder for GrpcTricorder {
         match res {
             Response::Ok(res) => {
                 let mut signatures = vec![];
-                for proto_sig in res.signatures.into_iter() {
+                for mut proto_sig in res.signatures.into_iter() {
+                    let mut config: rule::Config = proto_sig.config.take().unwrap().into();
+                    config.insert("name".to_string(), rule::Value::String(proto_sig.name));
+
                     let sig = Signature::builder()
                         .rule(proto_sig.rule)
                         .target(concrete_target.clone())
+                        .config(config)
                         .build()?;
                     signatures.push(sig);
                 }
@@ -90,5 +94,38 @@ impl From<tonic::Status> for TricorderError {
 impl From<SignatureError> for TricorderError {
     fn from(value: SignatureError) -> Self {
         TricorderError::SignatureError(value)
+    }
+}
+
+impl From<proto::google::protobuf::Struct> for rule::Config {
+    fn from(values: proto::google::protobuf::Struct) -> Self {
+        let mut cfg = Self::default();
+        for (k, v) in values.fields {
+            cfg.insert(k, v.into())
+        }
+        cfg
+    }
+}
+
+impl From<proto::google::protobuf::Value> for rule::Value {
+    fn from(val: proto::google::protobuf::Value) -> Self {
+        match val.kind.unwrap() {
+            proto::google::protobuf::value::Kind::StringValue(k) => Self::String(k),
+            proto::google::protobuf::value::Kind::ListValue(l) => l.into(),
+            proto::google::protobuf::value::Kind::NullValue(_) => unimplemented!(),
+            proto::google::protobuf::value::Kind::NumberValue(_) => unimplemented!(),
+            proto::google::protobuf::value::Kind::BoolValue(_) => unimplemented!(),
+            proto::google::protobuf::value::Kind::StructValue(_) => unimplemented!(),
+        }
+    }
+}
+
+impl From<proto::google::protobuf::ListValue> for rule::Value {
+    fn from(list: proto::google::protobuf::ListValue) -> Self {
+        let mut items = vec![];
+        for item in list.values {
+            items.push(item.into());
+        }
+        Self::List(items)
     }
 }

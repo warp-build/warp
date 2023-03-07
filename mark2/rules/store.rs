@@ -13,7 +13,7 @@ use url::Url;
 pub struct RuleStore {
     global_rules_root: PathBuf,
     loaded_rules: DashMap<String, PathBuf>,
-    public_store_url: Url,
+    public_rule_store_url: Url,
     client: reqwest::Client,
     _lock: Arc<Mutex<()>>,
 }
@@ -23,7 +23,7 @@ impl RuleStore {
         Self {
             global_rules_root: config.rule_store_root().clone(),
             loaded_rules: DashMap::default(),
-            public_store_url: config.public_rule_store_url().clone(),
+            public_rule_store_url: config.public_rule_store_url().clone(),
             client: config.http_client().clone(),
             _lock: Arc::new(Mutex::new(())),
         }
@@ -133,7 +133,7 @@ impl RuleStore {
         if url.is_ok() {
             name.to_string()
         } else {
-            let mut url = self.public_store_url.clone();
+            let mut url = self.public_rule_store_url.clone();
             url.set_path(name);
             url.to_string()
         }
@@ -205,12 +205,12 @@ mod tests {
 
         let rs = RuleStore::new(&config);
 
-        let rule_name = "dummy_rule.js";
-
+        let rule_name = "dummy_rule";
         assert_eq!(
             rs.get(rule_name).await.unwrap(),
             *rs.loaded_rules.get(&rs.normalize_name(rule_name)).unwrap()
         );
+
         m.assert();
     }
 

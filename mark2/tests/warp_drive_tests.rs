@@ -1,4 +1,5 @@
 use assert_fs::prelude::*;
+use url::Url;
 use warp_core_mark2::{Config, Goal, Target, WarpDriveMarkII, WARPFILE};
 
 mod common;
@@ -87,22 +88,24 @@ async fn executes_target() {
     let file_target = curr_workspace.child("good_file.warp_test");
     file_target.write_str("dummy data").unwrap();
 
+    let mock_url = mockito::server_url().parse::<Url>().unwrap();
     let config = Config::builder()
         .warp_root(warp_root.path().to_path_buf())
         .invocation_dir(curr_workspace.path().to_path_buf())
-        .public_store_cdn_url(mockito::server_url().parse().unwrap())
-        .public_store_metadata_url(mockito::server_url().parse().unwrap())
+        .public_store_cdn_url(mock_url.clone())
+        .public_store_metadata_url(mock_url.clone())
+        .public_rule_store_url(mock_url)
         .build()
         .unwrap();
 
     // NOTE(@ostera): this mock will be used to not fetch the real tricorder
-    let _public_store_mock1 = mockito::mock("GET", "/a-hash.tar.gz")
+    let public_store_mock = mockito::mock("GET", "/a-hash.tar.gz")
         .with_status(200)
         .with_body(include_bytes!("./test_tricorder/package.tar.gz"))
         .create();
 
     // NOTE(@ostera): this mock will be used to download the manifest
-    let _package_manifest_mock = mockito::mock("GET", "/tricorder/test/manifest.json")
+    let package_manifest_mock = mockito::mock("GET", "/tricorder/test/manifest.json")
         .with_status(200)
         .with_body(
             r#"
@@ -119,9 +122,18 @@ async fn executes_target() {
         )
         .create();
 
+    let rule_store_mock = mockito::mock("GET", "/test_rule.js")
+        .with_status(200)
+        .with_body(include_bytes!("./fixtures/rules/test_rule.js"))
+        .create();
+
     let mut drive = WarpDriveMarkII::new(config).await.unwrap();
 
     let target: Target = curr_workspace.path().join("good_file.warp_test").into();
 
     drive.execute(Goal::Build, &[target]).await.unwrap();
+
+    public_store_mock.assert();
+    package_manifest_mock.assert();
+    rule_store_mock.assert();
 }
