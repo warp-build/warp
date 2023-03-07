@@ -3,6 +3,7 @@ use crate::config::Config;
 use crate::events::EventChannel;
 use crate::planner::DefaultPlannerContext;
 use crate::resolver::{Resolver, TargetRegistry};
+use crate::rules::RuleStore;
 use crate::store::{DefaultStore, Store};
 use crate::sync::Arc;
 use crate::workspace::WorkspaceManager;
@@ -26,6 +27,7 @@ pub struct LocalSharedContext<R: Resolver, S: Store> {
     pub(crate) workspace_manager: Arc<WorkspaceManager>,
     pub(crate) resolver: Arc<R>,
     pub(crate) artifact_store: Arc<S>,
+    pub(crate) rule_store: Arc<RuleStore>,
 }
 
 impl<R, S> LocalSharedContext<R, S>
@@ -39,7 +41,7 @@ where
     )]
     pub fn new(
         event_channel: Arc<EventChannel>,
-        options: Config,
+        config: Config,
         target_registry: Arc<TargetRegistry>,
         resolver: R,
         artifact_store: Arc<S>,
@@ -58,6 +60,8 @@ where
 
         let resolver = Arc::new(resolver);
 
+        let rule_store = Arc::new(RuleStore::new(&config));
+
         Self {
             artifact_store,
             coordinator,
@@ -67,6 +71,7 @@ where
             task_queue,
             task_results,
             workspace_manager,
+            rule_store,
         }
     }
 }
@@ -84,9 +89,10 @@ where
 impl<R: Resolver> From<LocalSharedContext<R, DefaultStore>> for DefaultPlannerContext {
     fn from(ctx: LocalSharedContext<R, DefaultStore>) -> Self {
         Self::new(
-            ctx.artifact_store.clone(),
-            ctx.target_registry.clone(),
+            ctx.artifact_store,
+            ctx.target_registry,
             ctx.task_results,
+            ctx.rule_store,
         )
     }
 }

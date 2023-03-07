@@ -1,8 +1,8 @@
-use std::path::PathBuf;
-
-use crate::model::Target;
+use crate::model::{Target, TargetError};
 use fxhash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use thiserror::Error;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
@@ -28,6 +28,18 @@ pub struct Spec {
 }
 
 impl Spec {
+    pub fn new(_inner: FxHashMap<String, Type>) -> Self {
+        Self { _inner }
+    }
+
+    pub fn get(&self, k: &str) -> Option<&Type> {
+        self._inner.get(k)
+    }
+
+    pub fn insert(&mut self, k: String, v: Type) {
+        self._inner.insert(k, v);
+    }
+
     pub fn as_map(&self) -> &FxHashMap<String, Type> {
         &self._inner
     }
@@ -39,6 +51,10 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn new(_inner: FxHashMap<String, Value>) -> Self {
+        Self { _inner }
+    }
+
     pub fn get(&self, k: &str) -> Option<&Value> {
         self._inner.get(k)
     }
@@ -54,4 +70,19 @@ impl Config {
     pub fn values(&self) -> &FxHashMap<String, Value> {
         &self._inner
     }
+}
+
+#[derive(Error, Debug)]
+pub enum ConfigError {
+    #[error(transparent)]
+    TargetError(TargetError),
+
+    #[error("Expected to find value of type {expected:?} but instead found {actual:?}")]
+    TypeMismatch {
+        expected: Type,
+        actual: serde_json::Value,
+    },
+
+    #[error("Value {value:?} is not of a supported type.")]
+    UnsupportedValueType { value: serde_json::Value },
 }

@@ -138,22 +138,26 @@ impl ComputeScript {
                 .collect(),
         );
 
-        let target: serde_json::Value = serde_json::to_value(sig.target().to_string()).unwrap();
+        let target: serde_json::Value = serde_json::to_value(sig.target().target_id()).unwrap();
 
         let env: serde_json::Value = env.clone().into();
 
         let program_template = r#"
 
 (() => {
-    Warp.Signatures.compute({
-      target: {target},
+    let input = {
+      target: {TARGET},
       rule: "{RULE_NAME}",
       cfg: {CONFIG},
       deps: {DEPS},
       transitiveDeps: {TRANSITIVE_DEPS},
       runtimeDeps: {RUNTIME_DEPS},
       env: {ENVIRONMENT},
-    });
+    };
+
+    trace(JSON.stringify(input, null, 2));
+
+    Warp.Signatures.compute(input);
 })();
 
         "#;

@@ -1,5 +1,5 @@
 use crate::resolver::TargetRegistry;
-use crate::rules::SharedJsContext;
+use crate::rules::{RuleStore, SharedJsContext};
 use crate::store::DefaultStore;
 use crate::sync::*;
 use crate::worker::TaskResults;
@@ -9,6 +9,7 @@ pub struct DefaultPlannerContext {
     pub(crate) artifact_store: Arc<DefaultStore>,
     pub(crate) target_registry: Arc<TargetRegistry>,
     pub(crate) task_results: Arc<TaskResults>,
+    pub(crate) rule_store: Arc<RuleStore>,
 }
 
 impl DefaultPlannerContext {
@@ -16,21 +17,20 @@ impl DefaultPlannerContext {
         artifact_store: Arc<DefaultStore>,
         target_registry: Arc<TargetRegistry>,
         task_results: Arc<TaskResults>,
+        rule_store: Arc<RuleStore>,
     ) -> Self {
         Self {
             artifact_store,
             target_registry,
             task_results,
+            rule_store,
         }
     }
 }
 
 impl From<DefaultPlannerContext> for SharedJsContext {
     fn from(ctx: DefaultPlannerContext) -> Self {
-        SharedJsContext {
-            task_results: ctx.task_results,
-            ..Default::default()
-        }
+        SharedJsContext::new(ctx.target_registry, ctx.task_results, ctx.rule_store)
     }
 }
 

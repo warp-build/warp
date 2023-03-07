@@ -4,4 +4,4 @@ mod executor;
 mod store;
 
 pub use executor::*;
-use store::*;
+pub use store::*;

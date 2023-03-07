@@ -1,9 +1,9 @@
-use crate::event::*;
-use crate::event_channel::*;
-use crate::Label;
-use async_compression::futures::bufread::GzipDecoder;
-use std::path::PathBuf;
+use crate::events::{Event, EventChannel};
 use crate::sync::Arc;
+use crate::Target;
+use async_compression::futures::bufread::GzipDecoder;
+use futures::AsyncReadExt;
+use std::path::PathBuf;
 use tokio::fs;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
@@ -17,7 +17,7 @@ impl ExtractAction {
     #[tracing::instrument(name = "action::ExtractAction::run")]
     pub async fn run(
         &self,
-        label: Label,
+        target: Target,
         sandbox_root: &PathBuf,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
@@ -25,7 +25,7 @@ impl ExtractAction {
 
         let dst = fs::canonicalize(sandbox_root.join(&self.dst)).await?;
 
-        event_channel.send(Event::ArchiveUnpacking(label));
+        event_channel.send(Event::ArchiveUnpacking(target.to_string()));
 
         match async_zip::read::seek::ZipFileReader::new(&mut file).await {
             Ok(mut zip) => {
@@ -46,10 +46,16 @@ impl ExtractAction {
             }
             Err(_) => {
                 let file = fs::File::open(&sandbox_root.join(&self.src)).await?;
-                let decompress_stream =
-                    GzipDecoder::new(futures::io::BufReader::new(file.compat()));
-                let tar = async_tar::Archive::new(decompress_stream);
-                tar.unpack(dst).await?;
+                let mut unzip_stream = GzipDecoder::new(futures::io::BufReader::new(file.compat()));
+
+                let mut data = vec![];
+                unzip_stream.read_to_end(&mut data).await?;
+
+                tokio::task::spawn_blocking(move || {
+                    let mut tar = tar::Archive::new(std::io::BufReader::new(&*data));
+                    tar.unpack(dst)
+                })
+                .await??;
             }
         }
 

@@ -103,6 +103,12 @@ pub struct AliasTarget {
     alias: String,
 }
 
+impl AliasTarget {
+    pub fn alias(&self) -> &str {
+        self.alias.as_ref()
+    }
+}
+
 impl Default for AliasTarget {
     fn default() -> Self {
         Self {

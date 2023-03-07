@@ -32,14 +32,17 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         goal: Goal,
         target_id: TargetId,
         target: Arc<Target>,
-    ) -> Result<ConcreteTarget, ResolverError> {
+    ) -> Result<Arc<ConcreteTarget>, ResolverError> {
         let final_path = match &*target {
             // Target::Alias(a) => self.alias_resolver.resolve(goal, a).await?,
             // Target::Remote(r) => self.net_resolver.resolve(goal, r).await?,
             Target::Fs(f) => self.fs_resolver.resolve(goal, f).await?,
             _ => todo!(),
         };
-        Ok(ConcreteTarget::new(goal, target_id, target, final_path))
+        let ct = ConcreteTarget::new(goal, target_id, target, final_path);
+        Ok(self
+            .target_registry
+            .associate_concrete_target(target_id, ct))
     }
 }
 

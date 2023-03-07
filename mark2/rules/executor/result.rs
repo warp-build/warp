@@ -1,8 +1,6 @@
-use crate::model::RunScript;
+use crate::{executor::actions::Action, model::RunScript};
 use fxhash::{FxHashMap, FxHashSet};
 use std::path::PathBuf;
-
-type Action = ();
 
 #[derive(Default)]
 pub struct ExecutionResult {

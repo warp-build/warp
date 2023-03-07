@@ -1,11 +1,10 @@
-use crate::event::*;
-use crate::event_channel::*;
-use crate::Label;
+use crate::events::{Event, EventChannel};
+use crate::sync::Arc;
+use crate::Target;
 use anyhow::*;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use std::path::PathBuf;
-use crate::sync::Arc;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 
@@ -19,11 +18,11 @@ impl VerifyChecksumAction {
     #[tracing::instrument(name = "action::VerifyChecksumAction::run")]
     pub async fn run(
         &self,
-        label: Label,
+        target: Target,
         sandbox_root: &PathBuf,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        event_channel.send(Event::ArchiveVerifying(label));
+        event_channel.send(Event::ArchiveVerifying(target.to_string()));
 
         let mut outfile = fs::File::open(sandbox_root.join(&self.file)).await?;
         let mut hasher = Sha1::new();

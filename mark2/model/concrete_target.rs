@@ -37,6 +37,10 @@ impl ConcreteTarget {
         &self.path
     }
 
+    pub fn name(&self) -> &str {
+        self.path.file_name().unwrap().to_str().unwrap()
+    }
+
     pub fn target_id(&self) -> TargetId {
         self.target_id
     }

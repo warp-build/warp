@@ -9,6 +9,7 @@ use tokio::fs;
 use tokio::io::AsyncWriteExt;
 use url::Url;
 
+#[derive(Debug, Clone)]
 pub struct RuleStore {
     global_rules_root: PathBuf,
     loaded_rules: DashMap<String, PathBuf>,
@@ -27,6 +28,7 @@ impl RuleStore {
             _lock: Arc::new(Mutex::new(())),
         }
     }
+
     /// Get a Rule by name.
     pub async fn get(&self, name: &str) -> Result<PathBuf, RuleStoreError> {
         let normalized_name = self.normalize_name(name);
@@ -55,7 +57,7 @@ impl RuleStore {
     }
 
     async fn find_in_global_rules(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
-        let path = self.global_rules_root.join(name).with_extension("js");
+        let path = self._global_rule_path(name);
         let meta = fs::metadata(&path)
             .await
             .map_err(|err| RuleStoreError::FileSystemError {
@@ -85,7 +87,7 @@ impl RuleStore {
         })?;
 
         if response.status().is_success() {
-            let path = self.global_rules_root.join(&name).with_extension("js");
+            let path = self._global_rule_path(&name);
 
             self.stream_response(response, path.clone())
                 .await
@@ -135,6 +137,14 @@ impl RuleStore {
             url.set_path(name);
             url.to_string()
         }
+    }
+
+    /// NOTE(@ostera): when normalizing the name to use it in paths, we need to drop the
+    /// protocol :// so `http://hello.world/a` becomes `http/hello.world/a` which is a valid
+    /// path name.
+    fn _global_rule_path(&self, name: &str) -> PathBuf {
+        let name = name.replace("://", "/");
+        self.global_rules_root.join(name).with_extension("js")
     }
 }
 

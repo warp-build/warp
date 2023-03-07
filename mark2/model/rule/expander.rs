@@ -16,15 +16,16 @@ impl Expander {
     pub async fn expand(&self, rule: &Rule, sig: &Signature) -> Result<Config, ExpanderError> {
         let mut values: Config = rule.defaults().clone();
 
-        for (key, value_type) in rule.config().as_map() {
+        for (key, value_type) in rule.spec().as_map() {
             trace!("Expanding {:?} of type {:?}", key, value_type);
             let value = match sig.config().get(key) {
                 Some(value) => value,
                 None => values
                     .get(key)
                     .ok_or_else(|| ExpanderError::MissingMandatoryField {
-                        sig: Box::new(sig.clone()),
+                        sig: sig.clone().into(),
                         field_name: key.clone(),
+                        rule: rule.clone().into(),
                     })?,
             }
             .clone();
@@ -131,6 +132,7 @@ pub enum ExpanderError {
     MissingMandatoryField {
         sig: Box<Signature>,
         field_name: String,
+        rule: Box<Rule>,
     },
 
     #[error("Invalid glob pattern: {path:?}\n\nError: {err:?}")]

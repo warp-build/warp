@@ -1,11 +1,11 @@
 use super::*;
-use crate::EventChannel;
-use crate::Label;
+use crate::events::EventChannel;
+use crate::sync::Arc;
+use crate::Target;
 use anyhow::*;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
@@ -70,7 +70,7 @@ impl Action {
 
     pub async fn run(
         &self,
-        label: Label,
+        target: Target,
         store_root: &PathBuf,
         env: &BTreeMap<String, String>,
         event_channel: Arc<EventChannel>,
@@ -78,12 +78,12 @@ impl Action {
         match self {
             Action::Exec(a) => a.run(store_root).await,
             Action::Copy(a) => a.run(store_root).await,
-            Action::Download(a) => a.run(label, store_root, event_channel).await,
-            Action::Extract(a) => a.run(label, store_root, event_channel).await,
+            Action::Download(a) => a.run(target, store_root, event_channel).await,
+            Action::Extract(a) => a.run(target, store_root, event_channel).await,
             Action::WriteFile(a) => a.run(store_root).await,
             Action::RunShell(a) => a.run(store_root, env).await,
             Action::SetPermissions(a) => a.run(store_root).await,
-            Action::VerifyChecksum(a) => a.run(label, store_root, event_channel).await,
+            Action::VerifyChecksum(a) => a.run(target, store_root, event_channel).await,
         }
     }
 }

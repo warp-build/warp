@@ -1,5 +1,6 @@
 use super::*;
 use crate::Config;
+use async_compression::tokio::bufread::GzipDecoder;
 use futures::stream::TryStreamExt;
 use thiserror::*;
 use tokio::io::AsyncReadExt;
@@ -32,7 +33,7 @@ impl PublicStore {
                 .bytes_stream()
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
             let byte_reader = tokio_util::io::StreamReader::new(byte_stream);
-            let mut unzip_stream = async_compression::tokio::bufread::GzipDecoder::new(byte_reader);
+            let mut unzip_stream = GzipDecoder::new(byte_reader);
 
             let mut data = vec![];
             unzip_stream.read_to_end(&mut data).await?;

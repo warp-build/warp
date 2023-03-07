@@ -1,4 +1,7 @@
+use crate::executor::actions::Action;
 use crate::model::{Rule, RunScript, TargetId};
+use crate::resolver::TargetRegistry;
+use crate::rules::store::RuleStore;
 use crate::sync::*;
 use crate::worker::TaskResults;
 use dashmap::DashMap;
@@ -6,12 +9,8 @@ use fxhash::FxHashMap;
 use std::path::PathBuf;
 use uuid::Uuid;
 
-// TODO(@ostera): remove when we bring in the executor/actions module
-type Action = ();
-
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct SharedJsContext {
-    pub(crate) task_results: Arc<TaskResults>,
     pub(crate) action_map: Arc<DashMap<TargetId, Vec<Action>>>,
     pub(crate) env_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
     pub(crate) loaded_modules: FxHashMap<String, ()>,
@@ -19,30 +18,57 @@ pub struct SharedJsContext {
     pub(crate) output_map: Arc<DashMap<TargetId, Vec<PathBuf>>>,
     pub(crate) provides_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
     pub(crate) rule_map: Arc<DashMap<String, Rule>>,
+    pub(crate) rule_store: Arc<RuleStore>,
     pub(crate) run_script_map: Arc<DashMap<TargetId, RunScript>>,
+    pub(crate) target_registry: Arc<TargetRegistry>,
+    pub(crate) task_results: Arc<TaskResults>,
+}
+
+impl SharedJsContext {
+    pub fn new(
+        target_registry: Arc<TargetRegistry>,
+        task_results: Arc<TaskResults>,
+        rule_store: Arc<RuleStore>,
+    ) -> SharedJsContext {
+        Self {
+            action_map: Default::default(),
+            env_map: Default::default(),
+            loaded_modules: Default::default(),
+            loaded_rules: Default::default(),
+            output_map: Default::default(),
+            provides_map: Default::default(),
+            rule_map: Default::default(),
+            rule_store,
+            run_script_map: Default::default(),
+            target_registry,
+            task_results,
+        }
+    }
 }
 
 #[derive(Default, Clone, Debug)]
 pub struct FfiContext {
-    pub(crate) id: Uuid,
     pub(crate) action_map: Arc<DashMap<TargetId, Vec<Action>>>,
     pub(crate) env_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
+    pub(crate) id: Uuid,
     pub(crate) output_map: Arc<DashMap<TargetId, Vec<PathBuf>>>,
     pub(crate) provides_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
     pub(crate) rule_map: Arc<DashMap<String, Rule>>,
     pub(crate) run_script_map: Arc<DashMap<TargetId, RunScript>>,
+    pub(crate) target_registry: Arc<TargetRegistry>,
 }
 
 impl From<SharedJsContext> for FfiContext {
     fn from(ctx: SharedJsContext) -> Self {
         Self {
-            id: Uuid::new_v4(),
-            rule_map: ctx.rule_map,
-            run_script_map: ctx.run_script_map,
             action_map: ctx.action_map,
+            env_map: ctx.env_map,
+            id: Uuid::new_v4(),
             output_map: ctx.output_map,
             provides_map: ctx.provides_map,
-            env_map: ctx.env_map,
+            rule_map: ctx.rule_map,
+            run_script_map: ctx.run_script_map,
+            target_registry: ctx.target_registry,
         }
     }
 }

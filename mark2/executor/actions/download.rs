@@ -1,12 +1,12 @@
-use crate::event::*;
-use crate::event_channel::*;
-use crate::Label;
+use crate::events::Event;
+use crate::events::EventChannel;
+use crate::sync::Arc;
+use crate::Target;
 use anyhow::*;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use futures::StreamExt;
 use std::path::PathBuf;
-use crate::sync::Arc;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -22,7 +22,7 @@ impl DownloadAction {
     #[tracing::instrument(name = "action::DownloadAction::run")]
     pub async fn run(
         &self,
-        label: Label,
+        target: Target,
         sandbox_root: &PathBuf,
         event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
@@ -31,7 +31,7 @@ impl DownloadAction {
         let mut outfile = fs::File::create(&out_path).await?;
 
         event_channel.send(Event::ArchiveDownloading {
-            label: label.clone(),
+            target: target.to_string(),
             url: self.url.clone(),
         });
 
@@ -41,7 +41,7 @@ impl DownloadAction {
             outfile.write_all_buf(&mut chunk?).await?;
         }
 
-        event_channel.send(Event::ArchiveVerifying(label));
+        event_channel.send(Event::ArchiveVerifying(target.to_string()));
 
         let mut outfile = fs::File::open(out_path).await?;
         let mut hasher = Sha1::new();

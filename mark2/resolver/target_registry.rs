@@ -1,5 +1,5 @@
 use super::*;
-use crate::model::{Target, TargetId};
+use crate::model::{ConcreteTarget, Target, TargetId};
 use crate::sync::{Arc, Mutex};
 use dashmap::DashMap;
 use thiserror::*;
@@ -12,6 +12,7 @@ use tracing::*;
 pub struct TargetRegistry {
     ids: DashMap<Arc<Target>, TargetId>,
     targets: DashMap<TargetId, Arc<Target>>,
+    concrete_targets: DashMap<TargetId, Arc<ConcreteTarget>>,
 
     // NOTE(@ostera): only used to serialize the calls to `register_target` and prevent registering
     // the same target under two different ids.
@@ -86,6 +87,21 @@ impl TargetRegistry {
     #[tracing::instrument(name = "TargetRegistry::get", skip(self))]
     pub fn get_target(&self, id: TargetId) -> Arc<Target> {
         (*self.targets.get(&id).unwrap()).clone()
+    }
+
+    #[tracing::instrument(name = "TargetRegistry::get", skip(self))]
+    pub fn get_concrete_target(&self, id: TargetId) -> Arc<ConcreteTarget> {
+        (*self.concrete_targets.get(&id).unwrap()).clone()
+    }
+
+    pub fn associate_concrete_target(
+        &self,
+        id: TargetId,
+        ct: ConcreteTarget,
+    ) -> Arc<ConcreteTarget> {
+        let ct: Arc<ConcreteTarget> = ct.into();
+        self.concrete_targets.insert(id, ct.clone());
+        ct
     }
 
     pub fn len(&self) -> usize {
