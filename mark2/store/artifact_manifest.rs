@@ -132,6 +132,18 @@ impl ArtifactManifest {
     pub fn provides(&self, binary: &str) -> Option<&PathBuf> {
         self.provides.get(binary)
     }
+
+    pub fn rule_name(&self) -> &str {
+        self.rule_name.as_ref()
+    }
+
+    pub fn srcs(&self) -> &[PathBuf] {
+        self.srcs.as_ref()
+    }
+
+    pub fn outs(&self) -> &[PathBuf] {
+        self.outs.as_ref()
+    }
 }
 
 #[cfg(test)]

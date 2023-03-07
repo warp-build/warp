@@ -26,13 +26,14 @@ impl DefaultPlannerContext {
 }
 
 impl From<DefaultPlannerContext> for SharedJsContext {
-    fn from(value: DefaultPlannerContext) -> Self {
-        SharedJsContext::default()
+    fn from(ctx: DefaultPlannerContext) -> Self {
+        SharedJsContext {
+            task_results: ctx.task_results,
+            ..Default::default()
+        }
     }
 }
 
 impl From<DefaultPlannerContext> for () {
-    fn from(_value: DefaultPlannerContext) -> Self {
-        ()
-    }
+    fn from(_value: DefaultPlannerContext) {}
 }

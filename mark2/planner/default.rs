@@ -116,7 +116,7 @@ mod tests {
     use crate::archive::ArchiveManager;
     use crate::model::ConcreteTarget;
     use crate::resolver::TargetRegistry;
-    use crate::rules::RuleExecutorError;
+    use crate::rules::{ExecutionResult, RuleExecutorError};
     use crate::store::{ArtifactManifest, DefaultStore};
     use crate::sync::Arc;
     use crate::worker::TaskResults;
@@ -132,11 +132,12 @@ mod tests {
 
         fn execute<'a>(
             &'a mut self,
-            _env: &ExecutionEnvironment,
-            _sig: &Signature,
-            _deps: &Dependencies,
-        ) -> Pin<Box<dyn Future<Output = Result<(), RuleExecutorError>> + 'a>> {
-            async move { Ok(()) }.boxed_local()
+            _env: &'a ExecutionEnvironment,
+            _sig: &'a Signature,
+            _deps: &'a Dependencies,
+        ) -> Pin<Box<dyn Future<Output = Result<ExecutionResult, RuleExecutorError>> + 'a>>
+        {
+            async move { Ok(Default::default()) }.boxed_local()
         }
     }
 

@@ -1,8 +1,16 @@
-use super::{net_module_loader::NetModuleLoader, RuleExecutor, RuleExecutorError};
+use super::net_module_loader::NetModuleLoader;
+use super::{FfiContext, RuleExecutor, RuleExecutorError, SharedJsContext};
+use crate::model::rule::expander::Expander;
+use crate::model::{Dependencies, Rule, RunScript, Signature};
+use crate::rules::executor::compute_script::ComputeScript;
+use crate::rules::ExecutionResult;
+use crate::worker::ExecutionEnvironment;
 use deno_core::Extension;
 use futures::{Future, FutureExt};
+use fxhash::{FxHashMap, FxHashSet};
+use std::path::PathBuf;
 use std::{pin::Pin, rc::Rc};
-use thiserror::Error;
+use tracing::trace;
 
 static JS_SNAPSHOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/JS_SNAPSHOT.bin"));
 
@@ -10,21 +18,6 @@ pub struct JsRuleExecutor {
     ctx: SharedJsContext,
     js_runtime: deno_core::JsRuntime,
     script_count: i32,
-}
-
-#[derive(Default, Debug, Clone)]
-pub struct SharedJsContext {
-    /*
-    rule_map: Arc<DashMap<String, Rule>>,
-    loaded_rules: FxHashMap<String, Rule>,
-    loaded_modules: FxHashMap<String, ()>,
-    action_map: Arc<DashMap<Label, Vec<Action>>>,
-    output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
-    provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
-    env_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
-    run_script_map: Arc<DashMap<Label, RunScript>>,
-    task_results: Arc<TaskResults>,
-    */
 }
 
 impl RuleExecutor for JsRuleExecutor {
@@ -35,26 +28,7 @@ impl RuleExecutor for JsRuleExecutor {
         Self: Sized,
     {
         let extension: deno_core::Extension = {
-            /*
-            let action_map = action_map.clone();
-            let output_map = output_map.clone();
-            let run_script_map = run_script_map.clone();
-
-            let provides_map = ctx.provides_map.clone();
-            let env_map = ctx.env_map.clone();
-            let rule_map = ctx.rule_map.clone();
-
-            let inner_state = InnerState {
-                id: uuid::Uuid::new_v4(),
-                action_map,
-                output_map,
-                provides_map,
-                rule_map,
-                run_script_map,
-                env_map,
-            };
-            */
-
+            let ffi_ctx: FfiContext = ctx.clone().into();
             Extension::builder("warp")
                 .ops(vec![
                     /*
@@ -80,7 +54,7 @@ impl RuleExecutor for JsRuleExecutor {
                     */
                 ])
                 .state(move |state| {
-                    // state.put(inner_state.clone());
+                    state.put(ffi_ctx.clone());
                     Ok(())
                 })
                 .build()
@@ -93,28 +67,123 @@ impl RuleExecutor for JsRuleExecutor {
             extensions: vec![extension, deno_console::init()],
             ..Default::default()
         };
-        let js_runtime = deno_core::JsRuntime::new(rt_options);
+        let mut js_runtime = deno_core::JsRuntime::new(rt_options);
 
-        let mut rule_executor = Self {
+        js_runtime
+            .execute_script("<prelude>", include_str!("prelude.js"))
+            .map_err(RuleExecutorError::DenoExecutionError)?;
+
+        Ok(Self {
             ctx,
             js_runtime,
             script_count: 0,
-        };
-
-        // rule_executor.setup()?;
-
-        Ok(rule_executor)
+        })
     }
 
     fn execute<'a>(
         &'a mut self,
-        env: &crate::worker::ExecutionEnvironment,
-        sig: &crate::model::Signature,
-        deps: &crate::model::Dependencies,
-    ) -> Pin<Box<dyn Future<Output = Result<(), RuleExecutorError>> + 'a>> {
-        async move { todo!() }.boxed_local()
+        env: &'a ExecutionEnvironment,
+        sig: &'a Signature,
+        deps: &'a Dependencies,
+    ) -> Pin<Box<dyn Future<Output = Result<ExecutionResult, RuleExecutorError>> + 'a>> {
+        async move {
+            let rule: Rule = todo!(); // self.ctx.rule_store.get(sig.rule()).await?;
+
+            self.script_count += 1;
+            trace!("executing script {}", self.script_count);
+
+            let config = Expander
+                .expand(&rule, &sig)
+                .await
+                .map_err(RuleExecutorError::ConfigExpanderError)?;
+
+            let compute_program = ComputeScript::as_js_source(
+                self.ctx.task_results.clone(),
+                env,
+                sig,
+                deps,
+                &rule,
+                &config,
+            );
+
+            trace!("Executing: {}", compute_program);
+
+            let script_name = format!("<sig: {:?}>", &sig.target().to_string());
+
+            self.js_runtime
+                .execute_script(&script_name, &compute_program)
+                .map_err(|err| RuleExecutorError::ExecutionError {
+                    err,
+                    target: (*sig.target().original_target()).clone(),
+                    sig: Box::new(sig.clone()),
+                    rule: rule.clone(),
+                })?;
+
+            trace!("Done!");
+
+            let actions = self
+                .ctx
+                .action_map
+                .get(&sig.target().target_id())
+                .map(|entry| entry.value().clone())
+                .unwrap_or_default();
+
+            let outs: FxHashSet<PathBuf> = self
+                .ctx
+                .output_map
+                .get(&sig.target().target_id())
+                .ok_or(RuleExecutorError::MissingDeclaredOutputs {
+                    target: sig.target().target_id(),
+                    outputs: (*self.ctx.output_map).clone(),
+                })?
+                .iter()
+                .cloned()
+                .collect();
+
+            let run_script: Option<RunScript> = self
+                .ctx
+                .run_script_map
+                .get(&sig.target().target_id())
+                .map(|rs| rs.clone());
+
+            let srcs = config.get_file_set();
+
+            let provides = self
+                .ctx
+                .provides_map
+                .get(&sig.target().target_id())
+                .map(|r| r.value().clone())
+                .unwrap_or_default()
+                .into_iter()
+                .map(|(k, v)| (k, PathBuf::from(v)))
+                .collect::<FxHashMap<String, PathBuf>>();
+
+            let env = self
+                .ctx
+                .env_map
+                .get(&sig.target().target_id())
+                .map(|r| r.value().clone())
+                .unwrap_or_default()
+                .into_iter()
+                .collect::<FxHashMap<String, String>>();
+
+            self.ctx.action_map.clear();
+            self.ctx.output_map.clear();
+
+            Ok(ExecutionResult {
+                actions,
+                outs,
+                srcs,
+                run_script,
+                provides,
+                env,
+            })
+        }
+        .boxed_local()
     }
 }
 
-#[derive(Error, Debug)]
-pub enum JsRuleExecutorError {}
+#[cfg(test)]
+mod tests {
+    use super::*;
+}

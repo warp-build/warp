@@ -1,4 +1,5 @@
-use super::{ConcreteTarget, Config, RuleName, Target};
+use super::rule::Config;
+use super::{ConcreteTarget, RuleName, Target};
 use std::path::PathBuf;
 use thiserror::*;
 

@@ -8,19 +8,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::*;
 
-#[derive(Default, Clone, Debug)]
-pub struct InnerState {
-    pub id: uuid::Uuid,
-    /*
-     pub rule_map: Arc<DashMap<String, Rule>>,
-    pub run_script_map: Arc<DashMap<Label, RunScript>>,
-    pub action_map: Arc<DashMap<Label, Vec<Action>>>,
-    pub output_map: Arc<DashMap<Label, Vec<PathBuf>>>,
-    pub provides_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
-    pub env_map: Arc<DashMap<Label, FxHashMap<String, String>>>,
-    */
-}
-
 #[op]
 pub fn op_label_path(label: Label) -> Result<String, AnyError> {
     let path = label.path().to_str().unwrap().to_string();
