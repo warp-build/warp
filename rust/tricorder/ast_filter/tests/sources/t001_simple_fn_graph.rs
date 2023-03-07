@@ -1,11 +1,16 @@
-fn meat() -> bool {
-    false
-}
-
-fn salad() -> bool {
-    true
+fn kartoffel() -> bool {
+	true
 }
 
 fn potato() -> bool {
-    salad()
+	false
+}
+
+fn salad() -> bool {
+    potato()
+}
+
+fn main() -> () {
+	println!("Hello World!");
+	salad();
 }

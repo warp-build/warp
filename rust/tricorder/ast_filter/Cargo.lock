@@ -646,6 +646,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "lsp-server"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68a9b4c78d1c3f35c5864c90e9633377b5f374a4a4983ac64c30b8ae898f9305"
+dependencies = [
+ "crossbeam-channel",
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "matchit"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1492,6 +1504,8 @@ dependencies = [
  "cc",
  "deno_core",
  "insta",
+ "lsp-server",
+ "prettyplease",
  "prost",
  "syn",
  "thiserror",
