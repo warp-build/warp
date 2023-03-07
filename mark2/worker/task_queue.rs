@@ -270,7 +270,6 @@ mod tests {
             }
         }
 
-        dbg!(&tasks);
         for task in tasks {
             assert_eq!(q.next().unwrap(), task);
         }
