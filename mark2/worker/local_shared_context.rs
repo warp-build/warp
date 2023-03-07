@@ -68,3 +68,8 @@ impl<R: Resolver> From<LocalSharedContext<R>> for DefaultPlannerContext {
         Self
     }
 }
+
+#[cfg(test)]
+impl<R: Resolver> From<LocalSharedContext<R>> for () {
+    fn from(_value: LocalSharedContext<R>) {}
+}

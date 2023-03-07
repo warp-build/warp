@@ -187,7 +187,7 @@ impl From<PlannerError> for LocalWorkerError {
 mod tests {
     use super::*;
     use crate::events::EventChannel;
-    use crate::model::{Goal, Signature, Target};
+    use crate::model::{ConcreteTarget, Goal, Signature, Target};
     use crate::planner::PlannerError;
     use crate::{sync::*, Config};
     use async_trait::async_trait;
@@ -281,9 +281,78 @@ mod tests {
 
         let mut w: LocalWorker<ErrResolver, NoopPlanner> =
             LocalWorker::new(Role::MainWorker(vec![]), ctx.clone()).unwrap();
-        let result = w.run().await;
+        let err = w.run().await.unwrap_err();
 
-        assert!(result.is_err());
+        assert_matches!(
+            err,
+            WorkerError::LocalWorkerError(LocalWorkerError::ResolverError(ResolverError::Unknown(
+                _
+            )))
+        );
+        assert!(ctx.coordinator.should_shutdown());
+    }
+
+    #[tokio::test]
+    async fn on_planner_error_worker_signal_shutdown() {
+        #[derive(Clone)]
+        struct ErrPlanner;
+        impl Planner for ErrPlanner {
+            type Context = ();
+
+            fn new(_ctx: Self::Context) -> Result<Self, PlannerError> {
+                Ok(Self)
+            }
+
+            fn plan<'a>(
+                &'a mut self,
+                _sig: Signature,
+                _env: ExecutionEnvironment,
+            ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>> + 'a>>
+            {
+                async move { Err(PlannerError::Unknown) }.boxed_local()
+            }
+        }
+
+        #[derive(Clone)]
+        struct DummyResolver;
+
+        #[async_trait]
+        impl Resolver for DummyResolver {
+            async fn resolve(
+                &self,
+                goal: Goal,
+                target: Arc<Target>,
+            ) -> Result<ResolutionFlow, ResolverError> {
+                let target = ConcreteTarget::new(goal, target, "".into());
+                let signature = Signature::builder()
+                    .rule("dummy_rule".into())
+                    .target(target)
+                    .build()
+                    .unwrap();
+                Ok(ResolutionFlow::Resolved { signature })
+            }
+        }
+
+        let ec = Arc::new(EventChannel::new());
+        let config = Config::builder().build().unwrap();
+        let ctx = LocalSharedContext::new(ec, config, DummyResolver);
+
+        let mut gen = quickcheck::Gen::new(100);
+        let target: Target = Arbitrary::arbitrary(&mut gen);
+        let goal: Goal = Arbitrary::arbitrary(&mut gen);
+        let target_id = ctx.target_registry.register_target(target);
+        let task = Task::new(goal, target_id);
+        ctx.task_queue.queue(task).unwrap();
+        assert!(!ctx.task_queue.is_empty());
+
+        let mut w: LocalWorker<DummyResolver, ErrPlanner> =
+            LocalWorker::new(Role::MainWorker(vec![]), ctx.clone()).unwrap();
+        let err = w.run().await.unwrap_err();
+
+        assert_matches!(
+            err,
+            WorkerError::LocalWorkerError(LocalWorkerError::PlannerError(PlannerError::Unknown))
+        );
         assert!(ctx.coordinator.should_shutdown());
     }
 }
