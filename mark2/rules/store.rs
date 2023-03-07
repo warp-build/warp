@@ -223,17 +223,40 @@ mod tests {
             .with_body(include_bytes!("./fixtures/dummy_rule.js"))
             .expect(0)
             .create();
-        
 
         let rs = RuleStore::new(&config);
 
         let rule_name = "dummy_rule.js";
 
-        rs.loaded_rules.insert(rs.normalize_name(rule_name), PathBuf::new());
+        rs.loaded_rules
+            .insert(rs.normalize_name(rule_name), PathBuf::new());
 
-        assert_eq!(
-            rs.get(rule_name).await.unwrap(),
-            PathBuf::new()
+        assert_eq!(rs.get(rule_name).await.unwrap(), PathBuf::new());
+        m.assert();
+    }
+
+    #[tokio::test]
+    async fn fails_when_cannot_download_file() {
+        let store_root = assert_fs::TempDir::new().unwrap();
+
+        let config = Config::builder()
+            .rule_store_root(store_root.path().to_path_buf())
+            .public_rule_store_url(mockito::server_url().parse::<Url>().unwrap())
+            .build()
+            .unwrap();
+
+        let m = mockito::mock("GET", "/unreachable_rule.js")
+            .with_status(404)
+            .expect(1)
+            .create();
+
+        let rs = RuleStore::new(&config);
+
+        let rule_name = "unreachable_rule.js";
+
+        assert_matches!(
+            rs.get(rule_name).await.unwrap_err(),
+            RuleStoreError::CouldNotFindRule { .. }
         );
         m.assert();
     }
