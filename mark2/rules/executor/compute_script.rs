@@ -1,7 +1,7 @@
 use crate::model::rule::{Config, Value};
-use crate::model::{Dependencies, Rule, Signature};
+use crate::model::{Dependencies, ExecutionEnvironment, Rule, Signature};
 use crate::sync::*;
-use crate::worker::{ExecutionEnvironment, TaskResults};
+use crate::worker::TaskResults;
 
 pub struct ComputeScript;
 

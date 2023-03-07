@@ -7,11 +7,10 @@ pub use default::*;
 pub use default_planner_context::*;
 
 use crate::model::{
-    Dependencies, DependenciesError, ExecutableSpec, ExecutableSpecError, Requirement, Signature,
-    TargetId,
+    Dependencies, DependenciesError, ExecutableSpec, ExecutableSpecError, ExecutionEnvironment,
+    Requirement, Signature, TargetId,
 };
 use crate::rules::RuleExecutorError;
-use crate::worker::ExecutionEnvironment;
 use futures::Future;
 use std::pin::Pin;
 use thiserror::*;

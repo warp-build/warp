@@ -104,7 +104,9 @@ mod tests {
 
     use super::*;
     use crate::events::EventChannel;
-    use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target, TargetId};
+    use crate::model::{
+        ConcreteTarget, ExecutableSpec, ExecutionEnvironment, Goal, Signature, Target, TargetId,
+    };
     use crate::planner::{Planner, PlanningFlow};
     use crate::resolver::{ResolutionFlow, Resolver, ResolverError, TargetRegistry};
     use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};

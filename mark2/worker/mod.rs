@@ -1,7 +1,6 @@
 //! # Location-transparent, parallel worker pools
 
 mod coordinator;
-mod env;
 mod local_shared_context;
 mod local_worker;
 mod pool;
@@ -10,7 +9,6 @@ mod task_queue;
 mod task_results;
 
 use coordinator::*;
-pub use env::*;
 use futures::Future;
 pub use local_shared_context::*;
 pub use local_worker::*;

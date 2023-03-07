@@ -1,7 +1,6 @@
 use super::{DefaultPlannerContext, Dependencies, Planner, PlannerError, PlanningFlow};
-use crate::model::{ExecutableSpec, Signature, TargetId};
+use crate::model::{ExecutableSpec, ExecutionEnvironment, Signature, TargetId};
 use crate::rules::RuleExecutor;
-use crate::worker::ExecutionEnvironment;
 use futures::{Future, FutureExt};
 use std::pin::Pin;
 

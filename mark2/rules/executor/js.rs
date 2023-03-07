@@ -1,10 +1,9 @@
 use super::net_module_loader::NetModuleLoader;
 use super::{js_ffi, FfiContext, RuleExecutor, RuleExecutorError, SharedJsContext};
 use crate::model::rule::expander::Expander;
-use crate::model::{Dependencies, Rule, RunScript, Signature};
+use crate::model::{Dependencies, ExecutionEnvironment, Rule, RunScript, Signature};
 use crate::rules::executor::compute_script::ComputeScript;
 use crate::rules::ExecutionResult;
-use crate::worker::ExecutionEnvironment;
 use deno_core::Extension;
 use futures::{Future, FutureExt};
 use fxhash::{FxHashMap, FxHashSet};
@@ -275,7 +274,7 @@ mod tests {
     use crate::model::rule::{self, Value};
     use crate::model::ConcreteTarget;
     use crate::resolver::TargetRegistry;
-    use crate::rules::{RuleStore, RuleStoreError};
+    use crate::rules::RuleStore;
     use crate::sync::Arc;
     use crate::worker::TaskResults;
     use crate::{Config, Goal};

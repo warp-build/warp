@@ -1,5 +1,6 @@
 mod concrete_target;
 mod dependencies;
+mod env;
 mod executable_spec;
 mod goal;
 mod requirement;
@@ -11,6 +12,7 @@ mod target_id;
 
 pub use concrete_target::*;
 pub use dependencies::*;
+pub use env::*;
 pub use executable_spec::*;
 pub use goal::*;
 pub use requirement::*;

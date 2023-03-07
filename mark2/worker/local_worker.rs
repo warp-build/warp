@@ -2,6 +2,7 @@ use core::future::Future;
 use std::pin::Pin;
 
 use super::*;
+use crate::model::ExecutionEnvironment;
 use crate::planner::{Planner, PlanningFlow};
 use crate::resolver::{ResolutionFlow, Resolver, ResolverError};
 use crate::store::Store;

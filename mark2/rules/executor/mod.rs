@@ -14,8 +14,7 @@ pub use js::*;
 pub use result::*;
 
 use crate::model::rule::expander::ExpanderError;
-use crate::model::{Dependencies, Rule, Signature, Target, TargetId};
-use crate::worker::ExecutionEnvironment;
+use crate::model::{Dependencies, ExecutionEnvironment, Rule, Signature, Target, TargetId};
 use futures::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
