@@ -10,7 +10,7 @@ use tokio::fs;
 use tracing::*;
 
 pub struct NetModuleLoader {
-    // pub rule_store: Arc<RuleStore>,
+    pub rule_store: Arc<RuleStore>,
 }
 
 /// NOTE(@ostera): this feature copied from `deno-simple-module-loader`:
@@ -36,7 +36,7 @@ impl ModuleLoader for NetModuleLoader {
         _maybe_referrer: Option<ModuleSpecifier>,
         _is_dyn_import: bool,
     ) -> Pin<Box<ModuleSourceFuture>> {
-        let rule_store: Arc<RuleStore> = todo!();
+        let rule_store = self.rule_store.clone();
         let module_specifier = module_specifier.clone();
         async move {
             let scheme = module_specifier.scheme().to_string();

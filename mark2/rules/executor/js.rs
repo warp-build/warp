@@ -60,7 +60,9 @@ impl RuleExecutor for JsRuleExecutor {
 
         let rt_options = deno_core::RuntimeOptions {
             startup_snapshot: Some(deno_core::Snapshot::Static(JS_SNAPSHOT)),
-            module_loader: Some(Rc::new(NetModuleLoader {})),
+            module_loader: Some(Rc::new(NetModuleLoader {
+                rule_store: ctx.rule_store.clone(),
+            })),
             // v8_platform: Some(v8::Platform::new_single_threaded(true).make_shared()),
             extensions: vec![extension, deno_console::init()],
             ..Default::default()
@@ -273,7 +275,7 @@ mod tests {
     use crate::model::rule::{self, Value};
     use crate::model::ConcreteTarget;
     use crate::resolver::TargetRegistry;
-    use crate::rules::RuleStore;
+    use crate::rules::{RuleStore, RuleStoreError};
     use crate::sync::Arc;
     use crate::worker::TaskResults;
     use crate::{Config, Goal};
@@ -352,5 +354,318 @@ mod tests {
         );
 
         m.assert();
+    }
+
+    #[tokio::test]
+    async fn fails_to_compute_rule_without_outputs() {
+        // 1. Set up the directories and side-effects
+
+        let rule_store_root = assert_fs::TempDir::new().unwrap();
+        // let rule_store_root = rule_store_root.into_persistent();
+        dbg!(&rule_store_root.path());
+
+        let invocation_dir = assert_fs::TempDir::new().unwrap();
+        // let invocation_dir = invocation_dir.into_persistent();
+        dbg!(&invocation_dir.path());
+
+        let test_file = invocation_dir.child("file.ex");
+        test_file.touch().unwrap();
+
+        // NOTE(@ostera): This mock will be used to download a test_rule as if it was from the
+        // internet.
+        let m = mockito::mock("GET", "/test_rule.js")
+            .with_status(200)
+            .with_body(include_bytes!("./fixtures/missing_declared_outputs.js"))
+            .create();
+
+        // 2. Configure Warp and create all the dependencies to the RuleExecutor
+
+        let config = Config::builder()
+            .rule_store_root(rule_store_root.path().into())
+            .public_rule_store_url(mockito::server_url().parse::<Url>().unwrap())
+            .invocation_dir(invocation_dir.path().into())
+            .build()
+            .unwrap();
+
+        let rule_store = RuleStore::new(&config).into();
+        let target_registry: Arc<TargetRegistry> = TargetRegistry::default().into();
+        let task_results = TaskResults::new(target_registry.clone()).into();
+        let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
+
+        // 3. Create our planning inputs
+
+        let goal = Goal::Build;
+        let target = Arc::new("./my/file.ex".into());
+        let target_id = target_registry.register_target(&target);
+        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into());
+
+        let mut config = rule::Config::default();
+        config.insert("name".into(), Value::Target((*target).clone()));
+
+        let env = Default::default();
+        let sig = Signature::builder()
+            .rule("test_rule".into())
+            .target(c_target)
+            .config(config)
+            .build()
+            .unwrap();
+
+        let deps = Dependencies::default();
+
+        // 4. Create the executor and run!
+
+        let mut exec = JsRuleExecutor::new(ctx).unwrap();
+        let err = exec.execute(&env, &sig, &deps).await.unwrap_err();
+
+        assert_matches!(
+            err,
+            RuleExecutorError::MissingDeclaredOutputs { target, .. } if target == target_id
+        );
+
+        m.assert();
+    }
+
+    #[tokio::test]
+    async fn fails_if_the_rule_errors() {
+        // 1. Set up the directories and side-effects
+
+        let rule_store_root = assert_fs::TempDir::new().unwrap();
+        // let rule_store_root = rule_store_root.into_persistent();
+        dbg!(&rule_store_root.path());
+
+        let invocation_dir = assert_fs::TempDir::new().unwrap();
+        // let invocation_dir = invocation_dir.into_persistent();
+        dbg!(&invocation_dir.path());
+
+        let test_file = invocation_dir.child("file.ex");
+        test_file.touch().unwrap();
+
+        // NOTE(@ostera): This mock will be used to download a test_rule as if it was from the
+        // internet.
+        let m = mockito::mock("GET", "/test_rule.js")
+            .with_status(200)
+            .with_body(include_bytes!("./fixtures/rule_with_errors.js"))
+            .create();
+
+        // 2. Configure Warp and create all the dependencies to the RuleExecutor
+
+        let config = Config::builder()
+            .rule_store_root(rule_store_root.path().into())
+            .public_rule_store_url(mockito::server_url().parse::<Url>().unwrap())
+            .invocation_dir(invocation_dir.path().into())
+            .build()
+            .unwrap();
+
+        let rule_store = RuleStore::new(&config).into();
+        let target_registry: Arc<TargetRegistry> = TargetRegistry::default().into();
+        let task_results = TaskResults::new(target_registry.clone()).into();
+        let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
+
+        // 3. Create our planning inputs
+
+        let goal = Goal::Build;
+        let target = Arc::new("./my/file.ex".into());
+        let target_id = target_registry.register_target(&target);
+        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into());
+
+        let mut config = rule::Config::default();
+        config.insert("name".into(), Value::Target((*target).clone()));
+
+        let env = Default::default();
+        let sig = Signature::builder()
+            .rule("test_rule".into())
+            .target(c_target)
+            .config(config)
+            .build()
+            .unwrap();
+
+        let deps = Dependencies::default();
+
+        // 4. Create the executor and run!
+
+        let mut exec = JsRuleExecutor::new(ctx).unwrap();
+        let err = exec.execute(&env, &sig, &deps).await.unwrap_err();
+
+        assert_matches!(
+            err,
+            RuleExecutorError::ExecutionError { target, .. } if target == target
+        );
+
+        m.assert();
+    }
+
+    #[tokio::test]
+    async fn rules_can_import_other_rules() {
+        // 1. Set up the directories and side-effects
+
+        let rule_store_root = assert_fs::TempDir::new().unwrap();
+        // let rule_store_root = rule_store_root.into_persistent();
+        dbg!(&rule_store_root.path());
+
+        let invocation_dir = assert_fs::TempDir::new().unwrap();
+        // let invocation_dir = invocation_dir.into_persistent();
+        dbg!(&invocation_dir.path());
+
+        let test_file = invocation_dir.child("file.ex");
+        test_file.touch().unwrap();
+
+        let mock_url = mockito::server_url().parse::<Url>().unwrap();
+        // NOTE(@ostera): This mock will be used to download a test_rule as if it was from the
+        // internet.
+        let _m1 = mockito::mock("GET", "/rule_with_dep.js")
+            .with_status(200)
+            .with_body(
+                include_str!("./fixtures/rule_with_dep.js")
+                    .replace("{PORT}", &mock_url.port().unwrap().to_string())
+                    .as_bytes(),
+            )
+            .create();
+
+        let _m2 = mockito::mock("GET", "/dep_rule.js")
+            .with_status(200)
+            .with_body(include_bytes!("./fixtures/dep_rule.js"))
+            .create();
+
+        // 2. Configure Warp and create all the dependencies to the RuleExecutor
+
+        let config = Config::builder()
+            .rule_store_root(rule_store_root.path().into())
+            .public_rule_store_url(mock_url)
+            .invocation_dir(invocation_dir.path().into())
+            .build()
+            .unwrap();
+
+        let rule_store = RuleStore::new(&config).into();
+        let target_registry: Arc<TargetRegistry> = TargetRegistry::default().into();
+        let task_results = TaskResults::new(target_registry.clone()).into();
+        let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
+
+        // 3. Create our planning inputs
+
+        let goal = Goal::Build;
+        let target = Arc::new("./my/file.ex".into());
+        let target_id = target_registry.register_target(&target);
+        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into());
+
+        let mut config = rule::Config::default();
+        config.insert("name".into(), Value::Target((*target).clone()));
+        config.insert(
+            "srcs".into(),
+            Value::List(vec![Value::File("./my/file.ex".into())]),
+        );
+
+        let env = Default::default();
+        let sig = Signature::builder()
+            .rule("rule_with_dep".into())
+            .target(c_target)
+            .config(config)
+            .build()
+            .unwrap();
+
+        let deps = Dependencies::default();
+
+        // 4. Create the executor and run!
+
+        let mut exec = JsRuleExecutor::new(ctx).unwrap();
+        let res = exec.execute(&env, &sig, &deps).await.unwrap();
+
+        assert!(!res.outs.is_empty());
+        assert_eq!(
+            res.outs.into_iter().next().unwrap(),
+            PathBuf::from("./my/file.ex")
+        );
+
+        _m1.assert();
+        _m2.assert();
+    }
+
+    #[tokio::test]
+    async fn fails_when_rules_depend_on_unknown_rules() {
+        // 1. Set up the directories and side-effects
+
+        let rule_store_root = assert_fs::TempDir::new().unwrap();
+        // let rule_store_root = rule_store_root.into_persistent();
+        dbg!(&rule_store_root.path());
+
+        let invocation_dir = assert_fs::TempDir::new().unwrap();
+        // let invocation_dir = invocation_dir.into_persistent();
+        dbg!(&invocation_dir.path());
+
+        let test_file = invocation_dir.child("file.ex");
+        test_file.touch().unwrap();
+
+        let mock_url = mockito::server_url().parse::<Url>().unwrap();
+        let mock_port = mock_url.port().unwrap().to_string();
+        // NOTE(@ostera): This mock will be used to download a test_rule as if it was from the
+        // internet.
+        let _m1 = mockito::mock("GET", "/rule_with_dep.js")
+            .with_status(200)
+            .with_body(
+                include_str!("./fixtures/rule_with_dep.js")
+                    .replace("{PORT}", &mock_port)
+                    .as_bytes(),
+            )
+            .create();
+
+        let _m2 = mockito::mock("GET", "/dep_rule.js")
+            .with_status(400)
+            .with_body(include_bytes!("./fixtures/dep_rule.js"))
+            .create();
+
+        // 2. Configure Warp and create all the dependencies to the RuleExecutor
+
+        let config = Config::builder()
+            .rule_store_root(rule_store_root.path().into())
+            .public_rule_store_url(mock_url)
+            .invocation_dir(invocation_dir.path().into())
+            .build()
+            .unwrap();
+
+        let rule_store = RuleStore::new(&config).into();
+        let target_registry: Arc<TargetRegistry> = TargetRegistry::default().into();
+        let task_results = TaskResults::new(target_registry.clone()).into();
+        let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
+
+        // 3. Create our planning inputs
+
+        let goal = Goal::Build;
+        let target = Arc::new("./my/file.ex".into());
+        let target_id = target_registry.register_target(&target);
+        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into());
+
+        let mut config = rule::Config::default();
+        config.insert("name".into(), Value::Target((*target).clone()));
+        config.insert(
+            "srcs".into(),
+            Value::List(vec![Value::File("./my/file.ex".into())]),
+        );
+
+        let env = Default::default();
+        let sig = Signature::builder()
+            .rule("rule_with_dep".into())
+            .target(c_target)
+            .config(config)
+            .build()
+            .unwrap();
+
+        let deps = Dependencies::default();
+
+        // 4. Create the executor and run!
+
+        let mut exec = JsRuleExecutor::new(ctx).unwrap();
+        let err = exec.execute(&env, &sig, &deps).await.unwrap_err();
+
+        let expected_module_name = format!(
+            "file://{}/http/127.0.0.1:{mock_port}/rule_with_dep.js",
+            rule_store_root.path().to_string_lossy(),
+        );
+        assert_matches!(
+            err,
+            RuleExecutorError::ModuleResolutionError { module_name, .. }
+                if module_name == expected_module_name
+        );
+
+        _m1.assert();
+        _m2.assert();
     }
 }

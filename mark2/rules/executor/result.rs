@@ -2,7 +2,7 @@ use crate::{executor::actions::Action, model::RunScript};
 use fxhash::{FxHashMap, FxHashSet};
 use std::path::PathBuf;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ExecutionResult {
     pub(crate) actions: Vec<Action>,
     pub(crate) env: FxHashMap<String, String>,
