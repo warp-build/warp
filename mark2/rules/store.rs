@@ -23,7 +23,7 @@ impl RuleStore {
             global_rules_root: config.rule_store_root().clone(),
             loaded_rules: DashMap::default(),
             public_store_url: config.public_rule_store_url().clone(),
-            client: reqwest::Client::new(),
+            client: config.http_client().clone(),
             _lock: Arc::new(Mutex::new(())),
         }
     }
@@ -136,10 +136,6 @@ impl RuleStore {
             url.to_string()
         }
     }
-
-    pub fn global_rules_root(&self) -> &PathBuf {
-        &self.global_rules_root
-    }
 }
 
 #[derive(Debug, Error)]
@@ -179,7 +175,7 @@ mod tests {
 
         let rs = RuleStore::new(&config);
 
-        assert_eq!(rs.global_rules_root(), config.rule_store_root())
+        assert_eq!(&rs.global_rules_root, config.rule_store_root())
     }
 
     #[tokio::test]
