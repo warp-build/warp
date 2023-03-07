@@ -80,7 +80,7 @@ impl<RE: RuleExecutor> DefaultPlanner<RE> {
         let mut missing_deps: Vec<TargetId> = vec![];
 
         let mut pending: Vec<TargetId> = deps.to_vec();
-        let mut visited: Vec<TargetId> = vec![];
+        let mut visited: Vec<TargetId> = vec![target];
 
         while let Some(dep) = pending.pop() {
             if visited.contains(&dep) {
