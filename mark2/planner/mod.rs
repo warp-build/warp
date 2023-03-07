@@ -6,7 +6,10 @@ mod default_planner_context;
 pub use default::*;
 pub use default_planner_context::*;
 
-use crate::model::{Dependencies, ExecutableSpec, ExecutableSpecError, Requirement, Signature};
+use crate::model::{
+    Dependencies, DependenciesError, ExecutableSpec, ExecutableSpecError, Requirement, Signature,
+    TargetId,
+};
 use crate::rules::RuleExecutorError;
 use crate::worker::ExecutionEnvironment;
 use futures::Future;
@@ -16,7 +19,7 @@ use thiserror::*;
 #[derive(Debug)]
 pub enum PlanningFlow {
     Planned { spec: ExecutableSpec },
-    MissingDeps { requirements: Vec<Requirement> },
+    MissingDeps { deps: Vec<TargetId> },
     FoundAllDeps { deps: Dependencies },
 }
 
@@ -47,6 +50,9 @@ pub enum PlannerError {
 
     #[error(transparent)]
     ExecutableSpecError(ExecutableSpecError),
+
+    #[error(transparent)]
+    DependenciesError(DependenciesError),
 }
 
 impl From<RuleExecutorError> for PlannerError {
@@ -58,5 +64,11 @@ impl From<RuleExecutorError> for PlannerError {
 impl From<ExecutableSpecError> for PlannerError {
     fn from(value: ExecutableSpecError) -> Self {
         PlannerError::ExecutableSpecError(value)
+    }
+}
+
+impl From<DependenciesError> for PlannerError {
+    fn from(value: DependenciesError) -> Self {
+        PlannerError::DependenciesError(value)
     }
 }

@@ -217,7 +217,10 @@ impl TaskQueue {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::{Goal, Target};
+    use crate::{
+        model::{ConcreteTarget, ExecutableSpec, Goal, Target},
+        store::ArtifactManifest,
+    };
 
     use super::*;
 
@@ -231,7 +234,7 @@ mod tests {
     #[quickcheck]
     fn queues_with_tasks_are_not_empty(goal: Goal, target: Target) {
         let q = TaskQueue::default();
-        let target_id = q.target_registry.register_target(target);
+        let target_id = q.target_registry.register_target(&target);
         let task = Task::new(goal, target_id);
         assert!(q.queue(task).is_ok());
         assert!(!q.is_empty());
@@ -240,7 +243,7 @@ mod tests {
     #[quickcheck]
     fn consuming_from_the_queue_removes_the_task(goal: Goal, target: Target) {
         let q = TaskQueue::default();
-        let target_id = q.target_registry.register_target(target);
+        let target_id = q.target_registry.register_target(&target);
         let task = Task::new(goal, target_id);
         assert!(q.queue(task).is_ok());
         assert!(q.next().is_some());
@@ -251,7 +254,7 @@ mod tests {
     #[quickcheck]
     fn queue_preserves_task_integrity(goal: Goal, target: Target) {
         let q = TaskQueue::default();
-        let target_id = q.target_registry.register_target(target);
+        let target_id = q.target_registry.register_target(&target);
         let task = Task::new(goal, target_id);
         assert!(q.queue(task).is_ok());
         assert_eq!(q.next().unwrap(), task);
@@ -263,7 +266,7 @@ mod tests {
 
         let mut tasks = vec![];
         for (goal, target) in &gts {
-            let target_id = q.target_registry.register_target(target);
+            let target_id = q.target_registry.register_target(&target);
             let task = Task::new(*goal, target_id);
             if let QueuedTask::Queued = q.queue(task).unwrap() {
                 tasks.push(task);
@@ -287,7 +290,7 @@ mod tests {
     #[quickcheck]
     fn queuing_a_registered_target_makes_the_queue_nonempty(goal: Goal, target: Target) {
         let q = TaskQueue::default();
-        let target_id = q.target_registry.register_target(target);
+        let target_id = q.target_registry.register_target(&target);
         let task = Task::new(goal, target_id);
         assert!(q.queue(task).is_ok());
         assert!(q.next().is_some());
@@ -296,7 +299,7 @@ mod tests {
     #[quickcheck]
     fn contiguous_duplicates_are_discarded(goal: Goal, target: Target) {
         let q = TaskQueue::default();
-        let target_id = q.target_registry.register_target(target);
+        let target_id = q.target_registry.register_target(&target);
         let task = Task::new(goal, target_id);
 
         assert!(q.queue(task).is_ok());
@@ -310,7 +313,7 @@ mod tests {
     #[quickcheck]
     fn nack_returns_task_to_queue(goal: Goal, target: Target) {
         let q = TaskQueue::default();
-        let target_id = q.target_registry.register_target(target);
+        let target_id = q.target_registry.register_target(&target);
         let task = Task::new(goal, target_id);
 
         assert!(q.queue(task).is_ok());
@@ -326,10 +329,13 @@ mod tests {
     #[quickcheck]
     fn completed_tasks_are_skipped_when_queueing(goal: Goal, target: Target) {
         let q = TaskQueue::default();
-        let target_id = q.target_registry.register_target(target);
+        let target_id = q.target_registry.register_target(&target);
         let task = Task::new(goal, target_id);
 
-        q.task_results.add_target_manifest(target_id, (), ());
+        let manifest = ArtifactManifest::default();
+        let target = ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into());
+        let spec = ExecutableSpec::builder().target(target).build().unwrap();
+        q.task_results.add_task_result(target_id, spec, manifest);
 
         assert_matches!(q.queue(task), Ok(QueuedTask::Skipped));
     }
@@ -337,11 +343,15 @@ mod tests {
     #[quickcheck]
     fn completed_tasks_are_skipped_when_consuming(goal: Goal, target: Target) {
         let q = TaskQueue::default();
-        let target_id = q.target_registry.register_target(target);
+        let target_id = q.target_registry.register_target(&target);
         let task = Task::new(goal, target_id);
 
         assert_matches!(q.queue(task), Ok(QueuedTask::Queued));
-        q.task_results.add_target_manifest(target_id, (), ());
+
+        let manifest = ArtifactManifest::default();
+        let target = ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into());
+        let spec = ExecutableSpec::builder().target(target).build().unwrap();
+        q.task_results.add_task_result(target_id, spec, manifest);
 
         assert!(q.next().is_none());
     }

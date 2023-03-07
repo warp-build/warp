@@ -1,6 +1,8 @@
 use super::TargetId;
+use thiserror::Error;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Builder, Debug, Default, Clone)]
+#[builder(build_fn(error = "DependenciesError"))]
 pub struct Dependencies {
     toolchains: Vec<TargetId>,
     compile_deps: Vec<TargetId>,
@@ -9,6 +11,10 @@ pub struct Dependencies {
 }
 
 impl Dependencies {
+    pub fn builder() -> DependenciesBuilder {
+        Default::default()
+    }
+
     pub fn toolchains(&self) -> &[TargetId] {
         self.toolchains.as_ref()
     }
@@ -23,5 +29,17 @@ impl Dependencies {
 
     pub fn runtime_deps(&self) -> &[TargetId] {
         self.runtime_deps.as_ref()
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum DependenciesError {
+    #[error(transparent)]
+    BuilderError(derive_builder::UninitializedFieldError),
+}
+
+impl From<derive_builder::UninitializedFieldError> for DependenciesError {
+    fn from(value: derive_builder::UninitializedFieldError) -> Self {
+        DependenciesError::BuilderError(value)
     }
 }

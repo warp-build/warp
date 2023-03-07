@@ -133,6 +133,7 @@ mod tests {
     use super::*;
     use crate::archive::ArchiveManager;
     use crate::model::{Goal, Target};
+    use crate::resolver::TargetRegistry;
     use crate::store::DefaultStore;
     use crate::tricorder::{Connection, SignatureGenerationFlow};
     use crate::Config;
@@ -211,7 +212,9 @@ mod tests {
 
         let path: PathBuf = "./sample/file.exs".into();
         let t: Target = path.as_path().into();
-        let ct = ConcreteTarget::new(Goal::Build, t.into(), path);
+        let target_registry = TargetRegistry::new();
+        let target_id = target_registry.register_target(&t);
+        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path);
         mgr.find_and_ready(&ct).await.unwrap();
 
         assert!(warp_root.child("artifact_store/a-hash/tricorder.exe").exists());
@@ -283,7 +286,9 @@ mod tests {
 
         let path: PathBuf = "./sample/file.exs".into();
         let t: Target = path.as_path().into();
-        let ct = ConcreteTarget::new(Goal::Build, t.into(), path);
+        let target_registry = TargetRegistry::new();
+        let target_id = target_registry.register_target(&t);
+        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path);
         let err = mgr.find_and_ready(&ct).await.unwrap_err();
 
         assert_matches!(
@@ -363,7 +368,9 @@ mod tests {
 
         let path: PathBuf = "./sample/file.exs".into();
         let t: Target = path.as_path().into();
-        let ct = ConcreteTarget::new(Goal::Build, t.into(), path);
+        let target_registry = TargetRegistry::new();
+        let target_id = target_registry.register_target(&t);
+        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path);
         let err = mgr.find_and_ready(&ct).await.unwrap_err();
 
         assert_matches!(
@@ -443,7 +450,9 @@ mod tests {
 
         let path: PathBuf = "./sample/file.exs".into();
         let t: Target = path.as_path().into();
-        let ct = ConcreteTarget::new(Goal::Build, t.into(), path);
+        let target_registry = TargetRegistry::new();
+        let target_id = target_registry.register_target(&t);
+        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path);
         let err = mgr.find_and_ready(&ct).await.unwrap_err();
 
         assert_matches!(

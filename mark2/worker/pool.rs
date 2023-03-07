@@ -104,7 +104,7 @@ mod tests {
 
     use super::*;
     use crate::events::EventChannel;
-    use crate::model::{Goal, Signature, Target, TargetId};
+    use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target, TargetId};
     use crate::planner::{Planner, PlanningFlow};
     use crate::resolver::{ResolutionFlow, Resolver, ResolverError, TargetRegistry};
     use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
@@ -141,6 +141,7 @@ mod tests {
         async fn resolve(
             &self,
             _goal: Goal,
+            _target_id: TargetId,
             _target: Arc<Target>,
         ) -> Result<ResolutionFlow, ResolverError> {
             Ok(ResolutionFlow::IncompatibleTarget)
@@ -164,12 +165,7 @@ mod tests {
             _sig: Signature,
             _env: ExecutionEnvironment,
         ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>>>> {
-            async move {
-                Ok(PlanningFlow::MissingDeps {
-                    requirements: vec![],
-                })
-            }
-            .boxed_local()
+            async move { Ok(PlanningFlow::MissingDeps { deps: vec![] }) }.boxed_local()
         }
     }
 
@@ -192,8 +188,15 @@ mod tests {
     {
         let ec = Arc::new(EventChannel::new());
         let config = Config::default();
-        let ctx =
-            LocalSharedContext::new(ec.clone(), config.clone(), NoopResolver, NoopStore.into());
+
+        let target_registry = Arc::new(TargetRegistry::new());
+        let ctx = LocalSharedContext::new(
+            ec.clone(),
+            config.clone(),
+            target_registry,
+            NoopResolver,
+            NoopStore.into(),
+        );
         WorkerPool::from_shared_context(ec, config, ctx)
     }
 
@@ -216,11 +219,12 @@ mod tests {
         // Make our new file our target
         let target_registry = Arc::new(TargetRegistry::new());
         let target: Target = input_file.path().into();
-        let target_id = target_registry.register_target(target);
+        let target_id = target_registry.register_target(&target);
 
         #[derive(Debug, Clone)]
         struct FixtureContext {
             target_id: TargetId,
+            target: ConcreteTarget,
             task_results: Arc<TaskResults>,
         }
         impl Context for FixtureContext {
@@ -230,6 +234,7 @@ mod tests {
         }
         let ctx = FixtureContext {
             target_id,
+            target: ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into()),
             task_results: Arc::new(TaskResults::new(target_registry.clone())),
         };
 
@@ -248,9 +253,15 @@ mod tests {
                 &'a mut self,
             ) -> Pin<Box<dyn Future<Output = Result<(), WorkerError>> + 'a>> {
                 async move {
+                    let manifest = ArtifactManifest::default();
+                    let spec = ExecutableSpec::builder()
+                        .target(self.ctx.target.clone())
+                        .build()
+                        .unwrap();
+
                     self.ctx
                         .task_results
-                        .add_target_manifest(self.ctx.target_id, (), ());
+                        .add_task_result(self.ctx.target_id, spec, manifest);
                     Ok(())
                 }
                 .boxed_local()

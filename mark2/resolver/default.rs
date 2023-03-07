@@ -1,5 +1,5 @@
-use super::{FsResolver, ResolutionFlow, Resolver, ResolverError};
-use crate::model::{ConcreteTarget, Goal, Target};
+use super::{FsResolver, ResolutionFlow, Resolver, ResolverError, TargetRegistry};
+use crate::model::{ConcreteTarget, Goal, Target, TargetId};
 use crate::store::DefaultStore;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
 use crate::{sync::*, Config};
@@ -9,21 +9,28 @@ use async_trait::async_trait;
 pub struct DefaultResolver<T: Tricorder + Clone> {
     fs_resolver: Arc<FsResolver>,
     tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
+    target_registry: Arc<TargetRegistry>,
 }
 
 impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
-    pub fn new(config: Config, store: Arc<DefaultStore>) -> Self {
+    pub fn new(
+        config: Config,
+        store: Arc<DefaultStore>,
+        target_registry: Arc<TargetRegistry>,
+    ) -> Self {
         let fs_resolver = Arc::new(FsResolver::new());
         let tricorder_manager = Arc::new(TricorderManager::new(config, store));
         Self {
             fs_resolver,
             tricorder_manager,
+            target_registry,
         }
     }
 
     async fn concretize_target(
         &self,
         goal: Goal,
+        target_id: TargetId,
         target: Arc<Target>,
     ) -> Result<ConcreteTarget, ResolverError> {
         let final_path = match &*target {
@@ -32,7 +39,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             Target::Fs(f) => self.fs_resolver.resolve(goal, f).await?,
             _ => todo!(),
         };
-        Ok(ConcreteTarget::new(goal, target, final_path))
+        Ok(ConcreteTarget::new(goal, target_id, target, final_path))
     }
 }
 
@@ -41,9 +48,10 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
     async fn resolve(
         &self,
         goal: Goal,
+        target_id: TargetId,
         target: Arc<Target>,
     ) -> Result<ResolutionFlow, ResolverError> {
-        let concrete_target = self.concretize_target(goal, target).await?;
+        let concrete_target = self.concretize_target(goal, target_id, target).await?;
 
         // 1. find and ready the tricorder
         let mut tricorder = self
@@ -103,6 +111,7 @@ mod tests {
 
         let am = ArchiveManager::new(&config).into();
         let store = DefaultStore::new(config.clone(), am).into();
+        let target_registry = Arc::new(TargetRegistry::new());
 
         #[derive(Debug, Clone)]
         pub struct UnreachableTricorder;
@@ -124,10 +133,12 @@ mod tests {
             }
         }
 
-        let r: DefaultResolver<UnreachableTricorder> = DefaultResolver::new(config, store);
+        let r: DefaultResolver<UnreachableTricorder> =
+            DefaultResolver::new(config, store, target_registry.clone());
 
         let target: Target = "bad/file/path.ex".into();
-        let result = r.resolve(Goal::Build, target.into()).await;
+        let target_id = target_registry.register_target(&target);
+        let result = r.resolve(Goal::Build, target_id, target.into()).await;
 
         assert_matches!(
             result.unwrap_err(),
@@ -159,6 +170,7 @@ mod tests {
 
         let am = ArchiveManager::new(&config).into();
         let store = DefaultStore::new(config.clone(), am).into();
+        let target_registry = Arc::new(TargetRegistry::new());
 
         #[derive(Debug, Clone)]
         pub struct HappyPathTricorder;
@@ -185,7 +197,8 @@ mod tests {
                 })
             }
         }
-        let r: DefaultResolver<HappyPathTricorder> = DefaultResolver::new(config, store);
+        let r: DefaultResolver<HappyPathTricorder> =
+            DefaultResolver::new(config, store, target_registry.clone());
 
         // NOTE(@ostera): this mock will be used to not fetch the real tricorder
         let _public_store_mock1 = mockito::mock("GET", "/a-hash.tar.gz")
@@ -212,7 +225,11 @@ mod tests {
             .create();
 
         let target: Target = curr_workspace.path().join("good_file.ex").into();
-        let resolution = r.resolve(Goal::Build, target.into()).await.unwrap();
+        let target_id = target_registry.register_target(&target);
+        let resolution = r
+            .resolve(Goal::Build, target_id, target.into())
+            .await
+            .unwrap();
 
         assert_matches!(
             resolution,

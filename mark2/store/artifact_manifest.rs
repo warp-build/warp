@@ -44,7 +44,7 @@ pub enum ArtifactManifestVersion {
     V0,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Builder, Debug, Clone, Serialize, Deserialize)]
 pub struct ArtifactManifest {
     version: ArtifactManifestVersion,
 
@@ -92,6 +92,10 @@ pub struct ArtifactManifest {
 }
 
 impl ArtifactManifest {
+    pub fn builder() -> ArtifactManifestBuilder {
+        Default::default()
+    }
+
     pub fn id(&self) -> ArtifactId {
         ArtifactId::new(&self.hash)
     }

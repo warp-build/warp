@@ -6,9 +6,9 @@ use crate::worker::TaskResults;
 
 #[derive(Debug, Clone)]
 pub struct DefaultPlannerContext {
-    artifact_store: Arc<DefaultStore>,
-    target_registry: Arc<TargetRegistry>,
-    task_results: Arc<TaskResults>,
+    pub(crate) artifact_store: Arc<DefaultStore>,
+    pub(crate) target_registry: Arc<TargetRegistry>,
+    pub(crate) task_results: Arc<TaskResults>,
 }
 
 impl DefaultPlannerContext {

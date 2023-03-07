@@ -5,10 +5,16 @@ use thiserror::Error;
 #[derive(Builder, Debug)]
 #[builder(build_fn(error = "ExecutableSpecError"))]
 pub struct ExecutableSpec {
-    planning_start_time: DateTime<Utc>,
-    planning_end_time: DateTime<Utc>,
     target: ConcreteTarget,
+
+    #[builder(default)]
     deps: Dependencies,
+
+    #[builder(default)]
+    planning_start_time: DateTime<Utc>,
+
+    #[builder(default)]
+    planning_end_time: DateTime<Utc>,
 }
 
 impl ExecutableSpec {

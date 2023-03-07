@@ -6,7 +6,7 @@ pub use default::*;
 use fs_resolver::*;
 pub use target_registry::*;
 
-use crate::model::{Goal, Requirement, Signature, Target};
+use crate::model::{Goal, Requirement, Signature, Target, TargetId};
 use crate::sync::*;
 use crate::tricorder::{TricorderError, TricorderManagerError};
 use async_trait::async_trait;
@@ -55,6 +55,7 @@ pub trait Resolver: Sync + Send + Clone {
     async fn resolve(
         &self,
         goal: Goal,
+        target_id: TargetId,
         target: Arc<Target>,
     ) -> Result<ResolutionFlow, ResolverError>;
 }

@@ -6,6 +6,7 @@ use std::path::PathBuf;
 ///
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConcreteTarget {
+    target_id: TargetId,
     original_target: Arc<Target>,
     path: PathBuf,
     goal: Goal,
@@ -13,10 +14,16 @@ pub struct ConcreteTarget {
 }
 
 impl ConcreteTarget {
-    pub fn new(goal: Goal, original_target: Arc<Target>, path: PathBuf) -> Self {
+    pub fn new(
+        goal: Goal,
+        target_id: TargetId,
+        original_target: Arc<Target>,
+        path: PathBuf,
+    ) -> Self {
         Self {
             deps: original_target.deps().to_vec(),
             original_target,
+            target_id,
             path,
             goal,
         }
@@ -28,6 +35,10 @@ impl ConcreteTarget {
 
     pub fn path(&self) -> &PathBuf {
         &self.path
+    }
+
+    pub fn target_id(&self) -> TargetId {
+        self.target_id
     }
 }
 

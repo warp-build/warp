@@ -40,14 +40,13 @@ where
     pub fn new(
         event_channel: Arc<EventChannel>,
         options: Config,
+        target_registry: Arc<TargetRegistry>,
         resolver: R,
         artifact_store: Arc<S>,
     ) -> Self {
         let workspace_manager = Arc::new(WorkspaceManager::new());
 
         let coordinator = Arc::new(Coordinator::new());
-
-        let target_registry = Arc::new(TargetRegistry::new());
 
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
 

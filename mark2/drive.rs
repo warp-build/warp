@@ -3,7 +3,7 @@ use crate::archive::ArchiveManager;
 use crate::events::EventChannel;
 use crate::model::{Goal, Target};
 use crate::planner::DefaultPlanner;
-use crate::resolver::DefaultResolver;
+use crate::resolver::{DefaultResolver, TargetRegistry};
 use crate::rules::JsRuleExecutor;
 use crate::store::DefaultStore;
 use crate::sync::Arc;
@@ -44,11 +44,17 @@ impl WarpDriveMarkII {
         let archive_manager = ArchiveManager::new(&config).into();
         let store: Arc<DefaultStore> = DefaultStore::new(config.clone(), archive_manager).into();
 
+        let target_registry = Arc::new(TargetRegistry::new());
         let resolver: DefaultResolver<GrpcTricorder> =
-            DefaultResolver::new(config.clone(), store.clone());
+            DefaultResolver::new(config.clone(), store.clone(), target_registry.clone());
 
-        let shared_ctx =
-            LocalSharedContext::new(event_channel.clone(), config.clone(), resolver, store);
+        let shared_ctx = LocalSharedContext::new(
+            event_channel.clone(),
+            config.clone(),
+            target_registry.clone(),
+            resolver,
+            store,
+        );
 
         let worker_pool = WorkerPool::from_shared_context(
             event_channel.clone(),

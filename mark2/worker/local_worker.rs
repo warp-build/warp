@@ -125,7 +125,12 @@ where
     pub async fn handle_task(&mut self, task: Task) -> Result<WorkerFlow, LocalWorkerError> {
         let target = self.ctx.target_registry.get_target(task.target);
 
-        let signature = match self.ctx.resolver.resolve(task.goal, target).await? {
+        let signature = match self
+            .ctx
+            .resolver
+            .resolve(task.goal, task.target, target)
+            .await?
+        {
             ResolutionFlow::Resolved { signature } => signature,
             _flow => return Ok(WorkerFlow::RetryLater),
         };
@@ -194,8 +199,9 @@ mod tests {
 
     use super::*;
     use crate::events::EventChannel;
-    use crate::model::{ConcreteTarget, Goal, Signature, Target};
+    use crate::model::{ConcreteTarget, Goal, Signature, Target, TargetId};
     use crate::planner::PlannerError;
+    use crate::resolver::TargetRegistry;
     use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
     use crate::{sync::*, Config};
     use async_trait::async_trait;
@@ -248,12 +254,7 @@ mod tests {
             _sig: Signature,
             _env: ExecutionEnvironment,
         ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>>>> {
-            async move {
-                Ok(PlanningFlow::MissingDeps {
-                    requirements: vec![],
-                })
-            }
-            .boxed_local()
+            async move { Ok(PlanningFlow::MissingDeps { deps: vec![] }) }.boxed_local()
         }
     }
 
@@ -265,6 +266,7 @@ mod tests {
         async fn resolve(
             &self,
             _goal: Goal,
+            _target_id: TargetId,
             _target: Arc<Target>,
         ) -> Result<ResolutionFlow, ResolverError> {
             Ok(ResolutionFlow::IncompatibleTarget)
@@ -275,7 +277,9 @@ mod tests {
     async fn when_coordinator_marks_shutdown_the_worker_stops() {
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
-        let ctx = LocalSharedContext::new(ec, config, NoopResolver, NoopStore.into());
+        let target_registry = Arc::new(TargetRegistry::new());
+        let ctx =
+            LocalSharedContext::new(ec, config, target_registry, NoopResolver, NoopStore.into());
 
         ctx.coordinator.signal_shutdown();
 
@@ -293,6 +297,7 @@ mod tests {
             async fn resolve(
                 &self,
                 _goal: Goal,
+                _target_id: TargetId,
                 _target: Arc<Target>,
             ) -> Result<ResolutionFlow, ResolverError> {
                 Err(ResolverError::Unknown("test error".to_string()))
@@ -301,7 +306,9 @@ mod tests {
 
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
-        let ctx = LocalSharedContext::new(ec, config, ErrResolver, NoopStore.into());
+        let target_registry = Arc::new(TargetRegistry::new());
+        let ctx =
+            LocalSharedContext::new(ec, config, target_registry, ErrResolver, NoopStore.into());
 
         let mut gen = quickcheck::Gen::new(100);
         let target: Target = Arbitrary::arbitrary(&mut gen);
@@ -353,9 +360,10 @@ mod tests {
             async fn resolve(
                 &self,
                 goal: Goal,
+                target_id: TargetId,
                 target: Arc<Target>,
             ) -> Result<ResolutionFlow, ResolverError> {
-                let target = ConcreteTarget::new(goal, target, "".into());
+                let target = ConcreteTarget::new(goal, target_id, target, "".into());
                 let signature = Signature::builder()
                     .rule("dummy_rule".into())
                     .target(target)
@@ -367,7 +375,9 @@ mod tests {
 
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
-        let ctx = LocalSharedContext::new(ec, config, DummyResolver, NoopStore.into());
+        let target_registry = Arc::new(TargetRegistry::new());
+        let ctx =
+            LocalSharedContext::new(ec, config, target_registry, DummyResolver, NoopStore.into());
 
         let mut gen = quickcheck::Gen::new(100);
         let target: Target = Arbitrary::arbitrary(&mut gen);

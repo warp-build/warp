@@ -1,6 +1,8 @@
+use crate::model::ExecutableSpec;
 use crate::model::Target;
 use crate::model::TargetId;
 use crate::resolver::TargetRegistry;
+use crate::store::ArtifactManifest;
 use crate::sync::Arc;
 use daggy::{Dag, NodeIndex};
 use dashmap::DashMap;
@@ -11,8 +13,8 @@ use tracing::*;
 
 #[derive(Debug, Clone)]
 pub struct TaskResult {
-    pub target_manifest: Arc<()>,
-    pub executable_target: Arc<()>,
+    pub artifact_manifest: Arc<ArtifactManifest>,
+    pub executable_spec: Arc<ExecutableSpec>,
 }
 
 /// A collection of expectations and results from a build.
@@ -88,18 +90,18 @@ impl TaskResults {
         self.missing_targets.insert(target);
     }
 
-    pub fn add_target_manifest(
+    pub fn add_task_result(
         &self,
         target: TargetId,
-        executable_target: (),
-        target_manifest: (),
+        executable_spec: ExecutableSpec,
+        artifact_manifest: ArtifactManifest,
     ) {
         self.missing_targets.remove(&target);
         self.results.insert(
             target,
             TaskResult {
-                target_manifest: Arc::new(target_manifest),
-                executable_target: Arc::new(executable_target),
+                artifact_manifest: Arc::new(artifact_manifest),
+                executable_spec: Arc::new(executable_spec),
             },
         );
     }
@@ -140,33 +142,9 @@ impl TaskResults {
         Ok(())
     }
 
-    pub fn get_build_result(&self, target: TargetId) -> Option<TaskResult> {
+    pub fn get_task_result(&self, target: TargetId) -> Option<TaskResult> {
         self.results.get(&target).map(|r| (*r).clone())
     }
-
-    /*
-    pub fn get_manifest(&self, target: TargetId) -> Option<Arc<TargetManifest>> {
-        self.results.get(&target).map(|r| r.target_manifest.clone())
-    }
-    */
-
-    /*
-    pub fn get_target_runtime_deps(&self, target: TargetId) -> Vec<TargetId> {
-        self.results
-            .get(&target)
-            .map(|r| r.executable_target.runtime_deps.clone())
-            .unwrap_or_default()
-    }
-    */
-
-    /*
-    pub fn get_target_deps(&self, target: TargetId) -> Vec<TargetId> {
-        self.results
-            .get(&target)
-            .map(|r| r.executable_target.deps.clone())
-            .unwrap_or_default()
-    }
-    */
 
     pub fn is_target_built(&self, target: TargetId) -> bool {
         self.results.contains_key(&target)
