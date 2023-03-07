@@ -8,7 +8,7 @@ static JS_SNAPSHOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/JS_SNAPSHO
 
 pub struct JsRuleExecutor {
     ctx: SharedJsContext,
-    runtime: deno_core::JsRuntime,
+    js_runtime: deno_core::JsRuntime,
     script_count: i32,
 }
 
@@ -93,11 +93,11 @@ impl RuleExecutor for JsRuleExecutor {
             extensions: vec![extension, deno_console::init()],
             ..Default::default()
         };
-        let runtime = deno_core::JsRuntime::new(rt_options);
+        let js_runtime = deno_core::JsRuntime::new(rt_options);
 
         let mut rule_executor = Self {
             ctx,
-            runtime,
+            js_runtime,
             script_count: 0,
         };
 
