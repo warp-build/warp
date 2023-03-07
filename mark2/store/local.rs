@@ -12,7 +12,7 @@ pub struct LocalStore {
 impl LocalStore {
     pub fn new(config: Config) -> Self {
         Self {
-            store_root: config.store_root().to_path_buf(),
+            store_root: config.artifact_store_root().to_path_buf(),
             config,
         }
     }
@@ -57,7 +57,7 @@ mod tests {
         let store_root = assert_fs::TempDir::new().unwrap();
 
         let config = Config::builder()
-            .store_root(store_root.path().to_path_buf())
+            .artifact_store_root(store_root.path().to_path_buf())
             .build()
             .unwrap();
 
@@ -82,7 +82,7 @@ mod tests {
         let store_root = assert_fs::TempDir::new().unwrap();
 
         let config = Config::builder()
-            .store_root(store_root.path().to_path_buf())
+            .artifact_store_root(store_root.path().to_path_buf())
             .build()
             .unwrap();
 
@@ -97,7 +97,7 @@ mod tests {
         let store_root = assert_fs::TempDir::new().unwrap();
 
         let config = Config::builder()
-            .store_root(store_root.path().to_path_buf())
+            .artifact_store_root(store_root.path().to_path_buf())
             .build()
             .unwrap();
 

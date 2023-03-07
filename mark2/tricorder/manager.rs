@@ -214,7 +214,7 @@ mod tests {
         let ct = ConcreteTarget::new(Goal::Build, t.into(), path);
         mgr.find_and_ready(&ct).await.unwrap();
 
-        assert!(warp_root.child("store/a-hash/tricorder.exe").exists());
+        assert!(warp_root.child("artifact_store/a-hash/tricorder.exe").exists());
     }
 
     #[tokio::test]

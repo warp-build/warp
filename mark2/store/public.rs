@@ -37,7 +37,7 @@ impl PublicStore {
             let mut data = vec![];
             unzip_stream.read_to_end(&mut data).await?;
 
-            let dst = self.config.store_root().join(id.clone());
+            let dst = self.config.artifact_store_root().join(id.clone());
             tokio::task::spawn_blocking(move || {
                 let mut tar = tar::Archive::new(std::io::BufReader::new(&*data));
                 tar.unpack(dst)
@@ -86,7 +86,7 @@ mod tests {
         let store_root = assert_fs::TempDir::new().unwrap();
 
         let config = Config::builder()
-            .store_root(store_root.path().to_path_buf())
+            .artifact_store_root(store_root.path().to_path_buf())
             .public_store_cdn_url(mockito::server_url().parse().unwrap())
             .build()
             .unwrap();

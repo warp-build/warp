@@ -65,9 +65,17 @@ pub struct Config {
     #[builder(default = "self.default_public_store_metadata_url()")]
     public_store_metadata_url: Url,
 
-    /// The location of the store in the current host.
-    #[builder(default = "self.default_store_root()")]
-    store_root: PathBuf,
+    /// The location of the public rule store
+    #[builder(default = "self.default_public_rule_store_url()")]
+    public_rule_store_url: Url,
+
+    /// The location of the rule store in the current host.
+    #[builder(default = "self.default_rule_store_root()")]
+    rule_store_root: PathBuf,
+
+    /// The location of the artifact store in the current host.
+    #[builder(default = "self.default_artifact_store_root()")]
+    artifact_store_root: PathBuf,
 
     /// The location of the archives in the current host.
     #[builder(default = "self.default_archive_root()")]
@@ -134,8 +142,16 @@ impl Config {
         &self.public_store_metadata_url
     }
 
-    pub fn store_root(&self) -> &PathBuf {
-        &self.store_root
+    pub fn public_rule_store_url(&self) -> &Url {
+        &self.public_rule_store_url
+    }
+
+    pub fn artifact_store_root(&self) -> &PathBuf {
+        &self.artifact_store_root
+    }
+
+    pub fn rule_store_root(&self) -> &PathBuf {
+        &self.rule_store_root
     }
 
     pub fn http_client(&self) -> &reqwest::Client {
@@ -162,8 +178,16 @@ impl ConfigBuilder {
         self._warp_root().join("archives")
     }
 
-    fn default_store_root(&self) -> PathBuf {
-        self._warp_root().join("store")
+    fn default_artifact_store_root(&self) -> PathBuf {
+        self._warp_root().join("artifact_store")
+    }
+
+    fn default_rule_store_root(&self) -> PathBuf {
+        self._warp_root().join("rule_store")
+    }
+
+    fn default_public_rule_store_url(&self) -> Url {
+        "https://rules.warp.build/rules/".parse::<Url>().unwrap()
     }
 
     fn default_public_store_metadata_url(&self) -> Url {
