@@ -23,8 +23,10 @@ pub enum PlanningFlow {
     FoundAllDeps { deps: Dependencies },
 }
 
-/// NOTE(@ostera): because the Planner uses a RuleExecutor that uses Deno in one of its implementations, we can't use the #[async_trait] macro. This macro automatically marks all futures as +Send, which forces
-/// Send on this RuleExecutor, which forces Send on the Deno instances.
+/// NOTE(@ostera): because the Planner uses a RuleExecutor that uses Deno in one of its
+/// implementations, we can't use the #[async_trait] macro. This macro automatically marks all
+/// futures as +Send, which forces Send on this RuleExecutor, which forces Send on the Deno
+/// instances.
 ///
 pub trait Planner {
     type Context: Sync + Send + Clone + Sized;

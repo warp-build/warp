@@ -159,8 +159,12 @@ mod tests {
             manifest.target(),
             "https://rules.warp.build/toolchains/erlang".to_string()
         );
-        assert!(warp_root.child("artifact_store/a-hash/Manifest.json").exists());
-        assert!(warp_root.child("artifact_store/b-hash/Manifest.json").exists());
+        assert!(warp_root
+            .child("artifact_store/a-hash/Manifest.json")
+            .exists());
+        assert!(warp_root
+            .child("artifact_store/b-hash/Manifest.json")
+            .exists());
     }
 
     #[tokio::test]
