@@ -25,6 +25,16 @@ impl ExecutableSpec {
     pub fn planning_end_time(&self) -> DateTime<Utc> {
         self.planning_end_time
     }
+
+    /// The target this spec will build.
+    pub fn target(&self) -> &ConcreteTarget {
+        &self.target
+    }
+
+    /// The required dependencies to build this spec and run any output artifacts.
+    pub fn deps(&self) -> &Dependencies {
+        &self.deps
+    }
 }
 
 #[derive(Error, Debug)]

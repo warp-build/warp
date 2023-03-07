@@ -12,6 +12,7 @@ use async_trait::async_trait;
 /// The Default store implements the interface of an artifact store that orchestrates between the
 /// Public and Local stores to download, cache, and save artifacts.
 ///
+#[derive(Debug, Clone)]
 pub struct DefaultStore {
     config: Config,
     archive_manager: Arc<ArchiveManager>,

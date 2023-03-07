@@ -3,6 +3,7 @@ use crate::{util::from_file::FromFileError, Config};
 use std::path::PathBuf;
 use thiserror::Error;
 
+#[derive(Debug, Clone)]
 pub struct LocalStore {
     config: Config,
     store_root: PathBuf,

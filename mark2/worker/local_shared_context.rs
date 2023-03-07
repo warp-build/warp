@@ -3,6 +3,7 @@ use crate::config::Config;
 use crate::events::EventChannel;
 use crate::planner::DefaultPlannerContext;
 use crate::resolver::{Resolver, TargetRegistry};
+use crate::store::{DefaultStore, Store};
 use crate::sync::Arc;
 use crate::workspace::WorkspaceManager;
 
@@ -16,7 +17,7 @@ use crate::workspace::WorkspaceManager;
 /// * a Workspace Manager to get information about the current workspace
 ///
 #[derive(Debug, Clone)]
-pub struct LocalSharedContext<R: Resolver> {
+pub struct LocalSharedContext<R: Resolver, S: Store> {
     pub(crate) coordinator: Arc<Coordinator>,
     pub(crate) event_channel: Arc<EventChannel>,
     pub(crate) target_registry: Arc<TargetRegistry>,
@@ -24,11 +25,24 @@ pub struct LocalSharedContext<R: Resolver> {
     pub(crate) task_results: Arc<TaskResults>,
     pub(crate) workspace_manager: Arc<WorkspaceManager>,
     pub(crate) resolver: Arc<R>,
+    pub(crate) artifact_store: Arc<S>,
 }
 
-impl<R: Resolver> LocalSharedContext<R> {
-    #[tracing::instrument(name = "SharedContext::new", skip(event_channel, resolver))]
-    pub fn new(event_channel: Arc<EventChannel>, options: Config, resolver: R) -> Self {
+impl<R, S> LocalSharedContext<R, S>
+where
+    R: Resolver,
+    S: Store,
+{
+    #[tracing::instrument(
+        name = "SharedContext::new",
+        skip(event_channel, resolver, artifact_store)
+    )]
+    pub fn new(
+        event_channel: Arc<EventChannel>,
+        options: Config,
+        resolver: R,
+        artifact_store: Arc<S>,
+    ) -> Self {
         let workspace_manager = Arc::new(WorkspaceManager::new());
 
         let coordinator = Arc::new(Coordinator::new());
@@ -46,6 +60,7 @@ impl<R: Resolver> LocalSharedContext<R> {
         let resolver = Arc::new(resolver);
 
         Self {
+            artifact_store,
             coordinator,
             event_channel,
             target_registry,
@@ -57,19 +72,31 @@ impl<R: Resolver> LocalSharedContext<R> {
     }
 }
 
-impl<R: Resolver> Context for LocalSharedContext<R> {
+impl<R, S> Context for LocalSharedContext<R, S>
+where
+    R: Resolver,
+    S: Store,
+{
     fn results(&self) -> Arc<TaskResults> {
         self.task_results.clone()
     }
 }
 
-impl<R: Resolver> From<LocalSharedContext<R>> for DefaultPlannerContext {
-    fn from(_value: LocalSharedContext<R>) -> Self {
-        Self
+impl<R: Resolver> From<LocalSharedContext<R, DefaultStore>> for DefaultPlannerContext {
+    fn from(ctx: LocalSharedContext<R, DefaultStore>) -> Self {
+        Self::new(
+            ctx.artifact_store.clone(),
+            ctx.target_registry.clone(),
+            ctx.task_results,
+        )
     }
 }
 
 #[cfg(test)]
-impl<R: Resolver> From<LocalSharedContext<R>> for () {
-    fn from(_value: LocalSharedContext<R>) {}
+impl<R, S> From<LocalSharedContext<R, S>> for ()
+where
+    R: Resolver,
+    S: Store,
+{
+    fn from(_value: LocalSharedContext<R, S>) {}
 }

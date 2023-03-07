@@ -23,7 +23,7 @@ use async_trait::async_trait;
 const DEFAULT_WARP_STORE_HOST: &str = "store.warp.build";
 
 #[async_trait]
-pub trait Store {
+pub trait Store: Sync + Send + Clone + Sized {
     async fn install_from_manifest_url(
         &self,
         url: &ManifestUrl,

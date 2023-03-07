@@ -7,7 +7,7 @@ use thiserror::Error;
 use tokio::{fs, io::AsyncWriteExt};
 use url::Url;
 
-#[derive(Builder)]
+#[derive(Debug, Builder)]
 pub struct ArchiveManager {
     client: reqwest::Client,
     archive_root: PathBuf,

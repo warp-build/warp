@@ -17,8 +17,8 @@ use tracing::*;
 
 type MainResolver = DefaultResolver<GrpcTricorder>;
 type MainPlanner = DefaultPlanner<JsRuleExecutor>;
-type DefaultWorker = LocalWorker<MainResolver, MainPlanner>;
-type DefaultCtxt = LocalSharedContext<MainResolver>;
+type DefaultWorker = LocalWorker<MainResolver, MainPlanner, DefaultStore>;
+type DefaultCtxt = LocalSharedContext<MainResolver, DefaultStore>;
 
 /// # Warp Engine Mark II
 ///
@@ -42,10 +42,13 @@ impl WarpDriveMarkII {
         let event_channel = Arc::new(EventChannel::new());
 
         let archive_manager = ArchiveManager::new(&config).into();
-        let store = DefaultStore::new(config.clone(), archive_manager).into();
+        let store: Arc<DefaultStore> = DefaultStore::new(config.clone(), archive_manager).into();
 
-        let resolver: DefaultResolver<GrpcTricorder> = DefaultResolver::new(config.clone(), store);
-        let shared_ctx = LocalSharedContext::new(event_channel.clone(), config.clone(), resolver);
+        let resolver: DefaultResolver<GrpcTricorder> =
+            DefaultResolver::new(config.clone(), store.clone());
+
+        let shared_ctx =
+            LocalSharedContext::new(event_channel.clone(), config.clone(), resolver, store);
 
         let worker_pool = WorkerPool::from_shared_context(
             event_channel.clone(),

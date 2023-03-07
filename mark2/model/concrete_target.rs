@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 /// A ConcreteTarget is a target that has gone through the first phase of resolution.
 ///
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ConcreteTarget {
     original_target: Arc<Target>,
     path: PathBuf,

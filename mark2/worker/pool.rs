@@ -98,15 +98,40 @@ impl From<WorkerError> for WorkerPoolError {
 
 #[cfg(test)]
 mod tests {
+    use core::future::Future;
+    use core::pin::Pin;
+    use std::path::PathBuf;
+
     use super::*;
     use crate::events::EventChannel;
     use crate::model::{Goal, Signature, Target, TargetId};
     use crate::planner::{Planner, PlanningFlow};
     use crate::resolver::{ResolutionFlow, Resolver, ResolverError, TargetRegistry};
+    use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
     use crate::Config;
     use assert_fs::prelude::*;
     use async_trait::async_trait;
     use futures::FutureExt;
+
+    #[derive(Debug, Clone)]
+    struct NoopStore;
+    #[async_trait]
+    impl Store for NoopStore {
+        async fn install_from_manifest_url(
+            &self,
+            _url: &ManifestUrl,
+        ) -> Result<ArtifactManifest, StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        fn canonicalize_provided_artifact<N: AsRef<str>>(
+            &self,
+            _am: &ArtifactManifest,
+            _name: N,
+        ) -> Option<PathBuf> {
+            None
+        }
+    }
 
     #[derive(Clone)]
     struct NoopResolver;
@@ -136,8 +161,8 @@ mod tests {
 
         fn plan(
             &mut self,
-            sig: Signature,
-            env: ExecutionEnvironment,
+            _sig: Signature,
+            _env: ExecutionEnvironment,
         ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>>>> {
             async move {
                 Ok(PlanningFlow::MissingDeps {
@@ -152,7 +177,7 @@ mod tests {
     struct NoopWorker;
 
     impl Worker for NoopWorker {
-        type Context = LocalSharedContext<NoopResolver>;
+        type Context = LocalSharedContext<NoopResolver, NoopStore>;
         fn new(_role: Role, _ctx: Self::Context) -> Result<Self, WorkerError> {
             Ok(NoopWorker)
         }
@@ -163,11 +188,12 @@ mod tests {
 
     fn new_pool<W>() -> WorkerPool<W>
     where
-        W: Worker<Context = LocalSharedContext<NoopResolver>>,
+        W: Worker<Context = LocalSharedContext<NoopResolver, NoopStore>>,
     {
         let ec = Arc::new(EventChannel::new());
         let config = Config::default();
-        let ctx = LocalSharedContext::new(ec.clone(), config.clone(), NoopResolver);
+        let ctx =
+            LocalSharedContext::new(ec.clone(), config.clone(), NoopResolver, NoopStore.into());
         WorkerPool::from_shared_context(ec, config, ctx)
     }
 

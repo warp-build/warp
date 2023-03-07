@@ -2,10 +2,9 @@ use core::future::Future;
 use std::pin::Pin;
 
 use super::*;
-use crate::{
-    planner::{DefaultPlannerContext, Planner, PlanningFlow},
-    resolver::{ResolutionFlow, Resolver, ResolverError},
-};
+use crate::planner::{Planner, PlanningFlow};
+use crate::resolver::{ResolutionFlow, Resolver, ResolverError};
+use crate::store::Store;
 use futures::FutureExt;
 use thiserror::*;
 
@@ -39,9 +38,9 @@ use thiserror::*;
 /// ```
 ///
 #[derive(Debug)]
-pub struct LocalWorker<R: Resolver, P: Planner> {
+pub struct LocalWorker<R: Resolver, P: Planner, S: Store> {
     role: Role,
-    ctx: LocalSharedContext<R>,
+    ctx: LocalSharedContext<R, S>,
     planner: P,
     env: ExecutionEnvironment,
 }
@@ -51,13 +50,14 @@ pub enum WorkerFlow {
     RetryLater,
 }
 
-impl<R, P, PCtx> Worker for LocalWorker<R, P>
+impl<R, P, PCtx, S> Worker for LocalWorker<R, P, S>
 where
     R: Resolver,
     P: Planner<Context = PCtx>,
-    PCtx: From<LocalSharedContext<R>>,
+    PCtx: From<LocalSharedContext<R, S>>,
+    S: Store,
 {
-    type Context = LocalSharedContext<R>;
+    type Context = LocalSharedContext<R, S>;
 
     fn new(role: Role, ctx: Self::Context) -> Result<Self, WorkerError> {
         let env = ExecutionEnvironment::new();
@@ -98,7 +98,12 @@ where
     }
 }
 
-impl<R: Resolver, P: Planner> LocalWorker<R, P> {
+impl<R, P, S> LocalWorker<R, P, S>
+where
+    R: Resolver,
+    P: Planner,
+    S: Store,
+{
     pub async fn poll(&mut self) -> Result<(), LocalWorkerError> {
         let task = match self.ctx.task_queue.next() {
             Some(task) => task,
@@ -136,7 +141,7 @@ impl<R: Resolver, P: Planner> LocalWorker<R, P> {
             _flow => return Ok(WorkerFlow::RetryLater),
         };
 
-        self.ctx.store.save(manifest).await?;
+        self.ctx.artifact_store.save(manifest).await?;
 
         self.ctx.task_results.add(task.target, manifest, executable_spec);
         */
@@ -185,21 +190,48 @@ impl From<PlannerError> for LocalWorkerError {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
     use crate::events::EventChannel;
     use crate::model::{ConcreteTarget, Goal, Signature, Target};
     use crate::planner::PlannerError;
+    use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
     use crate::{sync::*, Config};
     use async_trait::async_trait;
     use quickcheck::Arbitrary;
+
+    #[derive(Debug, Clone)]
+    struct NoopStore;
+    #[async_trait]
+    impl Store for NoopStore {
+        async fn install_from_manifest_url(
+            &self,
+            _url: &ManifestUrl,
+        ) -> Result<ArtifactManifest, StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        fn canonicalize_provided_artifact<N: AsRef<str>>(
+            &self,
+            _am: &ArtifactManifest,
+            _name: N,
+        ) -> Option<PathBuf> {
+            None
+        }
+    }
 
     #[derive(Clone)]
     struct NoopPlanner;
     #[derive(Debug, Clone)]
     struct NoopContext;
 
-    impl<R: Resolver> From<LocalSharedContext<R>> for NoopContext {
-        fn from(_value: LocalSharedContext<R>) -> Self {
+    impl<R, S> From<LocalSharedContext<R, S>> for NoopContext
+    where
+        R: Resolver,
+        S: Store,
+    {
+        fn from(_value: LocalSharedContext<R, S>) -> Self {
             Self
         }
     }
@@ -213,8 +245,8 @@ mod tests {
 
         fn plan(
             &mut self,
-            sig: Signature,
-            env: ExecutionEnvironment,
+            _sig: Signature,
+            _env: ExecutionEnvironment,
         ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>>>> {
             async move {
                 Ok(PlanningFlow::MissingDeps {
@@ -243,11 +275,11 @@ mod tests {
     async fn when_coordinator_marks_shutdown_the_worker_stops() {
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
-        let ctx = LocalSharedContext::new(ec, config, NoopResolver);
+        let ctx = LocalSharedContext::new(ec, config, NoopResolver, NoopStore.into());
 
         ctx.coordinator.signal_shutdown();
 
-        let mut w: LocalWorker<NoopResolver, NoopPlanner> =
+        let mut w: LocalWorker<NoopResolver, NoopPlanner, NoopStore> =
             LocalWorker::new(Role::MainWorker(vec![]), ctx).unwrap();
         w.run().await.unwrap();
     }
@@ -269,7 +301,7 @@ mod tests {
 
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
-        let ctx = LocalSharedContext::new(ec, config, ErrResolver);
+        let ctx = LocalSharedContext::new(ec, config, ErrResolver, NoopStore.into());
 
         let mut gen = quickcheck::Gen::new(100);
         let target: Target = Arbitrary::arbitrary(&mut gen);
@@ -279,7 +311,7 @@ mod tests {
         ctx.task_queue.queue(task).unwrap();
         assert!(!ctx.task_queue.is_empty());
 
-        let mut w: LocalWorker<ErrResolver, NoopPlanner> =
+        let mut w: LocalWorker<ErrResolver, NoopPlanner, NoopStore> =
             LocalWorker::new(Role::MainWorker(vec![]), ctx.clone()).unwrap();
         let err = w.run().await.unwrap_err();
 
@@ -335,7 +367,7 @@ mod tests {
 
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
-        let ctx = LocalSharedContext::new(ec, config, DummyResolver);
+        let ctx = LocalSharedContext::new(ec, config, DummyResolver, NoopStore.into());
 
         let mut gen = quickcheck::Gen::new(100);
         let target: Target = Arbitrary::arbitrary(&mut gen);
@@ -345,7 +377,7 @@ mod tests {
         ctx.task_queue.queue(task).unwrap();
         assert!(!ctx.task_queue.is_empty());
 
-        let mut w: LocalWorker<DummyResolver, ErrPlanner> =
+        let mut w: LocalWorker<DummyResolver, ErrPlanner, NoopStore> =
             LocalWorker::new(Role::MainWorker(vec![]), ctx.clone()).unwrap();
         let err = w.run().await.unwrap_err();
 
