@@ -58,26 +58,24 @@
 </template>
 
 <script setup lang="ts">
+import Repository from "@/types/Repository";
 
-interface Repository {
-    name: string;
-    avatar_url: string;
-    node_id: string;
-    selected: boolean;
-}
+const emit = defineEmits(["selectedRepo"])
 
 const selectedRepo: Repository = reactive({
   name: 'Select Github Repository',
-  avatar_url: '/git-branch-512.webp',
+  full_name: '',
   node_id: '',
   selected: false
 })
 
 function selectOption(option: Repository) {
   selectedRepo.name = option.name
-  selectedRepo.avatar_url = option.avatar_url
+  selectedRepo.full_name = option.full_name
   selectedRepo.node_id = option.node_id
   selectedRepo.selected = true
+
+  emit("selectedRepo", selectedRepo)
 }
 
 const props = defineProps({
@@ -89,7 +87,7 @@ const props = defineProps({
 
 watch(props.repositories, async (newRepos, oldrepos) => {
   selectedRepo.name = 'Select Github Repository'
-  selectedRepo.avatar_url = '/git-branch-512.webp',
+  selectedRepo.full_name = ''
   selectedRepo.node_id = ''
   selectedRepo.selected = false
 })

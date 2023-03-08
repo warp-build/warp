@@ -22,6 +22,14 @@
 </template>
 
 <script setup lang="ts">
+import Analysis from '@/types/Analysis';
+
+const props = defineProps({
+    analysis: {
+        type: Object as ()=> Analysis
+    }
+})
+
 
 </script>
 
