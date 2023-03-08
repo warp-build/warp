@@ -34,7 +34,7 @@ import Repository from "@/types/Repository";
 import Organization from "@/types/Organization";
 import {GithubActionAnalysis} from "@/types/Analysis";
 
-const { status, data } = useSession()
+const { data } = useSession()
 const repositories = ref([])
 const loading = ref(false)
 const analysis = reactive(new GithubActionAnalysis(0, []))

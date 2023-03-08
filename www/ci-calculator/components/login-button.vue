@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-const { status, data, signIn, signOut } = useSession()
+const { signIn } = useSession()
 
 </script>
 
