@@ -40,14 +40,13 @@
 
 <script setup lang="ts">
 import Repository from "@/types/Repository";
-import Analysis from "@/types/Analysis";
+import Organization from "@/types/Organization";
+import {GithubActionAnalysis} from "@/types/Analysis";
 
 const { status, data } = useSession()
 const repositories = ref([])
 const loading = ref(false)
-const analysis: Analysis = reactive({
-
-})
+const analysis = reactive({completed: false})
 
 const headers = useRequestHeaders(['cookie']) as HeadersInit;
 const { data: organizations } = await useFetch('/api/github/organizations', { headers });
@@ -80,7 +79,7 @@ async function runQuery(owner: string, repoName: string) {
   const analysisResult = await useFetch(`/api/github/workflow/${repoName}?owner=${owner}`, { headers }) 
 
   if (analysisResult.data) {
-    analysis.completed = analysisResult.data.value.completed;
+    analysis.completed = analysisResult.data.value ? analysisResult.data.value.completed : false;
   }
 }
 
@@ -93,7 +92,7 @@ async function repoSelect(repo: Repository) {
 
 function propsToPass() {
 
-  const user_added = organizations.value.filter((x) => x.login === data.value?.user?.login)
+  const user_added = organizations.value.filter((x: Organization) => x.login === data.value?.user?.login)
   if (user_added.length === 0) {
     let user_org = {
     login: data.value?.user?.login,
