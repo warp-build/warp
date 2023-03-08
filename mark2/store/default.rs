@@ -77,11 +77,8 @@ impl Store for DefaultStore {
         Ok(manifest.unwrap())
     }
 
-    async fn find(
-        &self,
-        spec: &ExecutableSpec,
-    ) -> Result<Option<Arc<ArtifactManifest>>, StoreError> {
-        let manifest = self.local_store.find_manifest_by_spec(&spec).await?;
+    async fn find(&self, spec: &ExecutableSpec) -> Result<Option<ArtifactManifest>, StoreError> {
+        let manifest = self.local_store.get_manifest(spec.artifact_id()).await?;
         Ok(manifest)
     }
 
@@ -103,7 +100,7 @@ impl Store for DefaultStore {
         let mut artifacts = manifest.outs().to_vec();
         artifacts.push(PathBuf::from(MANIFEST_FILE));
 
-        self.local_store.write_manifest(spec, manifest).await?;
+        self.local_store.write_manifest(manifest).await?;
         // self.remote_store.save(manifest, artifacts).await?;
 
         Ok(())

@@ -1,5 +1,5 @@
 use super::{Goal, Target, TargetId};
-use crate::sync::*;
+use crate::{sync::*, workspace::WorkspaceId};
 use std::path::PathBuf;
 
 /// A ConcreteTarget is a target that has gone through the first phase of resolution.

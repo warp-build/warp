@@ -64,7 +64,25 @@ impl Config {
     }
 
     pub fn get_file_set(&self) -> FxHashSet<PathBuf> {
-        FxHashSet::default()
+        let values: Vec<Value> = self._inner.values().cloned().collect();
+        self._extract_files(&values)
+    }
+
+    fn _extract_files(&self, values: &[Value]) -> FxHashSet<PathBuf> {
+        let mut files = FxHashSet::default();
+        for val in values {
+            match val {
+                Value::File(file) => {
+                    files.insert(file.clone());
+                }
+                Value::List(values) => {
+                    let inner = self._extract_files(values);
+                    files.extend(inner);
+                }
+                _ => (),
+            }
+        }
+        files
     }
 
     pub fn values(&self) -> &FxHashMap<String, Value> {

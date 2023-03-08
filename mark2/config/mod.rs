@@ -179,11 +179,11 @@ impl ConfigBuilder {
     }
 
     fn default_artifact_store_root(&self) -> PathBuf {
-        self._warp_root().join("artifact_store")
+        self._warp_root().join("store")
     }
 
     fn default_rule_store_root(&self) -> PathBuf {
-        self._warp_root().join("rule_store")
+        self._warp_root().join("rules")
     }
 
     fn default_public_rule_store_url(&self) -> Url {

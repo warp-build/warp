@@ -131,9 +131,26 @@ async fn executes_target() {
 
     let target: Target = curr_workspace.path().join("good_file.warp_test").into();
 
-    drive.execute(Goal::Build, &[target]).await.unwrap();
+    let results = drive
+        .execute(Goal::Build, &[target])
+        .await
+        .unwrap()
+        .get_results();
+
+    assert!(!results.is_empty());
 
     public_store_mock.assert();
     package_manifest_mock.assert();
     rule_store_mock.assert();
+
+    let task_result = results.get(0).unwrap();
+    let hash = task_result.artifact_manifest.hash();
+
+    assert!(warp_root
+        .child(format!("store/{hash}/Manifest.json"))
+        .exists());
+
+    assert!(warp_root
+        .child(format!("store/{hash}/good_file.warp_test"))
+        .exists());
 }

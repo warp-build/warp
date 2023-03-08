@@ -1,7 +1,9 @@
 use super::{
-    ConcreteTarget, Dependencies, ExecutionEnvironment, Portability, ProvidedFiles, SourceSet,
+    ConcreteTarget, Dependencies, ExecutionEnvironment, Portability, ProvidedFiles, Signature,
+    SourceSet,
 };
 use crate::executor::actions::Action;
+use crate::store::ArtifactId;
 use crate::worker::TaskResults;
 use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
@@ -15,6 +17,8 @@ use thiserror::Error;
 #[builder(build_fn(error = "ExecutableSpecError", name = "inner_build"))]
 pub struct ExecutableSpec {
     target: ConcreteTarget,
+
+    signature: Signature,
 
     #[builder(setter(skip))]
     hash: String,
@@ -52,6 +56,11 @@ pub struct ExecutableSpec {
 impl ExecutableSpec {
     pub fn builder() -> ExecutableSpecBuilder {
         Default::default()
+    }
+
+    /// The ID this Artifact will have once its build.
+    pub fn artifact_id(&self) -> ArtifactId {
+        ArtifactId::new(&self.hash)
     }
 
     /// When this target planning started.
@@ -112,6 +121,10 @@ impl ExecutableSpec {
     /// Whether this target is portable across architectures or not.
     pub fn portability(&self) -> &Portability {
         &self.portability
+    }
+
+    pub fn signature(&self) -> &Signature {
+        &self.signature
     }
 }
 

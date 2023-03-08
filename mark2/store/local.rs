@@ -1,10 +1,11 @@
-use super::{ArtifactId, ArtifactManifest, ARTIFACT_MANIFEST_FILE};
+use super::{ArtifactId, ArtifactManifest, ARTIFACT_MANIFEST_FILE, MANIFEST_FILE};
 use crate::model::ExecutableSpec;
 use crate::sync::*;
 use crate::util::from_file::FromFileError;
 use crate::Config;
 use std::path::PathBuf;
 use thiserror::Error;
+use tokio::fs;
 
 #[derive(Debug, Clone)]
 pub struct LocalStore {
@@ -40,27 +41,26 @@ impl LocalStore {
         }
     }
 
-    pub async fn find_manifest_by_spec(
-        &self,
-        spec: &ExecutableSpec,
-    ) -> Result<Option<Arc<ArtifactManifest>>, LocalStoreError> {
-        todo!()
-    }
-
     pub async fn clean(&self, spec: &ExecutableSpec) -> Result<(), LocalStoreError> {
-        todo!()
+        let spec_path = self.store_root.join(spec.hash());
+        let _ = fs::remove_dir_all(&spec_path).await;
+        let _ = fs::create_dir_all(&spec_path).await;
+        Ok(())
     }
 
     pub async fn promote(&self, manifest: &ArtifactManifest) -> Result<(), LocalStoreError> {
-        todo!()
+        Ok(())
     }
 
-    pub async fn write_manifest(
-        &self,
-        spec: &ExecutableSpec,
-        manifest: &ArtifactManifest,
-    ) -> Result<(), LocalStoreError> {
-        todo!()
+    pub async fn write_manifest(&self, manifest: &ArtifactManifest) -> Result<(), LocalStoreError> {
+        let manifest_file = self
+            .store_root
+            .join(manifest.hash())
+            .join(ARTIFACT_MANIFEST_FILE);
+        match manifest.write(&manifest_file).await {
+            Ok(_) => Ok(()),
+            Err(err) => Err(LocalStoreError::CouldNotWriteManifest(err)),
+        }
     }
 }
 
@@ -71,6 +71,9 @@ pub enum LocalStoreError {
 
     #[error(transparent)]
     CouldNotReadManifest(FromFileError),
+
+    #[error(transparent)]
+    CouldNotWriteManifest(FromFileError),
 }
 
 #[cfg(test)]

@@ -155,11 +155,10 @@ where
             _flow => return Ok(WorkerFlow::RetryLater),
         };
 
-        /*
-        self.ctx.artifact_store.save(manifest).await?;
+        self.ctx
+            .task_results
+            .add_task_result(task.target, executable_spec, artifact_manifest);
 
-        self.ctx.task_results.add(task.target, manifest, executable_spec);
-        */
         Ok(WorkerFlow::TaskCompleted(task))
     }
 }

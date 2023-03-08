@@ -7,7 +7,6 @@ mod js_ffi;
 mod net_module_loader;
 mod result;
 
-use compute_script::*;
 pub use context::*;
 use dashmap::DashMap;
 pub use js::*;

@@ -49,9 +49,8 @@ where
         target_registry: Arc<TargetRegistry>,
         resolver: R,
         artifact_store: Arc<S>,
+        workspace_manager: Arc<WorkspaceManager>,
     ) -> Self {
-        let workspace_manager = Arc::new(WorkspaceManager::new());
-
         let coordinator = Arc::new(Coordinator::new());
 
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));

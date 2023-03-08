@@ -11,7 +11,7 @@ use crate::sync::Arc;
 use crate::tricorder::GrpcTricorder;
 use crate::worker::local::{LocalSharedContext, LocalWorker};
 use crate::worker::{Task, TaskResults, WorkerPool, WorkerPoolError};
-use crate::workspace::WorkspaceManagerError;
+use crate::workspace::{WorkspaceManager, WorkspaceManagerError};
 use thiserror::*;
 use tracing::*;
 
@@ -41,19 +41,27 @@ impl WarpDriveMarkII {
     pub async fn new(config: Config) -> Result<Self, WarpDriveError> {
         let event_channel = Arc::new(EventChannel::new());
 
+        let workspace_manager = Arc::new(WorkspaceManager::new());
+        workspace_manager.load_current_workspace(&config).await?;
+
         let archive_manager = ArchiveManager::new(&config).into();
         let store: Arc<DefaultStore> = DefaultStore::new(config.clone(), archive_manager).into();
 
         let target_registry = Arc::new(TargetRegistry::new());
-        let resolver: DefaultResolver<GrpcTricorder> =
-            DefaultResolver::new(config.clone(), store.clone(), target_registry.clone());
+        let resolver: DefaultResolver<GrpcTricorder> = DefaultResolver::new(
+            config.clone(),
+            store.clone(),
+            target_registry.clone(),
+            workspace_manager.clone(),
+        );
 
         let shared_ctx = LocalSharedContext::new(
             event_channel.clone(),
             config.clone(),
-            target_registry.clone(),
+            target_registry,
             resolver,
             store,
+            workspace_manager,
         );
 
         let worker_pool = WorkerPool::from_shared_context(
@@ -61,11 +69,6 @@ impl WarpDriveMarkII {
             config.clone(),
             shared_ctx.clone(),
         );
-
-        shared_ctx
-            .workspace_manager
-            .load_current_workspace(&config)
-            .await?;
 
         Ok(Self {
             config,

@@ -7,6 +7,7 @@ use crate::rules::ExecutionResult;
 use deno_core::Extension;
 use futures::{Future, FutureExt};
 use fxhash::{FxHashMap, FxHashSet};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::{pin::Pin, rc::Rc};
 use tokio::fs;
@@ -85,7 +86,7 @@ impl RuleExecutor for JsRuleExecutor {
             let rule = self.load_rule(sig.rule()).await?;
 
             let config = Expander
-                .expand(&rule, &sig)
+                .expand(&rule, sig)
                 .await
                 .map_err(RuleExecutorError::ConfigExpanderError)?;
 
@@ -148,7 +149,7 @@ impl RuleExecutor for JsRuleExecutor {
                 .unwrap_or_default()
                 .into_iter()
                 .map(|(k, v)| (k, PathBuf::from(v)))
-                .collect::<FxHashMap<String, PathBuf>>();
+                .collect::<BTreeMap<String, PathBuf>>();
 
             let env = self
                 .ctx

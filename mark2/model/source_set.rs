@@ -19,3 +19,9 @@ impl SourceSet {
         self._inner.insert(s);
     }
 }
+
+impl From<FxHashSet<PathBuf>> for SourceSet {
+    fn from(_inner: FxHashSet<PathBuf>) -> Self {
+        Self { _inner }
+    }
+}

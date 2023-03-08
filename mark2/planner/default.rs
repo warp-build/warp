@@ -42,9 +42,14 @@ where
 
             let spec = ExecutableSpec::builder()
                 .target(sig.target().clone())
+                .signature(sig)
                 .exec_env(env)
                 .planning_start_time(planning_start_time)
                 .planning_end_time(planning_end_time)
+                .srcs(plan.srcs.into())
+                .outs(plan.outs.into())
+                .provides(plan.provides.into())
+                .actions(plan.actions)
                 .deps(deps)
                 .hash_and_build(&self.ctx.task_results)?;
 
@@ -243,7 +248,6 @@ mod tests {
         let flow = p.plan(sig.clone(), env).await.unwrap();
 
         assert_matches!(flow, PlanningFlow::MissingDeps { deps } => {
-            dbg!(&deps);
             assert!(!deps.is_empty());
         });
     }

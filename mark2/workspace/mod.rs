@@ -17,7 +17,7 @@ mod workspace_id;
 use finder::*;
 pub use manager::*;
 use paths::*;
-use workspace_id::*;
+pub use workspace_id::*;
 
 use std::path::PathBuf;
 use thiserror::*;

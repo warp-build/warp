@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use std::path::PathBuf;
 
 pub enum ExecutionFlow {
-    Completed(Arc<ArtifactManifest>),
+    Completed(ArtifactManifest),
     ValidationError(ValidationStatus),
 }
 

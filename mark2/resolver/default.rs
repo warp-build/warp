@@ -2,6 +2,7 @@ use super::{FsResolver, ResolutionFlow, Resolver, ResolverError, TargetRegistry}
 use crate::model::{ConcreteTarget, Goal, Target, TargetId};
 use crate::store::DefaultStore;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
+use crate::workspace::WorkspaceManager;
 use crate::{sync::*, Config};
 use async_trait::async_trait;
 
@@ -10,6 +11,7 @@ pub struct DefaultResolver<T: Tricorder + Clone> {
     fs_resolver: Arc<FsResolver>,
     tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
     target_registry: Arc<TargetRegistry>,
+    workspace_manager: Arc<WorkspaceManager>,
 }
 
 impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
@@ -17,6 +19,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         config: Config,
         store: Arc<DefaultStore>,
         target_registry: Arc<TargetRegistry>,
+        workspace_manager: Arc<WorkspaceManager>,
     ) -> Self {
         let fs_resolver = Arc::new(FsResolver::new());
         let tricorder_manager = Arc::new(TricorderManager::new(config, store));
@@ -24,6 +27,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             fs_resolver,
             tricorder_manager,
             target_registry,
+            workspace_manager,
         }
     }
 
@@ -33,12 +37,24 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         target_id: TargetId,
         target: Arc<Target>,
     ) -> Result<Arc<ConcreteTarget>, ResolverError> {
+        let workspace = self.workspace_manager.current_workspace();
+
         let final_path = match &*target {
             // Target::Alias(a) => self.alias_resolver.resolve(goal, a).await?,
             // Target::Remote(r) => self.net_resolver.resolve(goal, r).await?,
             Target::Fs(f) => self.fs_resolver.resolve(goal, f).await?,
             _ => todo!(),
         };
+
+        let final_path = if final_path.starts_with(workspace.root()) {
+            final_path
+                .strip_prefix(workspace.root())
+                .unwrap()
+                .to_path_buf()
+        } else {
+            final_path
+        };
+
         let ct = ConcreteTarget::new(goal, target_id, target, final_path);
         Ok(self
             .target_registry

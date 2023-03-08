@@ -3,7 +3,7 @@ pub use context::*;
 
 use super::{ExecutionFlow, Executor, ExecutorError, ValidationStatus};
 use crate::model::{ConcreteTarget, ExecutableSpec};
-use crate::store::{ArtifactManifest, Store};
+use crate::store::{ArtifactManifest, BuildStamps, Store};
 use async_trait::async_trait;
 use futures::FutureExt;
 use fxhash::FxHashSet;
@@ -24,32 +24,129 @@ impl Executor for LocalExecutor {
     }
 
     async fn execute(&mut self, spec: &ExecutableSpec) -> Result<ExecutionFlow, ExecutorError> {
+        println!("executing {spec:#?}");
+
         if let Some(manifest) = self.ctx.artifact_store.find(spec).await? {
             self.ctx.artifact_store.promote(&manifest).await?;
             return Ok(ExecutionFlow::Completed(manifest));
         }
 
-        self.ctx.artifact_store.clean(spec).await?;
-
-        let store_path = self.ctx.artifact_store.get_local_store_path_for_spec(spec);
-
-        let env = self.shell_env(&store_path, spec);
-        self.copy_files(&store_path, spec).await?;
-        self.execute_actions(&store_path, &env, spec).await?;
-
-        match self.validate_outputs(&store_path, spec).await? {
-            ValidationStatus::Valid { .. } => {
-                let manifest = ArtifactManifest::builder().build()?;
-                self.ctx.artifact_store.promote(&manifest).await?;
-                self.ctx.artifact_store.save(spec, &manifest).await?;
-                return Ok(ExecutionFlow::Completed(manifest.into()));
-            }
-            validation => Ok(ExecutionFlow::ValidationError(validation)),
-        }
+        self.do_execute(spec).await
     }
 }
 
 impl LocalExecutor {
+    async fn do_execute(&self, spec: &ExecutableSpec) -> Result<ExecutionFlow, ExecutorError> {
+        let build_started_at = chrono::Utc::now();
+
+        self.ctx.artifact_store.clean(spec).await?;
+
+        let store_path = self.ctx.artifact_store.get_local_store_path_for_spec(spec);
+
+        let shell_env = self.shell_env(&store_path, spec);
+        self.copy_files(&store_path, spec).await?;
+        self.execute_actions(&store_path, &shell_env, spec).await?;
+
+        match self.validate_outputs(&store_path, spec).await? {
+            ValidationStatus::Valid { .. } => {
+                let build_completed_at = chrono::Utc::now();
+
+                let buildstamps = BuildStamps {
+                    plan_started_at: spec.planning_start_time(),
+                    plan_ended_at: spec.planning_end_time(),
+                    plan_elapsed_time: spec
+                        .planning_end_time()
+                        .signed_duration_since(spec.planning_start_time()),
+                    build_completed_at,
+                    build_started_at,
+                    build_elapsed_time: build_completed_at.signed_duration_since(build_started_at),
+                };
+
+                let deps = spec
+                    .deps()
+                    .compile_deps()
+                    .iter()
+                    .map(|dep| {
+                        let manifest = self
+                            .ctx
+                            .task_results
+                            .get_task_result(*dep)
+                            .unwrap()
+                            .artifact_manifest;
+                        (manifest.target().to_string(), manifest.hash().to_string())
+                    })
+                    .collect();
+
+                let runtime_deps = spec
+                    .deps()
+                    .runtime_deps()
+                    .iter()
+                    .map(|dep| {
+                        let manifest = self
+                            .ctx
+                            .task_results
+                            .get_task_result(*dep)
+                            .unwrap()
+                            .artifact_manifest;
+                        (manifest.target().to_string(), manifest.hash().to_string())
+                    })
+                    .collect();
+
+                let transitive_deps = spec
+                    .deps()
+                    .transitive_deps()
+                    .iter()
+                    .map(|dep| {
+                        let manifest = self
+                            .ctx
+                            .task_results
+                            .get_task_result(*dep)
+                            .unwrap()
+                            .artifact_manifest;
+                        (manifest.target().to_string(), manifest.hash().to_string())
+                    })
+                    .collect();
+
+                let toolchains = spec
+                    .deps()
+                    .toolchains()
+                    .iter()
+                    .map(|dep| {
+                        let manifest = self
+                            .ctx
+                            .task_results
+                            .get_task_result(*dep)
+                            .unwrap()
+                            .artifact_manifest;
+                        (manifest.target().to_string(), manifest.hash().to_string())
+                    })
+                    .collect();
+
+                let manifest = ArtifactManifest::build_v0()
+                    .target(spec.target().to_string())
+                    .rule_name(spec.signature().rule().to_string())
+                    .hash(spec.hash().to_string())
+                    .srcs(spec.srcs().files().iter().cloned().collect())
+                    .outs(spec.outs().files().iter().cloned().collect())
+                    .deps(deps)
+                    .runtime_deps(runtime_deps)
+                    .transitive_deps(transitive_deps)
+                    .toolchains(toolchains)
+                    .provides(spec.provides().files().clone())
+                    .shell_env(shell_env)
+                    .store_path(store_path)
+                    .buildstamps(buildstamps)
+                    .build()?;
+
+                self.ctx.artifact_store.promote(&manifest).await?;
+                self.ctx.artifact_store.save(spec, &manifest).await?;
+
+                Ok(ExecutionFlow::Completed(manifest))
+            }
+            validation => Ok(ExecutionFlow::ValidationError(validation)),
+        }
+    }
+
     fn shell_env(&self, store_path: &Path, spec: &ExecutableSpec) -> BTreeMap<String, String> {
         let mut env = BTreeMap::default();
         for toolchain in spec.deps().toolchains().iter().map(|l| {
@@ -197,6 +294,7 @@ spec = {:#?}
         spec: &ExecutableSpec,
     ) -> Result<ValidationStatus, ExecutorError> {
         let node_inputs: &FxHashSet<PathBuf> = spec.srcs().files();
+
         let deps_inputs: FxHashSet<PathBuf> = spec
             .deps()
             .compile_deps()

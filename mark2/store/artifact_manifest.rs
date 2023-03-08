@@ -4,6 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use thiserror::Error;
+use tokio::fs;
 use tokio::io::AsyncReadExt;
 
 use super::ArtifactId;
@@ -60,12 +61,6 @@ pub struct ArtifactManifest {
     store_path: PathBuf,
 
     #[serde(default)]
-    cached: bool,
-
-    #[serde(default)]
-    is_valid: bool,
-
-    #[serde(default)]
     srcs: Vec<PathBuf>,
 
     #[serde(default)]
@@ -94,8 +89,10 @@ pub struct ArtifactManifest {
 }
 
 impl ArtifactManifest {
-    pub fn builder() -> ArtifactManifestBuilder {
-        Default::default()
+    pub fn build_v0() -> ArtifactManifestBuilder {
+        let mut builder = ArtifactManifestBuilder::default();
+        builder.version(ArtifactManifestVersion::V0);
+        builder
     }
 
     // TODO(@ostera): fix util::FromFile to derive this function there
@@ -121,6 +118,16 @@ impl ArtifactManifest {
             file: path.to_path_buf(),
             bytes: String::from_utf8_lossy(&bytes).to_string(),
         })
+    }
+
+    pub async fn write(&self, path: &Path) -> Result<(), FromFileError> {
+        let json = serde_json::to_string_pretty(&self).unwrap();
+        fs::write(&path, json)
+            .await
+            .map_err(|err| FromFileError::CouldNotWriteFile {
+                err,
+                file: path.to_path_buf(),
+            })
     }
 
     /// The identifier of this artifact.

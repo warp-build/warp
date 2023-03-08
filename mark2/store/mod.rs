@@ -35,10 +35,7 @@ pub trait Store: Sync + Send + Clone + Sized {
         url: &ManifestUrl,
     ) -> Result<ArtifactManifest, StoreError>;
 
-    async fn find(
-        &self,
-        spec: &ExecutableSpec,
-    ) -> Result<Option<Arc<ArtifactManifest>>, StoreError>;
+    async fn find(&self, spec: &ExecutableSpec) -> Result<Option<ArtifactManifest>, StoreError>;
 
     async fn clean(&self, spec: &ExecutableSpec) -> Result<(), StoreError>;
 

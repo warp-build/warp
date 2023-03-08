@@ -1,18 +1,18 @@
-use fxhash::FxHashMap;
-use std::collections::hash_map::Values;
+use std::collections::btree_map::Values;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 #[derive(Default, Debug, Clone)]
 pub struct ProvidedFiles {
-    _inner: FxHashMap<String, PathBuf>,
+    _inner: BTreeMap<String, PathBuf>,
 }
 
 impl ProvidedFiles {
-    pub fn new(_inner: FxHashMap<String, PathBuf>) -> Self {
+    pub fn new(_inner: BTreeMap<String, PathBuf>) -> Self {
         Self { _inner }
     }
 
-    pub fn files(&self) -> &FxHashMap<String, PathBuf> {
+    pub fn files(&self) -> &BTreeMap<String, PathBuf> {
         &self._inner
     }
 
@@ -24,7 +24,13 @@ impl ProvidedFiles {
         self._inner.insert(k, v);
     }
 
-    pub fn values(&self) -> Values<'_, String, PathBuf> {
+    pub fn values(&self) -> Values<String, PathBuf> {
         self._inner.values()
+    }
+}
+
+impl From<BTreeMap<String, PathBuf>> for ProvidedFiles {
+    fn from(_inner: BTreeMap<String, PathBuf>) -> Self {
+        Self { _inner }
     }
 }

@@ -11,6 +11,9 @@ pub enum FromFileError {
     #[error("Could not read file at {file:?} due to {err:?}")]
     CouldNotReadFile { err: std::io::Error, file: PathBuf },
 
+    #[error("Could not write file at {file:?} due to {err:?}")]
+    CouldNotWriteFile { err: std::io::Error, file: PathBuf },
+
     #[error("Could not parse file file at {file:?} due to {err:?}")]
     ParseError {
         err: serde_json::Error,
