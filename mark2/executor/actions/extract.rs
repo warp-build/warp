@@ -1,4 +1,4 @@
-use crate::events::{Event, EventChannel};
+use crate::model::ConcreteTarget;
 use crate::sync::Arc;
 use crate::Target;
 use async_compression::futures::bufread::GzipDecoder;
@@ -17,15 +17,12 @@ impl ExtractAction {
     #[tracing::instrument(name = "action::ExtractAction::run")]
     pub async fn run(
         &self,
-        target: Target,
+        target: &ConcreteTarget,
         sandbox_root: &PathBuf,
-        event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         let mut file = fs::File::open(&sandbox_root.join(&self.src)).await?;
 
         let dst = fs::canonicalize(sandbox_root.join(&self.dst)).await?;
-
-        event_channel.send(Event::ArchiveUnpacking(target.to_string()));
 
         match async_zip::read::seek::ZipFileReader::new(&mut file).await {
             Ok(mut zip) => {

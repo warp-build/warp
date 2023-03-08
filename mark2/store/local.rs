@@ -1,5 +1,8 @@
 use super::{ArtifactId, ArtifactManifest, ARTIFACT_MANIFEST_FILE};
-use crate::{util::from_file::FromFileError, Config};
+use crate::model::ExecutableSpec;
+use crate::sync::*;
+use crate::util::from_file::FromFileError;
+use crate::Config;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -35,6 +38,29 @@ impl LocalStore {
             Err(FromFileError::CouldNotOpenFile { .. }) => Ok(None),
             Err(err) => Err(LocalStoreError::CouldNotReadManifest(err)),
         }
+    }
+
+    pub async fn find_manifest_by_spec(
+        &self,
+        spec: &ExecutableSpec,
+    ) -> Result<Option<Arc<ArtifactManifest>>, LocalStoreError> {
+        todo!()
+    }
+
+    pub async fn clean(&self, spec: &ExecutableSpec) -> Result<(), LocalStoreError> {
+        todo!()
+    }
+
+    pub async fn promote(&self, manifest: &ArtifactManifest) -> Result<(), LocalStoreError> {
+        todo!()
+    }
+
+    pub async fn write_manifest(
+        &self,
+        spec: &ExecutableSpec,
+        manifest: &ArtifactManifest,
+    ) -> Result<(), LocalStoreError> {
+        todo!()
     }
 }
 

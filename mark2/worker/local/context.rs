@@ -1,11 +1,15 @@
 use super::*;
 use crate::config::Config;
 use crate::events::EventChannel;
+use crate::executor::local::LocalExecutorContext;
 use crate::planner::DefaultPlannerContext;
 use crate::resolver::{Resolver, TargetRegistry};
 use crate::rules::RuleStore;
 use crate::store::{DefaultStore, Store};
 use crate::sync::Arc;
+use crate::worker::coordinator::Coordinator;
+use crate::worker::task_queue::TaskQueue;
+use crate::worker::{Context, TaskResults};
 use crate::workspace::WorkspaceManager;
 
 /// A shared execution context for workers. This includes all of subsystems that need to be
@@ -83,6 +87,12 @@ where
 {
     fn results(&self) -> Arc<TaskResults> {
         self.task_results.clone()
+    }
+}
+
+impl<R: Resolver> From<LocalSharedContext<R, DefaultStore>> for LocalExecutorContext {
+    fn from(ctx: LocalSharedContext<R, DefaultStore>) -> Self {
+        Self::new(ctx.artifact_store, ctx.task_results)
     }
 }
 

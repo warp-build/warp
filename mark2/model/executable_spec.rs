@@ -1,11 +1,40 @@
-use super::{ConcreteTarget, Dependencies};
+use super::{
+    ConcreteTarget, Dependencies, ExecutionEnvironment, Portability, ProvidedFiles, SourceSet,
+};
+use crate::executor::actions::Action;
+use crate::worker::TaskResults;
 use chrono::{DateTime, Utc};
+use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
+use std::fs::File;
+use std::io::{BufReader, Read};
+use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Builder, Debug)]
-#[builder(build_fn(error = "ExecutableSpecError"))]
+#[builder(build_fn(error = "ExecutableSpecError", name = "inner_build"))]
 pub struct ExecutableSpec {
     target: ConcreteTarget,
+
+    #[builder(setter(skip))]
+    hash: String,
+
+    #[builder(default)]
+    actions: Vec<Action>,
+
+    #[builder(default)]
+    srcs: SourceSet,
+
+    #[builder(default)]
+    outs: SourceSet,
+
+    #[builder(default)]
+    shell_env: BTreeMap<String, String>,
+
+    exec_env: ExecutionEnvironment,
+
+    #[builder(default)]
+    provides: ProvidedFiles,
 
     #[builder(default)]
     deps: Dependencies,
@@ -15,6 +44,9 @@ pub struct ExecutableSpec {
 
     #[builder(default)]
     planning_end_time: DateTime<Utc>,
+
+    #[builder(default)]
+    portability: Portability,
 }
 
 impl ExecutableSpec {
@@ -40,6 +72,115 @@ impl ExecutableSpec {
     /// The required dependencies to build this spec and run any output artifacts.
     pub fn deps(&self) -> &Dependencies {
         &self.deps
+    }
+
+    /// The files provided by this spec to other targets.
+    pub fn provides(&self) -> &ProvidedFiles {
+        &self.provides
+    }
+
+    /// The source files to this spec.
+    pub fn srcs(&self) -> &SourceSet {
+        &self.srcs
+    }
+
+    /// The output files of this spec.
+    pub fn outs(&self) -> &SourceSet {
+        &self.outs
+    }
+
+    /// The shell environment to be used when executing this spec.
+    pub fn shell_env(&self) -> &BTreeMap<String, String> {
+        &self.shell_env
+    }
+
+    /// The unique hash of all the sources, inputs, and actions to this spec.
+    pub fn hash(&self) -> &str {
+        self.hash.as_ref()
+    }
+
+    /// The actions to be executed to create the outputs of this spec. Note that this vector is
+    /// ordered and the actions must be carried in order.
+    pub fn actions(&self) -> &[Action] {
+        &self.actions
+    }
+
+    pub fn exec_env(&self) -> &ExecutionEnvironment {
+        &self.exec_env
+    }
+
+    /// Whether this target is portable across architectures or not.
+    pub fn portability(&self) -> &Portability {
+        &self.portability
+    }
+}
+
+impl ExecutableSpecBuilder {
+    pub fn hash_and_build(
+        &mut self,
+        task_results: &TaskResults,
+    ) -> Result<ExecutableSpec, ExecutableSpecError> {
+        let mut spec = self.inner_build()?;
+
+        let mut s = Sha256::new();
+
+        let actions: Vec<String> = spec.actions().iter().map(|a| format!("{:?}", a)).collect();
+
+        let mut srcs: Vec<PathBuf> = spec.srcs().files().iter().cloned().collect();
+
+        srcs.dedup_by(|a, b| a == b);
+        srcs.sort();
+
+        let deps: Vec<String> = spec
+            .deps()
+            .compile_deps()
+            .iter()
+            .chain(spec.deps().transitive_deps().iter())
+            .chain(spec.deps().toolchains().iter())
+            .map(|d| {
+                task_results
+                    .get_task_result(*d)
+                    .unwrap()
+                    .artifact_manifest
+                    .hash()
+                    .to_string()
+            })
+            .collect();
+
+        let mut seeds: Vec<&str> = deps
+            .iter()
+            .map(|d| d.as_str())
+            .chain(spec.outs().files().iter().map(|o| o.to_str().unwrap()))
+            .chain(actions.iter().map(|a| a.as_str()))
+            .chain(srcs.iter().map(|s| s.to_str().unwrap()))
+            .collect();
+
+        seeds.dedup_by(|a, b| a == b);
+        seeds.sort_unstable();
+
+        for seed in seeds {
+            s.update(seed.as_bytes());
+        }
+
+        for src in spec.srcs().files() {
+            let f = File::open(&src).unwrap_or_else(|_| panic!("Unable to open: {:?}", &src));
+            let mut buffer = [0; 2048];
+            let mut reader = BufReader::new(f);
+            while let Ok(len) = reader.read(&mut buffer) {
+                if len == 0 {
+                    break;
+                }
+                s.update(&buffer[..len]);
+            }
+        }
+
+        if let Portability::ArchitectureDependent = spec.portability() {
+            s.update(spec.exec_env().host_triple.as_bytes());
+        }
+
+        spec.hash = format!("{:x}", s.finalize());
+
+        Ok(spec)
     }
 }
 

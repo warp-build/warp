@@ -107,9 +107,10 @@ mod tests {
     use crate::model::{
         ConcreteTarget, ExecutableSpec, ExecutionEnvironment, Goal, Signature, Target, TargetId,
     };
-    use crate::planner::{Planner, PlanningFlow};
+    use crate::planner::{Planner, PlannerError, PlanningFlow};
     use crate::resolver::{ResolutionFlow, Resolver, ResolverError, TargetRegistry};
     use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
+    use crate::worker::local::LocalSharedContext;
     use crate::Config;
     use assert_fs::prelude::*;
     use async_trait::async_trait;
@@ -124,6 +125,37 @@ mod tests {
             _url: &ManifestUrl,
         ) -> Result<ArtifactManifest, StoreError> {
             Err(StoreError::Unknown)
+        }
+
+        async fn find(
+            &self,
+            _spec: &ExecutableSpec,
+        ) -> Result<Option<Arc<ArtifactManifest>>, StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        async fn clean(&self, _spec: &ExecutableSpec) -> Result<(), StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        async fn promote(&self, _am: &ArtifactManifest) -> Result<(), StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        async fn save(
+            &self,
+            _spec: &ExecutableSpec,
+            _manifest: &ArtifactManifest,
+        ) -> Result<(), StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        fn get_local_store_path_for_spec(&self, _spec: &ExecutableSpec) -> PathBuf {
+            PathBuf::from("")
+        }
+
+        fn get_local_store_path_for_manifest(&self, _am: &ArtifactManifest) -> PathBuf {
+            PathBuf::from("")
         }
 
         fn canonicalize_provided_artifact<N: AsRef<str>>(
@@ -228,6 +260,7 @@ mod tests {
             target_id: TargetId,
             target: ConcreteTarget,
             task_results: Arc<TaskResults>,
+            env: ExecutionEnvironment,
         }
         impl Context for FixtureContext {
             fn results(&self) -> Arc<TaskResults> {
@@ -238,6 +271,7 @@ mod tests {
             target_id,
             target: ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into()),
             task_results: Arc::new(TaskResults::new(target_registry.clone())),
+            env: Default::default(),
         };
 
         #[derive(Debug)]
@@ -258,7 +292,8 @@ mod tests {
                     let manifest = ArtifactManifest::default();
                     let spec = ExecutableSpec::builder()
                         .target(self.ctx.target.clone())
-                        .build()
+                        .exec_env(self.ctx.env.clone())
+                        .hash_and_build(&*self.ctx.task_results)
                         .unwrap();
 
                     self.ctx

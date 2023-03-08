@@ -1,4 +1,4 @@
-use crate::events::{Event, EventChannel};
+use crate::model::ConcreteTarget;
 use crate::sync::Arc;
 use crate::Target;
 use anyhow::*;
@@ -18,12 +18,9 @@ impl VerifyChecksumAction {
     #[tracing::instrument(name = "action::VerifyChecksumAction::run")]
     pub async fn run(
         &self,
-        target: Target,
+        target: &ConcreteTarget,
         sandbox_root: &PathBuf,
-        event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
-        event_channel.send(Event::ArchiveVerifying(target.to_string()));
-
         let mut outfile = fs::File::open(sandbox_root.join(&self.file)).await?;
         let mut hasher = Sha1::new();
         let mut contents: Vec<u8> =

@@ -334,7 +334,11 @@ mod tests {
 
         let manifest = ArtifactManifest::default();
         let target = ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into());
-        let spec = ExecutableSpec::builder().target(target).build().unwrap();
+        let spec = ExecutableSpec::builder()
+            .target(target)
+            .exec_env(Default::default())
+            .hash_and_build(&q.task_results)
+            .unwrap();
         q.task_results.add_task_result(target_id, spec, manifest);
 
         assert_matches!(q.queue(task), Ok(QueuedTask::Skipped));
@@ -350,7 +354,11 @@ mod tests {
 
         let manifest = ArtifactManifest::default();
         let target = ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into());
-        let spec = ExecutableSpec::builder().target(target).build().unwrap();
+        let spec = ExecutableSpec::builder()
+            .target(target)
+            .exec_env(Default::default())
+            .hash_and_build(&q.task_results)
+            .unwrap();
         q.task_results.add_task_result(target_id, spec, manifest);
 
         assert!(q.next().is_none());

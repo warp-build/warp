@@ -1,39 +1,24 @@
 //! # Location-transparent, parallel worker pools
 
 mod coordinator;
-mod local_shared_context;
-mod local_worker;
+mod error;
+pub mod local;
 mod pool;
 mod task;
 mod task_queue;
 mod task_results;
 
 use coordinator::*;
+pub use error::*;
 use futures::Future;
-pub use local_shared_context::*;
-pub use local_worker::*;
 pub use pool::*;
 pub use task::*;
 use task_queue::*;
 pub use task_results::*;
 
-use crate::planner::PlannerError;
 use crate::sync::*;
 use std::fmt::Debug;
 use std::pin::Pin;
-use thiserror::*;
-
-#[derive(Error, Debug)]
-pub enum WorkerError {
-    #[error(transparent)]
-    LocalWorkerError(LocalWorkerError),
-
-    #[error(transparent)]
-    TaskQueueError(TaskQueueError),
-
-    #[error(transparent)]
-    PlannerError(PlannerError),
-}
 
 /// A Context object used across workers. It must be thread-safe and shareable, but the things it
 /// contains do not need to be.

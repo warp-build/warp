@@ -1,7 +1,5 @@
 use super::*;
-use crate::events::EventChannel;
-use crate::sync::Arc;
-use crate::Target;
+use crate::model::ConcreteTarget;
 use anyhow::*;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -70,20 +68,19 @@ impl Action {
 
     pub async fn run(
         &self,
-        target: Target,
+        target: &ConcreteTarget,
         store_root: &PathBuf,
         env: &BTreeMap<String, String>,
-        event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         match self {
             Action::Exec(a) => a.run(store_root).await,
             Action::Copy(a) => a.run(store_root).await,
-            Action::Download(a) => a.run(target, store_root, event_channel).await,
-            Action::Extract(a) => a.run(target, store_root, event_channel).await,
+            Action::Download(a) => a.run(target, store_root).await,
+            Action::Extract(a) => a.run(target, store_root).await,
             Action::WriteFile(a) => a.run(store_root).await,
             Action::RunShell(a) => a.run(store_root, env).await,
             Action::SetPermissions(a) => a.run(store_root).await,
-            Action::VerifyChecksum(a) => a.run(target, store_root, event_channel).await,
+            Action::VerifyChecksum(a) => a.run(target, store_root).await,
         }
     }
 }

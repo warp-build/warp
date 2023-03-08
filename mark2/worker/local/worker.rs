@@ -1,13 +1,16 @@
-use core::future::Future;
-use std::pin::Pin;
-
-use super::*;
+use crate::executor::{ExecutionFlow, Executor, ExecutorError};
 use crate::model::ExecutionEnvironment;
-use crate::planner::{Planner, PlanningFlow};
+use crate::planner::{Planner, PlannerError, PlanningFlow};
 use crate::resolver::{ResolutionFlow, Resolver, ResolverError};
 use crate::store::Store;
+use crate::worker::task_queue::TaskQueueError;
+use crate::worker::{Role, Task, Worker, WorkerError};
+use core::future::Future;
 use futures::FutureExt;
+use std::pin::Pin;
 use thiserror::*;
+
+use super::LocalSharedContext;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
 /// A Local build execution worker.
@@ -39,10 +42,11 @@ use thiserror::*;
 /// ```
 ///
 #[derive(Debug)]
-pub struct LocalWorker<R: Resolver, P: Planner, S: Store> {
+pub struct LocalWorker<R: Resolver, P: Planner, E: Executor, S: Store> {
     role: Role,
     ctx: LocalSharedContext<R, S>,
     planner: P,
+    executor: E,
     env: ExecutionEnvironment,
 }
 
@@ -51,11 +55,13 @@ pub enum WorkerFlow {
     RetryLater,
 }
 
-impl<R, P, PCtx, S> Worker for LocalWorker<R, P, S>
+impl<R, P, PCtx, E, ECtx, S> Worker for LocalWorker<R, P, E, S>
 where
     R: Resolver,
     P: Planner<Context = PCtx>,
     PCtx: From<LocalSharedContext<R, S>>,
+    E: Executor<Context = ECtx>,
+    ECtx: From<LocalSharedContext<R, S>>,
     S: Store,
 {
     type Context = LocalSharedContext<R, S>;
@@ -63,11 +69,13 @@ where
     fn new(role: Role, ctx: Self::Context) -> Result<Self, WorkerError> {
         let env = ExecutionEnvironment::new();
         let planner = P::new(ctx.clone().into())?;
+        let executor = E::new(ctx.clone().into())?;
         Ok(Self {
             role,
             ctx,
             env,
             planner,
+            executor,
         })
     }
 
@@ -99,10 +107,11 @@ where
     }
 }
 
-impl<R, P, S> LocalWorker<R, P, S>
+impl<R, P, E, S> LocalWorker<R, P, E, S>
 where
     R: Resolver,
     P: Planner,
+    E: Executor,
     S: Store,
 {
     pub async fn poll(&mut self) -> Result<(), LocalWorkerError> {
@@ -141,12 +150,12 @@ where
             _flow => return Ok(WorkerFlow::RetryLater),
         };
 
-        /*
-        let artifact_manifest = match self.executor.execute(executable_spec)? {
-            WorkerFlow::Executed(manifest) => artifact_manifest,
+        let artifact_manifest = match self.executor.execute(&executable_spec).await? {
+            ExecutionFlow::Completed(manifest) => manifest,
             _flow => return Ok(WorkerFlow::RetryLater),
         };
 
+        /*
         self.ctx.artifact_store.save(manifest).await?;
 
         self.ctx.task_results.add(task.target, manifest, executable_spec);
@@ -162,23 +171,14 @@ pub enum LocalWorkerError {
 
     #[error(transparent)]
     PlannerError(PlannerError),
+
+    #[error(transparent)]
+    ExecutorError(ExecutorError),
 }
 
-impl From<PlannerError> for WorkerError {
-    fn from(value: PlannerError) -> Self {
-        WorkerError::PlannerError(value)
-    }
-}
-
-impl From<TaskQueueError> for WorkerError {
-    fn from(err: TaskQueueError) -> Self {
-        WorkerError::TaskQueueError(err)
-    }
-}
-
-impl From<LocalWorkerError> for WorkerError {
-    fn from(err: LocalWorkerError) -> Self {
-        Self::LocalWorkerError(err)
+impl From<ExecutorError> for LocalWorkerError {
+    fn from(value: ExecutorError) -> Self {
+        LocalWorkerError::ExecutorError(value)
     }
 }
 
@@ -200,13 +200,29 @@ mod tests {
 
     use super::*;
     use crate::events::EventChannel;
-    use crate::model::{ConcreteTarget, Goal, Signature, Target, TargetId};
+    use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target, TargetId};
     use crate::planner::PlannerError;
     use crate::resolver::TargetRegistry;
     use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
+    use crate::worker::{Role, Task};
     use crate::{sync::*, Config};
     use async_trait::async_trait;
     use quickcheck::Arbitrary;
+
+    #[derive(Debug, Clone)]
+    struct NoopExecutor;
+    #[async_trait]
+    impl Executor for NoopExecutor {
+        type Context = ();
+
+        fn new(ctx: Self::Context) -> Result<Self, ExecutorError> {
+            Ok(Self)
+        }
+
+        async fn execute(&mut self, spec: &ExecutableSpec) -> Result<ExecutionFlow, ExecutorError> {
+            todo!()
+        }
+    }
 
     #[derive(Debug, Clone)]
     struct NoopStore;
@@ -217,6 +233,37 @@ mod tests {
             _url: &ManifestUrl,
         ) -> Result<ArtifactManifest, StoreError> {
             Err(StoreError::Unknown)
+        }
+
+        async fn find(
+            &self,
+            _spec: &ExecutableSpec,
+        ) -> Result<Option<Arc<ArtifactManifest>>, StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        async fn clean(&self, _spec: &ExecutableSpec) -> Result<(), StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        async fn promote(&self, _am: &ArtifactManifest) -> Result<(), StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        async fn save(
+            &self,
+            _spec: &ExecutableSpec,
+            _manifest: &ArtifactManifest,
+        ) -> Result<(), StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        fn get_local_store_path_for_spec(&self, _spec: &ExecutableSpec) -> PathBuf {
+            PathBuf::from("")
+        }
+
+        fn get_local_store_path_for_manifest(&self, _am: &ArtifactManifest) -> PathBuf {
+            PathBuf::from("")
         }
 
         fn canonicalize_provided_artifact<N: AsRef<str>>(
@@ -284,7 +331,7 @@ mod tests {
 
         ctx.coordinator.signal_shutdown();
 
-        let mut w: LocalWorker<NoopResolver, NoopPlanner, NoopStore> =
+        let mut w: LocalWorker<NoopResolver, NoopPlanner, NoopExecutor, NoopStore> =
             LocalWorker::new(Role::MainWorker(vec![]), ctx).unwrap();
         w.run().await.unwrap();
     }
@@ -319,7 +366,7 @@ mod tests {
         ctx.task_queue.queue(task).unwrap();
         assert!(!ctx.task_queue.is_empty());
 
-        let mut w: LocalWorker<ErrResolver, NoopPlanner, NoopStore> =
+        let mut w: LocalWorker<ErrResolver, NoopPlanner, NoopExecutor, NoopStore> =
             LocalWorker::new(Role::MainWorker(vec![]), ctx.clone()).unwrap();
         let err = w.run().await.unwrap_err();
 
@@ -388,7 +435,7 @@ mod tests {
         ctx.task_queue.queue(task).unwrap();
         assert!(!ctx.task_queue.is_empty());
 
-        let mut w: LocalWorker<DummyResolver, ErrPlanner, NoopStore> =
+        let mut w: LocalWorker<DummyResolver, ErrPlanner, NoopExecutor, NoopStore> =
             LocalWorker::new(Role::MainWorker(vec![]), ctx.clone()).unwrap();
         let err = w.run().await.unwrap_err();
 

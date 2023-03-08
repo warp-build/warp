@@ -3,6 +3,7 @@ use crate::util::serde::*;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use thiserror::Error;
 use tokio::io::AsyncReadExt;
 
 use super::ArtifactId;
@@ -45,6 +46,7 @@ pub enum ArtifactManifestVersion {
 }
 
 #[derive(Default, Builder, Debug, Clone, Serialize, Deserialize)]
+#[builder(build_fn(error = "ArtifactManifestError"))]
 pub struct ArtifactManifest {
     version: ArtifactManifestVersion,
 
@@ -88,16 +90,12 @@ pub struct ArtifactManifest {
     toolchains: BTreeMap<String, String>,
 
     #[serde(default)]
-    env: BTreeMap<String, String>,
+    shell_env: BTreeMap<String, String>,
 }
 
 impl ArtifactManifest {
     pub fn builder() -> ArtifactManifestBuilder {
         Default::default()
-    }
-
-    pub fn id(&self) -> ArtifactId {
-        ArtifactId::new(&self.hash)
     }
 
     // TODO(@ostera): fix util::FromFile to derive this function there
@@ -125,24 +123,62 @@ impl ArtifactManifest {
         })
     }
 
+    /// The identifier of this artifact.
+    pub fn id(&self) -> ArtifactId {
+        ArtifactId::new(&self.hash)
+    }
+
+    /// The original target string used to compute this artifact.
     pub fn target(&self) -> &str {
         self.target.as_ref()
     }
 
+    /// The collection of files that this artifact provides. Typically this includes binary
+    /// executables for the current architecture that can be used by dependants.
+    pub fn provided_files(&self) -> &BTreeMap<String, PathBuf> {
+        &self.provides
+    }
+
+    /// Finds by name a file amongst the files provided by this artifact.
     pub fn provides(&self, binary: &str) -> Option<&PathBuf> {
         self.provides.get(binary)
     }
 
+    /// The name of the rule used to compute this artifact.
     pub fn rule_name(&self) -> &str {
         self.rule_name.as_ref()
     }
 
+    /// The sources used to compute this artifact.
     pub fn srcs(&self) -> &[PathBuf] {
         self.srcs.as_ref()
     }
 
+    /// The files that were created when computing this artifact.
     pub fn outs(&self) -> &[PathBuf] {
         self.outs.as_ref()
+    }
+
+    /// The shell environment that was used when computing this artifact.
+    pub fn shell_env(&self) -> &BTreeMap<String, String> {
+        &self.shell_env
+    }
+
+    /// The hash of the configuration, inputs and outputs of this artifact.
+    pub fn hash(&self) -> &str {
+        self.hash.as_ref()
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum ArtifactManifestError {
+    #[error(transparent)]
+    BuilderError(derive_builder::UninitializedFieldError),
+}
+
+impl From<derive_builder::UninitializedFieldError> for ArtifactManifestError {
+    fn from(value: derive_builder::UninitializedFieldError) -> Self {
+        ArtifactManifestError::BuilderError(value)
     }
 }
 

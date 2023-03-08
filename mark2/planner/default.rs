@@ -42,10 +42,11 @@ where
 
             let spec = ExecutableSpec::builder()
                 .target(sig.target().clone())
+                .exec_env(env)
                 .planning_start_time(planning_start_time)
                 .planning_end_time(planning_end_time)
                 .deps(deps)
-                .build()?;
+                .hash_and_build(&self.ctx.task_results)?;
 
             Ok(PlanningFlow::Planned { spec })
         }
@@ -188,9 +189,11 @@ mod tests {
         let dep_target_id = ctx.target_registry.register_target(&dep_target);
         let dep_target = ConcreteTarget::new(goal, dep_target_id, dep_target, "".into());
 
+        let env = ExecutionEnvironment::default();
         let dep_spec = ExecutableSpec::builder()
             .target(dep_target.clone())
-            .build()
+            .exec_env(env.clone())
+            .hash_and_build(&ctx.task_results)
             .unwrap();
         let dep_manifest = ArtifactManifest::default();
         ctx.task_results
@@ -202,8 +205,6 @@ mod tests {
             .deps(vec![(*dep_target.original_target()).clone()])
             .build()
             .unwrap();
-
-        let env = ExecutionEnvironment::default();
 
         let mut p: DefaultPlanner<NoopRuleExecutor> = DefaultPlanner::new(ctx).unwrap();
         let flow = p.plan(sig.clone(), env).await.unwrap();

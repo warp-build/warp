@@ -1,6 +1,7 @@
 use super::*;
 use crate::archive::ArchiveManager;
 use crate::events::EventChannel;
+use crate::executor::local::LocalExecutor;
 use crate::model::{Goal, Target};
 use crate::planner::DefaultPlanner;
 use crate::resolver::{DefaultResolver, TargetRegistry};
@@ -8,16 +9,15 @@ use crate::rules::JsRuleExecutor;
 use crate::store::DefaultStore;
 use crate::sync::Arc;
 use crate::tricorder::GrpcTricorder;
-use crate::worker::{
-    LocalSharedContext, LocalWorker, Task, TaskResults, WorkerPool, WorkerPoolError,
-};
+use crate::worker::local::{LocalSharedContext, LocalWorker};
+use crate::worker::{Task, TaskResults, WorkerPool, WorkerPoolError};
 use crate::workspace::WorkspaceManagerError;
 use thiserror::*;
 use tracing::*;
 
 type MainResolver = DefaultResolver<GrpcTricorder>;
 type MainPlanner = DefaultPlanner<JsRuleExecutor>;
-type DefaultWorker = LocalWorker<MainResolver, MainPlanner, DefaultStore>;
+type DefaultWorker = LocalWorker<MainResolver, MainPlanner, LocalExecutor, DefaultStore>;
 type DefaultCtxt = LocalSharedContext<MainResolver, DefaultStore>;
 
 /// # Warp Engine Mark II

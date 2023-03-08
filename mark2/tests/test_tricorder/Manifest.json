@@ -23,5 +23,5 @@
   "runtime_deps": {},
   "transitive_deps": {},
   "toolchains": {},
-  "env": {}
+  "shell_env": {}
 }

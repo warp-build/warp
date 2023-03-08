@@ -1,10 +1,12 @@
 use std::path::PathBuf;
 
+use super::MANIFEST_FILE;
 use super::{
     ArtifactId, ArtifactManifest, LocalStore, LocalStoreError, ManifestUrl, PackageManifest,
     PublicStore, PublicStoreError, Store, StoreError,
 };
 use crate::archive::ArchiveManager;
+use crate::model::ExecutableSpec;
 use crate::sync::*;
 use crate::Config;
 use async_trait::async_trait;
@@ -75,12 +77,53 @@ impl Store for DefaultStore {
         Ok(manifest.unwrap())
     }
 
+    async fn find(
+        &self,
+        spec: &ExecutableSpec,
+    ) -> Result<Option<Arc<ArtifactManifest>>, StoreError> {
+        let manifest = self.local_store.find_manifest_by_spec(&spec).await?;
+        Ok(manifest)
+    }
+
+    async fn clean(&self, spec: &ExecutableSpec) -> Result<(), StoreError> {
+        self.local_store.clean(&spec).await?;
+        Ok(())
+    }
+
+    async fn promote(&self, am: &ArtifactManifest) -> Result<(), StoreError> {
+        self.local_store.promote(am).await?;
+        Ok(())
+    }
+
+    async fn save(
+        &self,
+        spec: &ExecutableSpec,
+        manifest: &ArtifactManifest,
+    ) -> Result<(), StoreError> {
+        let mut artifacts = manifest.outs().to_vec();
+        artifacts.push(PathBuf::from(MANIFEST_FILE));
+
+        self.local_store.write_manifest(spec, manifest).await?;
+        // self.remote_store.save(manifest, artifacts).await?;
+
+        Ok(())
+    }
+
+    fn get_local_store_path_for_spec(&self, spec: &ExecutableSpec) -> PathBuf {
+        let key = ArtifactId::new(spec.hash());
+        self.local_store.get_absolute_path(key)
+    }
+
+    fn get_local_store_path_for_manifest(&self, am: &ArtifactManifest) -> PathBuf {
+        self.local_store.get_absolute_path(am.id())
+    }
+
     fn canonicalize_provided_artifact<N: AsRef<str>>(
         &self,
         am: &ArtifactManifest,
         name: N,
     ) -> Option<PathBuf> {
-        let manifest_root = self.local_store.get_absolute_path(am.id());
+        let manifest_root = self.get_local_store_path_for_manifest(&am);
         am.provides(name.as_ref())
             .map(|rel_path| manifest_root.join(rel_path))
     }

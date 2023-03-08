@@ -1,7 +1,4 @@
-use crate::events::Event;
-use crate::events::EventChannel;
-use crate::sync::Arc;
-use crate::Target;
+use crate::model::ConcreteTarget;
 use anyhow::*;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
@@ -22,26 +19,18 @@ impl DownloadAction {
     #[tracing::instrument(name = "action::DownloadAction::run")]
     pub async fn run(
         &self,
-        target: Target,
+        target: &ConcreteTarget,
         sandbox_root: &PathBuf,
-        event_channel: Arc<EventChannel>,
     ) -> Result<(), anyhow::Error> {
         let out_path = sandbox_root.join(&self.output);
 
         let mut outfile = fs::File::create(&out_path).await?;
-
-        event_channel.send(Event::ArchiveDownloading {
-            target: target.to_string(),
-            url: self.url.clone(),
-        });
 
         let mut resp = reqwest::get(&self.url).await?.bytes_stream();
 
         while let Some(chunk) = resp.next().await {
             outfile.write_all_buf(&mut chunk?).await?;
         }
-
-        event_channel.send(Event::ArchiveVerifying(target.to_string()));
 
         let mut outfile = fs::File::open(out_path).await?;
         let mut hasher = Sha1::new();

@@ -35,7 +35,7 @@
   "toolchains": {
     "rules.warp.build/toolchains/openssl": "bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5"
   },
-  "env": {
+  "shell_env": {
     "ERL_INCLUDE_PATH": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/lib/erlang/usr/include",
     "ERL_LIB_PATH": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/lib/erlang/usr/lib",
     "ERL_ROOT": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin",
