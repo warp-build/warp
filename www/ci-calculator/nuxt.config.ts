@@ -9,7 +9,7 @@ export default defineNuxtConfig({
       origin: process.env.ORIGIN,
       enableGlobalAppMiddleware: true
   },
-  routeRules: {
-    '/api/**': { cors: true },
-  }
+  // routeRules: {
+  //   '/api/**': { cors: true },
+  // }
 })

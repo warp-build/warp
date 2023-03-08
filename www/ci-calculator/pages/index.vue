@@ -62,6 +62,8 @@
 <script setup lang="ts">
 definePageMeta({ auth: false })
 
+const { signIn } = useSession()
+
 </script>
 
 <style scoped>
