@@ -218,7 +218,7 @@ impl TaskQueue {
 #[cfg(test)]
 mod tests {
     use crate::{
-        model::{ConcreteTarget, ExecutableSpec, Goal, Target},
+        model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target},
         store::ArtifactManifest,
     };
 
@@ -335,7 +335,14 @@ mod tests {
         let manifest = ArtifactManifest::default();
         let target = ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into());
         let spec = ExecutableSpec::builder()
-            .target(target)
+            .target(target.clone())
+            .signature(
+                Signature::builder()
+                    .target(target)
+                    .rule("test_rule".into())
+                    .build()
+                    .unwrap(),
+            )
             .exec_env(Default::default())
             .hash_and_build(&q.task_results)
             .unwrap();
@@ -355,7 +362,14 @@ mod tests {
         let manifest = ArtifactManifest::default();
         let target = ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into());
         let spec = ExecutableSpec::builder()
-            .target(target)
+            .target(target.clone())
+            .signature(
+                Signature::builder()
+                    .target(target)
+                    .rule("test_rule".into())
+                    .build()
+                    .unwrap(),
+            )
             .exec_env(Default::default())
             .hash_and_build(&q.task_results)
             .unwrap();

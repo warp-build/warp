@@ -197,6 +197,13 @@ mod tests {
         let env = ExecutionEnvironment::default();
         let dep_spec = ExecutableSpec::builder()
             .target(dep_target.clone())
+            .signature(
+                Signature::builder()
+                    .target(dep_target.clone())
+                    .rule("test_rule".into())
+                    .build()
+                    .unwrap(),
+            )
             .exec_env(env.clone())
             .hash_and_build(&ctx.task_results)
             .unwrap();

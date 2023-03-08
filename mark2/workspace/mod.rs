@@ -27,7 +27,7 @@ use thiserror::*;
 /// It has a `name`, and a `root`. Both of these will be used to find artifacts that belong to this
 /// workspace within the `ArtifactStore`.
 ///
-#[derive(Builder, Debug, Clone)]
+#[derive(Builder, Default, Debug, Clone)]
 #[builder(build_fn(error = "WorkspaceError"))]
 pub struct Workspace {
     /// The name of the workspace.

@@ -204,6 +204,7 @@ mod tests {
     use crate::resolver::TargetRegistry;
     use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
     use crate::worker::{Role, Task};
+    use crate::workspace::WorkspaceManager;
     use crate::{sync::*, Config};
     use async_trait::async_trait;
     use quickcheck::Arbitrary;
@@ -237,7 +238,7 @@ mod tests {
         async fn find(
             &self,
             _spec: &ExecutableSpec,
-        ) -> Result<Option<Arc<ArtifactManifest>>, StoreError> {
+        ) -> Result<Option<ArtifactManifest>, StoreError> {
             Err(StoreError::Unknown)
         }
 
@@ -325,8 +326,15 @@ mod tests {
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
-        let ctx =
-            LocalSharedContext::new(ec, config, target_registry, NoopResolver, NoopStore.into());
+        let workspace_manager = WorkspaceManager::new().into();
+        let ctx = LocalSharedContext::new(
+            ec,
+            config,
+            target_registry,
+            NoopResolver,
+            NoopStore.into(),
+            workspace_manager,
+        );
 
         ctx.coordinator.signal_shutdown();
 
@@ -354,8 +362,15 @@ mod tests {
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
-        let ctx =
-            LocalSharedContext::new(ec, config, target_registry, ErrResolver, NoopStore.into());
+        let workspace_manager = WorkspaceManager::new().into();
+        let ctx = LocalSharedContext::new(
+            ec,
+            config,
+            target_registry,
+            ErrResolver,
+            NoopStore.into(),
+            workspace_manager,
+        );
 
         let mut gen = quickcheck::Gen::new(100);
         let target: Target = Arbitrary::arbitrary(&mut gen);
@@ -423,8 +438,15 @@ mod tests {
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
-        let ctx =
-            LocalSharedContext::new(ec, config, target_registry, DummyResolver, NoopStore.into());
+        let workspace_manager = WorkspaceManager::new().into();
+        let ctx = LocalSharedContext::new(
+            ec,
+            config,
+            target_registry,
+            DummyResolver,
+            NoopStore.into(),
+            workspace_manager,
+        );
 
         let mut gen = quickcheck::Gen::new(100);
         let target: Target = Arbitrary::arbitrary(&mut gen);

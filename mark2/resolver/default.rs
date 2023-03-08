@@ -110,6 +110,7 @@ mod tests {
     use crate::model::Signature;
     use crate::resolver::fs_resolver::FsResolverError;
     use crate::tricorder::{Connection, TricorderError};
+    use crate::workspace::Workspace;
     use assert_fs::prelude::*;
     use async_trait::async_trait;
 
@@ -152,8 +153,19 @@ mod tests {
             }
         }
 
-        let r: DefaultResolver<UnreachableTricorder> =
-            DefaultResolver::new(config, store, target_registry.clone());
+        let workspace_manager = WorkspaceManager::new();
+        let workspace = Workspace::default();
+        let wid = workspace_manager
+            .register_local_workspace(workspace)
+            .unwrap();
+        workspace_manager.set_current_workspace(wid);
+
+        let r: DefaultResolver<UnreachableTricorder> = DefaultResolver::new(
+            config,
+            store,
+            target_registry.clone(),
+            workspace_manager.into(),
+        );
 
         let target: Target = "bad/file/path.ex".into();
         let target_id = target_registry.register_target(&target);
@@ -216,8 +228,19 @@ mod tests {
                 })
             }
         }
-        let r: DefaultResolver<HappyPathTricorder> =
-            DefaultResolver::new(config, store, target_registry.clone());
+        let workspace_manager = WorkspaceManager::new();
+        let workspace = Workspace::default();
+        let wid = workspace_manager
+            .register_local_workspace(workspace)
+            .unwrap();
+
+        workspace_manager.set_current_workspace(wid);
+        let r: DefaultResolver<HappyPathTricorder> = DefaultResolver::new(
+            config,
+            store,
+            target_registry.clone(),
+            workspace_manager.into(),
+        );
 
         // NOTE(@ostera): this mock will be used to not fetch the real tricorder
         let _public_store_mock1 = mockito::mock("GET", "/a-hash.tar.gz")

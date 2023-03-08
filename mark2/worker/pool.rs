@@ -111,6 +111,7 @@ mod tests {
     use crate::resolver::{ResolutionFlow, Resolver, ResolverError, TargetRegistry};
     use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
     use crate::worker::local::LocalSharedContext;
+    use crate::workspace::WorkspaceManager;
     use crate::Config;
     use assert_fs::prelude::*;
     use async_trait::async_trait;
@@ -130,7 +131,7 @@ mod tests {
         async fn find(
             &self,
             _spec: &ExecutableSpec,
-        ) -> Result<Option<Arc<ArtifactManifest>>, StoreError> {
+        ) -> Result<Option<ArtifactManifest>, StoreError> {
             Err(StoreError::Unknown)
         }
 
@@ -223,6 +224,7 @@ mod tests {
         let ec = Arc::new(EventChannel::new());
         let config = Config::default();
 
+        let workspace_manager = WorkspaceManager::new().into();
         let target_registry = Arc::new(TargetRegistry::new());
         let ctx = LocalSharedContext::new(
             ec.clone(),
@@ -230,6 +232,7 @@ mod tests {
             target_registry,
             NoopResolver,
             NoopStore.into(),
+            workspace_manager,
         );
         WorkerPool::from_shared_context(ec, config, ctx)
     }
@@ -292,6 +295,13 @@ mod tests {
                     let manifest = ArtifactManifest::default();
                     let spec = ExecutableSpec::builder()
                         .target(self.ctx.target.clone())
+                        .signature(
+                            Signature::builder()
+                                .target(self.ctx.target.clone())
+                                .rule("test_rule".into())
+                                .build()
+                                .unwrap(),
+                        )
                         .exec_env(self.ctx.env.clone())
                         .hash_and_build(&*self.ctx.task_results)
                         .unwrap();

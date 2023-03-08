@@ -65,7 +65,7 @@ impl WorkspaceManager {
         Ok(id)
     }
 
-    fn set_current_workspace(&self, current_workspace_id: WorkspaceId) {
+    pub fn set_current_workspace(&self, current_workspace_id: WorkspaceId) {
         let mut cw = self.current_workspace.write().unwrap();
         *cw = current_workspace_id;
     }
