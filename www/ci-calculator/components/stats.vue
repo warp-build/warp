@@ -13,8 +13,8 @@
         </div>
 
         <div class="mx-auto flex max-w-xs flex-col gap-y-4">
-            <dt class="text-base leading-7 text-gray-600">New users annually</dt>
-            <dd class="order-first text-3xl font-semibold tracking-tight text-gray-900 sm:text-5xl">46,000</dd>
+            <dt class="text-base leading-7 text-gray-600">Duration of average Workflow (min)</dt>
+            <dd class="order-first text-3xl font-semibold tracking-tight text-gray-900 sm:text-5xl">{{ props.analysis?.minutes_on_average }}</dd>
         </div>
         </dl>
     </div>
@@ -22,11 +22,11 @@
 </template>
 
 <script setup lang="ts">
-import Analysis from '@/types/Analysis';
+import {GithubActionAnalysis} from '@/types/Analysis';
 
 const props = defineProps({
     analysis: {
-        type: Object as ()=> Analysis
+        type: Object as ()=> GithubActionAnalysis
     }
 })
 

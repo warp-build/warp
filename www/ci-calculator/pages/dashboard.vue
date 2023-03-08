@@ -41,12 +41,12 @@
 <script setup lang="ts">
 import Repository from "@/types/Repository";
 import Organization from "@/types/Organization";
-import {GithubActionAnalysis} from "@/types/Analysis";
+import {GithubActionAnalysis, Analysis} from "@/types/Analysis";
 
 const { status, data } = useSession()
 const repositories = ref([])
 const loading = ref(false)
-const analysis = reactive({completed: false})
+const analysis = reactive(new GithubActionAnalysis(0, []))
 
 const headers = useRequestHeaders(['cookie']) as HeadersInit;
 const { data: organizations } = await useFetch('/api/github/organizations', { headers });
@@ -78,8 +78,8 @@ async function fetchRepos(repoName: string) {
 async function runQuery(owner: string, repoName: string) {
   const analysisResult = await useFetch(`/api/github/workflow/${repoName}?owner=${owner}`, { headers }) 
 
-  if (analysisResult.data) {
-    analysis.completed = analysisResult.data.value ? analysisResult.data.value.completed : false;
+  if (analysisResult.data.value) {
+    Object.assign(analysis, analysisResult.data.value)
   }
 }
 

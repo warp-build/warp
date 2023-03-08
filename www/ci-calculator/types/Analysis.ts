@@ -1,31 +1,32 @@
 import { Workflow, GithubActionWorkflow } from "@/types/Workflow";
 
 interface Analysis {
-    repoName: string;
     ci_runs: number;
-    minutes_on_average: string;
+    minutes_on_average: number;
     completed: boolean;
     workflows: Workflow[]
 }
 
 class GithubActionAnalysis implements Analysis {
-    repoName: string;
     ci_runs: number;
-    minutes_on_average: string;
+    minutes_on_average: number;
     completed: boolean;
     workflows: GithubActionWorkflow[]
 
-
-    constructor(repoName: string, ci_runs: number, workflows: GithubActionWorkflow[]) {
-        this.repoName = repoName;
+    constructor(ci_runs: number, workflows: GithubActionWorkflow[]) {
         this.ci_runs = ci_runs
         this.workflows = workflows
-        this.minutes_on_average = this.calculate_minutes_on_average()
-        this.completed = true;
+        this.minutes_on_average = this.calculate_minutes_on_average(workflows)
+        this.completed = workflows.length > 0;
     }
 
-    calculate_minutes_on_average(): string {
-        return "5"
+    calculate_minutes_on_average(workflows: GithubActionWorkflow[]): number {
+        let total_ms = workflows.reduce((acc, workflow) => acc + workflow.duration_ms, 0)
+        if (total_ms > 0) {
+            return total_ms / 1000 / 60 / workflows.length
+        } else {
+            return 0
+        }
     }
 }
 

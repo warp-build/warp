@@ -6,25 +6,39 @@ enum WorkflowConclusion {
 
 interface Workflow {
     conclusion: WorkflowConclusion;
-    duration_ms: number;
+    created_at: string;
+    updated_at: string
     id: string;
 }
 
 class GithubActionWorkflow implements Workflow {
     conclusion: WorkflowConclusion;
-    duration_ms: number;
+    created_at: string
+    updated_at: string
     id: string;
+    duration_ms: number
 
-    constructor(id: string, duration_ms: number, conclusion: WorkflowConclusion) {
+    public constructor(id: string, created_at: string, updated_at:string, conclusion: string) {
         this.id = id;
-        this.duration_ms = duration_ms
-        this.conclusion = conclusion
+        this.created_at = created_at
+        this.updated_at = updated_at
+        this.duration_ms = this.calculate_duration(created_at, updated_at)
+
+        switch (conclusion.toUpperCase()) {
+            case 'SUCCESS':
+                this.conclusion = WorkflowConclusion.Success
+                break;
+            default:
+                this.conclusion = WorkflowConclusion.Failure
+        }
+    }
+
+    calculate_duration(created_at: string, updated_at: string): number {
+        let start = Date.parse(created_at)
+        let end = Date.parse(updated_at)
+        return end - start
     }
 
 }
 
-function createWorkflows(workflows: Workflow[]): GithubActionWorkflow[] {
-    return []
-}
-
-export {Workflow, GithubActionWorkflow, createWorkflows};
+export {Workflow, GithubActionWorkflow};
