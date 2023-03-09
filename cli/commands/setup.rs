@@ -1,8 +1,7 @@
 use anyhow::*;
-use std::process::Stdio;
 use structopt::StructOpt;
 use tokio::process::Command;
-use warp_core::*;
+use warp_core::Config;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -13,7 +12,9 @@ use warp_core::*;
 pub struct SetupCommand {}
 
 impl SetupCommand {
-    pub async fn run(&self, warp: &WarpEngine) -> Result<(), anyhow::Error> {
+    pub async fn run(&self) -> Result<(), anyhow::Error> {
+        let config = warp_core::Config::builder().build()?;
+
         println!(
             r#"
 
@@ -24,16 +25,13 @@ To do this, we need sudo permissions to:
 2. Make sure the Warp volume mounts on start up on the right place (hint: /warp)
 
 "#,
-            warp.current_user,
+            config.current_user()
         );
 
         let setup_script = include_str!("./setup.sh");
         let mut cmd = Command::new("bash");
 
-        cmd.stdin(Stdio::inherit())
-            .stderr(Stdio::inherit())
-            .stdout(Stdio::inherit())
-            .args(["-c", setup_script]);
+        cmd.args(["-c", setup_script]);
 
         let output = cmd.output().await.expect("could not run bash :(");
 

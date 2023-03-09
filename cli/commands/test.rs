@@ -1,5 +1,4 @@
 use super::*;
-use crate::reporter::*;
 use anyhow::*;
 use structopt::StructOpt;
 use warp_core::*;
@@ -8,52 +7,32 @@ use warp_core::*;
 #[structopt(
     name = "test",
     setting = structopt::clap::AppSettings::ColoredHelp,
-    about = "Incrementally run one or many tests"
+    about = "Incrementally test the project"
 )]
 pub struct TestCommand {
     #[structopt(
         help = r"The test to run.
 
 A path to a directory with a warp file, followed by a colon
-and the name of the label to be tested.
+and the name of the target to be tested.
 
-Example: //my/library:my_test
+Example: ./tests/my_test:test_case_name
 
-Use //... to build the entire project.
+Use @all to test the entire project.
 ",
         default_value = "//..."
     )]
-    label: String,
+    target: String,
 
     #[structopt(flatten)]
     flags: Flags,
 }
 
 impl TestCommand {
-    pub async fn run(self, warp: &mut WarpEngine) -> Result<(), anyhow::Error> {
-        let label: Label = if let Some(label) = warp.workspace.aliases.get(&self.label) {
-            label.clone()
-        } else {
-            let mut label: Label = self.label.parse()?;
-            label.set_workspace(&warp.workspace.paths.workspace_root);
-            label
-        };
-
-        let status_reporter =
-            StatusReporter::new(warp.event_channel.clone(), self.flags, Goal::Build);
-
-        let (_results, ()) = futures::future::join(
-            warp.execute(
-                &[label.clone()],
-                self.flags
-                    .into_build_opts()
-                    .with_goal(Goal::Test)
-                    .with_target_filter(TargetFilter::OnlyTests),
-            ),
-            status_reporter.run(&[label.clone()]),
-        )
-        .await;
-
+    pub async fn run(self) -> Result<(), anyhow::Error> {
+        let mut warp = WarpDriveMarkII::new(self.flags.into()).await?;
+        let target = self.target.into();
+        let _results = warp.execute(Goal::Build, &[target]).await?;
         Ok(())
     }
 }

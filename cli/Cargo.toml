@@ -10,7 +10,7 @@ name = "warp"
 path = "main.rs"
 
 [dependencies]
-warp-core-mark2 = { path = "../mark2", version = "*" }
+warp-core = { path = "../core", version = "*" }
 
 anyhow = "1.0"
 chrono = "0.4"

@@ -1,5 +1,0 @@
----
-source: lib/warp-bin/tests/warp_bin_test.rs
-expression: "run(&[\"warp\", \"build\"])"
----
-🔨 Building workspace...
