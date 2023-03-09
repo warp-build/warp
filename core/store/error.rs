@@ -30,7 +30,7 @@ pub enum StoreError {
     LocalStoreError(LocalStoreError),
 
     #[error(
-        "Could not find the current host architecture in the package manifest to be installed"
+        "Could not find the current host architecture ({host}) in the package manifest to be installed"
     )]
     CouldNotFindHostTripleInManifest { host: String },
 }
