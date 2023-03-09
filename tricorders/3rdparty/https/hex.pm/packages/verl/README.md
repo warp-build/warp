@@ -1,21 +1,23 @@
-# verl 
-[![Hex Version](https://img.shields.io/hexpm/v/verl.svg)](https://hex.pm/packages/verl) [![GitHub Actions CI](https://github.com/jelly-beam/verl/workflows/build/badge.svg)](https://github.com/jelly-beam/verl
-) [![codecov](https://codecov.io/gh/jelly-beam/verl/branch/main/graph/badge.svg)](https://codecov.io/gh/jelly-beam/verl)
+# verl
+
+[![Hex Version](https://img.shields.io/hexpm/v/verl.svg)](https://hex.pm/packages/verl)
+[![GitHub Actions CI](https://github.com/jelly-beam/verl/workflows/build/badge.svg)](https://github.com/jelly-beam/verl)
+[![codecov](https://codecov.io/gh/jelly-beam/verl/branch/main/graph/badge.svg)](https://codecov.io/gh/jelly-beam/verl)
 
 SemVer 2.0 version and requirements parsing, matching, and comparisons.
 
-All parsing of versions and requirements adhere to the [SemVer 2.0 schema](http://semver.org/)
+All parsing of versions and requirements adhere to the
+[SemVer 2.0 schema](http://semver.org/)
 
- - [Build](#build)
- -  [Usage](#usage)
-    * [Comparisons](#comparisons)
-    * [Version, Requirements, and Matching](#version--requirements--and-matching)
-      - [Matching](#matching)
-      - [Compiled requirements for ludicious speed matching](#compiled-requirements-for-ludicious-speed-matching)
-      - [Version parsing](#version-parsing)
-        * [Requirements parsing](#requirements-parsing)
- - [Credits](#credits)
-
+- [Build](#build)
+- [Usage](#usage)
+  - [Comparisons](#comparisons)
+  - [Version, Requirements, and Matching](#version--requirements--and-matching)
+    - [Matching](#matching)
+    - [Compiled requirements for ludicious speed matching](#compiled-requirements-for-ludicious-speed-matching)
+    - [Version parsing](#version-parsing)
+      - [Requirements parsing](#requirements-parsing)
+- [Credits](#credits)
 
 ## Build
 
@@ -31,7 +33,7 @@ $ rebar3 test
 
 ## Usage
 
-Add to you deps configuration in rebar.config for your project : 
+Add to you deps configuration in rebar.config for your project :
 
 ```erlang
 {deps, [{verl, "1.1.0"}]}.
@@ -138,5 +140,5 @@ Don't want a map? User the `verl_parser` module...
 ## Credits
 
 - All credit goes to the Elixir team and contributors to Version and
-Version.Parser in the Elixir standard lib for the algorithm and original
-implementation.
+  Version.Parser in the Elixir standard lib for the algorithm and original
+  implementation.

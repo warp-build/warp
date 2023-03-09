@@ -1,10 +1,10 @@
 {
-    "signatures": [
-	{
-	    "name": "tricorder",
-	    "rule": "cargo_binary",
-	    "bin": "tricorder",
-	    "srcs": ["**/*"]
-	}
-    ]
+  "signatures": [
+    {
+      "name": "tricorder",
+      "rule": "cargo_binary",
+      "bin": "tricorder",
+      "srcs": ["**/*"]
+    }
+  ]
 }

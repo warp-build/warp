@@ -1,10 +1,10 @@
-{"signatures": 
-[
-  {
-    "deps": [],
-    "name": "includes",
-    "rule": "files",
-    "srcs": [ "*.hrl" ]
-  }
-]
+{
+  "signatures": [
+    {
+      "deps": [],
+      "name": "includes",
+      "rule": "files",
+      "srcs": ["*.hrl"]
+    }
+  ]
 }

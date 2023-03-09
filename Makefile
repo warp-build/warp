@@ -18,6 +18,7 @@ release:
 .PHONY: fmt
 fmt:
 	cargo fmt
+	deno fmt
 
 .PHONY: setup
 setup:

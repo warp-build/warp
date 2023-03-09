@@ -3,21 +3,28 @@
 [![CI](https://github.com/elixir-protobuf/protobuf/actions/workflows/main.yml/badge.svg)](https://github.com/elixir-protobuf/protobuf/actions/workflows/main.yml)
 [![Coverage Status](https://coveralls.io/repos/github/elixir-protobuf/protobuf/badge.svg?branch=main)](https://coveralls.io/github/elixir-protobuf/protobuf?branch=main)
 
-A pure Elixir implementation of [Google Protobuf](https://developers.google.com/protocol-buffers/).
+A pure Elixir implementation of
+[Google Protobuf](https://developers.google.com/protocol-buffers/).
 
 ## Why this instead of exprotobuf(gpb)?
 
 It has some must-have and other cool features like:
 
-1. A protoc [plugin](https://developers.google.com/protocol-buffers/docs/cpptutorial#compiling-your-protocol-buffers) to generate Elixir code just like what other official libs do, which is powerful and reliable.
-2. Generate **simple and explicit** code with the power of Macro. See [test/support/test_msg.ex](https://github.com/tony612/protobuf-elixir/blob/master/test/support/test_msg.ex).
-3. Plugins support. Only [grpc](https://github.com/tony612/grpc-elixir) is supported now.
+1. A protoc
+   [plugin](https://developers.google.com/protocol-buffers/docs/cpptutorial#compiling-your-protocol-buffers)
+   to generate Elixir code just like what other official libs do, which is
+   powerful and reliable.
+2. Generate **simple and explicit** code with the power of Macro. See
+   [test/support/test_msg.ex](https://github.com/tony612/protobuf-elixir/blob/master/test/support/test_msg.ex).
+3. Plugins support. Only [grpc](https://github.com/tony612/grpc-elixir) is
+   supported now.
 4. Use **structs** for messages instead of Erlang records.
 5. Support Typespec in generated code.
 
 ## Installation
 
-The package can be installed by adding `:protobuf` to your list of dependencies in `mix.exs`:
+The package can be installed by adding `:protobuf` to your list of dependencies
+in `mix.exs`:
 
 ```elixir
 def deps do
@@ -33,60 +40,63 @@ end
 
 ## Features
 
-* Define messages with DSL
-* Decode basic messages
-* Skip unknown fields
-* Decode embedded messages
-* Decode packed and repeated fields
-* Encode messages
-* protoc plugin
-* map
-* Support default values
-* Validate values
-* Generate typespecs
-* oneof
-* (proto2) Extension (Experiment, see `Protobuf.Extension`)
+- Define messages with DSL
+- Decode basic messages
+- Skip unknown fields
+- Decode embedded messages
+- Decode packed and repeated fields
+- Encode messages
+- protoc plugin
+- map
+- Support default values
+- Validate values
+- Generate typespecs
+- oneof
+- (proto2) Extension (Experiment, see `Protobuf.Extension`)
 
 ## Usage
 
 ### Generate Elixir code
 
-1. [Download](https://github.com/protocolbuffers/protobuf#protocol-compiler-installation) and
-   install the protocol buffer compiler (`protoc`). MacOS users can also install it through
-   Homebrew with `brew install protobuf`.
+1. [Download](https://github.com/protocolbuffers/protobuf#protocol-compiler-installation)
+   and install the protocol buffer compiler (`protoc`). MacOS users can also
+   install it through Homebrew with `brew install protobuf`.
 
-2. Install `protoc` plugin `protoc-gen-elixir` for Elixir using the command below. Make sure the
-   `protoc-gen-elixir` binary is in your `PATH`. Either add `PATH=~/.mix/escripts:$PATH` to your
-   bash or zsh profile or, if you used asdf to install elixir, run `asdf reshim` and then verify
-   that `protoc-gen-elixir` works:
+2. Install `protoc` plugin `protoc-gen-elixir` for Elixir using the command
+   below. Make sure the `protoc-gen-elixir` binary is in your `PATH`. Either add
+   `PATH=~/.mix/escripts:$PATH` to your bash or zsh profile or, if you used asdf
+   to install elixir, run `asdf reshim` and then verify that `protoc-gen-elixir`
+   works:
 
-    ```bash
-    $ mix escript.install hex protobuf
-    ```
+   ```bash
+   $ mix escript.install hex protobuf
+   ```
 
-3. Generate Elixir code for [helloworld.proto](https://raw.githubusercontent.com/grpc/grpc/master/examples/protos/helloworld.proto) using `protoc`:
+3. Generate Elixir code for
+   [helloworld.proto](https://raw.githubusercontent.com/grpc/grpc/master/examples/protos/helloworld.proto)
+   using `protoc`:
 
-    ```bash
-    $ protoc --elixir_out=./lib helloworld.proto
-    ```
+   ```bash
+   $ protoc --elixir_out=./lib helloworld.proto
+   ```
 
 4. A `lib/helloworld.pb.ex` file will be generated, like:
 
-    ```elixir
-    defmodule Helloworld.HelloRequest do
-      @moduledoc false
-      use Protobuf, protoc_gen_elixir_version: "0.10.0", syntax: :proto3
+   ```elixir
+   defmodule Helloworld.HelloRequest do
+     @moduledoc false
+     use Protobuf, protoc_gen_elixir_version: "0.10.0", syntax: :proto3
 
-      field :name, 1, type: :string
-    end
-    
-    defmodule Helloworld.HelloReply do
-      @moduledoc false
-      use Protobuf, protoc_gen_elixir_version: "0.10.0", syntax: :proto3
+     field :name, 1, type: :string
+   end
 
-      field :message, 1, type: :string
-    end
-    ```
+   defmodule Helloworld.HelloReply do
+     @moduledoc false
+     use Protobuf, protoc_gen_elixir_version: "0.10.0", syntax: :proto3
+
+     field :message, 1, type: :string
+   end
+   ```
 
 ### Encode and decode in your code
 
@@ -98,18 +108,20 @@ struct = Foo.decode(encoded)
 
 Note:
 
-- Use `YourModule.new(field: "value")` to ensure default values are set correctly for all fields
-  instead of using the struct directly, as in `%YourModule{field: "value"}`.
-- Validation is done during encoding. An error will be raised if the struct is invalid: when it
-  misses a required field or has a mistyped value.
+- Use `YourModule.new(field: "value")` to ensure default values are set
+  correctly for all fields instead of using the struct directly, as in
+  `%YourModule{field: "value"}`.
+- Validation is done during encoding. An error will be raised if the struct is
+  invalid: when it misses a required field or has a mistyped value.
 
 ### Descriptor support
 
-If you use any custom options in your protobufs then to gain access to them you'll need to include
-the raw descriptors in the generated modules. You can generate the descriptors by passing
-`gen_descriptors=true` in `--elixir_out`.
+If you use any custom options in your protobufs then to gain access to them
+you'll need to include the raw descriptors in the generated modules. You can
+generate the descriptors by passing `gen_descriptors=true` in `--elixir_out`.
 
-The descriptors will be available on each module from the `descriptor/0` function.
+The descriptors will be available on each module from the `descriptor/0`
+function.
 
 ```
 $ protoc --elixir_out=gen_descriptors=true:./lib/ *.proto
@@ -120,8 +132,8 @@ $ protoc --elixir_out=gen_descriptors=true,plugins=grpc:./lib/ *.proto
 
 You can use the `package_prefix` option to prefix generated Elixir code.
 
-For example to prefix generated Elixir modules with `MyApp.Protos` use `my_app.protos` as package
-prefix:
+For example to prefix generated Elixir modules with `MyApp.Protos` use
+`my_app.protos` as package prefix:
 
 ```
 $ protoc --elixir_out=./lib --elixir_opt=package_prefix=my_app.protos *.proto
@@ -129,12 +141,12 @@ $ protoc --elixir_out=./lib --elixir_opt=package_prefix=my_app.protos *.proto
 
 ### Transformer module
 
-By defining a callback `transform_module/0` function on your protobuf message module
-you can add custom encoding and decoding logic for your message. See the documentation
-for `Protobuf.TransformModule` for more details.
+By defining a callback `transform_module/0` function on your protobuf message
+module you can add custom encoding and decoding logic for your message. See the
+documentation for `Protobuf.TransformModule` for more details.
 
-If your protobufs are generated from a `.proto` files you can add the callback function
-by passing `transform_module=...` in `--elixir_out`.
+If your protobufs are generated from a `.proto` files you can add the callback
+function by passing `transform_module=...` in `--elixir_out`.
 
 ```
 $ protoc --elixir_out=transform_module=MyTransformModule:./lib/ *.proto
@@ -158,9 +170,10 @@ $ protoc --elixir_out=one_file_per_module=true:./lib *.proto
 
 ### gRPC Support
 
-If you write [services](https://developers.google.com/protocol-buffers/docs/proto#services) in
-protobuf, you can generate [gRPC](https://github.com/tony612/grpc-elixir) code by passing
-`plugins=grpc` in `--elixir_out`:
+If you write
+[services](https://developers.google.com/protocol-buffers/docs/proto#services)
+in protobuf, you can generate [gRPC](https://github.com/tony612/grpc-elixir)
+code by passing `plugins=grpc` in `--elixir_out`:
 
 ```
 $ protoc --elixir_out=plugins=grpc:./lib/ *.proto
@@ -182,26 +195,27 @@ $ protoc -I protos --elixir_out=./lib protos/hello.proto
 
 ### Custom options
 
-Since extensions(`Protobuf.Extension`) is supported now, some options are defined, like custom
-`module_prefix`.
+Since extensions(`Protobuf.Extension`) is supported now, some options are
+defined, like custom `module_prefix`.
 
 1. Copy `src/elixirpb.proto` to your protos path.
 
 2. Import `elixirpb.proto` and use the options.
 
-    ```proto
-    syntax = "proto2";
+   ```proto
+   syntax = "proto2";
 
-    package your.pkg;
+   package your.pkg;
 
-    import "elixirpb.proto";
+   import "elixirpb.proto";
 
-    option (elixirpb.file).module_prefix = "Foo.Bar";
-    ```
+   option (elixirpb.file).module_prefix = "Foo.Bar";
+   ```
 
 3. Generate code as before.
 
-More options will be added in the future, see `elixirpb.proto` comments for details.
+More options will be added in the future, see `elixirpb.proto` comments for
+details.
 
 ## Tests
 
@@ -211,11 +225,11 @@ mix test
 
 ## Sponsors
 
-* [Tubi](https://tubitv.com/)
+- [Tubi](https://tubitv.com/)
 
 <img src="https://user-images.githubusercontent.com/1253659/37473536-4db44048-28a9-11e8-90d5-f8a2f5a8d53c.jpg" height="80">
 
-* [Community](https://www.community.com)
+- [Community](https://www.community.com)
 
 <img src="https://user-images.githubusercontent.com/1253659/84641850-3f163d80-af2e-11ea-98a2-cfb854180222.png" height="80">
 

@@ -1,9 +1,10 @@
-{"signatures": 
-[
-  {
-    "deps": ["./includes"],
-    "name": "fixtures",
-    "rule": "files",
-    "srcs": [ "*.hrl", "*.erl", "rebar.config" ]
-  }
-]}
+{
+  "signatures": [
+    {
+      "deps": ["./includes"],
+      "name": "fixtures",
+      "rule": "files",
+      "srcs": ["*.hrl", "*.erl", "rebar.config"]
+    }
+  ]
+}

@@ -2,20 +2,24 @@
 
 [![Build Status](https://github.com/hexpm/hex_core/workflows/CI/badge.svg)](https://github.com/hexpm/hex_core/actions)
 
-Reference implementation of Hex specifications: <https://github.com/hexpm/specifications>.
+Reference implementation of Hex specifications:
+<https://github.com/hexpm/specifications>.
 
 ## Usage
 
-Let's use default config for now. See "Configuration" section below for customization.
+Let's use default config for now. See "Configuration" section below for
+customization.
 
 ```erlang
 Config = hex_core:default_config().
 ```
 
-**WARNING** The built-in httpc-based HTTP client adapter has insecure default settings
-and thus it is not recommended for usage, in particular for API write operations.
-Use HTTP clients with secure defaults like [hackney](https://hex.pm/packages/hackney) and [Mint](https://hex.pm/packages/mint).
-See "Configuration" and "Wrapper Module" sections for more information on customising your usage of `hex_core`.
+**WARNING** The built-in httpc-based HTTP client adapter has insecure default
+settings and thus it is not recommended for usage, in particular for API write
+operations. Use HTTP clients with secure defaults like
+[hackney](https://hex.pm/packages/hackney) and
+[Mint](https://hex.pm/packages/mint). See "Configuration" and "Wrapper Module"
+sections for more information on customising your usage of `hex_core`.
 
 ### Repository
 
@@ -54,7 +58,8 @@ Get package releases from repository:
 
 ### API
 
-For a full list of all parameters and returned objects for the API, check out the API docs: <https://github.com/hexpm/specifications/blob/master/http_api.md>.
+For a full list of all parameters and returned objects for the API, check out
+the API docs: <https://github.com/hexpm/specifications/blob/master/http_api.md>.
 
 Get package from HTTP API:
 
@@ -111,8 +116,9 @@ Create package tarball:
 
 ## Configuration
 
-The default configuration, provided by `hex_core:default_config/0`, uses built-in httpc-based adapter and Hex.pm APIs:
-<https://hex.pm/api> and <https://repo.hex.pm>.
+The default configuration, provided by `hex_core:default_config/0`, uses
+built-in httpc-based adapter and Hex.pm APIs: <https://hex.pm/api> and
+<https://repo.hex.pm>.
 
 HTTP client configuration can be overridden as follows:
 
@@ -132,14 +138,17 @@ request(Method, URI, ReqHeaders, Body, AdapterConfig) ->
     %% ...
 ```
 
-See the [`hex_core` module](src/hex_core.erl) for more information about the configuration.
+See the [`hex_core` module](src/hex_core.erl) for more information about the
+configuration.
 
 ## Wrapper Module
 
-It's recommended to write a wrapper module because a lot of decisions are left to the user, e.g.:
-where to get configuration from, how to handle caching, failures etc.
+It's recommended to write a wrapper module because a lot of decisions are left
+to the user, e.g.: where to get configuration from, how to handle caching,
+failures etc.
 
-For a sample, see: [`examples/myapp_hex.erl`](examples/myapp_hex.erl). Here's an excerpt:
+For a sample, see: [`examples/myapp_hex.erl`](examples/myapp_hex.erl). Here's an
+excerpt:
 
 ```erlang
 -module(myapp_hex).
@@ -217,6 +226,6 @@ end
 
 ## Development
 
-* Run `rebar3 as dev compile` to re-generate protobuf files
-* Run `rebar3 as test proper` for property-based tests
-* Run `./docs.sh` to generate documentation
+- Run `rebar3 as dev compile` to re-generate protobuf files
+- Run `rebar3 as test proper` for property-based tests
+- Run `./docs.sh` to generate documentation
