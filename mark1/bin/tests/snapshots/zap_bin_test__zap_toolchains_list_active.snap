@@ -1,0 +1,8 @@
+---
+source: lib/warp-bin/tests/warp_bin_test.rs
+expression: "run(&[\"warp\", \"toolchains\", \"list-active\"])"
+---
+Active Toolchains: 
+* //warp.build/test/toolchains:caramel
+* //warp.build/toolchains:erlang
+

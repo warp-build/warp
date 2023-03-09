@@ -1,0 +1,10 @@
+---
+source: lib/warp-bin/tests/warp_bin_test.rs
+expression: "run(&[\"warp\", \"rules\", \"list\"])"
+---
+Loaded Rules: 
+* Tar @ archive
+* ErlApp @ erlang_application
+* ErlLibrary @ erlang_library
+* OtpRel @ otp_release
+

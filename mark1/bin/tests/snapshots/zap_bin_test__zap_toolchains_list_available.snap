@@ -1,0 +1,10 @@
+---
+source: lib/warp-bin/tests/warp_bin_test.rs
+expression: "run(&[\"warp\", \"toolchains\", \"list-available\"])"
+---
+Available Toolchains: 
+* :clojerl
+* :deno
+* :docker
+* :elixir
+

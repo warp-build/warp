@@ -1,0 +1,15 @@
+---
+source: lib/warp-bin/tests/warp_bin_test.rs
+expression: "run(&[\"warp\", \"targets\", \"list\"])"
+---
+//a:a_app
+//a:lib
+//b/c:lib
+//b/c:my_archive
+//b:b_app
+//b:lib
+//b:my_release
+//b:rel
+//warp.build/test/toolchains:caramel
+//warp.build/toolchains:erlang
+

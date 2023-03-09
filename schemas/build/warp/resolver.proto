@@ -1,0 +1,36 @@
+syntax = "proto3";
+package build.warp.dependency;
+
+import "schemas/build/warp/common.proto";
+
+service ResolverService {
+  rpc ResolveDependency(ResolveDependencyRequest) returns (ResolveDependencyResponse);
+
+  rpc PrepareDependency(PrepareDependencyRequest) returns (PrepareDependencyResponse);
+}
+
+message ResolveDependencyRequest {
+  string package_name = 1;
+  string version = 2;
+  string url = 3;
+}
+
+message ResolveDependencyResponse {
+  Status status = 1;
+  string package_name = 2;
+  string version = 3;
+  Archive archive = 4;
+}
+
+message PrepareDependencyRequest {
+  string package_root = 1;
+  string url = 2;
+  string version = 3;
+  string package_name = 4;
+}
+
+message PrepareDependencyResponse {
+  Status status = 1;
+  repeated Signature signatures = 2;
+}
+
