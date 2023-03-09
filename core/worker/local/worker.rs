@@ -54,7 +54,11 @@ pub struct LocalWorker<R: Resolver, P: Planner, E: Executor, S: Store> {
 
 pub enum WorkerFlow {
     TaskCompleted(Task),
+
     RetryLater,
+
+    /// Used to permanently skip a task. It will not be requeued.
+    Skipped(Task),
 }
 
 impl<R, P, PCtx, E, ECtx, S> Worker for LocalWorker<R, P, E, S>
@@ -121,6 +125,7 @@ where
     E: Executor,
     S: Store,
 {
+    #[tracing::instrument(name = "LocalWorker::poll", skip(self))]
     pub async fn poll(&mut self) -> Result<(), LocalWorkerError> {
         let task = match self.ctx.task_queue.next() {
             Some(task) => task,
@@ -130,6 +135,10 @@ where
         match self.handle_task(task).await? {
             WorkerFlow::TaskCompleted(task) => {
                 self.ctx.task_queue.ack(task);
+                Ok(())
+            }
+            WorkerFlow::Skipped(task) => {
+                self.ctx.task_queue.skip(task);
                 Ok(())
             }
             WorkerFlow::RetryLater => {
@@ -149,6 +158,7 @@ where
             .await?
         {
             ResolutionFlow::Resolved { signature } => signature,
+            ResolutionFlow::IgnoredTarget(_target) => return Ok(WorkerFlow::Skipped(task)),
             _flow => return Ok(WorkerFlow::RetryLater),
         };
 

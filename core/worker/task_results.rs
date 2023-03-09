@@ -67,13 +67,8 @@ impl TaskResults {
         self.results.iter().map(|r| r.value().clone()).collect()
     }
 
-    // NOTE(@ostera): there's plenty better ways of computing this, one would be to keep 2 maps for
-    // expected targets, and remove entries from it as entries are added to the computed targets.
-    // That way that map represents the current state of the build results, and we can just check
-    // if it is empty to see if we're done.
-    //
     pub fn has_all_expected_targets(&self) -> bool {
-        if self.ready_marker.is_empty() || self.expected_targets.is_empty() {
+        if self.ready_marker.is_empty() {
             return false;
         }
 
