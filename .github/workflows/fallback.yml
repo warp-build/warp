@@ -38,7 +38,7 @@ jobs:
 
           - target: aarch64-apple-darwin
             os: macos-latest
-            rust_toolchain: nightly
+            rust_toolchain: stable
 
           # linux builds
           - target: aarch64-unknown-linux-gnu
