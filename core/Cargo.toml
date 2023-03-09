@@ -1,8 +1,8 @@
 [package]
-name = "warp-core-mark2"
+name = "warp-core"
 version = "0.0.0"
 authors = ["Leandro Ostera <leandro@warp.build>"]
-description = "A simple, fast, and correct build system for modern polyglot teams"
+description = "The Warp Core - Mark II"
 edition = "2021"
 
 [lib]

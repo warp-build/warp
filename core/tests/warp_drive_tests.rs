@@ -1,6 +1,6 @@
 use assert_fs::prelude::*;
 use url::Url;
-use warp_core_mark2::{Config, Goal, Target, WarpDriveMarkII, WARPFILE};
+use warp_core::{Config, Goal, Target, WarpDriveMarkII, WARPFILE};
 
 mod common;
 

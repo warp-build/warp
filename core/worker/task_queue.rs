@@ -101,7 +101,7 @@ impl TaskQueue {
                 'wait_queue: for t in &*wait_queue {
                     debug!(
                         "Found task {:?}",
-                        self.target_registry.get_target(t.target).to_string()
+                        self.target_registry.get_target(t.target_id).to_string()
                     );
                     if let Some(deps) = self.wait_queue_deps.get(t) {
                         for dep in (*deps).iter() {
@@ -120,7 +120,7 @@ impl TaskQueue {
                 let task = task?;
                 debug!(
                     "pulling {}",
-                    self.target_registry.get_target(task.target).to_string()
+                    self.target_registry.get_target(task.target_id).to_string()
                 );
                 wait_queue.remove(&task);
                 task
@@ -133,34 +133,34 @@ impl TaskQueue {
             //
             // When the queue empties up, this will return a None, but otherwise
             // we'll go through a bunch of duplicates, discarding them.
-            if self.busy_targets.contains(&task.target)
-                || self.task_results.is_target_built(task.target)
+            if self.busy_targets.contains(&task.target_id)
+                || self.task_results.is_target_built(task.target_id)
             {
                 continue;
             }
 
             // But if it is yet to be built, we mark it as busy
-            self.busy_targets.insert(task.target);
-            self.in_queue_targets.remove(&task.target);
+            self.busy_targets.insert(task.target_id);
+            self.in_queue_targets.remove(&task.target_id);
             return Some(task);
         }
     }
 
     #[tracing::instrument(name = "TaskQueue::ack", skip(self))]
     pub fn ack(&self, task: Task) {
-        self.busy_targets.remove(&task.target);
+        self.busy_targets.remove(&task.target_id);
     }
 
     #[tracing::instrument(name = "TaskQueue::nack", skip(self))]
     pub fn nack(&self, task: Task) {
-        self.busy_targets.remove(&task.target);
+        self.busy_targets.remove(&task.target_id);
         self.wait_queue.write().unwrap().insert(task);
     }
 
     #[tracing::instrument(name = "TaskQueue::nack", skip(self))]
     pub fn skip(&self, task: Task) {
-        self.task_results.remove_expected_target(task.target);
-        self.busy_targets.remove(&task.target);
+        self.task_results.remove_expected_target(task.target_id);
+        self.busy_targets.remove(&task.target_id);
     }
 
     #[tracing::instrument(name = "TaskQueue::is_target_busy", skip(self))]
@@ -175,7 +175,7 @@ impl TaskQueue {
 
     #[tracing::instrument(name = "TaskQueue::queue", skip(self))]
     pub fn queue(&self, task: Task) -> Result<QueuedTask, TaskQueueError> {
-        let target = task.target;
+        let target = task.target_id;
         if self.target_registry.get_target(target).is_all() {
             return Err(TaskQueueError::CannotQueueTargetAll);
         }
@@ -201,7 +201,7 @@ impl TaskQueue {
 
     pub fn queue_deps(&self, task: Task, deps: &[TargetId]) -> Result<(), TaskQueueError> {
         self.task_results
-            .add_dependencies(task.target, deps)
+            .add_dependencies(task.target_id, deps)
             .map_err(TaskQueueError::DependencyCycle)?;
 
         self.wait_queue_deps

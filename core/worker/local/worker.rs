@@ -5,10 +5,12 @@ use crate::resolver::{ResolutionFlow, Resolver, ResolverError};
 use crate::store::Store;
 use crate::worker::task_queue::TaskQueueError;
 use crate::worker::{Role, Task, Worker, WorkerError};
+use crate::{Goal, Target};
 use core::future::Future;
 use futures::FutureExt;
 use std::pin::Pin;
 use thiserror::*;
+use tokio::fs;
 
 use super::LocalSharedContext;
 
@@ -82,6 +84,11 @@ where
     fn run<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), WorkerError>> + 'a>> {
         async move {
             for task in self.role.tasks() {
+                let target = self.ctx.target_registry.get_target(task.target_id);
+                if target.is_all() {
+                    self.queue_all(task.goal).await?;
+                    break;
+                }
                 let _ = self.ctx.task_queue.queue(*task)?;
             }
             if self.role.is_main_worker() {
@@ -133,12 +140,12 @@ where
     }
 
     pub async fn handle_task(&mut self, task: Task) -> Result<WorkerFlow, LocalWorkerError> {
-        let target = self.ctx.target_registry.get_target(task.target);
+        let target = self.ctx.target_registry.get_target(task.target_id);
 
         let signature = match self
             .ctx
             .resolver
-            .resolve(task.goal, task.target, target)
+            .resolve(task.goal, task.target_id, target)
             .await?
         {
             ResolutionFlow::Resolved { signature } => signature,
@@ -157,9 +164,53 @@ where
 
         self.ctx
             .task_results
-            .add_task_result(task.target, executable_spec, artifact_manifest);
+            .add_task_result(task.target_id, executable_spec, artifact_manifest);
 
         Ok(WorkerFlow::TaskCompleted(task))
+    }
+
+    async fn queue_all(&self, goal: Goal) -> Result<(), WorkerError> {
+        let root = self
+            .ctx
+            .workspace_manager
+            .current_workspace()
+            .root()
+            .to_path_buf();
+
+        let skip_patterns = {
+            let mut builder = globset::GlobSetBuilder::new();
+            for pattern in &["*/.warp*", "*warp-outputs*", "*.git*"] {
+                let glob = globset::Glob::new(pattern).unwrap();
+                builder.add(glob);
+            }
+            builder.build().unwrap()
+        };
+
+        let mut dirs = vec![root.clone()];
+        while let Some(dir) = dirs.pop() {
+            let mut read_dir = fs::read_dir(&dir).await.unwrap();
+
+            while let Ok(Some(entry)) = read_dir.next_entry().await {
+                let path = entry.path().clone();
+
+                if skip_patterns.is_match(&path) {
+                    continue;
+                }
+
+                if tokio::fs::read_dir(&path).await.is_ok() {
+                    dirs.push(path.clone());
+                    continue;
+                };
+
+                let path = path.strip_prefix(&root).unwrap().to_path_buf();
+                let target: Target = path.into();
+                let target_id = self.ctx.target_registry.register_target(target);
+
+                self.ctx.task_queue.queue(Task { target_id, goal }).unwrap();
+            }
+        }
+
+        Ok(())
     }
 }
 

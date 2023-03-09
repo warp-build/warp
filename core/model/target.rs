@@ -18,9 +18,21 @@ impl From<url::Url> for Target {
     }
 }
 
+impl From<String> for Target {
+    fn from(value: String) -> Self {
+        value.as_str().into()
+    }
+}
+
 impl From<&str> for Target {
     fn from(value: &str) -> Self {
-        Self::Fs(value.into())
+        if value.starts_with("@") {
+            Self::Alias(value.into())
+        } else if let Ok(url) = url::Url::parse(value) {
+            Self::Remote(url.into())
+        } else {
+            Self::Fs(value.into())
+        }
     }
 }
 
@@ -113,6 +125,14 @@ impl Default for AliasTarget {
     fn default() -> Self {
         Self {
             alias: ALIAS_ALL.to_string(),
+        }
+    }
+}
+
+impl From<&str> for AliasTarget {
+    fn from(value: &str) -> Self {
+        Self {
+            alias: value.to_string(),
         }
     }
 }
