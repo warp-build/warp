@@ -1,0 +1,8 @@
+[[files]]
+name = "fixtures"
+srcs = ["*.erl", "*.hrl"]
+
+[[files]]
+name = "rebar3"
+srcs = ["rebar.config"]
+

@@ -1,0 +1,32 @@
+{
+  "version": 0,
+  "signatures": [
+    {
+      "name": "ranch",
+      "rule": "rebar3_library",
+      "deps": [],
+      "runtime_deps": [],
+      "srcs": [
+        "src/ranch_transport.erl",
+        "src/ranch_tcp.erl",
+        "src/ranch_sup.erl",
+        "src/ranch_ssl.erl",
+        "src/ranch_server.erl",
+        "src/ranch_proxy_header.erl",
+        "src/ranch_protocol.erl",
+        "src/ranch_listener_sup.erl",
+        "src/ranch_crc32c.erl",
+        "src/ranch_conns_sup.erl",
+        "src/ranch_app.erl",
+        "src/ranch_acceptors_sup.erl",
+        "src/ranch_acceptor.erl",
+        "src/ranch.erl",
+        "README.asciidoc",
+        "Makefile",
+        "LICENSE",
+        "erlang.mk",
+        "ebin/ranch.app"
+      ]
+    }
+  ]
+}

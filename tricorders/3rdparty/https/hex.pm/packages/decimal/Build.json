@@ -1,0 +1,23 @@
+{
+  "version": 0,
+  "signatures": [
+    {
+      "name": "decimal",
+      "rule": "mix_library",
+      "deps": [],
+      "runtime_deps": [],
+      "srcs": [
+        "CHANGELOG.md",
+        "LICENSE.txt",
+        "README.md",
+        "mix.exs",
+        "lib/decimal.ex",
+        "lib/decimal/macros.ex",
+        "lib/decimal/context.ex",
+        "lib/decimal/error.ex",
+        "lib/decimal",
+        "lib"
+      ]
+    }
+  ]
+}

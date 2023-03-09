@@ -1,0 +1,18 @@
+{
+  "version": 0,
+  "signatures": [
+    {
+      "name": "castore",
+      "rule": "mix_library",
+      "deps": [],
+      "runtime_deps": [],
+      "srcs": [
+        "README.md",
+        "mix.exs",
+        "priv/cacerts.pem",
+        "priv",
+        "lib/castore.ex"
+      ]
+    }
+  ]
+}
