@@ -36,7 +36,7 @@ test: test.tricorder test.unit test.conc
 
 .PHONY: test.tricorder
 test.tricorder:
-	cd mark2/tests/test_tricorder/ \
+	cd core/tests/test_tricorder/ \
 		&& cargo build \
 		&& tar czf package.tar.gz target/debug/tricorder Manifest.json
 
