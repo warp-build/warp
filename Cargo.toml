@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "core",
+  "tricorders/rust/tricorder"
 ]
 resolver="2"
 

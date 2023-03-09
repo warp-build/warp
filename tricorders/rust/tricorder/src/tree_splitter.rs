@@ -1,15 +1,15 @@
 use super::*;
-
 pub struct TreeSplitter {}
 
 impl TreeSplitter {
-    pub fn tree_split(symbol: &str, sources: &str) -> syn::File {
+    pub fn tree_split(symbol: &str, sources: &str) -> (syn::File, String) {
         let ast = syn::parse_file(sources).unwrap();
         let symbol_ast = Self::get_ast_named(symbol, ast.clone());
         let mut deps = Self::get_interested_symbols(symbol_ast.clone(), ast.clone());
         deps.push(symbol.to_string());
         let stripped_ast = Self::strip_ast(ast, deps);
-        stripped_ast
+        let formatted_ast = prettyplease::unparse(&stripped_ast);
+        (stripped_ast, formatted_ast)
     }
 
     pub fn strip_ast(ast: syn::File, deps: Vec<String>) -> syn::File {

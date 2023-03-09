@@ -6,6 +6,7 @@ pub(crate) use thiserror::*;
 use tokio::fs;
 use tonic::{Request, Response, Status};
 use tracing::*;
+use tricorder::TreeSplitter;
 
 #[derive(Default)]
 pub struct GetAst {}
@@ -86,24 +87,17 @@ impl GetAst {
             .map_err(|err| GetAstError::CouldNotReadFile {
                 file: file.clone().to_string(),
                 err,
-            });
-
-        let src = source.unwrap();
-        let ast = syn::parse_file(&src)
-            .map_err(|err| GetAstError::CouldNotParseFile {
-                file: file.clone().to_string(),
-                err,
             })
             .unwrap();
 
-        println!("{:#?}", &ast.items);
+        let (ast, src) = TreeSplitter::tree_split(symbol_name, &source);
         crate::proto::build::warp::codedb::get_ast_response::Response::Ok(GetAstSuccessResponse {
             file: file.to_string(),
             symbol: Some(Symbol {
                 sym: Some(Named(symbol_name.to_string())),
             }),
             source: src.to_string(),
-            ast: format!("{:#?}", ast.items),
+            ast: format!("{:#?}", ast),
         })
     }
 }
