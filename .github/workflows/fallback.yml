@@ -40,10 +40,6 @@ jobs:
             os: macos-latest
             rust_toolchain: nightly
 
-          # - target: aarch64-apple-ios
-          #  os: macos-latest
-          #  rust_toolchain: stable
-
           # linux builds
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
@@ -53,22 +49,9 @@ jobs:
             os: ubuntu-latest
             rust_toolchain: stable
 
-          - target: armv7-unknown-linux-gnueabihf
-            os: ubuntu-latest
-            rust_toolchain: stable
-
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             rust_toolchain: stable
-
-          # windows builds
-          # - target: x86_64-pc-windows-gnu
-          #  os: windows-latest
-          #  rust_toolchain: stable
-
-          # - target: x86_64-pc-windows-msvc
-          #  os: windows-latest
-          #  rust_toolchain: stable
 
     env:
       OS: ${{ matrix.os }}
@@ -104,6 +87,9 @@ jobs:
           toolchain: ${{ matrix.rust_toolchain }}
           target: ${{ matrix.target }}
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v1
+
       - name: Set git user
         run: |
           git config --global user.name github-actions
@@ -112,11 +98,6 @@ jobs:
       - name: Define env (Unix)
         if: ${{ runner.os != 'Windows' }}
         run: echo "GITHUB_TAG=$(git describe --always --tags)" >> $GITHUB_ENV
-
-      - name: Define env (Windows)
-        if: ${{ runner.os == 'Windows' }}
-        run: |
-          echo "GITHUB_TAG=$(git describe --always --tags)" >> $Env:GITHUB_ENV
 
       - name: Setup Rust targets
         run: make setup
@@ -130,10 +111,6 @@ jobs:
       - name: Check code formatting
         if: ${{ success() && startsWith(runner.os, 'Linux') }}
         run: make fmt
-
-      - name: Create release archive (Windows)
-        if: ${{ success() && runner.os == 'Windows' }}
-        run: make release.win
 
       - name: Create release archive (Unix)
         if: ${{ success() && runner.os != 'Windows' }}
