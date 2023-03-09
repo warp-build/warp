@@ -179,7 +179,7 @@ where
 
         let skip_patterns = {
             let mut builder = globset::GlobSetBuilder::new();
-            for pattern in &["*/.warp*", "*warp-outputs*", "*.git*"] {
+            for pattern in &["*/.warp*", "*warp-outputs*", "*.git*", "*target/*"] {
                 let glob = globset::Glob::new(pattern).unwrap();
                 builder.add(glob);
             }

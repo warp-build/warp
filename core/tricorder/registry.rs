@@ -1,14 +1,15 @@
+use crate::store::ManifestUrl;
 use crate::{sync::*, Config};
 use fxhash::FxHashMap;
 use std::path::{Path, PathBuf};
 use thiserror::*;
+use tracing::*;
 use url::Url;
-
-use crate::store::ManifestUrl;
 
 /// A registry of tricorders with methods to find the right one based on the existence of certain
 /// paths.
 ///
+#[derive(Debug)]
 pub struct TricorderRegistry {
     tricorders: FxHashMap<String, Arc<Url>>,
 }
@@ -54,14 +55,24 @@ impl TricorderRegistry {
         Self { tricorders }
     }
 
-    pub async fn find_by_path(&self, path: &Path) -> Result<ManifestUrl, TricorderRegistryError> {
-        let ext = path.extension().unwrap().to_str().unwrap();
+    #[tracing::instrument(name = "TricorderRegistry::find_by_path", skip(self))]
+    pub async fn find_by_path(
+        &self,
+        path: &Path,
+    ) -> Result<Option<ManifestUrl>, TricorderRegistryError> {
+        let ext = if let Some(ext) = path.extension() {
+            ext.to_str().unwrap()
+        } else {
+            return Ok(None);
+        };
+
         if let Some(tricorder) = self.tricorders.get(ext) {
             let tricorder = tricorder.clone();
             let tricorder = (*tricorder).clone();
-            return Ok(tricorder.try_into().unwrap());
+            return Ok(Some(tricorder.try_into().unwrap()));
         }
-        Err(TricorderRegistryError::CouldNotFindTricorderByPath { path: path.into() })
+
+        Ok(None)
     }
 }
 

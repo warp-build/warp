@@ -73,10 +73,15 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
         let concrete_target = self.concretize_target(goal, target_id, target).await?;
 
         // 1. find and ready the tricorder
-        let mut tricorder = self
+        let mut tricorder = if let Some(tricorder) = self
             .tricorder_manager
             .find_and_ready(&concrete_target)
-            .await?;
+            .await?
+        {
+            tricorder
+        } else {
+            return Ok(ResolutionFlow::IgnoredTarget(target_id));
+        };
 
         // TODO(@ostera): at this stage, we want to use the concrete target and the tricorder to
         // call the CodeManager and ask it to tree-split, so we can avoid regenerating signatures

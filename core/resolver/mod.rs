@@ -48,6 +48,7 @@ pub enum ResolutionFlow {
     Resolved { signature: Signature },
     IncompatibleTarget,
     MissingDependencies { requirements: Vec<Requirement> },
+    IgnoredTarget(TargetId),
 }
 
 #[async_trait]
