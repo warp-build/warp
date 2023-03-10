@@ -8,13 +8,13 @@ pub use error::*;
 
 use crate::model::ExecutableSpec;
 use crate::store::ArtifactManifest;
-use crate::sync::*;
 use async_trait::async_trait;
 use std::path::PathBuf;
 
 pub enum ExecutionFlow {
     Completed(ArtifactManifest),
     ValidationError(ValidationStatus),
+    MissingDeps,
 }
 
 pub enum ValidationStatus {

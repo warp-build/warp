@@ -1,6 +1,9 @@
 mod context;
+pub mod traced_action_runner;
+
 pub use context::*;
 
+use self::traced_action_runner::{ActionRunnerFlow, TracedActionRunner};
 use super::{ExecutionFlow, Executor, ExecutorError, ValidationStatus};
 use crate::model::{ConcreteTarget, ExecutableSpec};
 use crate::store::{ArtifactManifest, BuildStamps, Store};
@@ -45,7 +48,12 @@ impl LocalExecutor {
 
         let shell_env = self.shell_env(&store_path, spec);
         self.copy_files(&store_path, spec).await?;
-        self.execute_actions(&store_path, &shell_env, spec).await?;
+
+        if let ActionRunnerFlow::MissingInputs { .. } =
+            TracedActionRunner::run(&store_path, &shell_env, spec).await?
+        {
+            return Ok(ExecutionFlow::MissingDeps);
+        }
 
         match self.validate_outputs(&store_path, spec).await? {
             ValidationStatus::Valid { .. } => {
@@ -185,12 +193,7 @@ impl LocalExecutor {
             env.insert(name.clone(), value);
         }
 
-        let spec_paths = spec
-            .provides()
-            .values()
-            .clone()
-            .into_iter()
-            .map(|p| store_path.join(p));
+        let spec_paths = spec.provides().values().clone().map(|p| store_path.join(p));
 
         let paths: FxHashSet<String> = spec
             .deps()
@@ -244,12 +247,12 @@ impl LocalExecutor {
             let dep_src = self
                 .ctx
                 .artifact_store
-                .get_local_store_path_for_manifest(&*dep);
+                .get_local_store_path_for_manifest(&dep);
 
             for out in dep.outs().iter() {
                 let src = dep_src.join(out);
                 let dst = store_path.join(out);
-                self.copy_file(&spec.target(), &src, &dst).await?;
+                self.copy_file(spec.target(), &src, &dst).await?;
             }
         }
 
@@ -270,21 +273,9 @@ spec = {:#?}
                     src, dst, store_path, spec
                 );
             }
-            self.copy_file(&spec.target(), src, &dst).await?;
+            self.copy_file(spec.target(), src, &dst).await?;
         }
 
-        Ok(())
-    }
-
-    async fn execute_actions(
-        &self,
-        store_path: &PathBuf,
-        env: &BTreeMap<String, String>,
-        spec: &ExecutableSpec,
-    ) -> Result<(), ExecutorError> {
-        for action in spec.actions() {
-            action.run(spec.target(), store_path, env).await?;
-        }
         Ok(())
     }
 
@@ -408,7 +399,7 @@ spec = {:#?}
             fs::create_dir_all(dst_parent)
                 .await
                 .map_err(|_| ExecutorError::CouldNotCreateDir {
-                    target: target.clone().into(),
+                    target: target.clone(),
                     dst: dst.clone(),
                     dst_parent: dst_parent.to_path_buf(),
                 })
@@ -420,7 +411,7 @@ spec = {:#?}
             Err(err) if err.kind() == std::io::ErrorKind::InvalidInput => (),
             Err(err) => {
                 return Err(ExecutorError::CouldNotCopy {
-                    target: target.clone().into(),
+                    target: target.clone(),
                     src: src.clone(),
                     dst: dst.clone(),
                     err,

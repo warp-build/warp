@@ -3,6 +3,8 @@ use crate::store::{ArtifactManifestError, StoreError};
 use std::path::PathBuf;
 use thiserror::Error;
 
+use super::local::traced_action_runner::ActionRunnerError;
+
 #[derive(Error, Debug)]
 pub enum ExecutorError {
     #[error(transparent)]
@@ -46,6 +48,9 @@ due to:
 
     #[error(transparent)]
     Unknown(anyhow::Error),
+
+    #[error(transparent)]
+    ActionRunnerError(ActionRunnerError),
 }
 
 impl From<StoreError> for ExecutorError {
@@ -63,5 +68,11 @@ impl From<ArtifactManifestError> for ExecutorError {
 impl From<anyhow::Error> for ExecutorError {
     fn from(value: anyhow::Error) -> Self {
         ExecutorError::Unknown(value)
+    }
+}
+
+impl From<ActionRunnerError> for ExecutorError {
+    fn from(value: ActionRunnerError) -> Self {
+        ExecutorError::ActionRunnerError(value)
     }
 }
