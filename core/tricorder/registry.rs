@@ -41,6 +41,12 @@ impl TricorderRegistry {
                     "mix.lock",
                 ],
             ),
+            (
+                format!("{default_host}tricorder/rust/manifest.json")
+                    .parse::<Url>()
+                    .unwrap(),
+                vec!["rs", "Cargo.toml"],
+            ),
         ];
 
         let mut tricorders = FxHashMap::default();
