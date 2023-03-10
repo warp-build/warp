@@ -188,6 +188,7 @@ mod tests {
     #[derive(Debug, Clone)]
     struct NoopContext;
 
+    #[async_trait(?Send)]
     impl Planner for NoopPlanner {
         type Context = NoopContext;
 
@@ -195,25 +196,26 @@ mod tests {
             Ok(Self)
         }
 
-        fn plan(
+        async fn plan(
             &mut self,
             _sig: Signature,
             _env: ExecutionEnvironment,
-        ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>>>> {
-            async move { Ok(PlanningFlow::MissingDeps { deps: vec![] }) }.boxed_local()
+        ) -> Result<PlanningFlow, PlannerError> {
+            Ok(PlanningFlow::MissingDeps { deps: vec![] })
         }
     }
 
     #[derive(Debug)]
     struct NoopWorker;
 
+    #[async_trait(?Send)]
     impl Worker for NoopWorker {
         type Context = LocalSharedContext<NoopResolver, NoopStore>;
         fn new(_role: Role, _ctx: Self::Context) -> Result<Self, WorkerError> {
             Ok(NoopWorker)
         }
-        fn run(&mut self) -> Pin<Box<dyn Future<Output = Result<(), WorkerError>>>> {
-            async move { Ok(()) }.boxed_local()
+        async fn run(&mut self) -> Result<(), WorkerError> {
+            Ok(())
         }
     }
 
@@ -282,36 +284,32 @@ mod tests {
             ctx: FixtureContext,
         }
 
+        #[async_trait(?Send)]
         impl Worker for FixtureWorker {
             type Context = FixtureContext;
             fn new(_role: Role, ctx: Self::Context) -> Result<Self, WorkerError> {
                 Ok(FixtureWorker { ctx })
             }
 
-            fn run<'a>(
-                &'a mut self,
-            ) -> Pin<Box<dyn Future<Output = Result<(), WorkerError>> + 'a>> {
-                async move {
-                    let manifest = ArtifactManifest::default();
-                    let spec = ExecutableSpec::builder()
-                        .target(self.ctx.target.clone())
-                        .signature(
-                            Signature::builder()
-                                .target(self.ctx.target.clone())
-                                .rule("test_rule".into())
-                                .build()
-                                .unwrap(),
-                        )
-                        .exec_env(self.ctx.env.clone())
-                        .hash_and_build(&*self.ctx.task_results)
-                        .unwrap();
+            async fn run(&mut self) -> Result<(), WorkerError> {
+                let manifest = ArtifactManifest::default();
+                let spec = ExecutableSpec::builder()
+                    .target(self.ctx.target.clone())
+                    .signature(
+                        Signature::builder()
+                            .target(self.ctx.target.clone())
+                            .rule("test_rule".into())
+                            .build()
+                            .unwrap(),
+                    )
+                    .exec_env(self.ctx.env.clone())
+                    .hash_and_build(&*self.ctx.task_results)
+                    .unwrap();
 
-                    self.ctx
-                        .task_results
-                        .add_task_result(self.ctx.target_id, spec, manifest);
-                    Ok(())
-                }
-                .boxed_local()
+                self.ctx
+                    .task_results
+                    .add_task_result(self.ctx.target_id, spec, manifest);
+                Ok(())
             }
         }
 

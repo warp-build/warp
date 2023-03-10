@@ -4,12 +4,12 @@ use crate::model::rule::expander::Expander;
 use crate::model::{Dependencies, ExecutionEnvironment, Rule, RunScript, Signature};
 use crate::rules::executor::compute_script::ComputeScript;
 use crate::rules::ExecutionResult;
+use async_trait::async_trait;
 use deno_core::Extension;
-use futures::{Future, FutureExt};
 use fxhash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use std::{pin::Pin, rc::Rc};
+use std::rc::Rc;
 use tokio::fs;
 use tracing::trace;
 
@@ -20,6 +20,7 @@ pub struct JsRuleExecutor {
     js_runtime: deno_core::JsRuntime,
 }
 
+#[async_trait(?Send)]
 impl RuleExecutor for JsRuleExecutor {
     type Context = SharedJsContext;
 
@@ -76,103 +77,100 @@ impl RuleExecutor for JsRuleExecutor {
         Ok(Self { ctx, js_runtime })
     }
 
-    fn execute<'a>(
-        &'a mut self,
-        env: &'a ExecutionEnvironment,
-        sig: &'a Signature,
-        deps: &'a Dependencies,
-    ) -> Pin<Box<dyn Future<Output = Result<ExecutionResult, RuleExecutorError>> + 'a>> {
-        async move {
-            let rule = self.load_rule(sig.rule()).await?;
+    async fn execute(
+        &mut self,
+        env: &ExecutionEnvironment,
+        sig: &Signature,
+        deps: &Dependencies,
+    ) -> Result<ExecutionResult, RuleExecutorError> {
+        let rule = self.load_rule(sig.rule()).await?;
 
-            let config = Expander
-                .expand(&rule, sig)
-                .await
-                .map_err(RuleExecutorError::ConfigExpanderError)?;
+        let config = Expander
+            .expand(&rule, sig)
+            .await
+            .map_err(RuleExecutorError::ConfigExpanderError)?;
 
-            let compute_program = ComputeScript::as_js_source(
-                self.ctx.task_results.clone(),
-                env,
-                sig,
-                deps,
-                &rule,
-                &config,
-            );
+        let compute_program = ComputeScript::as_js_source(
+            self.ctx.task_results.clone(),
+            env,
+            sig,
+            deps,
+            &rule,
+            &config,
+        );
 
-            trace!("Executing: {}", compute_program);
+        trace!("Executing: {}", compute_program);
 
-            let script_name = format!("<sig: {:?}>", &sig.target().to_string());
+        let script_name = format!("<sig: {:?}>", &sig.target().to_string());
 
-            self.js_runtime
-                .execute_script(&script_name, &compute_program)
-                .map_err(|err| RuleExecutorError::ExecutionError {
-                    err,
-                    target: (*sig.target().original_target()).clone(),
-                    sig: Box::new(sig.clone()),
-                    rule: rule.clone(),
-                })?;
+        self.js_runtime
+            .execute_script(&script_name, &compute_program)
+            .map_err(|err| RuleExecutorError::ExecutionError {
+                err,
+                target: (*sig.target().original_target()).clone(),
+                sig: Box::new(sig.clone()),
+                rule: rule.clone(),
+            })?;
 
-            trace!("Done!");
+        trace!("Done!");
 
-            let actions = self
-                .ctx
-                .action_map
-                .get(&sig.target().target_id())
-                .map(|entry| entry.value().clone())
-                .unwrap_or_default();
+        let actions = self
+            .ctx
+            .action_map
+            .get(&sig.target().target_id())
+            .map(|entry| entry.value().clone())
+            .unwrap_or_default();
 
-            let outs: FxHashSet<PathBuf> = self
-                .ctx
-                .output_map
-                .get(&sig.target().target_id())
-                .ok_or(RuleExecutorError::MissingDeclaredOutputs {
-                    target: sig.target().target_id(),
-                    outputs: (*self.ctx.output_map).clone(),
-                })?
-                .iter()
-                .cloned()
-                .collect();
+        let outs: FxHashSet<PathBuf> = self
+            .ctx
+            .output_map
+            .get(&sig.target().target_id())
+            .ok_or(RuleExecutorError::MissingDeclaredOutputs {
+                target: sig.target().target_id(),
+                outputs: (*self.ctx.output_map).clone(),
+            })?
+            .iter()
+            .cloned()
+            .collect();
 
-            let run_script: Option<RunScript> = self
-                .ctx
-                .run_script_map
-                .get(&sig.target().target_id())
-                .map(|rs| rs.clone());
+        let run_script: Option<RunScript> = self
+            .ctx
+            .run_script_map
+            .get(&sig.target().target_id())
+            .map(|rs| rs.clone());
 
-            let srcs = config.get_file_set();
+        let srcs = config.get_file_set();
 
-            let provides = self
-                .ctx
-                .provides_map
-                .get(&sig.target().target_id())
-                .map(|r| r.value().clone())
-                .unwrap_or_default()
-                .into_iter()
-                .map(|(k, v)| (k, PathBuf::from(v)))
-                .collect::<BTreeMap<String, PathBuf>>();
+        let provides = self
+            .ctx
+            .provides_map
+            .get(&sig.target().target_id())
+            .map(|r| r.value().clone())
+            .unwrap_or_default()
+            .into_iter()
+            .map(|(k, v)| (k, PathBuf::from(v)))
+            .collect::<BTreeMap<String, PathBuf>>();
 
-            let env = self
-                .ctx
-                .env_map
-                .get(&sig.target().target_id())
-                .map(|r| r.value().clone())
-                .unwrap_or_default()
-                .into_iter()
-                .collect::<FxHashMap<String, String>>();
+        let env = self
+            .ctx
+            .env_map
+            .get(&sig.target().target_id())
+            .map(|r| r.value().clone())
+            .unwrap_or_default()
+            .into_iter()
+            .collect::<FxHashMap<String, String>>();
 
-            self.ctx.action_map.clear();
-            self.ctx.output_map.clear();
+        self.ctx.action_map.clear();
+        self.ctx.output_map.clear();
 
-            Ok(ExecutionResult {
-                actions,
-                outs,
-                srcs,
-                run_script,
-                provides,
-                env,
-            })
-        }
-        .boxed_local()
+        Ok(ExecutionResult {
+            actions,
+            outs,
+            srcs,
+            run_script,
+            provides,
+            env,
+        })
     }
 }
 

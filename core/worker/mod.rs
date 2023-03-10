@@ -8,6 +8,7 @@ mod task;
 mod task_queue;
 mod task_results;
 
+use async_trait::async_trait;
 use coordinator::*;
 pub use error::*;
 use futures::Future;
@@ -37,11 +38,7 @@ pub trait Context: Sync + Send + Clone + Sized {
 /// Normally workers have a set up that happens during the `run` phase, so their construction is
 /// sync.
 ///
-/// NOTE(@ostera): because the LocalWorker uses a Planner, which is not Send nor Sync, we can't
-/// use the #[async_trait] because it automatically marks all futures as +Send, which forces
-/// Send on this Worker, which forces Send on the inner Planner, which can't be Send because of
-/// Deno.
-///
+#[async_trait(?Send)]
 pub trait Worker {
     type Context: Context;
 
@@ -49,7 +46,7 @@ pub trait Worker {
     where
         Self: Sized;
 
-    fn run<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), WorkerError>> + 'a>>;
+    async fn run(&mut self) -> Result<(), WorkerError>;
 }
 
 /// The role that a given worker has. The MainWorker is in charge of terminating execution

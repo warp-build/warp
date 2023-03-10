@@ -1,14 +1,15 @@
 use super::{DefaultPlannerContext, Dependencies, Planner, PlannerError, PlanningFlow};
 use crate::model::{ExecutableSpec, ExecutionEnvironment, Signature, TargetId};
 use crate::rules::RuleExecutor;
-use futures::{Future, FutureExt};
-use std::pin::Pin;
+use async_trait::async_trait;
+use futures::FutureExt;
 
 pub struct DefaultPlanner<RE: RuleExecutor> {
     ctx: DefaultPlannerContext,
     rule_executor: RE,
 }
 
+#[async_trait(?Send)]
 impl<RE, Ctx> Planner for DefaultPlanner<RE>
 where
     RE: RuleExecutor<Context = Ctx>,
@@ -23,39 +24,36 @@ where
         })
     }
 
-    fn plan<'a>(
-        &'a mut self,
+    async fn plan(
+        &mut self,
         sig: Signature,
         env: ExecutionEnvironment,
-    ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>> + 'a>> {
-        async move {
-            let planning_start_time = chrono::Utc::now();
+    ) -> Result<PlanningFlow, PlannerError> {
+        let planning_start_time = chrono::Utc::now();
 
-            let deps = match self.find_deps(&sig).await? {
-                PlanningFlow::FoundAllDeps { deps } => deps,
-                flow => return Ok(flow),
-            };
+        let deps = match self.find_deps(&sig).await? {
+            PlanningFlow::FoundAllDeps { deps } => deps,
+            flow => return Ok(flow),
+        };
 
-            let plan = self.rule_executor.execute(&env, &sig, &deps).await?;
+        let plan = self.rule_executor.execute(&env, &sig, &deps).await?;
 
-            let planning_end_time = chrono::Utc::now();
+        let planning_end_time = chrono::Utc::now();
 
-            let spec = ExecutableSpec::builder()
-                .target(sig.target().clone())
-                .signature(sig)
-                .exec_env(env)
-                .planning_start_time(planning_start_time)
-                .planning_end_time(planning_end_time)
-                .srcs(plan.srcs.into())
-                .outs(plan.outs.into())
-                .provides(plan.provides.into())
-                .actions(plan.actions)
-                .deps(deps)
-                .hash_and_build(&self.ctx.task_results)?;
+        let spec = ExecutableSpec::builder()
+            .target(sig.target().clone())
+            .signature(sig)
+            .exec_env(env)
+            .planning_start_time(planning_start_time)
+            .planning_end_time(planning_end_time)
+            .srcs(plan.srcs.into())
+            .outs(plan.outs.into())
+            .provides(plan.provides.into())
+            .actions(plan.actions)
+            .deps(deps)
+            .hash_and_build(&self.ctx.task_results)?;
 
-            Ok(PlanningFlow::Planned { spec })
-        }
-        .boxed_local()
+        Ok(PlanningFlow::Planned { spec })
     }
 }
 
@@ -128,6 +126,7 @@ mod tests {
     use crate::{Config, Goal};
 
     struct NoopRuleExecutor;
+    #[async_trait(?Send)]
     impl RuleExecutor for NoopRuleExecutor {
         type Context = ();
 
@@ -135,14 +134,13 @@ mod tests {
             Ok(Self)
         }
 
-        fn execute<'a>(
-            &'a mut self,
-            _env: &'a ExecutionEnvironment,
-            _sig: &'a Signature,
-            _deps: &'a Dependencies,
-        ) -> Pin<Box<dyn Future<Output = Result<ExecutionResult, RuleExecutorError>> + 'a>>
-        {
-            async move { Ok(Default::default()) }.boxed_local()
+        async fn execute(
+            &mut self,
+            _env: &ExecutionEnvironment,
+            _sig: &Signature,
+            _deps: &Dependencies,
+        ) -> Result<ExecutionResult, RuleExecutorError> {
+            Ok(Default::default())
         }
     }
 

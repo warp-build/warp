@@ -803,15 +803,6 @@ checksum = "23d8666cb01533c39dde32bcbab8e227b4ed6679b2c925eba05feabea39508fb"
 
 [[package]]
 name = "deno_console"
-version = "0.72.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a58a2642f457c772d3ddc88837923bcb8abb5c944ad8bf93363bad6b69d6dc3"
-dependencies = [
- "deno_core 0.154.0",
-]
-
-[[package]]
-name = "deno_console"
 version = "0.91.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5290ad8855794d107dd7faa325f3e0e6f7f9a161205203aa0c1658f9c8852425"
@@ -1915,6 +1906,15 @@ dependencies = [
 
 [[package]]
 name = "memoffset"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
+name = "memoffset"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d61c719bcfbcf5d62b3a09efa6088de8c54bc0bfcd3ea7ae39fcc186108b8de1"
@@ -2003,6 +2003,20 @@ dependencies = [
  "libc",
  "memoffset 0.6.5",
  "pin-utils",
+]
+
+[[package]]
+name = "nix"
+version = "0.26.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfdda3d196821d6af13126e40375cdf7da646a96114af134d5f417a9a1dc8e1a"
+dependencies = [
+ "bitflags",
+ "cfg-if 1.0.0",
+ "libc",
+ "memoffset 0.7.1",
+ "pin-utils",
+ "static_assertions",
 ]
 
 [[package]]
@@ -2699,7 +2713,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01ff60778f96fb5a48adbe421d21bf6578ed58c0872d712e7e08593c195adff8"
 dependencies = [
  "comma",
- "nix",
+ "nix 0.25.1",
  "regex",
  "tempfile",
  "thiserror",
@@ -3077,6 +3091,12 @@ dependencies = [
  "unicode-id",
  "url",
 ]
+
+[[package]]
+name = "static_assertions"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "strsim"
@@ -3801,8 +3821,6 @@ dependencies = [
  "crossbeam-channel 0.4.4",
  "crossterm",
  "dashmap",
- "deno_console 0.72.0",
- "deno_core 0.154.0",
  "dialoguer",
  "dir-diff",
  "env_logger 0.9.3",
@@ -3855,7 +3873,7 @@ dependencies = [
  "crossbeam",
  "daggy",
  "dashmap",
- "deno_console 0.91.0",
+ "deno_console",
  "deno_core 0.173.0",
  "derive_builder",
  "dir-diff",
@@ -3873,6 +3891,7 @@ dependencies = [
  "json_comments",
  "log",
  "mockito",
+ "nix 0.26.2",
  "num_cpus",
  "once_cell",
  "opentelemetry",

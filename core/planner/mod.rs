@@ -3,6 +3,7 @@
 mod default;
 mod default_planner_context;
 
+use async_trait::async_trait;
 pub use default::*;
 pub use default_planner_context::*;
 
@@ -22,11 +23,7 @@ pub enum PlanningFlow {
     FoundAllDeps { deps: Dependencies },
 }
 
-/// NOTE(@ostera): because the Planner uses a RuleExecutor that uses Deno in one of its
-/// implementations, we can't use the #[async_trait] macro. This macro automatically marks all
-/// futures as +Send, which forces Send on this RuleExecutor, which forces Send on the Deno
-/// instances.
-///
+#[async_trait(?Send)]
 pub trait Planner {
     type Context: Sync + Send + Clone + Sized;
 
@@ -34,11 +31,11 @@ pub trait Planner {
     where
         Self: Sized;
 
-    fn plan<'a>(
-        &'a mut self,
+    async fn plan(
+        &mut self,
         sig: Signature,
         env: ExecutionEnvironment,
-    ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>> + 'a>>;
+    ) -> Result<PlanningFlow, PlannerError>;
 }
 
 #[derive(Error, Debug)]

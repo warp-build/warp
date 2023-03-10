@@ -8,23 +8,19 @@ mod net_module_loader;
 mod result;
 
 pub use context::*;
-use dashmap::DashMap;
 pub use js::*;
 pub use result::*;
 
 use crate::model::rule::expander::ExpanderError;
 use crate::model::{Dependencies, ExecutionEnvironment, Rule, Signature, Target, TargetId};
-use futures::Future;
+use async_trait::async_trait;
+use dashmap::DashMap;
 use std::path::PathBuf;
-use std::pin::Pin;
 use thiserror::Error;
 
 use super::RuleStoreError;
 
-/// NOTE(@ostera): because the RuleExecutor uses Deno in one of its implementations, we can't use
-/// the #[async_trait] macro. This macro automatically marks all futures as +Send, which forces
-/// Send on this RuleExecutor, which forces Send on the Deno instances.
-///
+#[async_trait(?Send)]
 pub trait RuleExecutor {
     type Context: Sync + Send + Clone + Sized;
 
@@ -32,12 +28,12 @@ pub trait RuleExecutor {
     where
         Self: Sized;
 
-    fn execute<'a>(
-        &'a mut self,
-        env: &'a ExecutionEnvironment,
-        sig: &'a Signature,
-        deps: &'a Dependencies,
-    ) -> Pin<Box<dyn Future<Output = Result<ExecutionResult, RuleExecutorError>> + 'a>>;
+    async fn execute(
+        &mut self,
+        env: &ExecutionEnvironment,
+        sig: &Signature,
+        deps: &Dependencies,
+    ) -> Result<ExecutionResult, RuleExecutorError>;
 }
 
 #[derive(Error, Debug)]

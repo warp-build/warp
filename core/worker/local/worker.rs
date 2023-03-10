@@ -6,7 +6,7 @@ use crate::store::Store;
 use crate::worker::task_queue::TaskQueueError;
 use crate::worker::{Role, Task, Worker, WorkerError};
 use crate::{Goal, Target};
-use core::future::Future;
+use async_trait::async_trait;
 use futures::FutureExt;
 use std::pin::Pin;
 use thiserror::*;
@@ -61,6 +61,7 @@ pub enum WorkerFlow {
     Skipped(Task),
 }
 
+#[async_trait(?Send)]
 impl<R, P, PCtx, E, ECtx, S> Worker for LocalWorker<R, P, E, S>
 where
     R: Resolver,
@@ -85,36 +86,33 @@ where
         })
     }
 
-    fn run<'a>(&'a mut self) -> Pin<Box<dyn Future<Output = Result<(), WorkerError>> + 'a>> {
-        async move {
-            for task in self.role.tasks() {
-                let target = self.ctx.target_registry.get_target(task.target_id);
-                if target.is_all() {
-                    self.queue_all(task.goal).await?;
-                    break;
-                }
-                let _ = self.ctx.task_queue.queue(*task)?;
+    async fn run(&mut self) -> Result<(), WorkerError> {
+        for task in self.role.tasks() {
+            let target = self.ctx.target_registry.get_target(task.target_id);
+            if target.is_all() {
+                self.queue_all(task.goal).await?;
+                break;
             }
-            if self.role.is_main_worker() {
-                self.ctx.task_results.mark_as_ready();
-            }
-
-            while self.ctx.coordinator.should_run() {
-                // NOTE(@ostera): we don't want things to burn CPU cycles
-                tokio::time::sleep(std::time::Duration::from_micros(10)).await;
-                if let Err(err) = self.poll().await {
-                    self.ctx.coordinator.signal_shutdown();
-                    return Err(WorkerError::LocalWorkerError(err));
-                }
-
-                if self.role.is_main_worker() && self.ctx.task_results.has_all_expected_targets() {
-                    self.ctx.coordinator.signal_shutdown();
-                    break;
-                }
-            }
-            Ok(())
+            let _ = self.ctx.task_queue.queue(*task)?;
         }
-        .boxed_local()
+        if self.role.is_main_worker() {
+            self.ctx.task_results.mark_as_ready();
+        }
+
+        while self.ctx.coordinator.should_run() {
+            // NOTE(@ostera): we don't want things to burn CPU cycles
+            tokio::time::sleep(std::time::Duration::from_micros(10)).await;
+            if let Err(err) = self.poll().await {
+                self.ctx.coordinator.signal_shutdown();
+                return Err(WorkerError::LocalWorkerError(err));
+            }
+
+            if self.role.is_main_worker() && self.ctx.task_results.has_all_expected_targets() {
+                self.ctx.coordinator.signal_shutdown();
+                break;
+            }
+        }
+        Ok(())
     }
 }
 
@@ -351,6 +349,7 @@ mod tests {
         }
     }
 
+    #[async_trait(?Send)]
     impl Planner for NoopPlanner {
         type Context = NoopContext;
 
@@ -358,12 +357,12 @@ mod tests {
             Ok(Self)
         }
 
-        fn plan(
+        async fn plan(
             &mut self,
             _sig: Signature,
             _env: ExecutionEnvironment,
-        ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>>>> {
-            async move { Ok(PlanningFlow::MissingDeps { deps: vec![] }) }.boxed_local()
+        ) -> Result<PlanningFlow, PlannerError> {
+            Ok(PlanningFlow::MissingDeps { deps: vec![] })
         }
     }
 
@@ -458,6 +457,7 @@ mod tests {
     async fn on_planner_error_worker_signal_shutdown() {
         #[derive(Clone)]
         struct ErrPlanner;
+        #[async_trait(?Send)]
         impl Planner for ErrPlanner {
             type Context = ();
 
@@ -465,13 +465,12 @@ mod tests {
                 Ok(Self)
             }
 
-            fn plan<'a>(
-                &'a mut self,
+            async fn plan(
+                &mut self,
                 _sig: Signature,
                 _env: ExecutionEnvironment,
-            ) -> Pin<Box<dyn Future<Output = Result<PlanningFlow, PlannerError>> + 'a>>
-            {
-                async move { Err(PlannerError::Unknown) }.boxed_local()
+            ) -> Result<PlanningFlow, PlannerError> {
+                Err(PlannerError::Unknown)
             }
         }
 
