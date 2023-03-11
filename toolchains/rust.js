@@ -1,5 +1,5 @@
-export const JS_EXT = ".js";
-export const TS_EXT = ".ts";
+export const RS_EXT = ".rs";
+export const TOML_EXT = ".toml";
 
 const impl = (ctx) => {
   const { host } = ctx.env();
@@ -69,14 +69,10 @@ export default Warp.Toolchain({
   mnemonic: "Rust",
   impl,
   cfg: {
-    profile: string(),
     toolchains: [string()],
     targets: [string()],
     components: [string()],
     sha1_aarch64: string(),
     sha1_x86_64: string(),
-  },
-  defaults: {
-    profile: "default",
   },
 });
