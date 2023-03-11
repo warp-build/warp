@@ -2,7 +2,6 @@ use super::{DefaultPlannerContext, Dependencies, Planner, PlannerError, Planning
 use crate::model::{ExecutableSpec, ExecutionEnvironment, Signature, TargetId};
 use crate::rules::RuleExecutor;
 use async_trait::async_trait;
-use futures::FutureExt;
 
 pub struct DefaultPlanner<RE: RuleExecutor> {
     ctx: DefaultPlannerContext,
@@ -24,6 +23,7 @@ where
         })
     }
 
+    #[tracing::instrument(name = "DefaultPlanner::plan", skip(self, sig, env))]
     async fn plan(
         &mut self,
         sig: Signature,
@@ -31,12 +31,35 @@ where
     ) -> Result<PlanningFlow, PlannerError> {
         let planning_start_time = chrono::Utc::now();
 
-        let deps = match self.find_deps(&sig).await? {
-            PlanningFlow::FoundAllDeps { deps } => deps,
-            flow => return Ok(flow),
+        let deps = self.ctx.target_registry.register_many_targets(sig.deps());
+        let compile_deps = match self._deps(sig.target().target_id(), &deps) {
+            DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
+            DepFinderFlow::AllDepsFound(deps) => deps,
         };
 
+        let runtime_deps = self.ctx.target_registry.register_many_targets(sig.runtime_deps());
+        let runtime_deps = match self._deps(sig.target().target_id(), &runtime_deps) {
+            DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
+            DepFinderFlow::AllDepsFound(deps) => deps,
+        };
+
+        let mut deps = Dependencies::builder()
+            .compile_deps(compile_deps)
+            .toolchains(vec![])
+            .transitive_deps(vec![])
+            .runtime_deps(runtime_deps)
+            .build()?;
+
         let plan = self.rule_executor.execute(&env, &sig, &deps).await?;
+
+        let toolchains = self.ctx.target_registry.register_many_targets(&plan.toolchains);
+        match self._deps(sig.target().target_id(), &toolchains) {
+            DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
+            DepFinderFlow::AllDepsFound(toolchains) => {
+                deps.set_toolchains(toolchains)
+            },
+        };
+
 
         let planning_end_time = chrono::Utc::now();
 
@@ -58,24 +81,6 @@ where
 }
 
 impl<RE: RuleExecutor> DefaultPlanner<RE> {
-    async fn find_deps(&self, sig: &Signature) -> Result<PlanningFlow, PlannerError> {
-        let deps = self.ctx.target_registry.register_many_targets(sig.deps());
-
-        let compile_deps = match self._deps(sig.target().target_id(), &deps) {
-            DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
-            DepFinderFlow::AllDepsFound(deps) => deps,
-        };
-
-        let deps = Dependencies::builder()
-            .compile_deps(compile_deps)
-            .toolchains(vec![])
-            .transitive_deps(vec![])
-            .runtime_deps(vec![])
-            .build()?;
-
-        Ok(PlanningFlow::FoundAllDeps { deps })
-    }
-
     fn _deps(&self, target: TargetId, deps: &[TargetId]) -> DepFinderFlow {
         let mut collected_deps: Vec<TargetId> = vec![];
         let mut missing_deps: Vec<TargetId> = vec![];

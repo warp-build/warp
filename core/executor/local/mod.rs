@@ -26,9 +26,8 @@ impl Executor for LocalExecutor {
         Ok(Self { ctx })
     }
 
+    #[tracing::instrument(name = "LocalExecutor::execute", skip(self, spec))]
     async fn execute(&mut self, spec: &ExecutableSpec) -> Result<ExecutionFlow, ExecutorError> {
-        println!("executing {spec:#?}");
-
         if let Some(manifest) = self.ctx.artifact_store.find(spec).await? {
             self.ctx.artifact_store.promote(&manifest).await?;
             return Ok(ExecutionFlow::Completed(manifest));
@@ -211,7 +210,7 @@ impl LocalExecutor {
             .flat_map(|d| {
                 d.provided_files()
                     .values()
-                    .cloned()
+                    .map(|p| d.store_path().join(p))
                     .collect::<Vec<PathBuf>>()
             })
             .chain(spec_paths)

@@ -187,7 +187,7 @@ impl ConfigBuilder {
     }
 
     fn default_public_rule_store_url(&self) -> Url {
-        "https://rules.warp.build/rules/".parse::<Url>().unwrap()
+        "https://rules.warp.build/rules".parse::<Url>().unwrap()
     }
 
     fn default_public_store_metadata_url(&self) -> Url {

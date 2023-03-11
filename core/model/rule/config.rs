@@ -22,6 +22,12 @@ pub enum Value {
     // Map(FxHashMap<String, Value>),
 }
 
+impl From<&str> for Value{
+    fn from(value: &str) -> Self {
+        Self::String(value.to_string())
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Spec {
     _inner: FxHashMap<String, Type>,

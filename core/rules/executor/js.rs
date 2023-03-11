@@ -50,6 +50,7 @@ impl RuleExecutor for JsRuleExecutor {
                     js_ffi::op_file_with_extension::decl(),
                     js_ffi::op_target_name::decl(),
                     js_ffi::op_target_path::decl(),
+                    js_ffi::op_target_parent_path::decl(),
                     js_ffi::op_rule_new::decl(),
                 ])
                 .state(move |state| {
@@ -160,6 +161,8 @@ impl RuleExecutor for JsRuleExecutor {
             .into_iter()
             .collect::<FxHashMap<String, String>>();
 
+        let toolchains = rule.toolchains().to_vec();
+
         self.ctx.action_map.clear();
         self.ctx.output_map.clear();
 
@@ -167,6 +170,7 @@ impl RuleExecutor for JsRuleExecutor {
             actions,
             outs,
             srcs,
+            toolchains,
             run_script,
             provides,
             env,
@@ -175,6 +179,7 @@ impl RuleExecutor for JsRuleExecutor {
 }
 
 impl JsRuleExecutor {
+    #[tracing::instrument(name = "JsRuleExecutor::load_rule", skip(self))]
     async fn load_rule(&mut self, rule_name: &str) -> Result<Rule, RuleExecutorError> {
         // NOTE(@ostera): avoid IO and redefining rules if it is already computed in this worker
         if let Some(r) = self.ctx.loaded_rules.get(rule_name) {
@@ -185,10 +190,12 @@ impl JsRuleExecutor {
 
         self.load_file(rule_file).await?;
 
+        let rule_normalized_name = self.ctx.rule_store.normalize_name(rule_name);
+
         let rule = self
             .ctx
             .rule_map
-            .get(rule_name)
+            .get(&rule_normalized_name)
             .map(|r| r.value().clone())
             .ok_or_else(|| RuleExecutorError::RuleNotFound {
                 rule_name: rule_name.to_string(),
@@ -201,6 +208,7 @@ impl JsRuleExecutor {
         Ok(rule)
     }
 
+    #[tracing::instrument(name = "JsRuleExecutor::load_file", skip(self), ret)]
     async fn load_file(&mut self, file: PathBuf) -> Result<(), RuleExecutorError> {
         let module_name = format!("file://{}", file.to_str().unwrap());
         let module_code =
@@ -213,7 +221,7 @@ impl JsRuleExecutor {
         self.load(&module_name, Some(module_code)).await
     }
 
-    #[tracing::instrument(name = "RuleExecutor::load", skip(self, module_code))]
+    #[tracing::instrument(name = "JsRuleExecutor::load", skip(self, module_code))]
     async fn load(
         &mut self,
         module_name: &str,
@@ -299,7 +307,11 @@ mod tests {
         // internet.
         let m = mockito::mock("GET", "/test_rule.js")
             .with_status(200)
-            .with_body(include_bytes!("./fixtures/test_rule.js"))
+            .with_body(
+                include_str!("./fixtures/test_rule.js")
+                    .replace("{URL}", &mockito::server_url())
+                    .as_bytes(),
+            )
             .create();
 
         // 2. Configure Warp and create all the dependencies to the RuleExecutor
@@ -373,7 +385,11 @@ mod tests {
         // internet.
         let m = mockito::mock("GET", "/test_rule.js")
             .with_status(200)
-            .with_body(include_bytes!("./fixtures/missing_declared_outputs.js"))
+            .with_body(
+                include_str!("./fixtures/missing_declared_outputs.js")
+                    .replace("{URL}", &mockito::server_url())
+                    .as_bytes(),
+            )
             .create();
 
         // 2. Configure Warp and create all the dependencies to the RuleExecutor
@@ -442,7 +458,11 @@ mod tests {
         // internet.
         let m = mockito::mock("GET", "/test_rule.js")
             .with_status(200)
-            .with_body(include_bytes!("./fixtures/rule_with_errors.js"))
+            .with_body(
+                include_str!("./fixtures/rule_with_errors.js")
+                    .replace("{URL}", &mockito::server_url())
+                    .as_bytes(),
+            )
             .create();
 
         // 2. Configure Warp and create all the dependencies to the RuleExecutor
@@ -508,20 +528,25 @@ mod tests {
         test_file.touch().unwrap();
 
         let mock_url = mockito::server_url().parse::<Url>().unwrap();
+
         // NOTE(@ostera): This mock will be used to download a test_rule as if it was from the
         // internet.
         let _m1 = mockito::mock("GET", "/rule_with_dep.js")
             .with_status(200)
             .with_body(
                 include_str!("./fixtures/rule_with_dep.js")
-                    .replace("{PORT}", &mock_url.port().unwrap().to_string())
+                    .replace("{URL}", &mockito::server_url())
                     .as_bytes(),
             )
             .create();
 
         let _m2 = mockito::mock("GET", "/dep_rule.js")
             .with_status(200)
-            .with_body(include_bytes!("./fixtures/dep_rule.js"))
+            .with_body(
+                include_str!("./fixtures/dep_rule.js")
+                    .replace("{URL}", &mockito::server_url())
+                    .as_bytes(),
+            )
             .create();
 
         // 2. Configure Warp and create all the dependencies to the RuleExecutor
@@ -600,14 +625,18 @@ mod tests {
             .with_status(200)
             .with_body(
                 include_str!("./fixtures/rule_with_dep.js")
-                    .replace("{PORT}", &mock_port)
+                    .replace("{URL}", &mockito::server_url())
                     .as_bytes(),
             )
             .create();
 
         let _m2 = mockito::mock("GET", "/dep_rule.js")
             .with_status(400)
-            .with_body(include_bytes!("./fixtures/dep_rule.js"))
+            .with_body(
+                include_str!("./fixtures/dep_rule.js")
+                    .replace("{URL}", &mockito::server_url())
+                    .as_bytes(),
+                )
             .create();
 
         // 2. Configure Warp and create all the dependencies to the RuleExecutor

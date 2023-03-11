@@ -4,7 +4,7 @@ const impl = (ctx) => {
 };
 
 export default Warp.Rule({
-  name: "test_rule",
+  name: "{URL}/test_rule",
   mnemonic: "TestRule",
   impl,
   cfg: {

@@ -49,6 +49,7 @@ impl RuleStore {
         })
     }
 
+    #[tracing::instrument(name = "RuleStore::fetch", skip(self))]
     async fn fetch(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
         if let Some(path) = self.find_in_global_rules(name).await? {
             return Ok(Some(path));
@@ -56,6 +57,7 @@ impl RuleStore {
         self.download(name).await
     }
 
+    #[tracing::instrument(name = "RuleStore::find_in_global_rules", skip(self), ret)]
     async fn find_in_global_rules(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
         let path = self._global_rule_path(name);
         let meta = fs::metadata(&path)
@@ -128,13 +130,14 @@ impl RuleStore {
             .insert(name.to_string(), path.to_path_buf());
     }
 
-    fn normalize_name(&self, name: &str) -> String {
+    #[tracing::instrument(name = "RuleStore::normalize_name", skip(self), ret)]
+    pub fn normalize_name(&self, name: &str) -> String {
         let url = url::Url::parse(name);
         if url.is_ok() {
             name.to_string()
         } else {
             let mut url = self.public_rule_store_url.clone();
-            url.set_path(name);
+            url.path_segments_mut().unwrap().push(name);
             url.to_string()
         }
     }
@@ -142,6 +145,7 @@ impl RuleStore {
     /// NOTE(@ostera): when normalizing the name to use it in paths, we need to drop the
     /// protocol :// so `http://hello.world/a` becomes `http/hello.world/a` which is a valid
     /// path name.
+    #[tracing::instrument(name = "RuleStore::_global_rule_path", skip(self), ret)]
     fn _global_rule_path(&self, name: &str) -> PathBuf {
         let name = name.replace("://", "/");
         self.global_rules_root.join(name).with_extension("js")
