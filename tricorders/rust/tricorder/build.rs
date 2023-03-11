@@ -5,11 +5,11 @@ fn main() {
         .compile_well_known_types(true)
         .compile(
             &[
-                "../../schemas/build/warp/codedb/analyzer.proto",
-                "../../schemas/build/warp/resolver.proto",
-                "../../schemas/build/warp/common.proto",
+                "../../../schemas/build/warp/codedb/analyzer.proto",
+                "../../../schemas/build/warp/resolver.proto",
+                "../../../schemas/build/warp/common.proto",
             ],
-            &["../.."],
+            &["../../.."],
         )
         .unwrap_or_else(|e| panic!("protobuf compile error: {}", e));
 }
