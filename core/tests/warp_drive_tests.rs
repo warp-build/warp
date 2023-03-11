@@ -124,7 +124,11 @@ async fn executes_target() {
 
     let rule_store_mock = mockito::mock("GET", "/test_rule.js")
         .with_status(200)
-        .with_body(include_bytes!("./fixtures/rules/test_rule.js"))
+        .with_body(
+            include_str!("./fixtures/rules/test_rule.js")
+                .replace("{URL}", &mockito::server_url())
+                .as_bytes(),
+        )
         .create();
 
     let mut drive = WarpDriveMarkII::new(config).await.unwrap();

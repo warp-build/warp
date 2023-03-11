@@ -1,5 +1,6 @@
 use super::{Config, Rule, Type, Value};
 use crate::model::{ConcreteTarget, Signature, TargetError};
+use log::debug;
 use thiserror::Error;
 use tracing::{error, trace};
 
@@ -30,7 +31,7 @@ impl Expander {
             }
             .clone();
 
-            let expanded_value = self.expand_value(&sig.target(), value, &value_type)?;
+            let expanded_value = self.expand_value(sig.target(), value, value_type)?;
 
             values.insert(key.to_string(), expanded_value);
         }
@@ -81,11 +82,7 @@ impl Expander {
     ) -> Result<Value, ExpanderError> {
         let path = {
             let p = target.path().to_owned();
-            let p = if p.ends_with(cfg_path) {
-                p
-            } else {
-                p.join(cfg_path)
-            };
+            let p = p.parent().unwrap().join(cfg_path);
             p.to_str().unwrap().to_string()
         };
         if path.contains('*') {
@@ -128,7 +125,7 @@ impl Expander {
 
 #[derive(Error, Debug)]
 pub enum ExpanderError {
-    #[error("Missing mandatory field {field_name} in sig: {sig:?}")]
+    #[error("Missing mandatory field \"{field_name}\" in sig: {sig:?}")]
     MissingMandatoryField {
         sig: Box<Signature>,
         field_name: String,

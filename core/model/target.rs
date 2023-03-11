@@ -1,5 +1,6 @@
 use super::TargetId;
 use serde::{Deserialize, Serialize};
+use url::Url;
 use std::path::{Path, PathBuf};
 use thiserror::*;
 
@@ -106,6 +107,14 @@ impl Target {
             Target::Alias(_) => &[],
             Target::Remote(_) => &[],
             Target::Fs(f) => f.deps(),
+        }
+    }
+
+    pub fn url(&self) -> Option<Url> {
+        match self {
+            Target::Alias(_) => None,
+            Target::Remote(r) => Some(r.url.parse::<Url>().unwrap()),
+            Target::Fs(_) => None,
         }
     }
 }

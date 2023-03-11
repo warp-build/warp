@@ -1,10 +1,13 @@
+use std::path::PathBuf;
+
 use super::{FsResolver, ResolutionFlow, Resolver, ResolverError, TargetRegistry};
-use crate::model::{ConcreteTarget, Goal, Target, TargetId};
+use crate::model::{rule, ConcreteTarget, Goal, Signature, Target, TargetId};
 use crate::store::DefaultStore;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
 use crate::workspace::WorkspaceManager;
 use crate::{sync::*, Config};
 use async_trait::async_trait;
+use tracing::instrument;
 
 #[derive(Clone)]
 pub struct DefaultResolver<T: Tricorder + Clone> {
@@ -12,6 +15,7 @@ pub struct DefaultResolver<T: Tricorder + Clone> {
     tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
     target_registry: Arc<TargetRegistry>,
     workspace_manager: Arc<WorkspaceManager>,
+    config: Config,
 }
 
 impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
@@ -22,12 +26,13 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         workspace_manager: Arc<WorkspaceManager>,
     ) -> Self {
         let fs_resolver = Arc::new(FsResolver::new());
-        let tricorder_manager = Arc::new(TricorderManager::new(config, store));
+        let tricorder_manager = Arc::new(TricorderManager::new(config.clone(), store));
         Self {
             fs_resolver,
             tricorder_manager,
             target_registry,
             workspace_manager,
+            config,
         }
     }
 
@@ -60,17 +65,83 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             .target_registry
             .associate_concrete_target(target_id, ct))
     }
+
+    fn bootstrap_signature(
+        &self,
+        concrete_target: Arc<ConcreteTarget>,
+    ) -> Result<ResolutionFlow, ResolverError> {
+        if let Some(rule) = match concrete_target
+            .path()
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+        {
+            "mix.exs" => Some("mix_release"),
+            _ => None,
+        } {
+            let signature = Signature::builder()
+                .target((*concrete_target).clone())
+                .rule(rule.to_string())
+                .config({
+                    let mut config = rule::Config::default();
+                    config.insert("name".to_string(), concrete_target.name().into());
+                    config
+                })
+                .build()
+                .unwrap();
+
+            Ok(ResolutionFlow::Resolved { signature })
+        } else {
+            Ok(ResolutionFlow::IgnoredTarget(concrete_target.target_id()))
+        }
+    }
+
+    #[instrument(name = "DefaultResolver::is_target_a_rule", skip(self), ret)]
+    fn is_target_a_rule(&self, target: &Target) -> bool {
+        target
+            .url()
+            .map(|url| {
+                let target_host = url.host_str().unwrap();
+                let public_rule_store_host =
+                    self.config.public_rule_store_url().host_str().unwrap();
+
+                target_host == public_rule_store_host
+            })
+            .unwrap_or_default()
+    }
+
+    #[instrument(name = "DefaultResolver::rule_target_signature", skip(self))]
+    fn rule_target_signature(&self, target_id: TargetId, target: Arc<Target>) -> Signature {
+        let rule = target.url().unwrap().to_string();
+        let target = ConcreteTarget::new(Goal::Build, target_id, target, PathBuf::new());
+        Signature::builder()
+            .target(target)
+            .rule(rule)
+            .build()
+            .unwrap()
+    }
 }
 
 #[async_trait]
 impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
+    #[instrument(name = "DefaultResolver::resolve", skip(self))]
     async fn resolve(
         &self,
         goal: Goal,
         target_id: TargetId,
         target: Arc<Target>,
     ) -> Result<ResolutionFlow, ResolverError> {
+        if self.is_target_a_rule(&target) {
+            let signature = self.rule_target_signature(target_id, target);
+            return Ok(ResolutionFlow::Resolved { signature });
+        }
+
         let concrete_target = self.concretize_target(goal, target_id, target).await?;
+
+        if let Goal::Bootstrap = goal {
+            return self.bootstrap_signature(concrete_target);
+        }
 
         // 1. find and ready the tricorder
         let mut tricorder = if let Some(tricorder) = self

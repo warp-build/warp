@@ -7,8 +7,6 @@ use crate::worker::task_queue::TaskQueueError;
 use crate::worker::{Role, Task, Worker, WorkerError};
 use crate::{Goal, Target};
 use async_trait::async_trait;
-use futures::FutureExt;
-use std::pin::Pin;
 use thiserror::*;
 use tokio::fs;
 
@@ -59,6 +57,7 @@ pub enum WorkerFlow {
 
     /// Used to permanently skip a task. It will not be requeued.
     Skipped(Task),
+    HandlePlanFlow(PlanningFlow),
 }
 
 #[async_trait(?Send)]
@@ -123,7 +122,7 @@ where
     E: Executor,
     S: Store,
 {
-    #[tracing::instrument(name = "LocalWorker::poll", skip(self))]
+    #[tracing::instrument(name = "LocalWorker::pool", skip(self))]
     pub async fn poll(&mut self) -> Result<(), LocalWorkerError> {
         let task = match self.ctx.task_queue.next() {
             Some(task) => task,
@@ -143,9 +142,16 @@ where
                 self.ctx.task_queue.nack(task);
                 Ok(())
             }
+            WorkerFlow::HandlePlanFlow(PlanningFlow::MissingDeps{deps}) => {
+                self.ctx.task_queue.queue_deps(task, &deps)?;
+                self.ctx.task_queue.nack(task);
+                Ok(())
+            }
+            _ => unreachable!()
         }
     }
 
+    #[tracing::instrument(name = "LocalWorker::handle_task", skip(self))]
     pub async fn handle_task(&mut self, task: Task) -> Result<WorkerFlow, LocalWorkerError> {
         let target = self.ctx.target_registry.get_target(task.target_id);
 
@@ -162,7 +168,7 @@ where
 
         let executable_spec = match self.planner.plan(signature, self.env.clone()).await? {
             PlanningFlow::Planned { spec } => spec,
-            _flow => return Ok(WorkerFlow::RetryLater),
+            flow => return Ok(WorkerFlow::HandlePlanFlow(flow)),
         };
 
         let artifact_manifest = match self.executor.execute(&executable_spec).await? {
@@ -232,6 +238,9 @@ pub enum LocalWorkerError {
 
     #[error(transparent)]
     ExecutorError(ExecutorError),
+
+    #[error(transparent)]
+    TaskQueueError(TaskQueueError),
 }
 
 impl From<ExecutorError> for LocalWorkerError {
@@ -249,6 +258,12 @@ impl From<ResolverError> for LocalWorkerError {
 impl From<PlannerError> for LocalWorkerError {
     fn from(value: PlannerError) -> Self {
         LocalWorkerError::PlannerError(value)
+    }
+}
+
+impl From<TaskQueueError> for LocalWorkerError {
+    fn from(err: TaskQueueError) -> Self {
+        LocalWorkerError::TaskQueueError(err)
     }
 }
 

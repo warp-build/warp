@@ -1,5 +1,5 @@
 // NOTE(@ostera): HTTP vs HTTPS is relevant here -- our mock server can't do HTTPS
-import * as Dep from "http://127.0.0.1:{PORT}/dep_rule.js";
+import * as Dep from "{URL}/dep_rule.js";
 
 const impl = (ctx) => {
   const { srcs } = ctx.cfg();
@@ -7,7 +7,7 @@ const impl = (ctx) => {
 };
 
 export default Warp.Rule({
-  name: "rule_with_dep",
+  name: "{URL}/rule_with_dep",
   mnemonic: "RuleWithDep",
   impl,
   cfg: {

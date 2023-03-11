@@ -11,6 +11,8 @@ pub enum Goal {
     #[default]
     Build,
 
+    Bootstrap,
+
     Test,
 
     Run,
@@ -37,6 +39,7 @@ impl Goal {
                     || t.as_ref().ends_with("_executable")
             }
             Goal::Build => !t.as_ref().ends_with("_test"),
+            Goal::Bootstrap => false,
             Goal::Fetch => true,
         }
     }
@@ -83,6 +86,7 @@ impl ToString for Goal {
             Self::Test => "test",
             Self::Build => "build",
             Self::Fetch => "get",
+            Self::Bootstrap => "bootstrap",
         }
         .to_string()
     }

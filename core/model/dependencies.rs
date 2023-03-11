@@ -30,6 +30,10 @@ impl Dependencies {
     pub fn runtime_deps(&self) -> &[TargetId] {
         self.runtime_deps.as_ref()
     }
+
+    pub fn set_toolchains(&mut self, toolchains: Vec<TargetId>) {
+        self.toolchains = toolchains;
+    }
 }
 
 #[derive(Error, Debug)]

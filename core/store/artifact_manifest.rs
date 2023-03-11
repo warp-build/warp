@@ -175,6 +175,10 @@ impl ArtifactManifest {
     pub fn hash(&self) -> &str {
         self.hash.as_ref()
     }
+
+    pub fn store_path(&self) -> &PathBuf {
+        &self.store_path
+    }
 }
 
 #[derive(Error, Debug)]

@@ -1,3 +1,4 @@
+use crate::Target;
 use crate::executor::actions::Action;
 use crate::model::RunScript;
 use fxhash::{FxHashMap, FxHashSet};
@@ -12,4 +13,5 @@ pub struct ExecutionResult {
     pub(crate) provides: BTreeMap<String, PathBuf>,
     pub(crate) run_script: Option<RunScript>,
     pub(crate) srcs: FxHashSet<PathBuf>,
+    pub(crate) toolchains: Vec<Target>,
 }
