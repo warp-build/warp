@@ -9,7 +9,6 @@ const impl = (ctx) => {
     sha1_x86_64,
     toolchains,
     targets,
-    profile,
     components,
   } = ctx.cfg();
 
@@ -33,7 +32,6 @@ const impl = (ctx) => {
 export RUSTUP_HOME=$(pwd)/.rustup
 
 ./${rustup_init} -y --no-modify-path \
-  --profile ${profile} \
   --default-toolchain ${defaultToolchain} \
   --target ${targets.join(" ")} \
   --component ${components.join(" ")}
