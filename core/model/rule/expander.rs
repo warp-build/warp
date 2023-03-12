@@ -78,9 +78,6 @@ impl Expander {
     #[instrument(name = "Expander::expand_glob", skip(self))]
     pub fn expand_glob(&self, root: &Path, cfg_path: &str) -> Result<Value, ExpanderError> {
         let path = root.join(cfg_path).to_string_lossy().to_string();
-
-        dbg!(&path);
-
         if path.contains('*') {
             let entries = glob::glob(&path).map_err(|err| ExpanderError::InvalidGlobPattern {
                 path: path.to_string(),
