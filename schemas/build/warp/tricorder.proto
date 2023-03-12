@@ -15,12 +15,6 @@ service TricorderService {
   //
   rpc EnsureReady(EnsureReadyRequest) returns (EnsureReadyResponse);
 
-  // Scan and return a list of dependencies. Typically this is done by looking
-  // for package manifests and lock files, but it may include scanning folders
-  // and other vendored artifacts.
-  //
-  rpc GetDependencies(GetDependenciesRequest) returns (GetDependenciesResponse);
-
   // Generates a Warp Signature for a given source and symbol. This is used
   // during the Target Resolution phase, to understand how to build, test, or
   // run a given target.
@@ -40,37 +34,6 @@ service TricorderService {
 
 message EnsureReadyRequest {}
 message EnsureReadyResponse {}
-
-message GetDependenciesRequest {
-  // The root of the workspace that the Tricorder will be analyzing.
-  //
-  string workspace_root = 1;
-
-  // A number of dependency profiles, typically used to segment dependencies
-  // into development time, testing time, and production dependencies.
-  //
-  // If there are no profiles specified, all dependencies will be expected.
-  //
-  repeated string profiles = 2;
-}
-
-message GetDependenciesResponse {
-  // The status of this operation. If any errors ocurred, you can expect the
-  // rest of these fields to be unset.
-  //
-  Status status = 1;
-
-  // The root of the workspace that the tricorder analyzed.
-  string workspace_root = 2;
-
-  // The list of profiles used during analysis.
-  repeated string profiles = 3;
-
-  // A list of dependencies found in the specified workspace root, for the
-  // specified profiles.
-  //
-  repeated Dependency dependencies = 4;
-}
 
 message GenerateSignatureRequest {
   // The root of the workspace that the Tricorder will be analyzing.
