@@ -33,13 +33,17 @@ defmodule Build.Warp.Tricorder.TricorderService.Service do
     }
   end
 
-  rpc :EnsureReady,
-      Build.Warp.Tricorder.EnsureReadyRequest,
-      Build.Warp.Tricorder.EnsureReadyResponse
+  rpc(
+    :EnsureReady,
+    Build.Warp.Tricorder.EnsureReadyRequest,
+    Build.Warp.Tricorder.EnsureReadyResponse
+  )
 
-  rpc :GenerateSignature,
-      Build.Warp.Tricorder.GenerateSignatureRequest,
-      Build.Warp.Tricorder.GenerateSignatureResponse
+  rpc(
+    :GenerateSignature,
+    Build.Warp.Tricorder.GenerateSignatureRequest,
+    Build.Warp.Tricorder.GenerateSignatureResponse
+  )
 end
 
 defmodule Build.Warp.Tricorder.TricorderService.Stub do

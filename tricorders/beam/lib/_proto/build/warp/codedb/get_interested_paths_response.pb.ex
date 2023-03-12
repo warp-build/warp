@@ -48,6 +48,6 @@ defmodule Build.Warp.Codedb.GetInterestedPathsResponse do
     }
   end
 
-  field :build_files, 1, repeated: true, type: :string, json_name: "buildFiles"
-  field :test_files, 2, repeated: true, type: :string, json_name: "testFiles"
+  field(:build_files, 1, repeated: true, type: :string, json_name: "buildFiles")
+  field(:test_files, 2, repeated: true, type: :string, json_name: "testFiles")
 end

@@ -50,8 +50,8 @@ defmodule Build.Warp.Symbol do
     }
   end
 
-  oneof :sym, 0
+  oneof(:sym, 0)
 
-  field :all, 1, type: :bool, oneof: 0
-  field :named, 2, type: :string, oneof: 0
+  field(:all, 1, type: :bool, oneof: 0)
+  field(:named, 2, type: :string, oneof: 0)
 end

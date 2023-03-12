@@ -76,8 +76,8 @@ defmodule Build.Warp.Dependency.ResolveDependencyResponse do
     }
   end
 
-  field :status, 1, type: Build.Warp.Status, enum: true
-  field :package_name, 2, type: :string, json_name: "packageName"
-  field :version, 3, type: :string
-  field :archive, 4, type: Build.Warp.Archive
+  field(:status, 1, type: Build.Warp.Status, enum: true)
+  field(:package_name, 2, type: :string, json_name: "packageName")
+  field(:version, 3, type: :string)
+  field(:archive, 4, type: Build.Warp.Archive)
 end
