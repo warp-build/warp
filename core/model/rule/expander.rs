@@ -1,8 +1,7 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use super::{Config, Rule, Type, Value};
-use crate::model::{ConcreteTarget, Signature, TargetError};
-use log::debug;
+use crate::model::{Signature, TargetError};
 use thiserror::Error;
 use tracing::{error, instrument, trace};
 
@@ -33,7 +32,7 @@ impl Expander {
             }
             .clone();
 
-            let expanded_value = self.expand_value(sig.target(), value, value_type)?;
+            let expanded_value = self.expand_value(sig.target().dir(), value, value_type)?;
 
             values.insert(key.to_string(), expanded_value);
         }
@@ -48,20 +47,20 @@ impl Expander {
     #[instrument(name = "Expander::expand_value", skip(self))]
     pub fn expand_value(
         &self,
-        target: &ConcreteTarget,
+        root: &Path,
         value: Value,
         value_type: &Type,
     ) -> Result<Value, ExpanderError> {
         trace!("Expanding value {:?} of type {:?}", value, value_type);
         match (value_type, &value) {
-            (Type::File, Value::File(path)) => self.expand_glob(target, path.to_str().unwrap()),
-            (Type::File, Value::String(path)) => self.expand_glob(target, path),
+            (Type::File, Value::File(path)) => self.expand_glob(root, path.to_str().unwrap()),
+            (Type::File, Value::String(path)) => self.expand_glob(root, path),
             (Type::Target, Value::String(name)) => {
                 let target = name.parse().map_err(ExpanderError::TargetError)?;
                 Ok(Value::Target(target))
             }
             (Type::Target, Value::Target(target)) => Ok(Value::Target(target.clone())),
-            (Type::List(t), Value::List(parts)) => self.expand_list(target, parts.to_vec(), t),
+            (Type::List(t), Value::List(parts)) => self.expand_list(root, parts.to_vec(), t),
             (Type::String, Value::String(_)) => Ok(value),
             _ => {
                 error!(
@@ -77,16 +76,10 @@ impl Expander {
     }
 
     #[instrument(name = "Expander::expand_glob", skip(self))]
-    pub fn expand_glob(
-        &self,
-        target: &ConcreteTarget,
-        cfg_path: &str,
-    ) -> Result<Value, ExpanderError> {
-        let path = if let Some(parent) = target.path().parent() {
-            parent.join(cfg_path).to_string_lossy().to_string()
-        } else {
-            cfg_path.into()
-        };
+    pub fn expand_glob(&self, root: &Path, cfg_path: &str) -> Result<Value, ExpanderError> {
+        let path = root.join(cfg_path).to_string_lossy().to_string();
+
+        dbg!(&path);
 
         if path.contains('*') {
             let entries = glob::glob(&path).map_err(|err| ExpanderError::InvalidGlobPattern {
@@ -108,14 +101,14 @@ impl Expander {
     #[instrument(name = "Expander::expand_list", skip(self))]
     pub fn expand_list(
         &self,
-        target: &ConcreteTarget,
+        root: &Path,
         parts: Vec<Value>,
         value_type: &Type,
     ) -> Result<Value, ExpanderError> {
         let mut elements = vec![];
 
         for p in parts {
-            let expanded_value = self.expand_value(target, p, value_type)?;
+            let expanded_value = self.expand_value(root, p, value_type)?;
             elements.extend(match expanded_value {
                 Value::List(subparts) => subparts,
                 el => vec![el],
@@ -154,4 +147,45 @@ pub enum ExpanderError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_fs::prelude::*;
+
+    #[test]
+    fn expands_string_value_from_a_target_file() {
+        let root = assert_fs::TempDir::new().unwrap();
+
+        root.child("hello/1").touch().unwrap();
+        root.child("hello/2").touch().unwrap();
+        root.child("hello/3").touch().unwrap();
+
+        let value = Expander
+            .expand_value(root.path(), Value::String("hello/*".into()), &Type::File)
+            .unwrap();
+        assert_matches!(value, Value::List(values) if values.len() == 3);
+    }
+
+    #[test]
+    fn expands_file_value_from_a_target_file() {
+        let root = assert_fs::TempDir::new().unwrap();
+
+        root.child("hello/1").touch().unwrap();
+        root.child("hello/2").touch().unwrap();
+        root.child("hello/3").touch().unwrap();
+
+        let value = Expander
+            .expand_value(root.path(), Value::File("hello/*".into()), &Type::File)
+            .unwrap();
+        assert_matches!(value, Value::List(values) if values.len() == 3);
+    }
+
+    #[test]
+    fn expands_globs_from_a_dir_root() {
+        let root = assert_fs::TempDir::new().unwrap();
+        root.child("hello/1").touch().unwrap();
+        root.child("hello/2").touch().unwrap();
+        root.child("hello/3").touch().unwrap();
+
+        let value = Expander.expand_glob(root.path(), "hello/*").unwrap();
+
+        assert_matches!(value, Value::List(values) if values.len() == 3);
+    }
 }
