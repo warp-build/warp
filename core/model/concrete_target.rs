@@ -1,6 +1,6 @@
 use super::{Goal, Target, TargetId};
-use crate::{sync::*, workspace::WorkspaceId};
-use std::path::PathBuf;
+use crate::sync::*;
+use std::path::{Path, PathBuf};
 
 /// A ConcreteTarget is a target that has gone through the first phase of resolution.
 ///
@@ -33,7 +33,15 @@ impl ConcreteTarget {
         self.original_target.clone()
     }
 
-    pub fn path(&self) -> &PathBuf {
+    pub fn dir(&self) -> &Path {
+        if self.path.is_file() {
+            self.path.parent().unwrap()
+        } else {
+            &self.path
+        }
+    }
+
+    pub fn path(&self) -> &Path {
         &self.path
     }
 
