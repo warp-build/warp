@@ -1,8 +1,10 @@
+use std::path::PathBuf;
+
 use super::{Config, Rule, Type, Value};
 use crate::model::{ConcreteTarget, Signature, TargetError};
 use log::debug;
 use thiserror::Error;
-use tracing::{error, trace};
+use tracing::{error, instrument, trace};
 
 /// Rule configuration expansion and type-checking.
 ///
@@ -13,7 +15,7 @@ use tracing::{error, trace};
 pub struct Expander;
 
 impl Expander {
-    #[tracing::instrument(name = "Expander::expand", skip(self, rule, sig))]
+    #[instrument(name = "Expander::expand", skip(self, rule, sig))]
     pub async fn expand(&self, rule: &Rule, sig: &Signature) -> Result<Config, ExpanderError> {
         let mut values: Config = rule.defaults().clone();
 
@@ -43,7 +45,7 @@ impl Expander {
         Ok(values)
     }
 
-    #[tracing::instrument(name = "Expander::expand_value", skip(self))]
+    #[instrument(name = "Expander::expand_value", skip(self))]
     pub fn expand_value(
         &self,
         target: &ConcreteTarget,
@@ -74,17 +76,18 @@ impl Expander {
         }
     }
 
-    #[tracing::instrument(name = "Expander::expand_glob", skip(self))]
+    #[instrument(name = "Expander::expand_glob", skip(self))]
     pub fn expand_glob(
         &self,
         target: &ConcreteTarget,
         cfg_path: &str,
     ) -> Result<Value, ExpanderError> {
-        let path = {
-            let p = target.path().to_owned();
-            let p = p.parent().unwrap().join(cfg_path);
-            p.to_str().unwrap().to_string()
+        let path = if let Some(parent) = target.path().parent() {
+            parent.join(cfg_path).to_string_lossy().to_string()
+        } else {
+            cfg_path.into()
         };
+
         if path.contains('*') {
             let entries = glob::glob(&path).map_err(|err| ExpanderError::InvalidGlobPattern {
                 path: path.to_string(),
@@ -98,11 +101,11 @@ impl Expander {
             }
             Ok(Value::List(files))
         } else {
-            Ok(Value::File(path.into()))
+            Ok(Value::File(PathBuf::from(path)))
         }
     }
 
-    #[tracing::instrument(name = "Expander::expand_list", skip(self))]
+    #[instrument(name = "Expander::expand_list", skip(self))]
     pub fn expand_list(
         &self,
         target: &ConcreteTarget,
