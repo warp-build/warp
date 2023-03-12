@@ -66,19 +66,27 @@ impl TricorderRegistry {
         &self,
         path: &Path,
     ) -> Result<Option<ManifestUrl>, TricorderRegistryError> {
-        let ext = if let Some(ext) = path.extension() {
-            ext.to_str().unwrap()
-        } else {
-            return Ok(None);
+        if let Some(ext) = path.extension() {
+	    return Ok(self.find_tricorder(ext.to_str().unwrap()))
         };
 
-        if let Some(tricorder) = self.tricorders.get(ext) {
-            let tricorder = tricorder.clone();
-            let tricorder = (*tricorder).clone();
-            return Ok(Some(tricorder.try_into().unwrap()));
-        }
+	if let Some(file_name) = path.file_name() {
+	    return Ok(self.find_tricorder(file_name.to_str().unwrap()))
+	}
 
         Ok(None)
+    }
+
+    fn find_tricorder(
+	&self,
+	name: &str,
+    ) -> Option<ManifestUrl> {
+	if let Some(tricorder) = self.tricorders.get(name) {
+            let tricorder = tricorder.clone();
+            let tricorder = (*tricorder).clone();
+            return Some(tricorder.try_into().unwrap());
+        }
+	None
     }
 }
 

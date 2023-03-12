@@ -1,0 +1,10 @@
+{
+  "signatures": [
+    {
+      "name": "analyzer",
+      "rule": "rust_application",
+      "main": "src/main.rs",
+      "deps": ["./:analyzer_service"]
+    }
+  ]
+}

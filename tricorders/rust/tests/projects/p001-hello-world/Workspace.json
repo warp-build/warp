@@ -1,0 +1,21 @@
+{
+    "workspace": {
+	"name": "p001-hello-world",
+	"use_git_hooks": false
+    },
+    "toolchains": {
+	"rust": {
+	    "sha1_aarch64": "7187014f920ea013e271bbb303074ef242aa1d96",
+	    "sha1_x86_64": "682fd896e1f0cbad9f6689ba7f8a8f3d21efb4df",
+	    "toolchains": ["stable-aarch64-apple-darwin", "stable-x86_64-unknown-linux-gnu"],
+	    "targets": ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu"],
+	    "components": ["clippy"]
+	}
+    },
+    "remote_workspaces": {
+	"tools.warp.build": {
+	    "github": "warp-build/tools.warp.build",
+	    "git_ref": "main"
+	}
+    }
+}
