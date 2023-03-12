@@ -10,6 +10,7 @@ use crate::model::ExecutableSpec;
 use crate::sync::*;
 use crate::Config;
 use async_trait::async_trait;
+use tracing::instrument;
 
 /// The Default store implements the interface of an artifact store that orchestrates between the
 /// Public and Local stores to download, cache, and save artifacts.
@@ -33,7 +34,9 @@ impl DefaultStore {
     }
 
     async fn download_from_public_store(&self, key: ArtifactId) -> Result<(), StoreError> {
-        self.public_store.try_fetch(&key).await?;
+        if self.local_store.get_manifest(key.clone()).await?.is_none() {
+            self.public_store.try_fetch(&key).await?;
+        }
         Ok(())
     }
 }
@@ -42,6 +45,7 @@ impl DefaultStore {
 impl Store for DefaultStore {
     /// Installs packages from the store via a Manifest Url.
     ///
+    #[instrument(name = "DefaultStore::install_from_manifest_url", skip(self))]
     async fn install_from_manifest_url(
         &self,
         url: &ManifestUrl,
