@@ -9,6 +9,7 @@ use crate::util::port_finder::PortFinder;
 use crate::util::process_pool::{ProcessId, ProcessPool, ProcessPoolError, ProcessSpec};
 use crate::Config;
 use dashmap::DashMap;
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use thiserror::*;
 
@@ -71,10 +72,16 @@ where
                 artifact_manifest: artifact_manifest.clone(),
             })?;
 
+        let shell_env: HashMap<String, String> = artifact_manifest
+            .shell_env()
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
+
         let spec = ProcessSpec {
             bin: bin.to_path_buf(),
             args: vec!["start".to_string(), port.to_string()],
-            env: Default::default(),
+            env: shell_env,
             current_dir: None,
             _process_type: PhantomData,
         };
