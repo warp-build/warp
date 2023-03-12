@@ -26,8 +26,14 @@ impl<P> ProcessPool<P> {
     ) -> Result<ProcessId<P>, ProcessPoolError> {
         let mut cmd = Command::new(process_spec.bin.clone());
 
+        let mut env = process_spec.env.clone();
+        env.insert(
+            "PATH".into(),
+            format!("{}:/usr/bin", env.get("PATH").unwrap_or(&String::default())),
+        );
+
         cmd.env_clear()
-            .envs(process_spec.env.clone())
+            .envs(env)
             .args(process_spec.args.clone())
             .kill_on_drop(true);
 
