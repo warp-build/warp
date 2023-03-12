@@ -96,7 +96,7 @@ defmodule Resolver.Server do
 
       true ->
         {:ok, config} =
-          %{ srcs: Path.wildcard("#{root}/**/*") }
+          %{srcs: Path.wildcard("#{root}/**/*")}
           |> Jason.encode!()
           |> Jason.decode!()
           |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
