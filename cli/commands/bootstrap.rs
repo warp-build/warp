@@ -17,7 +17,10 @@ impl BootstrapCommand {
     pub async fn run(self) -> Result<(), anyhow::Error> {
         let mut warp = WarpDriveMarkII::new(self.flags.into()).await?;
 
-        let targets: Vec<Target> = vec!["./tricorders/beam/mix.exs".into()];
+        let targets: Vec<Target> = vec![
+            "./tricorders/beam/mix.exs".into(),
+            "./tricorders/rust/Cargo.toml".into(),
+        ];
 
         let _results = warp.execute(Goal::Bootstrap, &targets).await?;
 

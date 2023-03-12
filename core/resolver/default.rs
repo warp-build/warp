@@ -78,6 +78,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             .unwrap()
         {
             "mix.exs" => Some("mix_escript"),
+            "Cargo.toml" => Some("cargo_binary"),
             _ => None,
         } {
             let signature = Signature::builder()
