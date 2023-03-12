@@ -77,7 +77,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             .to_str()
             .unwrap()
         {
-            "mix.exs" => Some("mix_release"),
+            "mix.exs" => Some("mix_escript"),
             _ => None,
         } {
             let signature = Signature::builder()
@@ -86,6 +86,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
                 .config({
                     let mut config = rule::Config::default();
                     config.insert("name".to_string(), concrete_target.name().into());
+                    config.insert("bin".to_string(), "tricorder".into());
                     config
                 })
                 .build()
