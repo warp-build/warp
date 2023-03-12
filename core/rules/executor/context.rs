@@ -12,7 +12,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct SharedJsContext {
     pub(crate) action_map: Arc<DashMap<TargetId, Vec<Action>>>,
-    pub(crate) env_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
+    pub(crate) shell_env_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
     pub(crate) loaded_modules: FxHashMap<String, ()>,
     pub(crate) loaded_rules: FxHashMap<String, Rule>,
     pub(crate) output_map: Arc<DashMap<TargetId, Vec<PathBuf>>>,
@@ -32,7 +32,7 @@ impl SharedJsContext {
     ) -> SharedJsContext {
         Self {
             action_map: Default::default(),
-            env_map: Default::default(),
+            shell_env_map: Default::default(),
             loaded_modules: Default::default(),
             loaded_rules: Default::default(),
             output_map: Default::default(),
@@ -49,7 +49,7 @@ impl SharedJsContext {
 #[derive(Default, Clone, Debug)]
 pub struct FfiContext {
     pub(crate) action_map: Arc<DashMap<TargetId, Vec<Action>>>,
-    pub(crate) env_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
+    pub(crate) shell_env_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
     pub(crate) id: Uuid,
     pub(crate) output_map: Arc<DashMap<TargetId, Vec<PathBuf>>>,
     pub(crate) provides_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
@@ -62,7 +62,7 @@ impl From<SharedJsContext> for FfiContext {
     fn from(ctx: SharedJsContext) -> Self {
         Self {
             action_map: ctx.action_map,
-            env_map: ctx.env_map,
+            shell_env_map: ctx.shell_env_map,
             id: Uuid::new_v4(),
             output_map: ctx.output_map,
             provides_map: ctx.provides_map,

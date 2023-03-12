@@ -199,6 +199,7 @@ impl LocalExecutor {
             .toolchains()
             .iter()
             .chain(spec.deps().transitive_deps().iter())
+            .chain(spec.deps().runtime_deps().iter())
             .chain(spec.deps().compile_deps().iter())
             .map(|l| {
                 self.ctx

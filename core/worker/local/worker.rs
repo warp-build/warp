@@ -142,12 +142,12 @@ where
                 self.ctx.task_queue.nack(task);
                 Ok(())
             }
-            WorkerFlow::HandlePlanFlow(PlanningFlow::MissingDeps{deps}) => {
+            WorkerFlow::HandlePlanFlow(PlanningFlow::MissingDeps { deps }) => {
                 self.ctx.task_queue.queue_deps(task, &deps)?;
                 self.ctx.task_queue.nack(task);
                 Ok(())
             }
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 

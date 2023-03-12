@@ -37,7 +37,10 @@ where
             DepFinderFlow::AllDepsFound(deps) => deps,
         };
 
-        let runtime_deps = self.ctx.target_registry.register_many_targets(sig.runtime_deps());
+        let runtime_deps = self
+            .ctx
+            .target_registry
+            .register_many_targets(sig.runtime_deps());
         let runtime_deps = match self._deps(sig.target().target_id(), &runtime_deps) {
             DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
             DepFinderFlow::AllDepsFound(deps) => deps,
@@ -52,14 +55,14 @@ where
 
         let plan = self.rule_executor.execute(&env, &sig, &deps).await?;
 
-        let toolchains = self.ctx.target_registry.register_many_targets(&plan.toolchains);
+        let toolchains = self
+            .ctx
+            .target_registry
+            .register_many_targets(&plan.toolchains);
         match self._deps(sig.target().target_id(), &toolchains) {
             DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
-            DepFinderFlow::AllDepsFound(toolchains) => {
-                deps.set_toolchains(toolchains)
-            },
+            DepFinderFlow::AllDepsFound(toolchains) => deps.set_toolchains(toolchains),
         };
-
 
         let planning_end_time = chrono::Utc::now();
 
@@ -67,6 +70,7 @@ where
             .target(sig.target().clone())
             .signature(sig)
             .exec_env(env)
+            .shell_env(plan.shell_env.into_iter().collect())
             .planning_start_time(planning_start_time)
             .planning_end_time(planning_end_time)
             .srcs(plan.srcs.into())

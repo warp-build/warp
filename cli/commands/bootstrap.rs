@@ -1,6 +1,6 @@
 use super::*;
 use structopt::StructOpt;
-use warp_core::{Goal, WarpDriveMarkII, Target};
+use warp_core::{Goal, Target, WarpDriveMarkII};
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -17,9 +17,7 @@ impl BootstrapCommand {
     pub async fn run(self) -> Result<(), anyhow::Error> {
         let mut warp = WarpDriveMarkII::new(self.flags.into()).await?;
 
-        let targets: Vec<Target> = vec![
-            "./tricorders/beam/mix.exs".into(),
-        ];
+        let targets: Vec<Target> = vec!["./tricorders/beam/mix.exs".into()];
 
         let _results = warp.execute(Goal::Bootstrap, &targets).await?;
 

@@ -152,9 +152,9 @@ impl RuleExecutor for JsRuleExecutor {
             .map(|(k, v)| (k, PathBuf::from(v)))
             .collect::<BTreeMap<String, PathBuf>>();
 
-        let env = self
+        let shell_env = self
             .ctx
-            .env_map
+            .shell_env_map
             .get(&sig.target().target_id())
             .map(|r| r.value().clone())
             .unwrap_or_default()
@@ -173,7 +173,7 @@ impl RuleExecutor for JsRuleExecutor {
             toolchains,
             run_script,
             provides,
-            env,
+            shell_env,
         })
     }
 }

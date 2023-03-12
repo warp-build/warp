@@ -1,8 +1,8 @@
 use super::TargetId;
 use serde::{Deserialize, Serialize};
-use url::Url;
 use std::path::{Path, PathBuf};
 use thiserror::*;
+use url::Url;
 
 static ALIAS_ALL: &str = "@all";
 

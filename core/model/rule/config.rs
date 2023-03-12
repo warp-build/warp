@@ -22,7 +22,7 @@ pub enum Value {
     // Map(FxHashMap<String, Value>),
 }
 
-impl From<&str> for Value{
+impl From<&str> for Value {
     fn from(value: &str) -> Self {
         Self::String(value.to_string())
     }

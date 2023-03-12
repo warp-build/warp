@@ -14,7 +14,13 @@ pub fn op_target_parent_path(state: &mut OpState, target: TargetId) -> Result<St
     let ctx = state.borrow::<FfiContext>();
     let target = ctx.target_registry.get_concrete_target(target);
 
-    Ok(target.path().parent().unwrap().to_str().unwrap().to_string())
+    Ok(target
+        .path()
+        .parent()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string())
 }
 
 #[op]
@@ -150,7 +156,7 @@ pub struct DeclareEnv {
 #[op]
 pub fn op_ctx_declare_env(state: &mut OpState, args: DeclareEnv) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
-    let env_map = &ctx.env_map;
+    let env_map = &ctx.shell_env_map;
 
     let target = args.target;
     env_map.insert(target, args.env);

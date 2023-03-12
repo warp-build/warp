@@ -1,14 +1,14 @@
+mod bootstrap;
 mod build;
 mod run;
 mod setup;
 mod test;
-mod bootstrap;
 
+pub use bootstrap::*;
 pub use build::*;
 pub use run::*;
 pub use setup::*;
 pub use test::*;
-pub use bootstrap::*;
 
 use structopt::StructOpt;
 use warp_core::Config;
