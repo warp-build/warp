@@ -84,7 +84,7 @@ export default Warp.Toolchain({
   },
   defaults: {
     sha1: "c2d3464fb32b6f5562b6e094d32459adaa7b90cd",
-    version: "25.1.2"
+    version: "25.1.2",
     build_size: "full",
     configure_flags: [
       "--disable-debug",

@@ -55,7 +55,7 @@ export default Warp.Toolchain({
     sha1: string(),
   },
   defaults: {
-    version: "73118336c58ece2e3b87f1f933f8ba446e2bdc26",
-    sha1: "OpenSSL_1_1_1q",
+    version: "OpenSSL_1_1_1q",
+    sha1: "73118336c58ece2e3b87f1f933f8ba446e2bdc26",
   },
 });
