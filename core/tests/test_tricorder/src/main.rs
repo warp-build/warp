@@ -21,13 +21,6 @@ impl TricorderService for TestTricorder {
         Ok(Response::new(EnsureReadyResponse::default()))
     }
 
-    async fn get_dependencies(
-        &self,
-        _: Request<GetDependenciesRequest>,
-    ) -> Result<Response<GetDependenciesResponse>, Status> {
-        todo!()
-    }
-
     async fn generate_signature(
         &self,
         req: Request<GenerateSignatureRequest>,
