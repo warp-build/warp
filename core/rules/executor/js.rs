@@ -636,7 +636,7 @@ mod tests {
                 include_str!("./fixtures/dep_rule.js")
                     .replace("{URL}", &mockito::server_url())
                     .as_bytes(),
-                )
+            )
             .create();
 
         // 2. Configure Warp and create all the dependencies to the RuleExecutor
