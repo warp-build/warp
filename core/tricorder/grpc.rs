@@ -3,6 +3,7 @@ use self::proto::build::warp::tricorder::EnsureReadyRequest;
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
 use crate::model::{rule, ConcreteTarget, Signature, SignatureError};
 use async_trait::async_trait;
+use tracing::instrument;
 
 /// Protobuf generated code.
 mod proto {
@@ -21,6 +22,7 @@ pub struct GrpcTricorder {
 
 #[async_trait]
 impl Tricorder for GrpcTricorder {
+    #[instrument(name = "GrpcTricorder::connect")]
     async fn connect(conn: Connection) -> Result<Self, TricorderError> {
         let conn_str = format!("http://0.0.0.0:{}", conn.port);
         let client = loop {
@@ -37,12 +39,17 @@ impl Tricorder for GrpcTricorder {
         Ok(Self { conn, client })
     }
 
+    #[instrument(name = "GrpcTricorder::ensure_ready", skip(self))]
     async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
         let req = EnsureReadyRequest::default();
         let _ = self.client.ensure_ready(req).await?;
         Ok(())
     }
 
+    #[instrument(
+        name = "GrpcTricorder::generate_signature",
+        skip(self, concrete_target)
+    )]
     async fn generate_signature(
         &mut self,
         concrete_target: &ConcreteTarget,
