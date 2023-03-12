@@ -72,9 +72,9 @@ export default Warp.Toolchain({
     kind: string(),
   },
   defaults: {
-    kind: "precompile",
-    sha1: "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa",
-    version: "1.13"
+      kind: "source",
+      sha1: "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa",
+      version: "1.13"
   },
   toolchains: [ErlangToolchain],
 });

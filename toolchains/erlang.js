@@ -52,7 +52,8 @@ make all install ${make_flags.join(" ")} || exit 1
   });
 
   const root = `${prefix}/dist`;
-  ctx.action().declareOutputs([root]);
+  const lib = `${prefix}/lib`;
+  ctx.action().declareOutputs([root, lib]);
 
   const binRoot = `${root}/bin`;
   ctx.provides({
@@ -83,8 +84,8 @@ export default Warp.Toolchain({
     make_flags: [string()],
   },
   defaults: {
-    sha1: "c2d3464fb32b6f5562b6e094d32459adaa7b90cd",
-    version: "25.1.2",
+    sha1: "eb8794dd8b21284528d3236a59b1605dabba4d49",
+    version: "24.3.4.6",
     build_size: "full",
     configure_flags: [
       "--disable-debug",
