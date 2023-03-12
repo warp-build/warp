@@ -6,8 +6,12 @@ defmodule Tricorder.Application do
 
   @impl true
   def start(_type, _args) do
+    {port, _} =
+      Application.get_env(:tricorder, :grpc_port)
+      |> Integer.parse()
+
     children = [
-      {GRPC.Server.Supervisor, {Tricorder.Grpc.Endpoint, 21000}}
+      {GRPC.Server.Supervisor, {Tricorder.Grpc.Endpoint, port}}
     ]
 
     opts = [strategy: :one_for_one, name: Tricorder.Supervisor]
@@ -15,4 +19,3 @@ defmodule Tricorder.Application do
     Supervisor.start_link(children, opts)
   end
 end
-

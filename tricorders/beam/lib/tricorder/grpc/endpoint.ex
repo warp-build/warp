@@ -4,4 +4,3 @@ defmodule Tricorder.Grpc.Endpoint do
   intercept(GRPC.Logger.Server)
   run(Tricorder.Grpc.Server)
 end
-

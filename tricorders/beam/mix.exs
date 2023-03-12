@@ -7,14 +7,20 @@ defmodule Tricorder.MixProject do
       version: "0.0.0",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      escript: escript()
     ]
   end
 
   def application do
     [
       extra_applications: [:logger, :grpc, :protobuf],
-      mod: {Tricorder.Application, []}
+    ]
+  end
+
+  defp escript do
+    [
+      main_module: Tricorder.CLI
     ]
   end
 
