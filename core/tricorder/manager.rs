@@ -12,6 +12,7 @@ use dashmap::DashMap;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use thiserror::*;
+use tracing::instrument;
 
 /// A manager of Tricorder processes and creator of clients. This struct keeps a thread-safe pool
 /// of processes that can be used to create new clients for existing tricorders whenever needed.
@@ -21,6 +22,10 @@ pub struct TricorderManager<T: Tricorder, S: Store> {
     process_pool: ProcessPool<T>,
     artifact_store: Arc<S>,
     tricorders: DashMap<ManifestUrl, (ProcessId<T>, Connection)>,
+
+    // NOTE(@ostera): only used to serialize the calls to `next` and prevent fetching the same
+    // target twice.
+    _lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl<T, S> TricorderManager<T, S>
@@ -34,13 +39,17 @@ where
             process_pool: ProcessPool::new(),
             artifact_store,
             tricorders: Default::default(),
+            _lock: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
+    #[instrument(name = "TricorderManager::find_and_ready", skip(self, concrete_target))]
     pub async fn find_and_ready(
         &self,
         concrete_target: &ConcreteTarget,
     ) -> Result<Option<impl Tricorder>, TricorderManagerError> {
+        let _lock = self._lock.lock().await;
+
         // 1. find exactly which tricorder we need.
         //    if we can't find one, that's also okay, we'll just skip this target.
         let tricorder_url = if let Some(tricorder_url) =
