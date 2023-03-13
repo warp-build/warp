@@ -1,6 +1,8 @@
 defmodule Tricorder.Grpc.Ops.GenerateSignature do
   require Logger
 
+  alias Tricorder.Analysis
+
   def generate_signature(req, stream) do
     Logger.info("Analyzing: #{req.file}")
 
@@ -165,9 +167,11 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
      )}
   end
 
-  defp mix_analysis_to_resp(req, :complete) do
+  defp mix_analysis_to_resp(req, {:escript, bin}) do
     {:ok, config} =
-      %{}
+      %{
+        bin: bin
+      }
       |> Jason.encode!()
       |> Jason.decode!()
       |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
@@ -175,7 +179,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     signatures = [
       Build.Warp.Signature.new(
         name: req.file,
-        rule: "mix_release",
+        rule: "mix_escript",
         deps: [],
         runtime_deps: [],
         config: config

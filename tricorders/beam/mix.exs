@@ -4,7 +4,7 @@ defmodule Tricorder.MixProject do
   def project do
     [
       app: :tricorder,
-      version: "0.0.0",
+      version: "0.0.1",
       elixir: "~> 1.13",
       start_permanent: false,
       deps: deps(),
@@ -14,8 +14,8 @@ defmodule Tricorder.MixProject do
 
   def application do
     [
-      extra_applications: [:logger, :grpc, :protobuf],
-      mod: {Tricorder.Application, []},
+      extra_applications: [:mix, :logger, :grpc, :protobuf],
+      mod: {Tricorder.Application, []}
     ]
   end
 

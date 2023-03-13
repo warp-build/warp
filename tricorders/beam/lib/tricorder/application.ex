@@ -6,9 +6,16 @@ defmodule Tricorder.Application do
 
   @impl true
   def start(_type, _args) do
-    port = Application.get_env(:tricorder, :grpc_port) |> String.to_integer
+    :code.delete(Tricorder.Project)
+    :code.purge(Tricorder.Project)
 
-    children = [{GRPC.Server.Supervisor, {Tricorder.Grpc.Endpoint, port}}]
+    children =
+      if Application.get_env(:tricorder, :start_server, false) do
+        port = Application.get_env(:tricorder, :grpc_port) |> String.to_integer()
+        [{GRPC.Server.Supervisor, {Tricorder.Grpc.Endpoint, port}}]
+      else
+        []
+      end
 
     opts = [strategy: :one_for_one, name: Tricorder.Supervisor]
 
