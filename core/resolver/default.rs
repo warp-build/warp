@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use super::{FsResolver, ResolutionFlow, Resolver, ResolverError, TargetRegistry};
-use crate::model::{rule, ConcreteTarget, Goal, Signature, Target, TargetId};
+use crate::model::{rule, ConcreteTarget, Goal, Requirement, Signature, Target, TargetId};
 use crate::store::DefaultStore;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
 use crate::workspace::WorkspaceManager;
@@ -70,58 +70,11 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         &self,
         concrete_target: Arc<ConcreteTarget>,
     ) -> Result<ResolutionFlow, ResolverError> {
-        if let Some(rule) = match concrete_target
-            .path()
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-        {
-            "mix.exs" => Some("mix_escript"),
-            "Cargo.toml" => Some("cargo_binary"),
-            _ => None,
-        } {
-            let signature = Signature::builder()
-                .target((*concrete_target).clone())
-                .rule(rule.to_string())
-                .config({
-                    let mut config = rule::Config::default();
-                    config.insert("name".to_string(), concrete_target.name().into());
-                    config.insert("bin".to_string(), "tricorder".into());
-                    config
-                })
-                .build()
-                .unwrap();
-
+        if let Some(signature) = SignatureBootstrapper::for_concrete_target(&concrete_target) {
             Ok(ResolutionFlow::Resolved { signature })
         } else {
             Ok(ResolutionFlow::IgnoredTarget(concrete_target.target_id()))
         }
-    }
-
-    #[instrument(name = "DefaultResolver::is_target_a_rule", skip(self), ret)]
-    fn is_target_a_rule(&self, target: &Target) -> bool {
-        target
-            .url()
-            .map(|url| {
-                let target_host = url.host_str().unwrap();
-                let public_rule_store_host =
-                    self.config.public_rule_store_url().host_str().unwrap();
-
-                target_host == public_rule_store_host
-            })
-            .unwrap_or_default()
-    }
-
-    #[instrument(name = "DefaultResolver::rule_target_signature", skip(self))]
-    fn rule_target_signature(&self, target_id: TargetId, target: Arc<Target>) -> Signature {
-        let rule = target.url().unwrap().to_string();
-        let target = ConcreteTarget::new(Goal::Build, target_id, target, PathBuf::new());
-        Signature::builder()
-            .target(target)
-            .rule(rule)
-            .build()
-            .unwrap()
     }
 }
 
@@ -134,8 +87,9 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
         target_id: TargetId,
         target: Arc<Target>,
     ) -> Result<ResolutionFlow, ResolverError> {
-        if self.is_target_a_rule(&target) {
-            let signature = self.rule_target_signature(target_id, target);
+        if let Some(signature) =
+            ToolchainSignatures.for_target(&self.config, target_id, target.clone())
+        {
             return Ok(ResolutionFlow::Resolved { signature });
         }
 
@@ -172,10 +126,97 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
                 Ok(ResolutionFlow::Resolved { signature })
             }
             SignatureGenerationFlow::MissingRequirements { requirements } => {
-                Ok(ResolutionFlow::MissingDependencies { requirements })
+                let mut deps = vec![];
+                for req in requirements {
+                    match req {
+                        Requirement::File(_) => todo!(),
+                        Requirement::Symbol(_) => todo!(),
+                        Requirement::Url(_) => todo!(),
+                        Requirement::Dependency(_) => todo!(),
+                    }
+                }
+                Ok(ResolutionFlow::MissingDeps { deps })
             }
             _ => Err(ResolverError::Unknown("unimplemented".to_string())),
         }
+    }
+}
+
+struct SignatureBootstrapper;
+
+impl SignatureBootstrapper {
+    pub fn for_concrete_target(concrete_target: &ConcreteTarget) -> Option<Signature> {
+        match concrete_target.name() {
+            "mix.exs" => Some(Self::mix_escript(concrete_target.clone())),
+            "Cargo.toml" => Some(Self::cargo_binary(concrete_target.clone())),
+            _ => None,
+        }
+    }
+
+    pub fn cargo_binary(concrete_target: ConcreteTarget) -> Signature {
+        Signature::builder()
+            .rule("cargo_binary".to_string())
+            .config({
+                let mut config = rule::Config::default();
+                config.insert("name".to_string(), concrete_target.name().into());
+                config.insert("bin".to_string(), "tricorder".into());
+                config
+            })
+            .target(concrete_target)
+            .build()
+            .unwrap()
+    }
+
+    pub fn mix_escript(concrete_target: ConcreteTarget) -> Signature {
+        Signature::builder()
+            .rule("mix_escript".to_string())
+            .config({
+                let mut config = rule::Config::default();
+                config.insert("name".to_string(), concrete_target.name().into());
+                config.insert("bin".to_string(), "tricorder".into());
+                config
+            })
+            .target(concrete_target)
+            .build()
+            .unwrap()
+    }
+}
+
+struct ToolchainSignatures;
+
+impl ToolchainSignatures {
+    pub fn for_target(
+        &self,
+        config: &Config,
+        target_id: TargetId,
+        target: Arc<Target>,
+    ) -> Option<Signature> {
+        if self.is_target_a_rule(config, &target) {
+            return Some(self.rule_target_signature(target_id, target));
+        }
+        None
+    }
+
+    fn rule_target_signature(&self, target_id: TargetId, target: Arc<Target>) -> Signature {
+        let rule = target.url().unwrap().to_string();
+        let target = ConcreteTarget::new(Goal::Build, target_id, target, PathBuf::new());
+        Signature::builder()
+            .target(target)
+            .rule(rule)
+            .build()
+            .unwrap()
+    }
+
+    fn is_target_a_rule(&self, config: &Config, target: &Target) -> bool {
+        target
+            .url()
+            .map(|url| {
+                let target_host = url.host_str().unwrap();
+                let public_rule_store_host = config.public_rule_store_url().host_str().unwrap();
+
+                target_host == public_rule_store_host
+            })
+            .unwrap_or_default()
     }
 }
 
