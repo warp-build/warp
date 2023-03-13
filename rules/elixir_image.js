@@ -17,8 +17,8 @@ export default Warp.Rule({
   mnemonic: "ExImage",
   impl,
   cfg: {
-    name: label(),
-    deps: [label()],
+    name: target(),
+    deps: [target()],
   },
   defaults: {
     deps: [],

@@ -5,13 +5,15 @@ import ErlangToolchain, {
 } from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { label, name, srcs, deps, args, dot_iex, elixirc_opts } = ctx.cfg();
+  const { target, name, srcs, deps, args, dot_iex, elixirc_opts } = ctx.cfg();
 
   const transitiveDeps = ctx.transitiveDeps();
 
   const extraPaths = transitiveDeps
     .flatMap((dep) => [
-      `${Label.path(dep.label)}/_build/prod/lib/${Label.name(dep.label)}/ebin`,
+      `${Target.path(dep.target)}/_build/prod/lib/${
+        Target.name(dep.target)
+      }/ebin`,
       ...dep.outs
         .filter((out) => out.endsWith(BEAM_EXT))
         .map((path) => File.parent(path)),
@@ -22,7 +24,7 @@ const impl = (ctx) => {
     .flatMap((path) => ["-pa", `warp-outputs/${path}`])
     .join(" ");
 
-  const run = `${Label.path(label)}/${name}.run_shell`;
+  const run = `${Target.path(target)}/${name}.run_shell`;
 
   ctx.action().declareOutputs([run, dot_iex]);
   ctx.action().declareRunScript(run);
@@ -30,21 +32,25 @@ const impl = (ctx) => {
     dst: run,
     data: `#!/bin/bash -e
 
-${transitiveDeps
-  .flatMap((dep) =>
-    dep.outs.flatMap((out) => {
-      if (out.endsWith(TAR_EXT)) {
-        return [
-          `cd warp-outputs/${Label.path(dep.label)}; tar xf ${File.filename(
-            out
-          )}; cd - > /dev/null;`,
-        ];
-      } else {
-        return [];
-      }
-    })
-  )
-  .join("\n")}
+${
+      transitiveDeps
+        .flatMap((dep) =>
+          dep.outs.flatMap((out) => {
+            if (out.endsWith(TAR_EXT)) {
+              return [
+                `cd warp-outputs/${Target.path(dep.target)}; tar xf ${
+                  File.filename(
+                    out,
+                  )
+                }; cd - > /dev/null;`,
+              ];
+            } else {
+              return [];
+            }
+          })
+        )
+        .join("\n")
+    }
 
 iex \
   ${args.join(" ")} \
@@ -69,10 +75,10 @@ export default Warp.Rule({
   mnemonic: "IExShell",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     args: [string()],
     dot_iex: file(),
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     args: [],

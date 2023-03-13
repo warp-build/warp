@@ -22,7 +22,8 @@ const impl = (ctx) => {
     os = "osx";
   }
 
-  const url = `https://github.com/protocolbuffers/protobuf/releases/download/v${cfg.version}/protoc-${cfg.version}-${os}-${arch}.zip`;
+  const url =
+    `https://github.com/protocolbuffers/protobuf/releases/download/v${cfg.version}/protoc-${cfg.version}-${os}-${arch}.zip`;
 
   const output = `protoc-${cfg.version}.zip`;
 

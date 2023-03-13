@@ -11,8 +11,8 @@ export default Warp.Rule({
   mnemonic: "EExLib",
   impl,
   cfg: {
-    name: label(),
-    deps: [label()],
+    name: target(),
+    deps: [target()],
     srcs: [file()],
   },
   defaults: {

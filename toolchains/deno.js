@@ -11,7 +11,8 @@ const impl = (ctx) => {
     sha1 = sha1_x86_64;
   }
 
-  const url = `https://github.com/denoland/deno/releases/download/v${version}/deno-${host.triple}.zip`;
+  const url =
+    `https://github.com/denoland/deno/releases/download/v${version}/deno-${host.triple}.zip`;
 
   const output = "deno.zip";
 

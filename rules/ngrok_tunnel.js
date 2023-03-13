@@ -1,7 +1,7 @@
 import NgrokToolchain from "https://rules.warp.build/toolchains/ngrok.js";
 
 const impl = (ctx) => {
-  const { label, args } = ctx.cfg();
+  const { target, args } = ctx.cfg();
   ctx.action().declareOutputs([]);
   ctx.action().runShell({
     script: `#!/bin/bash -xe
@@ -18,9 +18,9 @@ export default Warp.Rule({
   mnemonic: "NgrokTunel",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     args: [string()],
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     deps: [],

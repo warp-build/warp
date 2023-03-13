@@ -22,7 +22,7 @@ enum Status {
 }
 
 message Signature {
-  string label_name = 1;
+  string target_name = 1;
   string rule_name = 2;
   repeated Dependency deps = 3;
   repeated Dependency runtime_deps = 4;

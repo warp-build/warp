@@ -7,7 +7,7 @@ export default Warp.Rule({
   mnemonic: "Dummy",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
   },
   toolchains: [],
 });

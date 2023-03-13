@@ -7,9 +7,9 @@ import ErlangToolchain, {
 } from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { label, name, deps, srcs, modules, elixirc_opts } = ctx.cfg();
+  const { target, name, deps, srcs, modules, elixirc_opts } = ctx.cfg();
 
-  const prefix = Label.path(label);
+  const prefix = Target.path(target);
   const relativeRoot = prefix
     .split("/")
     .map((_) => `..`)
@@ -20,8 +20,8 @@ const impl = (ctx) => {
   // being defined.
   let outputs = modules.map((name) => `${prefix}/Elixir.${name}.beam`);
   if (outputs.length == 0) {
-    outputs = srcs.map((label) => {
-      let [path, ext] = label.replace(prefix + "/lib/", "").split(".");
+    outputs = srcs.map((target) => {
+      let [path, ext] = target.replace(prefix + "/lib/", "").split(".");
 
       let modPath = path
         .split("/")
@@ -46,7 +46,7 @@ const impl = (ctx) => {
 
       return File.join(
         prefix,
-        File.withExtension(`Elixir.${modName}`, BEAM_EXT)
+        File.withExtension(`Elixir.${modName}`, BEAM_EXT),
       );
     });
   }
@@ -54,19 +54,21 @@ const impl = (ctx) => {
 
   const transitiveDeps = ctx.transitiveDeps();
   const elixirLibraries = transitiveDeps.filter(
-    (dep) => dep.ruleName == "https://rules.warp.build/rules/elixir_library"
+    (dep) => dep.ruleName == "https://rules.warp.build/rules/elixir_library",
   );
   const mixLibraries = transitiveDeps.filter(
-    (dep) => dep.ruleName == "https://rules.warp.build/rules/mix_library"
+    (dep) => dep.ruleName == "https://rules.warp.build/rules/mix_library",
   );
 
   const extraPaths = [
     ...mixLibraries
       .map(
         (dep) =>
-          `${Label.path(dep.label)}/_build/prod/lib/${Label.name(
-            dep.label
-          )}/ebin`
+          `${Target.path(dep.target)}/_build/prod/lib/${
+            Target.name(
+              dep.target,
+            )
+          }/ebin`,
       )
       .unique(),
     ...elixirLibraries.flatMap((dep) =>
@@ -85,7 +87,7 @@ const impl = (ctx) => {
         ctx.action().exec({
           cmd: "tar",
           args: ["xf", File.filename(out)],
-          cwd: Label.path(dep.label),
+          cwd: Target.path(dep.target),
         });
       }
     });
@@ -108,8 +110,8 @@ export default Warp.Rule({
   mnemonic: "ExLibrary",
   impl,
   cfg: {
-    name: label(),
-    deps: [label()],
+    name: target(),
+    deps: [target()],
     srcs: [file()],
     elixirc_opts: [string()],
     modules: [string()],

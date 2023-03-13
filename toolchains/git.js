@@ -2,7 +2,8 @@ const impl = (ctx) => {
   const { host } = ctx.env();
   const { version, sha1 } = ctx.cfg();
 
-  const url = `https://mirrors.edge.kernel.org/pub/software/scm/git/git-${version}.tar.gz`;
+  const url =
+    `https://mirrors.edge.kernel.org/pub/software/scm/git/git-${version}.tar.gz`;
 
   const prefix = `git-${version}`;
   const output = "git.tar.gz";

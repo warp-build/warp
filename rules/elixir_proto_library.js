@@ -11,8 +11,7 @@ const impl = (ctx) => {
     script: `
 
 mkdir -p ${gen_dir}
-protoc \
-  --elixir_out=inline_docs=true,one_file_per_module=true,gen_descriptors=true,plugins=grpc:${gen_dir} \
+protoc --elixir_out=inline_docs=true,one_file_per_module=true,gen_descriptors=true,plugins=grpc:${gen_dir} \
   ${protos.join(" ")}
 
 `,
@@ -26,9 +25,9 @@ export default Warp.Rule({
   mnemonic: "ExProtoLib",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     protos: [file()],
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     deps: [],

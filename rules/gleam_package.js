@@ -6,7 +6,7 @@ import GleamToolchain, {
 } from "https://rules.warp.build/toolchains/gleam.js";
 
 const impl = (ctx) => {
-  const { label, name, deps } = ctx.cfg();
+  const { target, name, deps } = ctx.cfg();
 
   ctx.action().declareOutputs([]);
 
@@ -22,8 +22,8 @@ export default Warp.Rule({
   mnemonic: "GleamPackage",
   impl,
   cfg: {
-    name: label(),
-    deps: [label()],
+    name: target(),
+    deps: [target()],
   },
   defaults: {
     deps: [],

@@ -1,11 +1,11 @@
 import ErlangToolchain, {
-  HEADER_EXT,
   BEAM_EXT,
   ERL_EXT,
+  HEADER_EXT,
 } from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { label, name, deps, test, props } = ctx.cfg();
+  const { target, name, deps, test, props } = ctx.cfg();
 
   const extraLibPaths = ctx
     .transitiveDeps()
@@ -15,7 +15,7 @@ const impl = (ctx) => {
     .map((path) => `"${path}"`)
     .unique();
 
-  const cwd = Label.path(label);
+  const cwd = Target.path(target);
   const runner = `${cwd}/${name}_prop_runner.erl`;
 
   /*
@@ -39,9 +39,13 @@ main(_argv) ->
   [ code:add_path(P) || P <- CodePaths ],
 
   Props = [
-    ${props
-      .map((prop) => `{${File.filename(test).replace(ERL_EXT, "")} , ${prop}}`)
-      .join(",\n")}
+    ${
+      props
+        .map((prop) =>
+          `{${File.filename(test).replace(ERL_EXT, "")} , ${prop}}`
+        )
+        .join(",\n")
+    }
   ],
 
   ?LOG_INFO("Running ~p properties:\n", [length(Props)]),
@@ -88,10 +92,10 @@ export default Warp.Rule({
   mnemonic: "PropErTest",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     test: file(),
     props: [string()],
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     deps: [],

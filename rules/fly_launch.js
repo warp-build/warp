@@ -1,15 +1,15 @@
 import FlyCtlToolchain from "https://rules.warp.build/toolchains/flyctl.js";
 
 const impl = (ctx) => {
-  const { label, name } = ctx.cfg();
+  const { target, name } = ctx.cfg();
 
-  const run = `${Label.path(label)}/${name}.fly_launch`;
+  const run = `${Target.path(target)}/${name}.fly_launch`;
 
   ctx.action().writeFile({
     dst: run,
     data: `#!/bin/bash -e
 
-cd ${Label.path(label)}
+cd ${Target.path(target)}
 flyctl launch
 
 `,
@@ -25,7 +25,7 @@ export default Warp.Rule({
   mnemonic: "FlyLaunch",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
   },
   toolchains: [FlyCtlToolchain],
 });

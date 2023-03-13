@@ -12,7 +12,8 @@ const impl = (ctx) => {
 
   const prefix = `otp_src_${version}`;
 
-  const url = `https://github.com/erlang/otp/releases/download/OTP-${version}/${prefix}.tar.gz`;
+  const url =
+    `https://github.com/erlang/otp/releases/download/OTP-${version}/${prefix}.tar.gz`;
 
   ctx.action().download({ url, sha1, output });
 
@@ -24,12 +25,12 @@ const impl = (ctx) => {
 cd ${prefix}
 
 ${
-  build_size === "tiny"
-    ? "OTP_TINY_BUILD=true"
-    : build_size === "small"
-    ? "OTP_SMALL_BUILD=true"
-    : ""
-}
+      build_size === "tiny"
+        ? "OTP_TINY_BUILD=true"
+        : build_size === "small"
+        ? "OTP_SMALL_BUILD=true"
+        : ""
+    }
 
 export OTP_SMALL_BUILD OTP_TINY_BUILD
 

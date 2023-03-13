@@ -27,7 +27,8 @@ const impl = (ctx) => {
   }
 
   const cmake = `cmake-${version}-${os}-${arch}`;
-  const url = `https://github.com/Kitware/CMake/releases/download/v${version}/${cmake}.${ext}`;
+  const url =
+    `https://github.com/Kitware/CMake/releases/download/v${version}/${cmake}.${ext}`;
 
   const output = `cmake.${ext}`;
   ctx.action().download({ url, sha1, output });

@@ -4,7 +4,7 @@ import ErlangToolchain, {
 } from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { label, name, deps, srcs, headers } = ctx.cfg();
+  const { target, name, deps, srcs, headers } = ctx.cfg();
 
   ctx.action().declareOutputs([`_build/default/lib/${name}`]);
 
@@ -17,7 +17,7 @@ export CPLUS_INCLUDE_PATH="\${ERL_INCLUDE_PATH}:$CPLUS_INCLUDE_PATH"
 export C_LIB_PATH="\${ERL_LIB_PATH}:$C_LIB_PATH"
 export CPLUS_LIB_PATH="\${ERL_LIB_PATH}:$CPLUS_LIB_PATH"
 
-cd ${Label.path(label)}
+cd ${Target.path(target)}
 make clean app
 mkdir -p _build/default/lib/${name}
 mv ebin _build/default/lib/${name}
@@ -31,9 +31,9 @@ export default Warp.Rule({
   mnemonic: "ErlMkLib",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     srcs: [file()],
-    deps: [label()],
+    deps: [target()],
     headers: [file()],
   },
   defaults: {

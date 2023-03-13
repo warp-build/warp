@@ -14,7 +14,8 @@ const impl = (ctx) => {
     platform = `x86_64-apple-darwin`;
   }
 
-  const url = `https://github.com/GetFirefly/firefly/releases/download/${version}-${release_date}/lumen-${version}-nightly-${platform}.tar.gz`;
+  const url =
+    `https://github.com/GetFirefly/firefly/releases/download/${version}-${release_date}/lumen-${version}-nightly-${platform}.tar.gz`;
 
   ctx.action().download({ url, sha1, output });
 

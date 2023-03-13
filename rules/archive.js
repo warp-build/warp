@@ -2,11 +2,11 @@ export const TAR_EXT = ".tar";
 export const TAR_GZ_EXT = ".tar.gz";
 
 const impl = (ctx) => {
-  const { name, label, srcs } = ctx.cfg();
+  const { name, target, srcs } = ctx.cfg();
 
   const transitiveDeps = ctx.transitiveDeps().flatMap((dep) => dep.outs);
 
-  const out = Label.path(label).join(`${name}.tar.gz`);
+  const out = Target.path(target).join(`${name}.tar.gz`);
   ctx.action().declareOutputs([out]);
 
   ctx.action().exec({
@@ -20,8 +20,8 @@ export default Warp.Rule({
   mnemonic: "Tar",
   impl,
   cfg: {
-    name: label(),
-    deps: [label()],
+    name: target(),
+    deps: [target()],
     srcs: [file()],
   },
 });

@@ -4,11 +4,32 @@ import ErlangToolchain from "https://rules.warp.build/toolchains/erlang.js";
 const RULE_NAME = "https://rules.warp.build/rules/mix_release";
 
 const impl = (ctx) => {
-  const { cwd } = ctx.cfg();
+  const { cwd, bin } = ctx.cfg();
 
-  const outputs = [`${cwd()}/_build/default/lib`];
+  const binPath = `${cwd()}/${bin}`;
+  const outputs = [
+    `${cwd()}/_build/default/rel`,
+    binPath,
+  ];
 
   ctx.action().declareOutputs(outputs);
+
+  ctx.provides({
+    [bin]: binPath,
+  });
+
+  ctx.action().writeFile({
+    dst: binPath,
+    data: `#!/bin/bash
+cd ${cwd()}
+exec _build/default/rel/${bin}/bin/${bin} start
+    `,
+  });
+
+  ctx.action().setPermissions({
+    file: binPath,
+    executable: true,
+  });
 
   ctx.action().runShell({
     env: { MIX_ENV: "default" },
@@ -17,6 +38,7 @@ const impl = (ctx) => {
 
     cd ${cwd()}
     
+    mix deps.get --force
     mix release
 
     `,
@@ -29,6 +51,7 @@ export default Warp.Rule({
   impl,
   cfg: {
     name: target(),
+    bin: string(),
     srcs: [file()],
   },
   defaults: {

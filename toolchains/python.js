@@ -8,7 +8,8 @@ const impl = (ctx) => {
   const output = "python.zip";
   const prefix = `Python-${version}`;
 
-  const url = `https://www.python.org/ftp/python/${version}/Python-${version}.tgz`;
+  const url =
+    `https://www.python.org/ftp/python/${version}/Python-${version}.tgz`;
 
   ctx.action().download({ url, sha1, output });
 

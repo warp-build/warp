@@ -1,7 +1,7 @@
 import ErlangToolchain, {
-  HEADER_EXT,
   BEAM_EXT,
   ERL_EXT,
+  HEADER_EXT,
 } from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
@@ -15,9 +15,9 @@ export default Warp.Rule({
   mnemonic: "OtpRel",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     config: file(),
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     deps: [],

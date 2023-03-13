@@ -1,7 +1,7 @@
 import FireflyToolchain from "https://rules.warp.build/toolchains/firefly.js";
 
 const impl = (ctx) => {
-  const { cwd, label, name, src, deps, opt_level } = ctx.cfg();
+  const { cwd, target, name, src, deps, opt_level } = ctx.cfg();
 
   ctx.action().declareOutputs([name]);
 
@@ -23,9 +23,9 @@ export default Warp.Rule({
   mnemonic: "FireflyExe",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     src: file(),
-    deps: [label()],
+    deps: [target()],
     opt_level: string(),
   },
   defaults: {

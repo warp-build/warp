@@ -7,7 +7,7 @@ import ErlangToolchain, {
 const RULE_NAME = "https://rules.warp.build/rules/mix_library";
 
 const impl = (ctx) => {
-  const { cwd, label, name, deps, srcs, skip_deps, deps_args, compile_args } =
+  const { cwd, target, name, deps, srcs, skip_deps, deps_args, compile_args } =
     ctx.cfg();
 
   const outputs = [`${cwd()}/_build/default/lib/${name}`, `${cwd()}/deps`];
@@ -31,19 +31,19 @@ const impl = (ctx) => {
   const beamLibraries = transitiveDeps.filter(
     (dep) =>
       dep.ruleName == "https://rules.warp.build/rules/elixir_library" ||
-      dep.ruleName == "https://rules.warp.build/rules/erlang_library"
+      dep.ruleName == "https://rules.warp.build/rules/erlang_library",
   );
 
   const mixLibraries = transitiveDeps.filter(
     (dep) =>
       dep.ruleName == "https://rules.warp.build/rules/mix_library" ||
       dep.ruleName == "https://rules.warp.build/rules/rebar3_library" ||
-      dep.ruleName == "https://rules.warp.build/rules/erlangmklibrary"
+      dep.ruleName == "https://rules.warp.build/rules/erlangmklibrary",
   );
 
   const protobufLibraries = transitiveDeps.filter(
     (dep) =>
-      dep.ruleName == "https://rules.warp.build/rules/elixir_proto_library"
+      dep.ruleName == "https://rules.warp.build/rules/elixir_proto_library",
   );
 
   ctx.action().runShell({
@@ -52,30 +52,36 @@ const impl = (ctx) => {
 
 # NOTE(@ostera): handle protobuf libraries
 mkdir -p ${cwd()}/lib/generated/
-${protobufLibraries
-  .flatMap((dep) => {
-    return dep.outs.flatMap((out) => {
-      return `cp ${out} ${cwd()}/lib/generated/`;
-    });
-  })
-  .join("\n")}
+${
+      protobufLibraries
+        .flatMap((dep) => {
+          return dep.outs.flatMap((out) => {
+            return `cp ${out} ${cwd()}/lib/generated/`;
+          });
+        })
+        .join("\n")
+    }
 
 # NOTE(@ostera): handle other mix libraries
-${mixLibraries
-  .flatMap((dep) => {
-    return `cp -R ${Label.path(dep.label)}/_build ${cwd()}/`;
-  })
-  .join("\n")}
+${
+      mixLibraries
+        .flatMap((dep) => {
+          return `cp -R ${Target.path(dep.target)}/_build ${cwd()}/`;
+        })
+        .join("\n")
+    }
 
 # NOTE(@ostera): handle raw beam libraries
 mkdir -p ${cwd()}/src
-${beamLibraries
-  .flatMap((dep) => {
-    return dep.outs.map((out) => {
-      return `cp -R ${out} ${cwd()}/src/`;
-    });
-  })
-  .join("\n")}
+${
+      beamLibraries
+        .flatMap((dep) => {
+          return dep.outs.map((out) => {
+            return `cp -R ${out} ${cwd()}/src/`;
+          });
+        })
+        .join("\n")
+    }
 
 cd ${cwd()}
 ${depsGet}
@@ -94,10 +100,10 @@ export default Warp.Rule({
   mnemonic: "MixLib",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     srcs: [file()],
     extra_srcs: [file()],
-    deps: [label()],
+    deps: [target()],
     deps_args: [string()],
     skip_deps: string(),
     compile_args: [string()],

@@ -9,7 +9,8 @@ const impl = (ctx) => {
   const { version, sha1 } = ctx.cfg();
   const { host } = ctx.env();
 
-  const url = `https://github.com/rescript-lang/rescript-compiler/archive/refs/tags/${version}.tar.gz`;
+  const url =
+    `https://github.com/rescript-lang/rescript-compiler/archive/refs/tags/${version}.tar.gz`;
 
   const output = "rescript.tar.gz";
 

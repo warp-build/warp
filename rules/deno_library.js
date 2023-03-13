@@ -3,7 +3,7 @@ import DenoToolchain, {
 } from "https://rules.warp.build/toolchains/deno.js";
 
 const impl = (ctx) => {
-  const { label, name, srcs } = ctx.cfg();
+  const { target, name, srcs } = ctx.cfg();
   ctx.action().declareOutputs(srcs);
 };
 
@@ -12,9 +12,9 @@ export default Warp.Rule({
   mnemonic: "DenoLib",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     srcs: [file()],
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     srcs: ["*.js"],

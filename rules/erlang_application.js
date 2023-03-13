@@ -1,13 +1,13 @@
 import ErlangToolchain, {
-  HEADER_EXT,
   BEAM_EXT,
   ERL_EXT,
+  HEADER_EXT,
 } from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { label, name, app_src, mod, apps } = ctx.cfg();
+  const { target, name, app_src, mod, apps } = ctx.cfg();
 
-  const ebin = File.join(Label.path(label), "ebin");
+  const ebin = File.join(Target.path(target), "ebin");
 
   const beams = ctx
     .deps()
@@ -21,7 +21,7 @@ const impl = (ctx) => {
     .declareOutputs([
       ...ebinBeams,
       app_src,
-      `${Label.path(label)}/${name}.ebin.tar`,
+      `${Target.path(target)}/${name}.ebin.tar`,
     ]);
 
   ctx.action().runShell({
@@ -37,7 +37,7 @@ mv ${beams.join(" ")} ${ebin}
   ctx.action().runShell({
     script: `#/bin/bash -xe
 
-tar cf ${Label.path(label)}/${name}.ebin.tar ${Label.path(label)}/ebin
+tar cf ${Target.path(target)}/${name}.ebin.tar ${Target.path(target)}/ebin
 
 `,
   });
@@ -48,9 +48,9 @@ export default Warp.Rule({
   mnemonic: "ErlApp",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     app_src: file(),
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     deps: [],

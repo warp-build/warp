@@ -25,9 +25,9 @@ export default Warp.Rule({
   mnemonic: "ErlProtoLib",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     protos: [file()],
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     deps: [],

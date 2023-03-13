@@ -20,10 +20,10 @@ export default Warp.Rule({
   mnemonic: "ProtoLib",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     protos: [file()],
     flags: [string()],
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     deps: [],

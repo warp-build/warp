@@ -20,7 +20,8 @@ const impl = (ctx) => {
     os = "macOS";
   }
 
-  const url = `https://github.com/superfly/flyctl/releases/download/v${version}/flyctl_${version}_${os}_${arch}.tar.gz`;
+  const url =
+    `https://github.com/superfly/flyctl/releases/download/v${version}/flyctl_${version}_${os}_${arch}.tar.gz`;
 
   ctx.action().download({ url, sha1, output });
 

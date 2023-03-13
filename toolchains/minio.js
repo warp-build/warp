@@ -2,7 +2,8 @@ const impl = (ctx) => {
   const { host } = ctx.env();
   const { version, sha1 } = ctx.cfg();
 
-  const url = `https://dl.min.io/server/minio/release/${host.os}-${host.arch}/minio`;
+  const url =
+    `https://dl.min.io/server/minio/release/${host.os}-${host.arch}/minio`;
 
   const output = "minio.zip";
 

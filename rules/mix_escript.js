@@ -7,7 +7,7 @@ const impl = (ctx) => {
   const { cwd, bin } = ctx.cfg();
 
   const binPath = `${cwd()}/${bin}`;
-  const outputs = [ binPath ];
+  const outputs = [binPath];
 
   ctx.action().declareOutputs(outputs);
   ctx.provides({ [bin]: binPath });
@@ -33,6 +33,8 @@ export default Warp.Rule({
   },
   defaults: {
     srcs: [
+      "config/**/*.ex",
+      "config/**/*.exs",
       "lib/**/*.eex",
       "lib/**/*.ex",
       "test/**/*.exs",

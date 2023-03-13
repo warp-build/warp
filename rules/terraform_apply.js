@@ -1,9 +1,9 @@
 import TerraformToolchain from "https://rules.warp.build/toolchains/terraform.js";
 
 const impl = (ctx) => {
-  const { label, name } = ctx.cfg();
+  const { target, name } = ctx.cfg();
 
-  const run = `${Label.path(label)}/${name}.terraform_apply`;
+  const run = `${Target.path(target)}/${name}.terraform_apply`;
 
   ctx.action().writeFile({
     dst: run,
@@ -24,7 +24,7 @@ export default Warp.Rule({
   mnemonic: "TerraformApply",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     srcs: [file()],
   },
   defaults: {

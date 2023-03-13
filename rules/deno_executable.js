@@ -3,8 +3,8 @@ import DenoToolchain, {
 } from "https://rules.warp.build/toolchains/deno.js";
 
 const impl = (ctx) => {
-  const { label, name, deps, src, permissions } = ctx.cfg();
-  const cwd = Label.path(label);
+  const { target, name, deps, src, permissions } = ctx.cfg();
+  const cwd = Target.path(target);
 
   const bin = `${cwd}/${name}`;
   ctx.action().declareOutputs([bin]);
@@ -25,9 +25,9 @@ export default Warp.Rule({
   mnemonic: "DenoExe",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     src: file(),
-    deps: [label()],
+    deps: [target()],
     permissions: [string()],
   },
   defaults: {

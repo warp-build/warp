@@ -1,7 +1,7 @@
 import RustToolchain from "https://rules.warp.build/toolchains/rust.js";
 
 const impl = (ctx) => {
-  const { cwd, label, name, bin } = ctx.cfg();
+  const { cwd, target, name, bin } = ctx.cfg();
 
   ctx
     .action()
@@ -25,9 +25,9 @@ export default Warp.Rule({
   mnemonic: "CargoLib",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     srcs: [file()],
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     deps: [],

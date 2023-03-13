@@ -1,15 +1,15 @@
 import ReScriptToolchain, {
-  MERLIN,
+  CMI_EXT,
+  CMT_EXT,
   JS_EXT,
+  MERLIN,
   RES_EXT,
   RESI_EXT,
-  CMT_EXT,
-  CMI_EXT,
 } from "https://rules.warp.build/toolchains/rescript.js";
 
 const impl = (ctx) => {
-  const { label, name, deps, srcs } = ctx.cfg();
-  const cwd = Label.path(label);
+  const { target, name, deps, srcs } = ctx.cfg();
+  const cwd = Target.path(target);
 
   const res = srcs.filter((src) => src.endsWith(RES_EXT));
   const resi = srcs.filter((src) => src.endsWith(RESI_EXT));
@@ -46,9 +46,9 @@ export default Warp.Rule({
   mnemonic: "BsbLib",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     srcs: [file()],
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     srcs: ["src/**/*.res", "src/**/*.resi", "bsconfig.json"],

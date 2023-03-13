@@ -5,9 +5,9 @@ import ErlangToolchain, {
 import Rebar3Toolchain from "https://rules.warp.build/toolchains/rebar3.js";
 
 const impl = (ctx) => {
-  const { label, name, main, apps } = ctx.cfg();
+  const { target, name, main, apps } = ctx.cfg();
 
-  const cwd = Label.path(label);
+  const cwd = Target.path(target);
 
   const transitiveDeps = ctx.transitiveDeps().flatMap((dep) => dep.outs);
   const runtimeDeps = ctx.runtimeDeps().flatMap((dep) => dep.outs);
@@ -22,7 +22,7 @@ const impl = (ctx) => {
       (path) =>
         path.endsWith(BEAM_EXT) ||
         path.endsWith(".app") ||
-        path.endsWith(".app.src")
+        path.endsWith(".app.src"),
     )
     .unique();
 
@@ -80,11 +80,14 @@ main(_argv) ->
   ],
 
   DepApps = maps:from_list([
-    ${transitiveApps
-      .map(
-        ({ name }) => `{<<"${name}">>, <<"${cwd}/ebin/${name}/${name}.app">>}`
-      )
-      .join(",\n    ")}
+    ${
+      transitiveApps
+        .map(
+          ({ name }) =>
+            `{<<"${name}">>, <<"${cwd}/ebin/${name}/${name}.app">>}`,
+        )
+        .join(",\n    ")
+    }
   ]),
 
   AppNames = [
@@ -183,9 +186,9 @@ export default Warp.Rule({
   mnemonic: "ErlScript",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     main: file(),
-    deps: [label()],
+    deps: [target()],
     apps: [string()],
   },
   defaults: {

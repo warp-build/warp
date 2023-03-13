@@ -1,7 +1,7 @@
 import ErlangToolchain, {
-  HEADER_EXT,
   BEAM_EXT,
   ERL_EXT,
+  HEADER_EXT,
 } from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
@@ -94,10 +94,10 @@ export default Warp.Rule({
   mnemonic: "ErlTest",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     test: file(),
     cases: [string()],
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     deps: [],

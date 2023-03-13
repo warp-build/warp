@@ -19,8 +19,8 @@ export default Warp.Rule({
   mnemonic: "ExRel",
   impl,
   cfg: {
-    name: label(),
-    deps: [label()],
+    name: target(),
+    deps: [target()],
   },
   defaults: {
     deps: [],

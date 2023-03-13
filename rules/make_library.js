@@ -1,6 +1,6 @@
 const impl = (ctx) => {
   const {
-    label,
+    target,
     name,
     needs_configure,
     configure_file,
@@ -11,19 +11,19 @@ const impl = (ctx) => {
     outs,
   } = ctx.cfg();
 
-  const root = Label.path(label);
+  const root = Target.path(target);
   ctx.action().declareOutputs(outs.map((out) => File.join(root, out)));
 
   ctx.action().runShell({
     script: `#!/bin/bash -xe
 
-cd ${Label.path(label)}
+cd ${Target.path(target)}
 
 ${
-  needs_configure === "true"
-    ? `${configure_file} ${configure_flags.join(" ")}`
-    : ""
-}
+      needs_configure === "true"
+        ? `${configure_file} ${configure_flags.join(" ")}`
+        : ""
+    }
 
 make ${make_opts.join(" ")} ${targets.join(" ")}
 
@@ -36,10 +36,10 @@ export default Warp.Rule({
   mnemonic: "MakeLib",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     srcs: [file()],
     outs: [string()],
-    deps: [label()],
+    deps: [target()],
     needs_configure: string(),
     configure_file: string(),
     configure_flags: [string()],

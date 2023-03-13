@@ -7,13 +7,13 @@ import ErlangToolchain, {
 } from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { label, name, srcs, deps, main } = ctx.cfg();
+  const { target, name, srcs, deps, main } = ctx.cfg();
 
   const transitiveDeps = ctx.transitiveDeps();
 
   const elixirLibraries = transitiveDeps
     .filter(
-      (dep) => dep.ruleName == "https://rules.warp.build/rules/elixir_library"
+      (dep) => dep.ruleName == "https://rules.warp.build/rules/elixir_library",
     )
     .flatMap((dep) =>
       dep.outs
@@ -27,13 +27,15 @@ const impl = (ctx) => {
       (dep) =>
         dep.ruleName == "https://rules.warp.build/rules/mix_library" ||
         dep.ruleName == "https://rules.warp.build/rules/rebar3_library" ||
-        dep.ruleName == "https://rules.warp.build/rules/erlangmklibrary"
+        dep.ruleName == "https://rules.warp.build/rules/erlangmklibrary",
     )
     .map(
       (dep) =>
-        `${Label.path(dep.label)}/_build/default/lib/${Label.name(
-          dep.label
-        )}/ebin`
+        `${Target.path(dep.target)}/_build/default/lib/${
+          Target.name(
+            dep.target,
+          )
+        }/ebin`,
     )
     .unique();
 
@@ -43,7 +45,7 @@ const impl = (ctx) => {
     .unique()
     .join("");
 
-  const run = `${Label.path(label)}/${name}.run_script`;
+  const run = `${Target.path(target)}/${name}.run_script`;
 
   ctx.action().declareOutputs([run, main]);
   ctx.action().declareRunScript(run);
@@ -68,9 +70,9 @@ export default Warp.Rule({
   mnemonic: "ExScript",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     main: file(),
-    deps: [label()],
+    deps: [target()],
   },
   defaults: {
     deps: [],

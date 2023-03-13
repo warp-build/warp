@@ -8,7 +8,7 @@ export default Warp.Rule({
   mnemonic: "Files",
   impl,
   cfg: {
-    name: label(),
+    name: target(),
     srcs: [file()],
   },
 });

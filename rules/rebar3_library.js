@@ -5,7 +5,7 @@ import Rebar3Toolchain from "https://rules.warp.build/toolchains/rebar3.js";
 import CMakeToolchain from "https://rules.warp.build/toolchains/cmake.js";
 
 const impl = (ctx) => {
-  const { cwd, label, name, deps, srcs } = ctx.cfg();
+  const { cwd, target, name, deps, srcs } = ctx.cfg();
 
   ctx.action().declareOutputs([`${cwd()}/_build/default/lib/${name}`]);
 
@@ -53,8 +53,8 @@ export default Warp.Rule({
   mnemonic: "Rebar3Lib",
   impl,
   cfg: {
-    name: label(),
-    deps: [label()],
+    name: target(),
+    deps: [target()],
     srcs: [file()],
     extra_srcs: [file()],
   },

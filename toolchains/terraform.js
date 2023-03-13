@@ -16,7 +16,8 @@ const impl = (ctx) => {
     sha1 = sha1_x86_64;
   }
 
-  const url = `https://releases.hashicorp.com/terraform/${version}/terraform_${version}_${host.os}_${arch}.zip`;
+  const url =
+    `https://releases.hashicorp.com/terraform/${version}/terraform_${version}_${host.os}_${arch}.zip`;
 
   ctx.action().download({ url, sha1, output });
 
