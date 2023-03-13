@@ -29,7 +29,10 @@ impl<P> ProcessPool<P> {
         let mut env = process_spec.env.clone();
         env.insert(
             "PATH".into(),
-            format!("{}:/usr/bin", env.get("PATH").unwrap_or(&String::default())),
+            format!(
+                "{}:/usr/bin:/usr/sbin:/bin:/sbin",
+                env.get("PATH").unwrap_or(&String::default())
+            ),
         );
 
         cmd.env_clear()
