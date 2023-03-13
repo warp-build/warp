@@ -1,8 +1,8 @@
 use crate::executor::{ExecutionFlow, Executor, ExecutorError};
-use crate::model::{ExecutionEnvironment, TargetId};
+use crate::model::{ExecutableSpec, ExecutionEnvironment, TargetId};
 use crate::planner::{Planner, PlannerError, PlanningFlow};
 use crate::resolver::{ResolutionFlow, Resolver, ResolverError};
-use crate::store::Store;
+use crate::store::{ArtifactManifest, Store};
 use crate::worker::task_queue::TaskQueueError;
 use crate::worker::{Role, Task, Worker, WorkerError};
 use crate::{Goal, Target};
@@ -52,15 +52,17 @@ pub struct LocalWorker<R: Resolver, P: Planner, E: Executor, S: Store> {
 }
 
 pub enum WorkerFlow {
-    Complete(Task),
+    Complete {
+        task: Task,
+        executable_spec: ExecutableSpec,
+        artifact_manifest: ArtifactManifest,
+    },
 
     /// Used to permanently skip a task. It will not be requeued.
     Skipped(Task),
 
     /// Used to requeue the current task after queueing all dependencies.
-    QueueDeps {
-        deps: Vec<TargetId>,
-    },
+    QueueDeps { deps: Vec<TargetId> },
 }
 
 #[async_trait(?Send)]
@@ -133,7 +135,16 @@ where
         };
 
         match self.handle_task(task).await? {
-            WorkerFlow::Complete(task) => {
+            WorkerFlow::Complete {
+                task,
+                executable_spec,
+                artifact_manifest,
+            } => {
+                self.ctx.task_results.add_task_result(
+                    task.target_id,
+                    executable_spec,
+                    artifact_manifest,
+                );
                 self.ctx.task_queue.ack(task);
                 Ok(())
             }
@@ -180,11 +191,11 @@ where
             }
         };
 
-        self.ctx
-            .task_results
-            .add_task_result(task.target_id, executable_spec, artifact_manifest);
-
-        Ok(WorkerFlow::Complete(task))
+        Ok(WorkerFlow::Complete {
+            task,
+            executable_spec,
+            artifact_manifest,
+        })
     }
 
     async fn queue_all(&self, goal: Goal) -> Result<(), WorkerError> {
