@@ -2,6 +2,8 @@ defmodule Tricorder.Analysis.Erlang do
   alias __MODULE__
   alias Tricorder.Signatures
 
+  require Erlang.Cerl
+
   def analyze(file, %{include_paths: include_paths, code_paths: code_paths}) do
     with {:ok, ast} <- Erlang.Ast.parse(file, include_paths) do
       analyze_source(file, include_paths, code_paths, ast)
@@ -50,7 +52,7 @@ defmodule Tricorder.Analysis.Erlang do
 
   def ct_suites(file, modules, includes, src_analysis) do
     if String.ends_with?(file, "_SUITE.erl") do
-      {:ok, mod} = :compile.noenv_file(:binary.bin_to_list(file), [:return_errors])
+      {:ok, mod} = :compile.noenv_file(:binary.bin_to_list(file), @default_compile_opts)
       cases = mod.all()
       :code.delete(mod)
       :code.purge(mod)
