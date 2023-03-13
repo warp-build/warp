@@ -18,7 +18,8 @@ const impl = (ctx) => {
     sha1 = sha1_x86_64;
   }
 
-  const url = `https://static.rust-lang.org/rustup/dist/${host.triple}/rustup-init`;
+  const url =
+    `https://static.rust-lang.org/rustup/dist/${host.triple}/rustup-init`;
   const rustup_init = "rustup-init";
 
   ctx.action().download({ url, sha1, output: rustup_init });
@@ -72,5 +73,22 @@ export default Warp.Toolchain({
     components: [string()],
     sha1_aarch64: string(),
     sha1_x86_64: string(),
+    profile: string(),
+  },
+  defaults: {
+    profile: "default",
+    sha1_aarch64: "71939cab8697adf952e7021bb2e89cd61aca55cc",
+    sha1_x86_64: "682fd896e1f0cbad9f6689ba7f8a8f3d21efb4df",
+    toolchains: [
+      "stable-aarch64-apple-darwin",
+      "stable-x86_64-unknown-linux-gnu",
+    ],
+    targets: [
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+    ],
+    components: [
+      "clippy",
+    ],
   },
 });
