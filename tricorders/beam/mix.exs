@@ -6,7 +6,7 @@ defmodule Tricorder.MixProject do
       app: :tricorder,
       version: "0.0.0",
       elixir: "~> 1.13",
-      start_permanent: Mix.env() == :prod,
+      start_permanent: false,
       deps: deps(),
       escript: escript()
     ]
@@ -14,7 +14,8 @@ defmodule Tricorder.MixProject do
 
   def application do
     [
-      extra_applications: [:logger, :grpc, :protobuf]
+      extra_applications: [:logger, :grpc, :protobuf],
+      mod: {Tricorder.Application, []},
     ]
   end
 
@@ -30,6 +31,7 @@ defmodule Tricorder.MixProject do
       {:google_protos, "~> 0.3"},
       {:grpc, "~> 0.5"},
       {:hex_core, "~> 0.9"},
+      {:jason, "~> 1.4"},
       {:mint, "~> 1.4"},
       {:protobuf, "~> 0.10"}
     ]

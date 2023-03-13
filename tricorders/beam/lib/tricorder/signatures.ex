@@ -5,7 +5,7 @@ defmodule Tricorder.Signatures do
       rule: "erlang_library",
       srcs: [Path.filename(file)],
       includes: includes,
-      modules: modules,
+      modules: modules
     }
   end
 

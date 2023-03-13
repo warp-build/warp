@@ -4,8 +4,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
   def generate_signature(req, stream) do
     Logger.info("Analyzing: #{req.file}")
 
-    with {:ok, analysis} <- do_generate_signature(req),
-         response <- analysis_to_resp(req, analysis) do
+    with {:ok, response} <- do_generate_signature(req) do
       Build.Warp.Tricorder.GenerateSignatureResponse.new(response: response)
     end
   end
@@ -18,11 +17,17 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
       )
 
     cond do
-      Path.extname(req.file) in [".erl", ".hrl", "rebar.config"] ->
-        {:ok, Analysis.Erlang.analyze(req.file, paths)}
+      Path.basename(req.file) in ["mix.exs"] ->
+        {:ok, analysis} = Analysis.Mix.analyze(req.file, paths)
+        {:ok, mix_analysis_to_resp(req, analysis)}
 
-      Path.extname(req.file) in [".ex", ".exs", "mix.exs"] ->
-        {:ok, Analysis.Elixir.analyze(req.file, paths)}
+      Path.extname(req.file) in [".erl", ".hrl"] ->
+        {:ok, analysis} = Analysis.Erlang.analyze(req.file, paths)
+        {:ok, analysis_to_resp(req, analysis)}
+
+      Path.extname(req.file) in [".ex", ".exs"] ->
+        {:ok, analysis} = Analysis.Elixir.analyze(req.file, paths)
+        {:ok, analysis_to_resp(req, analysis)}
 
       true ->
         {:error, :unhandled_input}
@@ -158,5 +163,32 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
        file: req.file,
        signatures: signatures
      )}
+  end
+
+  defp mix_analysis_to_resp(req, :complete) do
+    {:ok, config} =
+      %{}
+      |> Jason.encode!()
+      |> Jason.decode!()
+      |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
+
+    signatures = [
+      Build.Warp.Signature.new(
+        name: req.file,
+        rule: "mix_release",
+        deps: [],
+        runtime_deps: [],
+        config: config
+      )
+    ]
+
+    {:ok,
+     Build.Warp.Codedb.GenerateSignatureSuccessResponse.new(
+       file: req.file,
+       signatures: signatures
+     )}
+  end
+
+  defp mix_analysis_to_resp(req, {:missing_dependencies, deps}) do
   end
 end
