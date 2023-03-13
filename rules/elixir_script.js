@@ -45,10 +45,9 @@ const impl = (ctx) => {
     .unique()
     .join("");
 
-  const run = `${Target.path(target)}/${name}.run_script`;
+  const run = `${Target.dir(target)}/${name}.run_script`;
 
   ctx.action().declareOutputs([run, main]);
-  ctx.action().declareRunScript(run);
   ctx.action().writeFile({
     dst: run,
     data: `#!/bin/bash -e
