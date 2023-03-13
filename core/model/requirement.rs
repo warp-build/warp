@@ -11,7 +11,7 @@ pub enum Requirement {
     File(FileRequirement),
     Symbol(SymbolRequirement),
     Url(UrlRequirement),
-    Dependency(Dependencyequirement),
+    Dependency(DependencyRequirement),
 }
 
 #[derive(Debug, Clone)]
@@ -31,7 +31,7 @@ pub struct UrlRequirement {
 }
 
 #[derive(Debug, Clone)]
-pub struct Dependencyequirement {
+pub struct DependencyRequirement {
     name: String,
     version: String,
     url: Url,

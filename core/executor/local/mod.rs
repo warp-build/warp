@@ -48,10 +48,12 @@ impl LocalExecutor {
         let shell_env = self.shell_env(&store_path, spec);
         self.copy_files(&store_path, spec).await?;
 
-        if let ActionRunnerFlow::MissingInputs { .. } =
+        if let ActionRunnerFlow::MissingInputs { inputs } =
             TracedActionRunner::run(&store_path, &shell_env, spec).await?
         {
-            return Ok(ExecutionFlow::MissingDeps);
+            let mut deps = vec![];
+            for input in inputs {}
+            return Ok(ExecutionFlow::MissingDeps { deps });
         }
 
         match self.validate_outputs(&store_path, spec).await? {

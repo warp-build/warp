@@ -1,5 +1,5 @@
 use crate::executor::{ExecutionFlow, Executor, ExecutorError};
-use crate::model::ExecutionEnvironment;
+use crate::model::{ExecutionEnvironment, TargetId};
 use crate::planner::{Planner, PlannerError, PlanningFlow};
 use crate::resolver::{ResolutionFlow, Resolver, ResolverError};
 use crate::store::Store;
@@ -9,6 +9,7 @@ use crate::{Goal, Target};
 use async_trait::async_trait;
 use thiserror::*;
 use tokio::fs;
+use tracing::*;
 
 use super::LocalSharedContext;
 
@@ -51,13 +52,15 @@ pub struct LocalWorker<R: Resolver, P: Planner, E: Executor, S: Store> {
 }
 
 pub enum WorkerFlow {
-    TaskCompleted(Task),
-
-    RetryLater,
+    Complete(Task),
 
     /// Used to permanently skip a task. It will not be requeued.
     Skipped(Task),
-    HandlePlanFlow(PlanningFlow),
+
+    /// Used to requeue the current task after queueing all dependencies.
+    QueueDeps {
+        deps: Vec<TargetId>,
+    },
 }
 
 #[async_trait(?Send)]
@@ -130,28 +133,24 @@ where
         };
 
         match self.handle_task(task).await? {
-            WorkerFlow::TaskCompleted(task) => {
+            WorkerFlow::Complete(task) => {
                 self.ctx.task_queue.ack(task);
                 Ok(())
             }
             WorkerFlow::Skipped(task) => {
+                debug!("Skipped task {}", task.target_id);
                 self.ctx.task_queue.skip(task);
                 Ok(())
             }
-            WorkerFlow::RetryLater => {
-                self.ctx.task_queue.nack(task);
-                Ok(())
-            }
-            WorkerFlow::HandlePlanFlow(PlanningFlow::MissingDeps { deps }) => {
+            WorkerFlow::QueueDeps { deps } => {
+                debug!("QueueDeps: {} deps", deps.len());
                 self.ctx.task_queue.queue_deps(task, &deps)?;
                 self.ctx.task_queue.nack(task);
                 Ok(())
             }
-            _ => unreachable!(),
         }
     }
 
-    #[tracing::instrument(name = "LocalWorker::handle_task", skip(self))]
     pub async fn handle_task(&mut self, task: Task) -> Result<WorkerFlow, LocalWorkerError> {
         let target = self.ctx.target_registry.get_target(task.target_id);
 
@@ -162,25 +161,30 @@ where
             .await?
         {
             ResolutionFlow::Resolved { signature } => signature,
-            ResolutionFlow::IgnoredTarget(_target) => return Ok(WorkerFlow::Skipped(task)),
-            _flow => return Ok(WorkerFlow::RetryLater),
+            ResolutionFlow::MissingDeps { deps } => return Ok(WorkerFlow::QueueDeps { deps }),
+            _ => return Ok(WorkerFlow::Skipped(task)),
         };
 
         let executable_spec = match self.planner.plan(signature, self.env.clone()).await? {
             PlanningFlow::Planned { spec } => spec,
-            flow => return Ok(WorkerFlow::HandlePlanFlow(flow)),
+            PlanningFlow::MissingDeps { deps } => return Ok(WorkerFlow::QueueDeps { deps }),
+            _ => return Ok(WorkerFlow::Skipped(task)),
         };
 
         let artifact_manifest = match self.executor.execute(&executable_spec).await? {
             ExecutionFlow::Completed(manifest) => manifest,
-            _flow => return Ok(WorkerFlow::RetryLater),
+            ExecutionFlow::MissingDeps { deps } => return Ok(WorkerFlow::QueueDeps { deps }),
+            flow => {
+                dbg!(flow);
+                return Ok(WorkerFlow::Skipped(task));
+            }
         };
 
         self.ctx
             .task_results
             .add_task_result(task.target_id, executable_spec, artifact_manifest);
 
-        Ok(WorkerFlow::TaskCompleted(task))
+        Ok(WorkerFlow::Complete(task))
     }
 
     async fn queue_all(&self, goal: Goal) -> Result<(), WorkerError> {

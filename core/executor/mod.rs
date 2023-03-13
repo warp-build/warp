@@ -6,17 +6,21 @@ pub mod local;
 
 pub use error::*;
 
-use crate::model::ExecutableSpec;
+use crate::model::{ExecutableSpec, TargetId};
 use crate::store::ArtifactManifest;
 use async_trait::async_trait;
 use std::path::PathBuf;
 
+#[derive(Debug)]
 pub enum ExecutionFlow {
     Completed(ArtifactManifest),
+
     ValidationError(ValidationStatus),
-    MissingDeps,
+
+    MissingDeps { deps: Vec<TargetId> },
 }
 
+#[derive(Debug)]
 pub enum ValidationStatus {
     Valid {
         outputs: Vec<PathBuf>,

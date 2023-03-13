@@ -47,7 +47,7 @@ impl From<TricorderManagerError> for ResolverError {
 pub enum ResolutionFlow {
     Resolved { signature: Signature },
     IncompatibleTarget,
-    MissingDependencies { requirements: Vec<Requirement> },
+    MissingDeps { deps: Vec<TargetId> },
     IgnoredTarget(TargetId),
 }
 

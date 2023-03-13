@@ -1,6 +1,9 @@
 use super::{Goal, Target, TargetId};
 use crate::sync::*;
-use std::path::{Path, PathBuf};
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 use tracing::instrument;
 
 static CURRENT_DIR: &str = ".";
