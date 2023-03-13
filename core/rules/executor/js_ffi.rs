@@ -10,17 +10,10 @@ use std::path::PathBuf;
 use tracing::*;
 
 #[op]
-pub fn op_target_parent_path(state: &mut OpState, target: TargetId) -> Result<String, AnyError> {
+pub fn op_target_dir(state: &mut OpState, target: TargetId) -> Result<String, AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let target = ctx.target_registry.get_concrete_target(target);
-
-    Ok(target
-        .path()
-        .parent()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string())
+    Ok(target.dir().to_str().unwrap().to_string())
 }
 
 #[op]

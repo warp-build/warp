@@ -83,7 +83,7 @@ Warp.Signatures.compute = (inputSignature) => {
   trace(`with config: ${JSON.stringify(config, null, 2)}`);
 
   config.target = target;
-  config.cwd = () => Target.parent_path(target);
+  config.cwd = () => Target.dir(target);
 
   let _provides = null;
   let _env = null;
@@ -351,6 +351,6 @@ const Target = {};
 
 Target.path = (target) => ffi("op_target_path", target);
 
-Target.parent_path = (target) => ffi("op_target_parent_path", target);
+Target.dir = (target) => ffi("op_target_dir", target);
 
 Target.name = (target) => ffi("op_target_name", target);

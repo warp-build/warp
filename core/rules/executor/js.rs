@@ -50,7 +50,7 @@ impl RuleExecutor for JsRuleExecutor {
                     js_ffi::op_file_with_extension::decl(),
                     js_ffi::op_target_name::decl(),
                     js_ffi::op_target_path::decl(),
-                    js_ffi::op_target_parent_path::decl(),
+                    js_ffi::op_target_dir::decl(),
                     js_ffi::op_rule_new::decl(),
                 ])
                 .state(move |state| {
