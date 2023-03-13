@@ -9,3 +9,4 @@ _build
 _rebar_tmp
 *.gif
 release.tar.gz
+tricorders/beam/tricorder
