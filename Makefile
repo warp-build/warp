@@ -19,6 +19,10 @@ release:
 install:
 	cargo install --debug --path cli
 
+.PHONY: install.release
+install.release:
+	cargo install --path cli
+
 .PHONY: fmt
 fmt:
 	cargo fmt

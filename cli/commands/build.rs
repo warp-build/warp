@@ -36,9 +36,29 @@ impl BuildCommand {
     }
 
     pub async fn run(self) -> Result<(), anyhow::Error> {
-        let mut warp = WarpDriveMarkII::new(self.flags.into()).await?;
+        let mut warp = WarpDriveMarkII::new(self.flags.clone().into()).await?;
         let target = self.target.into();
-        let _results = warp.execute(Goal::Build, &[target]).await?;
+        let results = warp.execute(Goal::Build, &[target]).await?;
+
+        if self.flags.print_hashes {
+            println!();
+            println!("Targets:");
+            let mut results = results.get_results();
+            results.sort_by(|a, b| {
+                a.artifact_manifest
+                    .buildstamps()
+                    .build_started_at
+                    .cmp(&b.artifact_manifest.buildstamps().build_started_at)
+            });
+
+            for result in results {
+                let hash = result.artifact_manifest.hash();
+                let target = result.artifact_manifest.target();
+                println!("  {hash} => {target}");
+            }
+            println!();
+        }
+
         Ok(())
     }
 }

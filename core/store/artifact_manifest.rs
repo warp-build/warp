@@ -179,6 +179,10 @@ impl ArtifactManifest {
     pub fn store_path(&self) -> &PathBuf {
         &self.store_path
     }
+
+    pub fn buildstamps(&self) -> &BuildStamps {
+        &self.buildstamps
+    }
 }
 
 #[derive(Error, Debug)]

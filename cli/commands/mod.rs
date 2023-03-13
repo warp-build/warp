@@ -17,6 +17,12 @@ use warp_core::Config;
 #[derive(Default, Debug, Clone, StructOpt)]
 pub struct Flags {
     #[structopt(
+        help = r"Print the hashes of the artifacts that were built.",
+        long = "print-hashes"
+    )]
+    pub(crate) print_hashes: bool,
+
+    #[structopt(
         help = r"Never access the network, but continue working if possible.",
         long = "offline"
     )]
