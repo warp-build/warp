@@ -44,6 +44,10 @@ impl Goal {
         }
     }
 
+    pub fn is_bootstrap(&self) -> bool {
+        matches!(self, Goal::Bootstrap)
+    }
+
     pub fn is_runnable(&self) -> bool {
         matches!(self, Goal::Test | Goal::Run)
     }

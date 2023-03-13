@@ -224,6 +224,10 @@ impl LocalExecutor {
         paths.reverse();
 
         env.insert("PATH".to_string(), paths.join(":"));
+        env.insert(
+            "WARP_BOOTSTRAP".to_string(),
+            spec.goal().is_bootstrap().to_string(),
+        );
         env
     }
 

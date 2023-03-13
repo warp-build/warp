@@ -9,7 +9,7 @@ pub use default_planner_context::*;
 
 use crate::model::{
     Dependencies, DependenciesError, ExecutableSpec, ExecutableSpecError, ExecutionEnvironment,
-    Requirement, Signature, TargetId,
+    Goal, Requirement, Signature, TargetId,
 };
 use crate::rules::RuleExecutorError;
 use futures::Future;
@@ -33,6 +33,7 @@ pub trait Planner {
 
     async fn plan(
         &mut self,
+        goal: Goal,
         sig: Signature,
         env: ExecutionEnvironment,
     ) -> Result<PlanningFlow, PlannerError>;

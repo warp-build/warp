@@ -1,4 +1,10 @@
 fn main() {
+    if std::env::var("WARP_BOOTSTRAP")
+        .map(|val| val == "true")
+        .unwrap_or_default()
+    {
+        return;
+    }
     tonic_build::configure()
         .build_server(true)
         .include_file("_include.rs")

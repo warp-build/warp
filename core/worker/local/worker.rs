@@ -176,7 +176,11 @@ where
             _ => return Ok(WorkerFlow::Skipped(task)),
         };
 
-        let executable_spec = match self.planner.plan(signature, self.env.clone()).await? {
+        let executable_spec = match self
+            .planner
+            .plan(task.goal, signature, self.env.clone())
+            .await?
+        {
             PlanningFlow::Planned { spec } => spec,
             PlanningFlow::MissingDeps { deps } => return Ok(WorkerFlow::QueueDeps { deps }),
             _ => return Ok(WorkerFlow::Skipped(task)),
@@ -389,6 +393,7 @@ mod tests {
 
         async fn plan(
             &mut self,
+            _goal: Goal,
             _sig: Signature,
             _env: ExecutionEnvironment,
         ) -> Result<PlanningFlow, PlannerError> {
@@ -497,6 +502,7 @@ mod tests {
 
             async fn plan(
                 &mut self,
+                _goal: Goal,
                 _sig: Signature,
                 _env: ExecutionEnvironment,
             ) -> Result<PlanningFlow, PlannerError> {

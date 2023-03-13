@@ -1,5 +1,5 @@
 use super::{DefaultPlannerContext, Dependencies, Planner, PlannerError, PlanningFlow};
-use crate::model::{ExecutableSpec, ExecutionEnvironment, Signature, TargetId};
+use crate::model::{ExecutableSpec, ExecutionEnvironment, Goal, Signature, TargetId};
 use crate::rules::RuleExecutor;
 use async_trait::async_trait;
 
@@ -26,6 +26,7 @@ where
     #[tracing::instrument(name = "DefaultPlanner::plan", skip(self, sig, env))]
     async fn plan(
         &mut self,
+        goal: Goal,
         sig: Signature,
         env: ExecutionEnvironment,
     ) -> Result<PlanningFlow, PlannerError> {
@@ -67,6 +68,7 @@ where
         let planning_end_time = chrono::Utc::now();
 
         let spec = ExecutableSpec::builder()
+            .goal(goal)
             .target(sig.target().clone())
             .signature(sig)
             .exec_env(env)
@@ -177,7 +179,7 @@ mod tests {
         let env = ExecutionEnvironment::default();
 
         let mut p: DefaultPlanner<NoopRuleExecutor> = DefaultPlanner::new(ctx).unwrap();
-        let flow = p.plan(sig.clone(), env).await.unwrap();
+        let flow = p.plan(goal, sig.clone(), env).await.unwrap();
 
         assert_matches!(flow, PlanningFlow::Planned { spec } if spec.target() == sig.target());
     }
@@ -203,6 +205,7 @@ mod tests {
 
         let env = ExecutionEnvironment::default();
         let dep_spec = ExecutableSpec::builder()
+            .goal(goal)
             .target(dep_target.clone())
             .signature(
                 Signature::builder()
@@ -226,7 +229,7 @@ mod tests {
             .unwrap();
 
         let mut p: DefaultPlanner<NoopRuleExecutor> = DefaultPlanner::new(ctx).unwrap();
-        let flow = p.plan(sig.clone(), env).await.unwrap();
+        let flow = p.plan(goal, sig.clone(), env).await.unwrap();
 
         assert_matches!(flow, PlanningFlow::Planned { spec } => {
             assert_eq!(*spec.target(), target);
@@ -259,7 +262,7 @@ mod tests {
         let env = ExecutionEnvironment::default();
 
         let mut p: DefaultPlanner<NoopRuleExecutor> = DefaultPlanner::new(ctx).unwrap();
-        let flow = p.plan(sig.clone(), env).await.unwrap();
+        let flow = p.plan(goal, sig.clone(), env).await.unwrap();
 
         assert_matches!(flow, PlanningFlow::MissingDeps { deps } => {
             assert!(!deps.is_empty());

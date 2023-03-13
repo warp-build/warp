@@ -198,6 +198,7 @@ mod tests {
 
         async fn plan(
             &mut self,
+            _goal: Goal,
             _sig: Signature,
             _env: ExecutionEnvironment,
         ) -> Result<PlanningFlow, PlannerError> {
@@ -262,6 +263,7 @@ mod tests {
 
         #[derive(Debug, Clone)]
         struct FixtureContext {
+			goal: Goal,
             target_id: TargetId,
             target: ConcreteTarget,
             task_results: Arc<TaskResults>,
@@ -273,6 +275,7 @@ mod tests {
             }
         }
         let ctx = FixtureContext {
+			goal: Goal::Build,
             target_id,
             target: ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into()),
             task_results: Arc::new(TaskResults::new(target_registry.clone())),
@@ -294,6 +297,7 @@ mod tests {
             async fn run(&mut self) -> Result<(), WorkerError> {
                 let manifest = ArtifactManifest::default();
                 let spec = ExecutableSpec::builder()
+					.goal(self.ctx.goal)
                     .target(self.ctx.target.clone())
                     .signature(
                         Signature::builder()

@@ -335,6 +335,7 @@ mod tests {
         let manifest = ArtifactManifest::default();
         let target = ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into());
         let spec = ExecutableSpec::builder()
+            .goal(goal)
             .target(target.clone())
             .signature(
                 Signature::builder()
@@ -362,6 +363,7 @@ mod tests {
         let manifest = ArtifactManifest::default();
         let target = ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into());
         let spec = ExecutableSpec::builder()
+			.goal(goal)
             .target(target.clone())
             .signature(
                 Signature::builder()

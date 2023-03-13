@@ -1,6 +1,6 @@
 use super::{
-    ConcreteTarget, Dependencies, ExecutionEnvironment, Portability, ProvidedFiles, Signature,
-    SourceSet,
+    ConcreteTarget, Dependencies, ExecutionEnvironment, Goal, Portability, ProvidedFiles,
+    Signature, SourceSet,
 };
 use crate::executor::actions::Action;
 use crate::store::ArtifactId;
@@ -16,6 +16,8 @@ use thiserror::Error;
 #[derive(Builder, Debug)]
 #[builder(build_fn(error = "ExecutableSpecError", name = "inner_build"))]
 pub struct ExecutableSpec {
+    goal: Goal,
+
     target: ConcreteTarget,
 
     signature: Signature,
@@ -56,6 +58,11 @@ pub struct ExecutableSpec {
 impl ExecutableSpec {
     pub fn builder() -> ExecutableSpecBuilder {
         Default::default()
+    }
+
+    /// The goal that this spec achieves
+    pub fn goal(&self) -> Goal {
+        self.goal
     }
 
     /// The ID this Artifact will have once its build.
