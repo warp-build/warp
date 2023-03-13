@@ -1,6 +1,9 @@
 use super::{Goal, Target, TargetId};
 use crate::sync::*;
 use std::path::{Path, PathBuf};
+use tracing::instrument;
+
+static CURRENT_DIR: &str = ".";
 
 /// A ConcreteTarget is a target that has gone through the first phase of resolution.
 ///
@@ -35,7 +38,12 @@ impl ConcreteTarget {
 
     pub fn dir(&self) -> &Path {
         if self.path.is_file() {
-            self.path.parent().unwrap()
+            let parent = self.path.parent().unwrap();
+            if parent.to_string_lossy().is_empty() {
+                Path::new(CURRENT_DIR)
+            } else {
+                parent
+            }
         } else {
             &self.path
         }
@@ -57,5 +65,37 @@ impl ConcreteTarget {
 impl ToString for ConcreteTarget {
     fn to_string(&self) -> String {
         self.original_target.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use assert_fs::prelude::*;
+
+    #[test]
+    fn dir_is_the_parent_of_the_full_path_for_file_targets() {
+        let root = assert_fs::TempDir::new().unwrap();
+        let target = root.child("target.ex");
+        target.touch().unwrap();
+
+        let ct = ConcreteTarget::new(
+            Goal::Build,
+            TargetId::next(),
+            Arc::new(target.path().to_path_buf().into()),
+            target.path().to_path_buf(),
+        );
+        assert_eq!(ct.dir(), root.path());
+    }
+
+    #[test]
+    fn dir_is_never_empty_on() {
+        let ct = ConcreteTarget::new(
+            Goal::Build,
+            TargetId::next(),
+            Arc::new("./docs.ex".into()),
+            "./docs.ex".into(),
+        );
+        assert!(!ct.dir().to_string_lossy().is_empty());
     }
 }
