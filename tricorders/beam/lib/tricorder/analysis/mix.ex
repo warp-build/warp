@@ -1,6 +1,8 @@
 defmodule Tricorder.Analysis.Mix do
+  alias Tricorder.Signatures
+
   def analyze(file, paths) do
-    [{mod, _}] = Code.compile_file(file)
+    [{mod, _} | _] = Code.compile_file(file)
     Mix.ProjectStack.pop()
 
     name = mod.project()[:app] |> Atom.to_string()
@@ -9,6 +11,8 @@ defmodule Tricorder.Analysis.Mix do
     :code.purge(mod)
     false = :code.is_loaded(mod)
 
-    {:ok, {:escript, name}}
+    signature = Signatures.mix_escript(name, file)
+
+    {:ok, {:completed, signature}}
   end
 end

@@ -1,10 +1,12 @@
 defmodule Tricorder.Analysis.Erlang do
-  alias Tricorder.Analysis.Erlang
+  alias __MODULE__
   alias Tricorder.Signatures
 
   def analyze(file, %{include_paths: include_paths, code_paths: code_paths}) do
-    with {:ok, ast} <- Erlang.Ast.parse(file, include_paths),
-         {:ok, src} <- analyze_source(file, include_paths, code_paths, ast) do
+    with {:ok, ast} <- Erlang.Ast.parse(file, include_paths) do
+      analyze_source(file, include_paths, code_paths, ast)
+    else
+      diag = {:missing_dependencies, _} -> {:ok, diag}
     end
   end
 
@@ -12,17 +14,17 @@ defmodule Tricorder.Analysis.Erlang do
     analysis = Erlang.Ast.scan(ast)
 
     case Path.extname(file) do
-      "hrl" ->
+      ".hrl" ->
         analyze_hrl(ast, file, analysis)
 
-      "erl" ->
+      ".erl" ->
         analyze_erl(file, include_paths, code_paths, ast, analysis)
     end
   end
 
   def analyze_hrl(ast, file, analysis) do
     signatures = [Signatures.erlang_header_library(file, analysis.includes)]
-    {:ok, signatures}
+    {:ok, {:completed, signatures}}
   end
 
   def analyze_erl(file, include_paths, code_paths, ast, src_analysis) do
@@ -38,24 +40,24 @@ defmodule Tricorder.Analysis.Erlang do
 
       includes = (src_analysis.includes ++ src_analysis.missing_includes) |> Enum.uniq()
 
-      [Signatures.erlang_library(file, modules, includes)] ++
-        ct_suites(file, modules, includes, src_analysis)
+      signatures =
+        [Signatures.erlang_library(file, modules, includes)] ++
+          ct_suites(file, modules, includes, src_analysis)
+
+      {:ok, {:completed, signatures}}
     end
   end
 
   def ct_suites(file, modules, includes, src_analysis) do
     if String.ends_with?(file, "_SUITE.erl") do
-      mod_name = Path.basename(file, ".erl") |> String.to_atom()
-      cases = apply(mod_name, :all, [])
+      {:ok, mod} = :compile.noenv_file(:binary.bin_to_list(file), [:return_errors])
+      cases = mod.all()
+      :code.delete(mod)
+      :code.purge(mod)
+      false = :code.is_loaded(mod)
 
       for case_name <- cases do
-        Siganture.erlang_test(%{
-          name: "#{file}:#{case_name}",
-          test: file,
-          modules: modules,
-          includes: includes,
-          cases: [case_name]
-        })
+        Signatures.erlang_test(file, case_name, modules, includes)
       end
     else
       []

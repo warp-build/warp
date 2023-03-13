@@ -19,6 +19,8 @@ defmodule Tricorder.Analysis.Erlang.Cerl do
       @default_compile_opts ++
         for path <- include_paths, do: {:i, path}
 
+    file = :binary.bin_to_list(file)
+
     with {:ok, mod, core} <- :compile.noenv_file(file, compile_opts) do
       tree = :cerl.from_records(core)
       attrs = :cerl.module_attrs(core)

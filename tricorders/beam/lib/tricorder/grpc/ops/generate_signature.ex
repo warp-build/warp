@@ -23,12 +23,20 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
         {:ok, analysis} = Analysis.Mix.analyze(req.file, paths)
         {:ok, mix_analysis_to_resp(req, analysis)}
 
+      Path.basename(req.file) in ["rebar.config"] ->
+        {:ok, analysis} = Analysis.Rebar3.analyze(req.file, paths)
+        {:ok, rebar_analysis_to_resp(req, analysis)}
+
       Path.extname(req.file) in [".erl", ".hrl"] ->
         {:ok, analysis} = Analysis.Erlang.analyze(req.file, paths)
         {:ok, analysis_to_resp(req, analysis)}
 
       Path.extname(req.file) in [".ex", ".exs"] ->
-        {:ok, analysis} = Analysis.Elixir.analyze(req.file, paths)
+        {:ok, analysis} = Analysis.Elixir.analyze_script(req.file, paths)
+        {:ok, analysis_to_resp(req, analysis)}
+
+      Path.extname(req.file) in [".ex"] ->
+        {:ok, analysis} = Analysis.Elixir.analyze_lib(req.file, paths)
         {:ok, analysis_to_resp(req, analysis)}
 
       true ->
@@ -38,7 +46,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
 
   defp analysis_to_resp(req, {:missing_dependencies, deps}) do
     includes =
-      (deps[:includes] || [])
+      Map.get(deps, :includes, [])
       |> Enum.uniq()
       |> Enum.map(fn dep ->
         req = {:file, Build.Warp.FileRequirement.new(path: dep)}
@@ -46,7 +54,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
       end)
 
     modules =
-      (deps[:modules] || [])
+      Map.get(deps, :modules, [])
       |> Enum.uniq()
       |> Enum.map(fn dep ->
         dep = Atom.to_string(dep)
@@ -69,7 +77,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
       signatures
       |> Enum.map(fn sig ->
         modules =
-          sig.modules
+          Map.get(sig, :modules, [])
           |> Enum.map(fn dep ->
             symbol =
               Build.Warp.SymbolRequirement.new(
@@ -108,7 +116,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
           |> Enum.uniq()
 
         includes =
-          sig.includes
+          Map.get(sig, :includes, [])
           |> Enum.map(fn dep ->
             req = {:file, Build.Warp.FileRequirement.new(path: dep)}
             Build.Warp.Requirement.new(requirement: req)
@@ -130,11 +138,9 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
         test_lib =
           cond do
             test_lib != nil ->
-              {:ok, test_mod} = :erl_stdlib.file_to_module(test_lib)
-
               symbol =
                 Build.Warp.SymbolRequirement.new(
-                  raw: Atom.to_string(test_mod),
+                  raw: Path.basename(test_lib, ".erl"),
                   kind: "module"
                 )
 
@@ -167,19 +173,52 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
      )}
   end
 
-  defp mix_analysis_to_resp(req, {:escript, bin}) do
+  defp rebar_analysis_to_resp(req, {:completed, sig}) do
     {:ok, config} =
-      %{
-        bin: bin
-      }
+      sig
+      |> Map.delete(:deps)
+      |> Map.delete(:runtime_deps)
+      |> Map.delete(:name)
+      |> Map.delete(:rule)
       |> Jason.encode!()
       |> Jason.decode!()
       |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
 
     signatures = [
       Build.Warp.Signature.new(
-        name: req.file,
-        rule: "mix_escript",
+        name: sig.name,
+        rule: sig.rule,
+        deps: [],
+        runtime_deps: [],
+        config: config
+      )
+    ]
+
+    {:ok,
+     Build.Warp.Codedb.GenerateSignatureSuccessResponse.new(
+       file: req.file,
+       signatures: signatures
+     )}
+  end
+
+  defp rebar_analysis_to_resp(req, {:missing_dependencies, deps}) do
+  end
+
+  defp mix_analysis_to_resp(req, {:completed, sig}) do
+    {:ok, config} =
+      sig
+      |> Map.delete(:deps)
+      |> Map.delete(:runtime_deps)
+      |> Map.delete(:name)
+      |> Map.delete(:rule)
+      |> Jason.encode!()
+      |> Jason.decode!()
+      |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
+
+    signatures = [
+      Build.Warp.Signature.new(
+        name: sig.name,
+        rule: sig.rule,
         deps: [],
         runtime_deps: [],
         config: config

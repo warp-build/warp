@@ -1,6 +1,6 @@
 defmodule Tricorder.Analysis.Erlang.Ast do
   def parse(file, include_paths) do
-    {:ok, ast} = :epp.parse_file(file, includes: include_paths)
+    {:ok, ast} = :epp.parse_file(:binary.bin_to_list(file), includes: include_paths)
 
     case has_include_errors?(ast) do
       {true, missing_includes} ->
@@ -12,14 +12,13 @@ defmodule Tricorder.Analysis.Erlang.Ast do
   end
 
   def has_include_errors?(ast) do
-    Enum.any?(
-      ast,
-      fn
-        {:error, {_, :epp, {:include, :file, _}}} -> true
-        {:error, {_, :epp, {:include, :lib, _}}} -> true
-        _ -> false
-      end
-    )
+    include_errors = missing_includes(ast)
+
+    if Enum.empty?(include_errors) do
+      false
+    else
+      {true, include_errors}
+    end
   end
 
   def scan(ast) do
@@ -54,6 +53,7 @@ defmodule Tricorder.Analysis.Erlang.Ast do
           acc
       end
     )
+    |> Enum.map(&ensure_string/1)
   end
 
   def missing_includes(ast) do
@@ -66,6 +66,7 @@ defmodule Tricorder.Analysis.Erlang.Ast do
         _, acc -> acc
       end
     )
+    |> Enum.map(&ensure_string/1)
   end
 
   def remote_functions(ast) do
@@ -121,4 +122,7 @@ defmodule Tricorder.Analysis.Erlang.Ast do
       end
     )
   end
+
+  defp ensure_string(bin) when is_binary(bin), do: bin
+  defp ensure_string(bin) when is_list(bin), do: :binary.list_to_bin(bin)
 end
