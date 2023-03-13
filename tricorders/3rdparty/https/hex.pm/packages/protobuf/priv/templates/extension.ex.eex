@@ -1,8 +1,0 @@
-defmodule <%= @module %> do
-  @moduledoc false
-  use Protobuf, <%= @use_options %>
-
-  <%= for ext <- @extends do %>
-  extend <%= ext %>
-  <% end %>
-end
