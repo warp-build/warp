@@ -23,6 +23,7 @@ install:
 fmt:
 	cargo fmt
 	deno fmt
+	mix format
 
 .PHONY: setup
 setup:
