@@ -46,7 +46,7 @@ test: test.tricorder test.unit test.conc test.beam
 .PHONY: test.beam
 test.beam:
 	cd tricorders/beam \
-		&& mix deps.get
+		&& mix deps.get \
 		&& mix test
 
 .PHONY: test.tricorder
