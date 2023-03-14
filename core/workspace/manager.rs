@@ -22,7 +22,7 @@ pub struct WorkspaceManager {
     ///
     /// NOTE(@ostera): in the future we may wrap this with more metadata that is specific for local
     /// workspaces.
-    local_workspaces: DashMap<WorkspaceId, Workspace>,
+    local_workspaces: DashMap<WorkspaceId, Arc<Workspace>>,
 }
 
 impl WorkspaceManager {
@@ -33,7 +33,7 @@ impl WorkspaceManager {
     /// Get the current workspace. This function MUST BE called after calling
     /// `load_current_workspace`. Otherwise it will panic.
     ///
-    pub fn current_workspace(&self) -> Workspace {
+    pub fn current_workspace(&self) -> Arc<Workspace> {
         let cw_id = *self.current_workspace.read().unwrap();
         self.local_workspaces
             .get(&cw_id)
@@ -61,8 +61,12 @@ impl WorkspaceManager {
         w: Workspace,
     ) -> Result<WorkspaceId, WorkspaceManagerError> {
         let id = WorkspaceId::next();
-        self.local_workspaces.insert(id, w);
+        self.local_workspaces.insert(id, w.into());
         Ok(id)
+    }
+
+    pub fn get_workspace(&self, id: WorkspaceId) -> Arc<Workspace> {
+        self.local_workspaces.get(&id).unwrap().clone()
     }
 
     pub fn set_current_workspace(&self, current_workspace_id: WorkspaceId) {

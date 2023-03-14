@@ -27,7 +27,7 @@ impl From<String> for Target {
 
 impl From<&str> for Target {
     fn from(value: &str) -> Self {
-        if value.starts_with("@") {
+        if value.starts_with('@') {
             Self::Alias(value.into())
         } else if let Ok(url) = url::Url::parse(value) {
             Self::Remote(url.into())
