@@ -1,10 +1,7 @@
 pub mod build {
     pub mod warp {
-        pub mod codedb {
-            include!("build.warp.codedb.rs");
-        }
-        pub mod dependency {
-            include!("build.warp.dependency.rs");
+        pub mod tricorder {
+            include!("build.warp.tricorder.rs");
         }
         include!("build.warp.rs");
     }

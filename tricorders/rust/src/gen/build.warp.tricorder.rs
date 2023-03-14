@@ -82,6 +82,55 @@ pub struct GenerateSignatureMissingDepsResponse {
     #[prost(message, repeated, tag = "5")]
     pub requirements: ::prost::alloc::vec::Vec<super::Requirement>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetAstRequest {
+    #[prost(string, tag = "1")]
+    pub file: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub symbol: ::core::option::Option<super::Symbol>,
+    #[prost(message, repeated, tag = "3")]
+    pub dependencies: ::prost::alloc::vec::Vec<super::Dependency>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetAstResponse {
+    #[prost(oneof = "get_ast_response::Response", tags = "1, 3")]
+    pub response: ::core::option::Option<get_ast_response::Response>,
+}
+/// Nested message and enum types in `GetAstResponse`.
+pub mod get_ast_response {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Response {
+        #[prost(message, tag = "1")]
+        Ok(super::GetAstSuccessResponse),
+        #[prost(message, tag = "3")]
+        MissingDeps(super::GetAstMissingDepsResponse),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetAstMissingDepsResponse {
+    #[prost(string, tag = "1")]
+    pub file: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub symbol: ::core::option::Option<super::Symbol>,
+    #[prost(message, repeated, tag = "3")]
+    pub dependencies: ::prost::alloc::vec::Vec<super::Requirement>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetAstSuccessResponse {
+    #[prost(string, tag = "1")]
+    pub file: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub symbol: ::core::option::Option<super::Symbol>,
+    #[prost(string, tag = "3")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub ast: ::prost::alloc::string::String,
+}
 /// Generated client implementations.
 pub mod tricorder_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -212,6 +261,25 @@ pub mod tricorder_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        pub async fn get_ast(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetAstRequest>,
+        ) -> Result<tonic::Response<super::GetAstResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/build.warp.tricorder.TricorderService/GetAst",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -248,6 +316,10 @@ pub mod tricorder_service_server {
             &self,
             request: tonic::Request<super::GenerateSignatureRequest>,
         ) -> Result<tonic::Response<super::GenerateSignatureResponse>, tonic::Status>;
+        async fn get_ast(
+            &self,
+            request: tonic::Request<super::GetAstRequest>,
+        ) -> Result<tonic::Response<super::GetAstResponse>, tonic::Status>;
     }
     /// A TricorderService is a repository and code analysis service created for a
     /// specific language ecosystem that will be started and managed from within
@@ -381,6 +453,44 @@ pub mod tricorder_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = GenerateSignatureSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/build.warp.tricorder.TricorderService/GetAst" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetAstSvc<T: TricorderService>(pub Arc<T>);
+                    impl<
+                        T: TricorderService,
+                    > tonic::server::UnaryService<super::GetAstRequest>
+                    for GetAstSvc<T> {
+                        type Response = super::GetAstResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetAstRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).get_ast(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetAstSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

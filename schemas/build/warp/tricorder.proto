@@ -30,6 +30,8 @@ service TricorderService {
   // those header files may reside.
   //
   rpc GenerateSignature(GenerateSignatureRequest) returns (GenerateSignatureResponse);
+  
+  rpc GetAst(GetAstRequest) returns (GetAstResponse);
 }
 
 message EnsureReadyRequest {}
@@ -94,4 +96,31 @@ message GenerateSignatureMissingDepsResponse {
   //
   repeated Requirement requirements = 5;
 }
+
+message GetAstRequest {
+  string file = 1;
+  Symbol symbol = 2;
+  repeated Dependency dependencies = 3;
+}
+
+message GetAstResponse {
+  oneof response {
+    GetAstSuccessResponse ok = 1;
+    GetAstMissingDepsResponse missing_deps = 3;
+  }
+}
+
+message GetAstMissingDepsResponse {
+  string file = 1;
+  Symbol symbol = 2;
+  repeated Requirement dependencies = 3;
+}
+
+message GetAstSuccessResponse {
+  string file = 1;
+  Symbol symbol = 2;
+  string source = 3;
+  string ast = 4;
+}
+
 
