@@ -67,5 +67,10 @@ export default Warp.Toolchain({
     sha1_aarch64: string(),
     sha1_x86_64: string(),
   },
+  defaults: {
+    sha1_aarch64: "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
+    sha1_x86_64: "12627c808674ee5f5bd3a6982176613bbd3ad9db",
+    version: "3.24.2",
+  },
   toolchains: [],
 });

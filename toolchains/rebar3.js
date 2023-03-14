@@ -29,6 +29,7 @@ export default Warp.Toolchain({
   },
   defaults: {
     url: "https://s3.amazonaws.com/rebar3/rebar3",
+    sha1: "7e281994851487caf5daa4a2c32b5a0cabdf7bdb",
   },
   toolchains: [ErlangToolchain, CMakeToolchain, GitToolchain],
 });
