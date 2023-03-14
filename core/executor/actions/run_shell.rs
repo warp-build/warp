@@ -1,10 +1,7 @@
 use anyhow::*;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::io::BufRead;
-use std::io::BufReader;
 use std::path::PathBuf;
-use std::process::Stdio;
 use tokio::process::Command;
 use tracing::*;
 
@@ -53,31 +50,22 @@ impl RunShellAction {
         cmd.current_dir(store_root)
             .env_clear()
             .envs(default_env)
-            .stdout(Stdio::piped())
             .args(["-c", &script]);
 
         trace!("Running script: {:#?} {}", &self.env, &self.script);
 
-        let output = cmd.output().await.expect("could not run bash :(");
+        let status = cmd
+            .status()
+            .await
+            .context(format!("Could not spawn {:?}", cmd))?;
 
-        trace!("Got status code: {}", output.status.code().unwrap());
-
-        if self.needs_tty {
-            BufReader::new(&*output.stdout)
-                .lines()
-                .filter_map(|line| line.ok())
-                .for_each(|line| println!("{}", line));
-        }
-
-        if output.status.success() {
+        if status.success() {
             Ok(())
         } else {
             Err(anyhow!(
-                "Error running bash script: \n\nStore Root = {}\n\nScript = {}\n\nStdout = {}\n\nStderr = {}",
+                "Error running bash script: \n\nStore Root = {}\n\nScript = {}",
                 store_root.to_string_lossy(),
                 self.script,
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr),
             ))
         }
     }
