@@ -6,8 +6,8 @@ defmodule Tricorder.Analysis.Rebar3 do
 
     name = file |> Path.dirname() |> Path.basename()
 
-    signature = Signature.rebar3_library(name, file)
+    signature = Signatures.rebar3_library(name, file)
 
-    {:ok, {:completed, signature}}
+    {:ok, {:completed, [signature]}}
   end
 end

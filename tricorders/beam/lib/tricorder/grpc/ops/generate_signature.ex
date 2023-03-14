@@ -10,6 +10,8 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     with {:ok, response} <- do_generate_signature(req) do
       Logger.info("Response: #{inspect(response)}")
       Build.Warp.Tricorder.GenerateSignatureResponse.new(response: response)
+    else
+      err -> Logger.error("#{err}")
     end
   end
 
@@ -23,11 +25,11 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     cond do
       Path.basename(req.file) in ["mix.exs"] ->
         {:ok, analysis} = Analysis.Mix.analyze(req.file, paths)
-        {:ok, mix_analysis_to_resp(req, analysis)}
+        {:ok, analysis_to_resp(req, analysis)}
 
       Path.basename(req.file) in ["rebar.config"] ->
         {:ok, analysis} = Analysis.Rebar3.analyze(req.file, paths)
-        {:ok, rebar_analysis_to_resp(req, analysis)}
+        {:ok, analysis_to_resp(req, analysis)}
 
       Path.extname(req.file) in [".erl", ".hrl"] ->
         {:ok, analysis} = Analysis.Erlang.analyze(req.file, paths)
@@ -47,22 +49,9 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
   end
 
   defp analysis_to_resp(req, {:missing_dependencies, deps}) do
-    includes =
-      Map.get(deps, :includes, [])
-      |> Enum.uniq()
-      |> Enum.map(fn dep ->
-        req = {:file, Build.Warp.FileRequirement.new(path: dep)}
-        Build.Warp.Requirement.new(requirement: req)
-      end)
+    includes = Map.get(deps, :includes, []) |> handle_includes
 
-    modules =
-      Map.get(deps, :modules, [])
-      |> Enum.uniq()
-      |> Enum.map(fn dep ->
-        dep = Atom.to_string(dep)
-        req = {:symbol, Build.Warp.SymbolRequirement.new(raw: dep, kind: "module")}
-        Build.Warp.Requirement.new(requirement: req)
-      end)
+    modules = Map.get(deps, :modules, []) |> handle_modules
 
     resp =
       Build.Warp.Tricorder.GenerateSignatureMissingDepsResponse.new(
@@ -78,52 +67,15 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     signatures =
       signatures
       |> Enum.map(fn sig ->
-        modules =
-          Map.get(sig, :modules, [])
-          |> Enum.map(fn dep ->
-            symbol =
-              Build.Warp.SymbolRequirement.new(
-                raw: Atom.to_string(dep),
-                kind: "module"
-              )
+        modules = Map.get(sig, :modules, []) |> handle_modules
 
-            Build.Warp.Requirement.new(requirement: {:symbol, symbol})
-          end)
-          |> Enum.uniq()
-
-        type_modules =
-          Map.get(sig, :type_modules, [])
-          |> Enum.map(fn dep ->
-            symbol =
-              Build.Warp.SymbolRequirement.new(
-                raw: Atom.to_string(dep),
-                kind: "module"
-              )
-
-            Build.Warp.Requirement.new(requirement: {:symbol, symbol})
-          end)
-          |> Enum.uniq()
+        type_modules = Map.get(sig, :type_modules, []) |> handle_modules
 
         parse_transforms =
           Map.get(sig, :parse_transforms, [])
-          |> Enum.map(fn dep ->
-            symbol =
-              Build.Warp.SymbolRequirement.new(
-                raw: Atom.to_string(dep),
-                kind: "module"
-              )
+          |> handle_modules
 
-            Build.Warp.Requirement.new(requirement: {:symbol, symbol})
-          end)
-          |> Enum.uniq()
-
-        includes =
-          Map.get(sig, :includes, [])
-          |> Enum.map(fn dep ->
-            req = {:file, Build.Warp.FileRequirement.new(path: dep)}
-            Build.Warp.Requirement.new(requirement: req)
-          end)
-          |> Enum.uniq()
+        includes = Map.get(sig, :includes, []) |> handle_includes
 
         {:ok, config} =
           sig
@@ -175,65 +127,30 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
      )}
   end
 
-  defp rebar_analysis_to_resp(req, {:completed, sig}) do
-    {:ok, config} =
-      sig
-      |> Map.delete(:deps)
-      |> Map.delete(:runtime_deps)
-      |> Map.delete(:name)
-      |> Map.delete(:rule)
-      |> Jason.encode!()
-      |> Jason.decode!()
-      |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
+  defp handle_includes(includes) do
+    includes
+    |> Enum.uniq()
+    |> Enum.map(fn hrl ->
+      req =
+        case Deps.find_header(hrl) do
+          {:ok, dep} ->
+            {:url, Build.Warp.UrlRequirement.new(url: dep.url)}
 
-    signatures = [
-      Build.Warp.Signature.new(
-        name: sig.name,
-        rule: sig.rule,
-        deps: [],
-        runtime_deps: [],
-        config: config
-      )
-    ]
+          _ ->
+            {:file, Build.Warp.FileRequirement.new(path: hrl)}
+        end
 
-    {:ok,
-     Build.Warp.Tricorder.GenerateSignatureSuccessResponse.new(
-       file: req.file,
-       signatures: signatures
-     )}
+      Build.Warp.Requirement.new(requirement: req)
+    end)
   end
 
-  defp rebar_analysis_to_resp(req, {:missing_dependencies, deps}) do
-  end
-
-  defp mix_analysis_to_resp(req, {:completed, sig}) do
-    {:ok, config} =
-      sig
-      |> Map.delete(:deps)
-      |> Map.delete(:runtime_deps)
-      |> Map.delete(:name)
-      |> Map.delete(:rule)
-      |> Jason.encode!()
-      |> Jason.decode!()
-      |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)
-
-    signatures = [
-      Build.Warp.Signature.new(
-        name: sig.name,
-        rule: sig.rule,
-        deps: [],
-        runtime_deps: [],
-        config: config
-      )
-    ]
-
-    {:ok,
-     Build.Warp.Tricorder.GenerateSignatureSuccessResponse.new(
-       file: req.file,
-       signatures: signatures
-     )}
-  end
-
-  defp mix_analysis_to_resp(req, {:missing_dependencies, deps}) do
+  defp handle_modules(modules) do
+    modules
+    |> Enum.uniq()
+    |> Enum.map(fn dep ->
+      dep = Atom.to_string(dep)
+      req = {:symbol, Build.Warp.SymbolRequirement.new(raw: dep, kind: "module")}
+      Build.Warp.Requirement.new(requirement: req)
+    end)
   end
 end

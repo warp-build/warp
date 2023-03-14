@@ -11,6 +11,7 @@ defmodule GitignoreTest do
     gitignore = Gitignore.read("./test/fixtures/.gitignore")
 
     assert [
+             "test/fixtures/rebar.config",
              "test/fixtures/.gitignore",
              "test/fixtures/rebar.lock",
              "test/fixtures/mix.lock"

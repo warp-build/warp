@@ -7,5 +7,5 @@ defmodule Tricorder.Deps.MixLock do
     end
   end
 
-  def clean({name, spec}), do: {name, Tricorder.Deps.Spec.parse(spec)}
+  def clean({name, spec}), do: {name, Tricorder.Deps.Spec.parse(name, spec)}
 end

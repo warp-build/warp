@@ -28,7 +28,7 @@ defmodule TricorderDepsTest do
                ref: "bb9b3e570a7efe331eed0900c3a5188043a850d7",
                url: "https://github.com/talentdeficit/jsx.git"
              },
-             sext: %{host: "hexpm", package: "sext", protocol: :hexpm, version: "1.8.0"},
+             sext: %{host: "hexpm", package: "sext", protocol: :https, version: "1.8.0"},
              ehttpc: %{
                opts: [tag: "0.3.0"],
                protocol: :git,
@@ -56,7 +56,7 @@ defmodule TricorderDepsTest do
              trails: %{
                host: "hexpm",
                package: "trails",
-               protocol: :hexpm,
+               protocol: :https,
                version: "2.3.0"
              },
              lc: %{
@@ -80,7 +80,7 @@ defmodule TricorderDepsTest do
              observer_cli: %{
                host: "hexpm",
                package: "observer_cli",
-               protocol: :hexpm,
+               protocol: :https,
                version: "1.7.1"
              },
              eredis_cluster: %{
@@ -140,13 +140,13 @@ defmodule TricorderDepsTest do
              getopt: %{
                host: "hexpm",
                package: "getopt",
-               protocol: :hexpm,
+               protocol: :https,
                version: "1.0.2"
              },
              replayq: %{
                host: "hexpm",
                package: "replayq",
-               protocol: :hexpm,
+               protocol: :https,
                version: "0.3.4"
              },
              rulesql: %{
@@ -194,7 +194,7 @@ defmodule TricorderDepsTest do
              quantile_estimator: %{
                host: "hexpm",
                package: "quantile_estimator",
-               protocol: :hexpm,
+               protocol: :https,
                version: "0.2.1"
              },
              ranch: %{
@@ -203,7 +203,7 @@ defmodule TricorderDepsTest do
                ref: "a692f44567034dacf5efcaa24a24183788594eb7",
                url: "https://github.com/ninenines/ranch.git"
              },
-             gpb: %{host: "hexpm", package: "gpb", protocol: :hexpm, version: "4.19.5"},
+             gpb: %{host: "hexpm", package: "gpb", protocol: :https, version: "4.19.5"},
              cowlib: %{
                opts: [ref: "c6553f8308a2ca5dcd69d845f0a7d098c40c3363"],
                protocol: :git,
@@ -249,13 +249,13 @@ defmodule TricorderDepsTest do
              supervisor3: %{
                host: "hexpm",
                package: "supervisor3",
-               protocol: :hexpm,
+               protocol: :https,
                version: "1.1.9"
              },
              redbug: %{
                host: "hexpm",
                package: "redbug",
-               protocol: :hexpm,
+               protocol: :https,
                version: "2.0.7"
              },
              gproc: %{
@@ -311,36 +311,36 @@ defmodule TricorderDepsTest do
 
   test "scans rebar lock" do
     assert %{
-             base16: %{package: "base16", protocol: :hexpm, version: "1.0.0"},
-             lrw: %{package: "lrw", protocol: :hexpm, version: "2.0.1"},
-             supervisor3: %{package: "supervisor3", protocol: :hexpm, version: "1.1.11"},
-             enacl: %{package: "enacl", protocol: :hexpm, version: "1.2.1"},
+             base16: %{package: "base16", protocol: :https, version: "1.0.0"},
+             lrw: %{package: "lrw", protocol: :https, version: "2.0.1"},
+             supervisor3: %{package: "supervisor3", protocol: :https, version: "1.1.11"},
+             enacl: %{package: "enacl", protocol: :https, version: "1.2.1"},
              mops: %{
                protocol: :git,
                ref: "3955142d3720dc5b7a481e28124a2c5421dcd078",
                url: "https://gitlab.com/leapsight/mops.git"
              },
-             metrics: %{package: "metrics", protocol: :hexpm, version: "1.0.1"},
+             metrics: %{package: "metrics", protocol: :https, version: "1.0.1"},
              prometheus_httpd: %{
                package: "prometheus_httpd",
-               protocol: :hexpm,
+               protocol: :https,
                version: "2.1.11"
              },
-             ranch: %{package: "ranch", protocol: :hexpm, version: "1.8.0"},
-             p1_utils: %{package: "p1_utils", protocol: :hexpm, version: "1.0.23"},
+             ranch: %{package: "ranch", protocol: :https, version: "1.8.0"},
+             p1_utils: %{package: "p1_utils", protocol: :https, version: "1.0.23"},
              email: %{
                protocol: :git,
                ref: "b62e070111e635e739628254eab8db2835631d28",
                url: "https://github.com/kivra/email.git"
              },
-             setup: %{package: "setup", protocol: :hexpm, version: "2.1.0"},
-             idna: %{package: "idna", protocol: :hexpm, version: "6.1.1"},
-             bert: %{package: "bert", protocol: :hexpm, version: "0.1.0"},
-             cowboy: %{package: "cowboy", protocol: :hexpm, version: "2.9.0"},
-             mimerl: %{package: "mimerl", protocol: :hexpm, version: "1.2.0"},
-             sidejob: %{package: "sidejob", protocol: :hexpm, version: "2.1.0"},
-             bear: %{package: "bear", protocol: :hexpm, version: "1.0.0"},
-             msgpack: %{package: "msgpack", protocol: :hexpm, version: "0.7.0"},
+             setup: %{package: "setup", protocol: :https, version: "2.1.0"},
+             idna: %{package: "idna", protocol: :https, version: "6.1.1"},
+             bert: %{package: "bert", protocol: :https, version: "0.1.0"},
+             cowboy: %{package: "cowboy", protocol: :https, version: "2.9.0"},
+             mimerl: %{package: "mimerl", protocol: :https, version: "1.2.0"},
+             sidejob: %{package: "sidejob", protocol: :https, version: "2.1.0"},
+             bear: %{package: "bear", protocol: :https, version: "1.0.0"},
+             msgpack: %{package: "msgpack", protocol: :https, version: "0.7.0"},
              brod: %{
                protocol: :git,
                ref: "5d9f189623070f4927cb88af563552695b305fce",
@@ -361,7 +361,7 @@ defmodule TricorderDepsTest do
                ref: "d5e540dc2e1d3a4b75dbf3841de99d4547e118ff",
                url: "https://gitlab.com/leapsight/tuplespace.git"
              },
-             lhttpc: %{package: "lhttpc", protocol: :hexpm, version: "1.6.2"},
+             lhttpc: %{package: "lhttpc", protocol: :https, version: "1.6.2"},
              hash: %{
                protocol: :git,
                ref: "dfbcc9ee089626f84068a1dcee3b1753a716871e",
@@ -374,19 +374,19 @@ defmodule TricorderDepsTest do
              },
              kafka_protocol: %{
                package: "kafka_protocol",
-               protocol: :hexpm,
+               protocol: :https,
                version: "4.0.1"
              },
-             stringprep: %{package: "stringprep", protocol: :hexpm, version: "1.0.27"},
+             stringprep: %{package: "stringprep", protocol: :https, version: "1.0.27"},
              pbkdf2: %{
                protocol: :git,
                ref: "84f964b1875b047c3ad93d43cc350c45d6e27f9c",
                url: "https://github.com/leapsight-oss/erlang-pbkdf2.git"
              },
-             sext: %{package: "sext", protocol: :hexpm, version: "1.8.0"},
-             types: %{package: "types", protocol: :hexpm, version: "0.1.8"},
-             prometheus: %{package: "prometheus", protocol: :hexpm, version: "4.8.1"},
-             backoff: %{package: "backoff", protocol: :hexpm, version: "1.1.6"},
+             sext: %{package: "sext", protocol: :https, version: "1.8.0"},
+             types: %{package: "types", protocol: :https, version: "0.1.8"},
+             prometheus: %{package: "prometheus", protocol: :https, version: "4.8.1"},
+             backoff: %{package: "backoff", protocol: :https, version: "1.1.6"},
              wamp: %{
                protocol: :git,
                ref: "ded9e3b7fffd25e7d18755bf1c085e2d027100ed",
@@ -402,21 +402,21 @@ defmodule TricorderDepsTest do
                ref: "6e1c622c2e9bba51fadba44fa050d4b4ae706890",
                url: "https://gitlab.com/leapsight/base62.git"
              },
-             erlcloud: %{package: "erlcloud", protocol: :hexpm, version: "3.6.1"},
-             parse_trans: %{package: "parse_trans", protocol: :hexpm, version: "3.4.1"},
-             uuid: %{package: "uuid_erl", protocol: :hexpm, version: "2.0.4"},
+             erlcloud: %{package: "erlcloud", protocol: :https, version: "3.6.1"},
+             parse_trans: %{package: "parse_trans", protocol: :https, version: "3.4.1"},
+             uuid: %{package: "uuid_erl", protocol: :https, version: "2.0.4"},
              unicode_util_compat: %{
                package: "unicode_util_compat",
-               protocol: :hexpm,
+               protocol: :https,
                version: "0.7.0"
              },
-             crc32cer: %{package: "crc32cer", protocol: :hexpm, version: "0.1.8"},
+             crc32cer: %{package: "crc32cer", protocol: :https, version: "0.1.8"},
              leap: %{
                protocol: :git,
                ref: "5dcd5c162704048bcd3d37e9ffc7b83f70d66b77",
                url: "https://gitlab.com/leapsight/leap.git"
              },
-             certifi: %{package: "certifi", protocol: :hexpm, version: "2.9.0"},
+             certifi: %{package: "certifi", protocol: :https, version: "2.9.0"},
              ksuid: %{
                protocol: :git,
                ref: "a5016017edd1e99d46c9a6d4c348cb818e542b13",
@@ -424,26 +424,26 @@ defmodule TricorderDepsTest do
              },
              quantile_estimator: %{
                package: "quantile_estimator",
-               protocol: :hexpm,
+               protocol: :https,
                version: "0.2.1"
              },
-             cowlib: %{package: "cowlib", protocol: :hexpm, version: "2.11.0"},
+             cowlib: %{package: "cowlib", protocol: :https, version: "2.11.0"},
              riak_sysmon: %{
                protocol: :git,
                ref: "726df1f4c31108bb9366fb767b480f286e51f7fc",
                url: "https://github.com/Leapsight/riak_sysmon.git"
              },
-             jsone: %{package: "jsone", protocol: :hexpm, version: "1.6.1"},
-             gproc: %{package: "gproc", protocol: :hexpm, version: "0.9.0"},
-             jobs: %{package: "jobs", protocol: :hexpm, version: "0.10.0"},
-             telemetry: %{package: "telemetry", protocol: :hexpm, version: "1.0.0"},
+             jsone: %{package: "jsone", protocol: :https, version: "1.6.1"},
+             gproc: %{package: "gproc", protocol: :https, version: "0.9.0"},
+             jobs: %{package: "jobs", protocol: :https, version: "0.10.0"},
+             telemetry: %{package: "telemetry", protocol: :https, version: "1.0.0"},
              jose: %{
                protocol: :git,
                ref: "991649695aaccd92c8effb1c1e88e6159fe8e9a6",
                url: "https://github.com/potatosalad/erlang-jose.git"
              },
-             snappyer: %{package: "snappyer", protocol: :hexpm, version: "1.2.8"},
-             eini: %{package: "eini", protocol: :hexpm, version: "1.2.9"},
+             snappyer: %{package: "snappyer", protocol: :https, version: "1.2.8"},
+             eini: %{package: "eini", protocol: :https, version: "1.2.9"},
              app_config: %{
                protocol: :git,
                ref: "e6a4dc99c0c9f17a6d4d865e40aefc409986f849",
@@ -456,7 +456,7 @@ defmodule TricorderDepsTest do
              },
              ssl_verify_fun: %{
                package: "ssl_verify_fun",
-               protocol: :hexpm,
+               protocol: :https,
                version: "1.1.6"
              },
              key_value: %{
@@ -464,23 +464,23 @@ defmodule TricorderDepsTest do
                ref: "414fb19cd067b368666ceb5a2a63f1f24109562b",
                url: "https://gitlab.com/leapsight/key_value.git"
              },
-             acceptor_pool: %{package: "acceptor_pool", protocol: :hexpm, version: "1.0.0"},
-             quickrand: %{package: "quickrand", protocol: :hexpm, version: "2.0.4"},
-             hackney: %{package: "hackney", protocol: :hexpm, version: "1.18.1"},
-             recon: %{package: "recon", protocol: :hexpm, version: "2.5.2"},
-             observer_cli: %{package: "observer_cli", protocol: :hexpm, version: "1.7.2"},
+             acceptor_pool: %{package: "acceptor_pool", protocol: :https, version: "1.0.0"},
+             quickrand: %{package: "quickrand", protocol: :https, version: "2.0.4"},
+             hackney: %{package: "hackney", protocol: :https, version: "1.18.1"},
+             recon: %{package: "recon", protocol: :https, version: "2.5.2"},
+             observer_cli: %{package: "observer_cli", protocol: :https, version: "1.7.2"},
              prometheus_cowboy: %{
                package: "prometheus_cowboy",
-               protocol: :hexpm,
+               protocol: :https,
                version: "0.1.8"
              },
-             accept: %{package: "accept", protocol: :hexpm, version: "0.3.5"},
+             accept: %{package: "accept", protocol: :https, version: "0.3.5"},
              logger_colorful: %{
                package: "logger_colorful",
-               protocol: :hexpm,
+               protocol: :https,
                version: "0.1.0"
              },
-             jsx: %{package: "jsx", protocol: :hexpm, version: "2.11.0"}
+             jsx: %{package: "jsx", protocol: :https, version: "2.11.0"}
            } = Tricorder.Deps.RebarLock.load("test/fixtures/rebar.lock")
   end
 end

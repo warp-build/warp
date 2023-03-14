@@ -13,6 +13,6 @@ defmodule Tricorder.Analysis.Mix do
 
     signature = Signatures.mix_escript(name, file)
 
-    {:ok, {:completed, signature}}
+    {:ok, {:completed, [signature]}}
   end
 end

@@ -37,8 +37,6 @@ impl TricorderRegistry {
                     "hrl",
                     "rebar.config",
                     "erl.mk",
-                    "rebar.lock",
-                    "mix.lock",
                 ],
             ),
             (
