@@ -61,17 +61,18 @@ impl TricorderRegistry {
         Self { tricorders }
     }
 
-    #[tracing::instrument(name = "TricorderRegistry::find_by_path", skip(self))]
-    pub async fn find_by_path(
-        &self,
-        path: &Path,
-    ) -> Result<Option<ManifestUrl>, TricorderRegistryError> {
+    #[tracing::instrument(name = "TricorderRegistry::find_by_path", skip(self), ret)]
+    pub fn find_by_path(&self, path: &Path) -> Result<Option<ManifestUrl>, TricorderRegistryError> {
         if let Some(ext) = path.extension() {
-            return Ok(self.find_tricorder(ext.to_str().unwrap()));
+            if let Some(url) = self.find_tricorder(ext.to_str().unwrap()) {
+                return Ok(Some(url));
+            };
         };
 
         if let Some(file_name) = path.file_name() {
-            return Ok(self.find_tricorder(file_name.to_str().unwrap()));
+            if let Some(url) = self.find_tricorder(file_name.to_str().unwrap()) {
+                return Ok(Some(url));
+            };
         }
 
         Ok(None)
@@ -91,4 +92,29 @@ impl TricorderRegistry {
 pub enum TricorderRegistryError {
     #[error("Could not find tricorder when searching with path {path:?}")]
     CouldNotFindTricorderByPath { path: PathBuf },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn find_tricorder_by_file_name() {
+        let config = Config::default();
+        let tricorder = TricorderRegistry::new(config);
+
+        let url = tricorder
+            .find_by_path(Path::new("tricorder/rust/Cargo.toml"))
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            url,
+            ManifestUrl::new(
+                "https://store.warp.build/tricorder/rust/manifest.json"
+                    .parse()
+                    .unwrap()
+            )
+        );
+    }
 }

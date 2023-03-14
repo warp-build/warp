@@ -52,13 +52,12 @@ where
 
         // 1. find exactly which tricorder we need.
         //    if we can't find one, that's also okay, we'll just skip this target.
-        let tricorder_url = if let Some(tricorder_url) =
-            self.registry.find_by_path(concrete_target.path()).await?
-        {
-            tricorder_url
-        } else {
-            return Ok(None);
-        };
+        let tricorder_url =
+            if let Some(tricorder_url) = self.registry.find_by_path(concrete_target.path())? {
+                tricorder_url
+            } else {
+                return Ok(None);
+            };
 
         if let Some(entry) = self.tricorders.get(&tricorder_url) {
             let (_pid, conn) = &*entry;
