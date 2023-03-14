@@ -28,6 +28,7 @@ defmodule Tricorder.MixProject do
   defp deps do
     [
       {:castore, "~> 0.1"},
+      {:glob, "~> 1.0"},
       {:google_protos, "~> 0.3"},
       {:grpc, "~> 0.5"},
       {:hex_core, "~> 0.9"},
