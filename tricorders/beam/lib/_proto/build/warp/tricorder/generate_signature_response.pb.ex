@@ -54,12 +54,13 @@ defmodule Build.Warp.Tricorder.GenerateSignatureResponse do
     }
   end
 
-  oneof :response, 0
+  oneof(:response, 0)
 
-  field :ok, 1, type: Build.Warp.Tricorder.GenerateSignatureSuccessResponse, oneof: 0
+  field(:ok, 1, type: Build.Warp.Tricorder.GenerateSignatureSuccessResponse, oneof: 0)
 
-  field :missing_deps, 3,
+  field(:missing_deps, 3,
     type: Build.Warp.Tricorder.GenerateSignatureMissingDepsResponse,
     json_name: "missingDeps",
     oneof: 0
+  )
 end

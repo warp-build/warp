@@ -62,7 +62,7 @@ defmodule Build.Warp.Codedb.GenerateSignatureRequest do
     }
   end
 
-  field :file, 1, type: :string
-  field :dependencies, 2, repeated: true, type: Build.Warp.Dependency
-  field :symbol, 3, type: Build.Warp.Symbol
+  field(:file, 1, type: :string)
+  field(:dependencies, 2, repeated: true, type: Build.Warp.Dependency)
+  field(:symbol, 3, type: Build.Warp.Symbol)
 end

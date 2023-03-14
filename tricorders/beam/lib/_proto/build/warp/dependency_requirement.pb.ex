@@ -104,10 +104,10 @@ defmodule Build.Warp.DependencyRequirement do
     }
   end
 
-  field :name, 1, type: :string
-  field :version, 2, type: :string
-  field :url, 3, type: :string
-  field :archive_resolver, 4, type: :string, json_name: "archiveResolver"
-  field :signature_resolver, 5, type: :string, json_name: "signatureResolver"
-  field :tricorder_url, 6, type: :string, json_name: "tricorderUrl"
+  field(:name, 1, type: :string)
+  field(:version, 2, type: :string)
+  field(:url, 3, type: :string)
+  field(:archive_resolver, 4, type: :string, json_name: "archiveResolver")
+  field(:signature_resolver, 5, type: :string, json_name: "signatureResolver")
+  field(:tricorder_url, 6, type: :string, json_name: "tricorderUrl")
 end

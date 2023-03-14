@@ -58,23 +58,31 @@ defmodule Build.Warp.Codedb.AnalyzerService.Service do
     }
   end
 
-  rpc :GetDependencies,
-      Build.Warp.Codedb.GetDependenciesRequest,
-      Build.Warp.Codedb.GetDependenciesResponse
+  rpc(
+    :GetDependencies,
+    Build.Warp.Codedb.GetDependenciesRequest,
+    Build.Warp.Codedb.GetDependenciesResponse
+  )
 
-  rpc :GetInterestedPaths,
-      Build.Warp.Codedb.GetInterestedPathsRequest,
-      Build.Warp.Codedb.GetInterestedPathsResponse
+  rpc(
+    :GetInterestedPaths,
+    Build.Warp.Codedb.GetInterestedPathsRequest,
+    Build.Warp.Codedb.GetInterestedPathsResponse
+  )
 
-  rpc :GetProvidedSymbols,
-      Build.Warp.Codedb.GetProvidedSymbolsRequest,
-      Build.Warp.Codedb.GetProvidedSymbolsResponse
+  rpc(
+    :GetProvidedSymbols,
+    Build.Warp.Codedb.GetProvidedSymbolsRequest,
+    Build.Warp.Codedb.GetProvidedSymbolsResponse
+  )
 
-  rpc :GetAst, Build.Warp.Codedb.GetAstRequest, Build.Warp.Codedb.GetAstResponse
+  rpc(:GetAst, Build.Warp.Codedb.GetAstRequest, Build.Warp.Codedb.GetAstResponse)
 
-  rpc :GenerateSignature,
-      Build.Warp.Codedb.GenerateSignatureRequest,
-      Build.Warp.Codedb.GenerateSignatureResponse
+  rpc(
+    :GenerateSignature,
+    Build.Warp.Codedb.GenerateSignatureRequest,
+    Build.Warp.Codedb.GenerateSignatureResponse
+  )
 end
 
 defmodule Build.Warp.Codedb.AnalyzerService.Stub do

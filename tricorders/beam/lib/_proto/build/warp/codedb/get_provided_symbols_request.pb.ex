@@ -34,5 +34,5 @@ defmodule Build.Warp.Codedb.GetProvidedSymbolsRequest do
     }
   end
 
-  field :file, 1, type: :string
+  field(:file, 1, type: :string)
 end

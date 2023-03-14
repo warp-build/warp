@@ -34,5 +34,5 @@ defmodule Build.Warp.UrlRequirement do
     }
   end
 
-  field :url, 1, type: :string
+  field(:url, 1, type: :string)
 end

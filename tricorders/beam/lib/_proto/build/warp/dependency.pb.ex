@@ -132,12 +132,12 @@ defmodule Build.Warp.Dependency do
     }
   end
 
-  field :name, 1, type: :string
-  field :version, 2, type: :string
-  field :url, 3, type: :string
-  field :archive_resolver, 4, type: :string, json_name: "archiveResolver"
-  field :signature_resolver, 5, type: :string, json_name: "signatureResolver"
-  field :archive_subdir, 6, type: :string, json_name: "archiveSubdir"
-  field :store_path, 7, type: :string, json_name: "storePath"
-  field :tricorder_url, 8, type: :string, json_name: "tricorderUrl"
+  field(:name, 1, type: :string)
+  field(:version, 2, type: :string)
+  field(:url, 3, type: :string)
+  field(:archive_resolver, 4, type: :string, json_name: "archiveResolver")
+  field(:signature_resolver, 5, type: :string, json_name: "signatureResolver")
+  field(:archive_subdir, 6, type: :string, json_name: "archiveSubdir")
+  field(:store_path, 7, type: :string, json_name: "storePath")
+  field(:tricorder_url, 8, type: :string, json_name: "tricorderUrl")
 end

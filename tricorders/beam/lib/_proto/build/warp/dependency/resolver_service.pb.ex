@@ -33,13 +33,17 @@ defmodule Build.Warp.Dependency.ResolverService.Service do
     }
   end
 
-  rpc :ResolveDependency,
-      Build.Warp.Dependency.ResolveDependencyRequest,
-      Build.Warp.Dependency.ResolveDependencyResponse
+  rpc(
+    :ResolveDependency,
+    Build.Warp.Dependency.ResolveDependencyRequest,
+    Build.Warp.Dependency.ResolveDependencyResponse
+  )
 
-  rpc :PrepareDependency,
-      Build.Warp.Dependency.PrepareDependencyRequest,
-      Build.Warp.Dependency.PrepareDependencyResponse
+  rpc(
+    :PrepareDependency,
+    Build.Warp.Dependency.PrepareDependencyRequest,
+    Build.Warp.Dependency.PrepareDependencyResponse
+  )
 end
 
 defmodule Build.Warp.Dependency.ResolverService.Stub do

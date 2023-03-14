@@ -48,6 +48,6 @@ defmodule Build.Warp.Codedb.GetDependenciesRequest do
     }
   end
 
-  field :workspace_root, 1, type: :string, json_name: "workspaceRoot"
-  field :profiles, 2, repeated: true, type: :string
+  field(:workspace_root, 1, type: :string, json_name: "workspaceRoot")
+  field(:profiles, 2, repeated: true, type: :string)
 end

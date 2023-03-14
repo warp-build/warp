@@ -48,6 +48,6 @@ defmodule Build.Warp.Dependency.PrepareDependencyResponse do
     }
   end
 
-  field :status, 1, type: Build.Warp.Status, enum: true
-  field :signatures, 2, repeated: true, type: Build.Warp.Signature
+  field(:status, 1, type: Build.Warp.Status, enum: true)
+  field(:signatures, 2, repeated: true, type: Build.Warp.Signature)
 end
