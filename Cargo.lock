@@ -807,30 +807,7 @@ version = "0.91.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5290ad8855794d107dd7faa325f3e0e6f7f9a161205203aa0c1658f9c8852425"
 dependencies = [
- "deno_core 0.173.0",
-]
-
-[[package]]
-name = "deno_core"
-version = "0.154.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "331ae850b67e3f620ded03a3fc7ea2a45971bd7963d18920a1de75b42437b60c"
-dependencies = [
- "anyhow",
- "deno_ops 0.32.0",
- "futures",
- "indexmap",
- "libc",
- "log",
- "once_cell",
- "parking_lot",
- "pin-project",
- "serde",
- "serde_json",
- "serde_v8 0.65.0",
- "sourcemap",
- "url",
- "v8 0.51.0",
+ "deno_core",
 ]
 
 [[package]]
@@ -841,7 +818,7 @@ checksum = "e3f5ea1db875ff1eb020c04b900f75c810a9b66deec4a5437205b868bff9a7df"
 dependencies = [
  "anyhow",
  "bytes 1.2.1",
- "deno_ops 0.51.0",
+ "deno_ops",
  "futures",
  "indexmap",
  "libc",
@@ -851,25 +828,11 @@ dependencies = [
  "pin-project",
  "serde",
  "serde_json",
- "serde_v8 0.84.0",
+ "serde_v8",
  "smallvec",
  "sourcemap",
  "url",
  "v8 0.63.0",
-]
-
-[[package]]
-name = "deno_ops"
-version = "0.32.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01f25d921f71574df947348d47f3fc824379974bd9248bcca7bde043607a04ba"
-dependencies = [
- "once_cell",
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "regex",
- "syn",
 ]
 
 [[package]]
@@ -2946,20 +2909,6 @@ dependencies = [
 
 [[package]]
 name = "serde_v8"
-version = "0.65.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79914ff59fe9f3b58e68da7017b6869d1c951d4c826ad457d4975b292451798c"
-dependencies = [
- "bytes 1.2.1",
- "derive_more",
- "serde",
- "serde_bytes",
- "smallvec",
- "v8 0.51.0",
-]
-
-[[package]]
-name = "serde_v8"
 version = "0.84.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94c6b0ea68c2368070520883b5caac9b5bff17597cfac77aebc07280e8585f7f"
@@ -3618,7 +3567,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cc",
- "deno_core 0.154.0",
  "insta",
  "lsp-server",
  "prettyplease",
@@ -3717,19 +3665,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "v8"
-version = "0.51.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e72791f754a6517e86d88e4521baad3a7d428ce54e266ba560b8747b2a99b946"
-dependencies = [
- "bitflags",
- "fslock",
- "lazy_static",
- "libc",
- "which",
 ]
 
 [[package]]
@@ -3875,7 +3810,7 @@ dependencies = [
  "daggy",
  "dashmap",
  "deno_console",
- "deno_core 0.173.0",
+ "deno_core",
  "derive_builder",
  "dir-diff",
  "directories",
