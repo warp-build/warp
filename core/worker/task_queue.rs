@@ -333,7 +333,8 @@ mod tests {
         let task = Task::new(goal, target_id);
 
         let manifest = ArtifactManifest::default();
-        let target = ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into());
+        let target =
+            ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into(), "".into());
         let spec = ExecutableSpec::builder()
             .goal(goal)
             .target(target.clone())
@@ -361,7 +362,8 @@ mod tests {
         assert_matches!(q.queue(task), Ok(QueuedTask::Queued));
 
         let manifest = ArtifactManifest::default();
-        let target = ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into());
+        let target =
+            ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into(), "".into());
         let spec = ExecutableSpec::builder()
             .goal(goal)
             .target(target.clone())

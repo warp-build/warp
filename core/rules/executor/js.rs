@@ -333,7 +333,7 @@ mod tests {
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
         let target_id = target_registry.register_target(&target);
-        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into());
+        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into(), ".".into());
 
         let mut config = rule::Config::default();
         config.insert("name".into(), Value::Target((*target).clone()));
@@ -411,7 +411,7 @@ mod tests {
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
         let target_id = target_registry.register_target(&target);
-        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into());
+        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into(), ".".into());
 
         let mut config = rule::Config::default();
         config.insert("name".into(), Value::Target((*target).clone()));
@@ -484,7 +484,7 @@ mod tests {
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
         let target_id = target_registry.register_target(&target);
-        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into());
+        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into(), ".".into());
 
         let mut config = rule::Config::default();
         config.insert("name".into(), Value::Target((*target).clone()));
@@ -568,7 +568,7 @@ mod tests {
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
         let target_id = target_registry.register_target(&target);
-        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into());
+        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into(), ".".into());
 
         let mut config = rule::Config::default();
         config.insert("name".into(), Value::Target((*target).clone()));
@@ -658,7 +658,7 @@ mod tests {
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
         let target_id = target_registry.register_target(&target);
-        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into());
+        let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into(), ".".into());
 
         let mut config = rule::Config::default();
         config.insert("name".into(), Value::Target((*target).clone()));

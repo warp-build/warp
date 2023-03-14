@@ -236,7 +236,7 @@ mod tests {
         let t: Target = path.as_path().into();
         let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
-        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path);
+        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
         mgr.find_and_ready(&ct).await.unwrap();
 
         assert!(warp_root.child("store/a-hash/tricorder.exe").exists());
@@ -310,7 +310,7 @@ mod tests {
         let t: Target = path.as_path().into();
         let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
-        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path);
+        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
         let err = mgr.find_and_ready(&ct).await.unwrap_err();
 
         assert_matches!(
@@ -392,7 +392,7 @@ mod tests {
         let t: Target = path.as_path().into();
         let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
-        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path);
+        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
         let err = mgr.find_and_ready(&ct).await.unwrap_err();
 
         assert_matches!(
@@ -474,7 +474,7 @@ mod tests {
         let t: Target = path.as_path().into();
         let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
-        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path);
+        let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
         let err = mgr.find_and_ready(&ct).await.unwrap_err();
 
         assert_matches!(

@@ -41,7 +41,13 @@ setup.local: setup
 	cargo install hyperfine cargo-strip cargo-insta mdbook flamegraph miri cargo-asm
 
 .PHONY: test
-test: test.tricorder test.unit test.conc
+test: test.tricorder test.unit test.conc test.beam
+
+.PHONY: test.beam
+test.beam:
+	cd tricorders/beam \
+		&& mix deps.get
+		&& mix test
 
 .PHONY: test.tricorder
 test.tricorder:

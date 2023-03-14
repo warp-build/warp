@@ -168,7 +168,7 @@ mod tests {
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
         let target_id = ctx.target_registry.register_target(&target);
-        let target = ConcreteTarget::new(goal, target_id, target, "".into());
+        let target = ConcreteTarget::new(goal, target_id, target, "".into(), ".".into());
 
         let sig = Signature::builder()
             .rule("test_rule".into())
@@ -197,11 +197,12 @@ mod tests {
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
         let target_id = ctx.target_registry.register_target(&target);
-        let target = ConcreteTarget::new(goal, target_id, target, "".into());
+        let target = ConcreteTarget::new(goal, target_id, target, "".into(), ".".into());
 
         let dep_target = Arc::new("./my/dep.ex".into());
         let dep_target_id = ctx.target_registry.register_target(&dep_target);
-        let dep_target = ConcreteTarget::new(goal, dep_target_id, dep_target, "".into());
+        let dep_target =
+            ConcreteTarget::new(goal, dep_target_id, dep_target, "".into(), ".".into());
 
         let env = ExecutionEnvironment::default();
         let dep_spec = ExecutableSpec::builder()
@@ -250,7 +251,7 @@ mod tests {
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
         let target_id = ctx.target_registry.register_target(&target);
-        let target = ConcreteTarget::new(goal, target_id, target, "".into());
+        let target = ConcreteTarget::new(goal, target_id, target, "".into(), ".".into());
 
         let sig = Signature::builder()
             .rule("test_rule".into())

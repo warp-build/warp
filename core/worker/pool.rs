@@ -277,7 +277,13 @@ mod tests {
         let ctx = FixtureContext {
             goal: Goal::Build,
             target_id,
-            target: ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into()),
+            target: ConcreteTarget::new(
+                Goal::Build,
+                target_id,
+                target.into(),
+                "".into(),
+                "".into(),
+            ),
             task_results: Arc::new(TaskResults::new(target_registry.clone())),
             env: Default::default(),
         };

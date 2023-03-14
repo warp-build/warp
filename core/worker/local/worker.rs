@@ -521,7 +521,7 @@ mod tests {
                 target_id: TargetId,
                 target: Arc<Target>,
             ) -> Result<ResolutionFlow, ResolverError> {
-                let target = ConcreteTarget::new(goal, target_id, target, "".into());
+                let target = ConcreteTarget::new(goal, target_id, target, "".into(), "".into());
                 let signature = Signature::builder()
                     .rule("dummy_rule".into())
                     .target(target)
