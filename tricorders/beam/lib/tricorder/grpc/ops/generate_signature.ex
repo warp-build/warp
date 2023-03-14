@@ -2,11 +2,13 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
   require Logger
 
   alias Tricorder.Analysis
+  alias Tricorder.Deps
 
   def generate_signature(req, stream) do
     Logger.info("Analyzing: #{req.file}")
 
     with {:ok, response} <- do_generate_signature(req) do
+      Logger.info("Response: #{inspect(response)}")
       Build.Warp.Tricorder.GenerateSignatureResponse.new(response: response)
     end
   end
@@ -17,6 +19,10 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
         req.file,
         Enum.map(req.dependencies, fn req -> req.store_path end)
       )
+
+    deps = Deps.scan(req.workspace_root)
+
+    Logger.info("Found deps: #{inspect(deps)}")
 
     cond do
       Path.basename(req.file) in ["mix.exs"] ->
@@ -63,10 +69,10 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
       end)
 
     resp =
-      Build.Warp.Codedb.GenerateSignatureMissingDepsResponse.new(
+      Build.Warp.Tricorder.GenerateSignatureMissingDepsResponse.new(
         file: req.file,
         symbol: req.symbol,
-        dependencies: includes ++ modules
+        requirements: includes ++ modules
       )
 
     {:missing_deps, resp}
@@ -167,7 +173,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
       end)
 
     {:ok,
-     Build.Warp.Codedb.GenerateSignatureSuccessResponse.new(
+     Build.Warp.Tricorder.GenerateSignatureSuccessResponse.new(
        file: req.file,
        signatures: signatures
      )}
@@ -195,7 +201,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     ]
 
     {:ok,
-     Build.Warp.Codedb.GenerateSignatureSuccessResponse.new(
+     Build.Warp.Tricorder.GenerateSignatureSuccessResponse.new(
        file: req.file,
        signatures: signatures
      )}
@@ -226,7 +232,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     ]
 
     {:ok,
-     Build.Warp.Codedb.GenerateSignatureSuccessResponse.new(
+     Build.Warp.Tricorder.GenerateSignatureSuccessResponse.new(
        file: req.file,
        signatures: signatures
      )}

@@ -1,4 +1,6 @@
 defmodule Tricorder.Analysis.Erlang.Ast do
+  require Logger
+
   def parse(file, include_paths) do
     {:ok, ast} = :epp.parse_file(:binary.bin_to_list(file), includes: include_paths)
 
