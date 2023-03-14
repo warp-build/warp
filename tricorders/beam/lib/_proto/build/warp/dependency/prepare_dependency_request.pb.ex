@@ -76,8 +76,8 @@ defmodule Build.Warp.Dependency.PrepareDependencyRequest do
     }
   end
 
-  field(:package_root, 1, type: :string, json_name: "packageRoot")
-  field(:url, 2, type: :string)
-  field(:version, 3, type: :string)
-  field(:package_name, 4, type: :string, json_name: "packageName")
+  field :package_root, 1, type: :string, json_name: "packageRoot"
+  field :url, 2, type: :string
+  field :version, 3, type: :string
+  field :package_name, 4, type: :string, json_name: "packageName"
 end

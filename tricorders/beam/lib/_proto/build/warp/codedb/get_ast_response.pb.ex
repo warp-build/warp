@@ -54,13 +54,12 @@ defmodule Build.Warp.Codedb.GetAstResponse do
     }
   end
 
-  oneof(:response, 0)
+  oneof :response, 0
 
-  field(:ok, 1, type: Build.Warp.Codedb.GetAstSuccessResponse, oneof: 0)
+  field :ok, 1, type: Build.Warp.Codedb.GetAstSuccessResponse, oneof: 0
 
-  field(:missing_deps, 3,
+  field :missing_deps, 3,
     type: Build.Warp.Codedb.GetAstMissingDepsResponse,
     json_name: "missingDeps",
     oneof: 0
-  )
 end

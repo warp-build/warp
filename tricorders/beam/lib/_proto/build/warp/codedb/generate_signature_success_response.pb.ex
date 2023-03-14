@@ -76,8 +76,8 @@ defmodule Build.Warp.Codedb.GenerateSignatureSuccessResponse do
     }
   end
 
-  field(:status, 1, type: Build.Warp.Status, enum: true)
-  field(:file, 2, type: :string)
-  field(:json_signature, 3, type: :string, json_name: "jsonSignature")
-  field(:signatures, 4, repeated: true, type: Build.Warp.Signature)
+  field :status, 1, type: Build.Warp.Status, enum: true
+  field :file, 2, type: :string
+  field :json_signature, 3, type: :string, json_name: "jsonSignature"
+  field :signatures, 4, repeated: true, type: Build.Warp.Signature
 end

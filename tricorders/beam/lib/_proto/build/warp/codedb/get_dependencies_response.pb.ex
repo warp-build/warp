@@ -48,6 +48,6 @@ defmodule Build.Warp.Codedb.GetDependenciesResponse do
     }
   end
 
-  field(:status, 1, type: Build.Warp.Status, enum: true)
-  field(:dependencies, 2, repeated: true, type: Build.Warp.Dependency)
+  field :status, 1, type: Build.Warp.Status, enum: true
+  field :dependencies, 2, repeated: true, type: Build.Warp.Dependency
 end

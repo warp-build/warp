@@ -76,6 +76,9 @@ pub struct DependencyRequirement {
     /// of the archive.
     #[prost(string, tag = "5")]
     pub signature_resolver: ::prost::alloc::string::String,
+    /// The URL of the Tricorder that should be used to handle this dependency.
+    #[prost(string, tag = "6")]
+    pub tricorder_url: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -120,9 +123,12 @@ pub struct Dependency {
     /// NOTE(@ostera): allow specifying a subdir within a larger archive
     #[prost(string, tag = "6")]
     pub archive_subdir: ::prost::alloc::string::String,
-    ///
+    /// The exact location of this dependency in the machine it is being executed.
     #[prost(string, tag = "7")]
     pub store_path: ::prost::alloc::string::String,
+    /// The URL of the Tricorder that should be used to handle this dependency.
+    #[prost(string, tag = "8")]
+    pub tricorder_url: ::prost::alloc::string::String,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]

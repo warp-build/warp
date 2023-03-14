@@ -55,6 +55,9 @@ message DependencyRequirement {
   // this resolver label will be used to generate a signature for the contents
   // of the archive.
   string signature_resolver = 5;
+
+  // The URL of the Tricorder that should be used to handle this dependency.
+  string tricorder_url = 6;
 }
 
 message Requirement {
@@ -85,8 +88,11 @@ message Dependency {
   // NOTE(@ostera): allow specifying a subdir within a larger archive
   string archive_subdir = 6;
 
-  // 
+  // The exact location of this dependency in the machine it is being executed.
   string store_path = 7;
+
+  // The URL of the Tricorder that should be used to handle this dependency.
+  string tricorder_url = 8;
 }
 
 

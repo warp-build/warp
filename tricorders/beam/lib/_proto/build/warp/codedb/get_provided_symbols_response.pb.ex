@@ -62,7 +62,7 @@ defmodule Build.Warp.Codedb.GetProvidedSymbolsResponse do
     }
   end
 
-  field(:skipped, 1, type: :bool)
-  field(:file, 2, type: :string)
-  field(:provides, 3, repeated: true, type: Build.Warp.Requirement)
+  field :skipped, 1, type: :bool
+  field :file, 2, type: :string
+  field :provides, 3, repeated: true, type: Build.Warp.Requirement
 end

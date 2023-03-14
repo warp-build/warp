@@ -33,7 +33,7 @@ defmodule Build.Warp.Status do
     }
   end
 
-  field(:STATUS_UNKNOWN, 0)
-  field(:STATUS_OK, 1)
-  field(:STATUS_ERR, 2)
+  field :STATUS_UNKNOWN, 0
+  field :STATUS_OK, 1
+  field :STATUS_ERR, 2
 end

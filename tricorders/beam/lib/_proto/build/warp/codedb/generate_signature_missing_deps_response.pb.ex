@@ -62,7 +62,7 @@ defmodule Build.Warp.Codedb.GenerateSignatureMissingDepsResponse do
     }
   end
 
-  field(:file, 1, type: :string)
-  field(:symbol, 2, type: Build.Warp.Symbol)
-  field(:dependencies, 3, repeated: true, type: Build.Warp.Requirement)
+  field :file, 1, type: :string
+  field :symbol, 2, type: Build.Warp.Symbol
+  field :dependencies, 3, repeated: true, type: Build.Warp.Requirement
 end

@@ -22,6 +22,7 @@ impl AnalyzerService for AnalyzerServiceImpl {
                 signature_resolver: "test".to_string(),
                 archive_subdir: "test".to_string(),
                 store_path: "test".to_string(),
+                tricorder_url: "https://warp.test/tricorder".to_string(),
             }],
         };
         Ok(Response::new(response))

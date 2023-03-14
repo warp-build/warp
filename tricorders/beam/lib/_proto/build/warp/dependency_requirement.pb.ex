@@ -79,6 +79,20 @@ defmodule Build.Warp.DependencyRequirement do
           proto3_optional: nil,
           type: :TYPE_STRING,
           type_name: nil
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          __unknown_fields__: [],
+          default_value: nil,
+          extendee: nil,
+          json_name: "tricorderUrl",
+          label: :LABEL_OPTIONAL,
+          name: "tricorder_url",
+          number: 6,
+          oneof_index: nil,
+          options: nil,
+          proto3_optional: nil,
+          type: :TYPE_STRING,
+          type_name: nil
         }
       ],
       name: "DependencyRequirement",
@@ -90,9 +104,10 @@ defmodule Build.Warp.DependencyRequirement do
     }
   end
 
-  field(:name, 1, type: :string)
-  field(:version, 2, type: :string)
-  field(:url, 3, type: :string)
-  field(:archive_resolver, 4, type: :string, json_name: "archiveResolver")
-  field(:signature_resolver, 5, type: :string, json_name: "signatureResolver")
+  field :name, 1, type: :string
+  field :version, 2, type: :string
+  field :url, 3, type: :string
+  field :archive_resolver, 4, type: :string, json_name: "archiveResolver"
+  field :signature_resolver, 5, type: :string, json_name: "signatureResolver"
+  field :tricorder_url, 6, type: :string, json_name: "tricorderUrl"
 end
