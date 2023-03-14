@@ -1,6 +1,7 @@
-use crate::proto::build::warp::codedb::*;
+use crate::proto::build::warp::tricorder::*;
 use crate::proto::build::warp::symbol::Sym::*;
 use crate::proto::build::warp::{Dependency, Symbol};
+use crate::proto::build::warp::tricorder::get_ast_response::Response as AstResponse;
 use std::path::Path;
 pub(crate) use thiserror::*;
 use tokio::fs;
@@ -67,7 +68,7 @@ impl GetAst {
             })
             .unwrap();
 
-        crate::proto::build::warp::codedb::get_ast_response::Response::Ok(GetAstSuccessResponse {
+        AstResponse::Ok(GetAstSuccessResponse {
             file: file.to_string(),
             symbol: Some(Symbol {
                 sym: Some(All(true)),
@@ -91,7 +92,7 @@ impl GetAst {
             .unwrap();
 
         let (ast, src) = TreeSplitter::tree_split(symbol_name, &source);
-        crate::proto::build::warp::codedb::get_ast_response::Response::Ok(GetAstSuccessResponse {
+        AstResponse::Ok(GetAstSuccessResponse {
             file: file.to_string(),
             symbol: Some(Symbol {
                 sym: Some(Named(symbol_name.to_string())),

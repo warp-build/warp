@@ -12,9 +12,8 @@ fn main() {
         .compile_well_known_types(true)
         .compile(
             &[
-                "./protos/schemas/build/warp/codedb/analyzer.proto",
-                "./protos/schemas/build/warp/resolver.proto",
                 "./protos/schemas/build/warp/common.proto",
+				"./protos/schemas/build/warp/tricorder.proto",
             ],
             &["./protos"],
         )

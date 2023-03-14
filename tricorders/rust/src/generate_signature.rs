@@ -1,5 +1,7 @@
-use crate::proto::build::warp::codedb::*;
-use crate::proto::build::warp::Signature;
+use crate::proto::build::warp::{tricorder::*, Symbol};
+use crate::proto::build::warp::tricorder::generate_signature_response::Response as SigResponse;
+use crate::proto::build::warp::{Signature};
+use crate::proto::build::warp::symbol::Sym::All;
 use crate::rs_generate_signature::*;
 use std::path::{Path, PathBuf};
 use thiserror::*;
@@ -49,16 +51,18 @@ impl GenerateSignature {
         _code_paths: Vec<PathBuf>,
         signatures: Vec<Signature>,
     ) -> Result<
-        crate::proto::build::warp::codedb::generate_signature_response::Response,
+        SigResponse,
         GenerateSignatureError,
     > {
         Ok(
-            crate::proto::build::warp::codedb::generate_signature_response::Response::Ok(
+            SigResponse::Ok(
                 GenerateSignatureSuccessResponse {
-                    status: 1,
+					workspace_root: "".to_string(),
                     file: request.file,
+					symbol: Some(Symbol {
+						sym: Some(All(true)),
+					}),
                     signatures: signatures.clone(),
-                    json_signature: format!("{:#?}", signatures),
                 },
             ),
         )
