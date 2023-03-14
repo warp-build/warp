@@ -128,12 +128,14 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
             SignatureGenerationFlow::MissingRequirements { requirements } => {
                 let mut deps = vec![];
                 for req in requirements {
-                    match req {
-                        Requirement::File(_) => todo!(),
-                        Requirement::Symbol(_) => todo!(),
-                        Requirement::Url(_) => todo!(),
-                        Requirement::Dependency(_) => todo!(),
-                    }
+                    let target: Target = match req {
+                        Requirement::File { path } => path.into(),
+                        Requirement::Url { url } => url.into(),
+                        Requirement::Symbol { .. } => unimplemented!(),
+                        Requirement::Dependency { url, .. } => url.into(),
+                    };
+                    let target_id = self.target_registry.register_target(target);
+                    deps.push(target_id)
                 }
                 Ok(ResolutionFlow::MissingDeps { deps })
             }

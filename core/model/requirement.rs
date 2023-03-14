@@ -8,32 +8,23 @@ use url::Url;
 ///
 #[derive(Debug, Clone)]
 pub enum Requirement {
-    File(FileRequirement),
-    Symbol(SymbolRequirement),
-    Url(UrlRequirement),
-    Dependency(DependencyRequirement),
-}
+    File {
+        path: PathBuf,
+    },
 
-#[derive(Debug, Clone)]
-pub struct FileRequirement {
-    path: PathBuf,
-}
+    Symbol {
+        raw: String,
+        kind: String,
+    },
 
-#[derive(Debug, Clone)]
-pub struct SymbolRequirement {
-    raw: String,
-    kind: String,
-}
+    Url {
+        url: Url,
+    },
 
-#[derive(Debug, Clone)]
-pub struct UrlRequirement {
-    url: Url,
-}
-
-#[derive(Debug, Clone)]
-pub struct DependencyRequirement {
-    name: String,
-    version: String,
-    url: Url,
-    tricorder: Url,
+    Dependency {
+        name: String,
+        version: String,
+        url: Url,
+        tricorder: Url,
+    },
 }

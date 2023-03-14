@@ -1,9 +1,10 @@
 use self::proto::build::warp::tricorder::generate_signature_response::Response;
 use self::proto::build::warp::tricorder::EnsureReadyRequest;
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
-use crate::model::{rule, ConcreteTarget, Signature, SignatureError};
+use crate::model::{rule, ConcreteTarget, Requirement, Signature, SignatureError};
 use async_trait::async_trait;
 use tracing::instrument;
+use url::Url;
 
 /// Protobuf generated code.
 mod proto {
@@ -85,9 +86,43 @@ impl Tricorder for GrpcTricorder {
                 }
                 Ok(SignatureGenerationFlow::GeneratedSignatures { signatures })
             }
-            Response::MissingDeps(_) => Ok(SignatureGenerationFlow::MissingRequirements {
-                requirements: vec![],
-            }),
+            Response::MissingDeps(res) => {
+                let mut requirements = vec![];
+
+                dbg!(&res);
+                for req in res.requirements {
+                    let req = match req.requirement.unwrap() {
+                        proto::build::warp::requirement::Requirement::File(file) => {
+                            Requirement::File {
+                                path: file.path.into(),
+                            }
+                        }
+                        proto::build::warp::requirement::Requirement::Symbol(sym) => {
+                            Requirement::Symbol {
+                                raw: sym.raw,
+                                kind: sym.kind,
+                            }
+                        }
+                        proto::build::warp::requirement::Requirement::Url(url) => {
+                            Requirement::Url {
+                                url: url.url.parse::<Url>().unwrap(),
+                            }
+                        }
+                        proto::build::warp::requirement::Requirement::Dependency(dep) => {
+                            Requirement::Dependency {
+                                name: dep.name,
+                                version: dep.version,
+                                url: dep.url.parse::<Url>().unwrap(),
+                                tricorder: dep.tricorder_url.parse::<Url>().unwrap(),
+                            }
+                        }
+                    };
+                    requirements.push(req)
+                }
+                dbg!(&requirements);
+
+                Ok(SignatureGenerationFlow::MissingRequirements { requirements })
+            }
         }
     }
 }
