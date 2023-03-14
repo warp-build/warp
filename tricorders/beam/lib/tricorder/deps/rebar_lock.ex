@@ -7,5 +7,5 @@ defmodule Tricorder.Deps.RebarLock do
     end
   end
 
-  def clean({name, spec, _}), do: {name, Tricorder.Deps.Spec.parse(spec)}
+  def clean({name, spec, _}), do: {String.to_atom(name), Tricorder.Deps.Spec.parse(spec)}
 end
