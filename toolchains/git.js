@@ -47,4 +47,8 @@ export default Warp.Toolchain({
     sha1: string(),
     version: string(),
   },
+  defaults: {
+    sha1: "fc5107c0cc41fc7ee870c360d67517cd0ee26d17",
+    version: "2.38.1",
+  },
 });
