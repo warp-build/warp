@@ -56,7 +56,10 @@ impl Tricorder for GrpcTricorder {
         concrete_target: &ConcreteTarget,
     ) -> Result<SignatureGenerationFlow, TricorderError> {
         let request = proto::build::warp::tricorder::GenerateSignatureRequest {
-            workspace_root: Default::default(),
+            workspace_root: concrete_target
+                .workspace_root()
+                .to_string_lossy()
+                .to_string(),
             file: concrete_target.path().to_string_lossy().to_string(),
             symbol: None,
             dependencies: vec![],

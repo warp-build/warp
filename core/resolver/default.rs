@@ -60,7 +60,14 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             final_path
         };
 
-        let ct = ConcreteTarget::new(goal, target_id, target, final_path);
+        let ct = ConcreteTarget::new(
+            goal,
+            target_id,
+            target,
+            final_path,
+            workspace.root().to_path_buf(),
+        );
+
         Ok(self
             .target_registry
             .associate_concrete_target(target_id, ct))
@@ -201,7 +208,13 @@ impl ToolchainSignatures {
 
     fn rule_target_signature(&self, target_id: TargetId, target: Arc<Target>) -> Signature {
         let rule = target.url().unwrap().to_string();
-        let target = ConcreteTarget::new(Goal::Build, target_id, target, PathBuf::new());
+        let target = ConcreteTarget::new(
+            Goal::Build,
+            target_id,
+            target,
+            PathBuf::new(),
+            PathBuf::new(),
+        );
         Signature::builder()
             .target(target)
             .rule(rule)

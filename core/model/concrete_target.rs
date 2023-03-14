@@ -1,20 +1,17 @@
 use super::{Goal, Target, TargetId};
 use crate::sync::*;
-use std::{
-    borrow::Cow,
-    path::{Path, PathBuf},
-};
-use tracing::instrument;
+use std::path::{Path, PathBuf};
 
 static CURRENT_DIR: &str = ".";
 
 /// A ConcreteTarget is a target that has gone through the first phase of resolution.
 ///
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Builder, Clone, Debug, PartialEq, Eq)]
 pub struct ConcreteTarget {
     target_id: TargetId,
     original_target: Arc<Target>,
     path: PathBuf,
+    workspace_root: PathBuf,
     goal: Goal,
     deps: Vec<TargetId>,
 }
@@ -25,6 +22,7 @@ impl ConcreteTarget {
         target_id: TargetId,
         original_target: Arc<Target>,
         path: PathBuf,
+        workspace_root: PathBuf,
     ) -> Self {
         Self {
             deps: original_target.deps().to_vec(),
@@ -32,6 +30,7 @@ impl ConcreteTarget {
             target_id,
             path,
             goal,
+            workspace_root,
         }
     }
 
@@ -63,6 +62,10 @@ impl ConcreteTarget {
     pub fn target_id(&self) -> TargetId {
         self.target_id
     }
+
+    pub fn workspace_root(&self) -> &PathBuf {
+        &self.workspace_root
+    }
 }
 
 impl ToString for ConcreteTarget {
@@ -87,6 +90,7 @@ mod tests {
             TargetId::next(),
             Arc::new(target.path().to_path_buf().into()),
             target.path().to_path_buf(),
+            root.path().to_path_buf(),
         );
         assert_eq!(ct.dir(), root.path());
     }
@@ -98,6 +102,7 @@ mod tests {
             TargetId::next(),
             Arc::new("./docs.ex".into()),
             "./docs.ex".into(),
+            PathBuf::new(),
         );
         assert!(!ct.dir().to_string_lossy().is_empty());
     }
