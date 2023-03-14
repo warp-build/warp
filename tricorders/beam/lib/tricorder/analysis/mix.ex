@@ -7,8 +7,8 @@ defmodule Tricorder.Analysis.Mix do
 
     name = mod.project()[:app] |> Atom.to_string()
 
-    :code.delete(mod)
-    :code.purge(mod)
+    true = :code.delete(mod)
+    true = :code.purge(mod)
     false = :code.is_loaded(mod)
 
     signature = Signatures.mix_escript(name, file)
