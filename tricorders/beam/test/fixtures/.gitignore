@@ -1,2 +1,4 @@
+/deps/
+/_build/
 /test/
 *_test.ex

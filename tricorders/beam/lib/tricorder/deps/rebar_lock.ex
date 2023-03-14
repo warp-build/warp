@@ -3,7 +3,7 @@ defmodule Tricorder.Deps.RebarLock do
     with {:ok, [{'1.2.0', deps} | _]} <- :file.consult(file) do
       deps |> Enum.map(&clean/1) |> Enum.into(%{})
     else
-      _ -> []
+      _ -> %{}
     end
   end
 

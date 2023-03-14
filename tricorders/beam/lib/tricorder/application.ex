@@ -12,7 +12,14 @@ defmodule Tricorder.Application do
     children =
       if Application.get_env(:tricorder, :start_server, false) do
         port = Application.get_env(:tricorder, :grpc_port) |> String.to_integer()
-        [{GRPC.Server.Supervisor, {Tricorder.Grpc.Endpoint, port}}]
+
+        [
+          {GRPC.Server.Supervisor, {Tricorder.Grpc.Endpoint, port}},
+          %{
+            id: Tricorder.Deps.Server,
+            start: {Tricorder.Deps.Server, :start_link, ["."]}
+          }
+        ]
       else
         []
       end

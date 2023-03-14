@@ -1,4 +1,6 @@
 defmodule Gitignore do
+  require Logger
+
   defstruct [:root, :patterns]
 
   @gitignore ".gitignore"
@@ -34,7 +36,8 @@ defmodule Gitignore do
 
   defp parse(src) do
     lines = String.split(src, "\n", trim: true, parts: :infinity)
-    parse(lines, [])
+    {:ok, dotgit} = :glob.compile("*/.git/*")
+    parse(lines, [dotgit])
   end
 
   defp parse([], acc), do: acc
@@ -43,11 +46,18 @@ defmodule Gitignore do
     if String.starts_with?(line, @hash) do
       parse(lines, acc)
     else
-      lien =
-        if String.starts_with?("/", line) do
+      line =
+        if String.starts_with?(line, "/") do
           ".#{line}"
         else
           line
+        end
+
+      line =
+        if String.ends_with?(line, "/") do
+          "#{line}*"
+        else
+          "*#{line}*"
         end
 
       {:ok, glob} = :glob.compile(line)
@@ -55,30 +65,30 @@ defmodule Gitignore do
     end
   end
 
-  def find(gitignore, root, pattern, on_match) do
-    do_find([root], root, pattern, on_match, gitignore, [])
+  def find(gitignore, root, fun) do
+    do_find([root], root, fun, gitignore, [])
   end
 
-  defp do_find([], _, _, _, _, acc), do: acc
+  defp do_find([], _, _, _, acc), do: acc
 
-  defp do_find([file | files], root, pattern, on_match, gitignore, acc) do
+  defp do_find([file | files], root, fun, gitignore, acc) do
     # if we match the gitignore we skip things
     if Gitignore.should_ignore?(gitignore, file) do
-      do_find(files, root, pattern, on_match, gitignore, acc)
+      do_find(files, root, fun, gitignore, acc)
     else
       # if this file is a dir, we recurse
       if File.dir?(file) do
         {:ok, more_files} = File.ls(file)
         more_files = more_files |> Enum.map(&Path.join(file, &1))
         files = List.flatten(files ++ more_files)
-        do_find(files, root, pattern, on_match, gitignore, acc)
+        do_find(files, root, fun, gitignore, acc)
       else
-        if String.ends_with?(file, pattern) do
-          # if this isn't ignored, and isn't a dir, we handle it
-          acc = [on_match.(file) | acc]
-          do_find(files, root, pattern, on_match, gitignore, acc)
-        else
-          do_find(files, root, pattern, on_match, gitignore, acc)
+        case fun.(file) do
+          {:keep, file} ->
+            do_find(files, root, fun, gitignore, [file | acc])
+
+          :skip ->
+            do_find(files, root, fun, gitignore, acc)
         end
       end
     end

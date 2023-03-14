@@ -20,10 +20,6 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
         Enum.map(req.dependencies, fn req -> req.store_path end)
       )
 
-    deps = Deps.scan(req.workspace_root)
-
-    Logger.info("Found deps: #{inspect(deps)}")
-
     cond do
       Path.basename(req.file) in ["mix.exs"] ->
         {:ok, analysis} = Analysis.Mix.analyze(req.file, paths)

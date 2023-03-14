@@ -9,6 +9,8 @@ defmodule Tricorder.CLI do
     :ok = Application.stop(:tricorder)
     {:ok, _} = Application.ensure_all_started(:tricorder)
 
+    Tricorder.Deps.scan()
+
     loop()
   end
 
