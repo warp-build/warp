@@ -8,15 +8,29 @@ static CURRENT_DIR: &str = ".";
 ///
 #[derive(Builder, Clone, Debug, PartialEq, Eq)]
 pub struct ConcreteTarget {
-    target_id: TargetId,
-    original_target: Arc<Target>,
-    path: PathBuf,
-    workspace_root: PathBuf,
     goal: Goal,
+
+    #[builder(setter(into))]
+    target_id: TargetId,
+
+    #[builder(setter(name = "target"))]
+    original_target: Arc<Target>,
+
+    #[builder(setter(into))]
+    path: PathBuf,
+
+    #[builder(setter(into))]
+    workspace_root: PathBuf,
+
+    #[builder(default, setter(into))]
     deps: Vec<TargetId>,
 }
 
 impl ConcreteTarget {
+    pub fn builder() -> ConcreteTargetBuilder {
+        Default::default()
+    }
+
     pub fn new(
         goal: Goal,
         target_id: TargetId,
