@@ -1,4 +1,3 @@
-use crate::store::ManifestUrl;
 use crate::{sync::*, Config};
 use fxhash::FxHashMap;
 use std::path::{Path, PathBuf};
@@ -30,14 +29,7 @@ impl TricorderRegistry {
                 format!("{default_host}tricorder/beam/manifest.json")
                     .parse::<Url>()
                     .unwrap(),
-                vec![
-                    "ex",
-                    "exs",
-                    "erl",
-                    "hrl",
-                    "rebar.config",
-                    "erl.mk",
-                ],
+                vec!["ex", "exs", "erl", "hrl", "rebar.config", "erl.mk"],
             ),
             (
                 format!("{default_host}tricorder/rust/manifest.json")
@@ -60,7 +52,7 @@ impl TricorderRegistry {
     }
 
     #[tracing::instrument(name = "TricorderRegistry::find_by_path", skip(self), ret)]
-    pub fn find_by_path(&self, path: &Path) -> Result<Option<ManifestUrl>, TricorderRegistryError> {
+    pub fn find_by_path(&self, path: &Path) -> Result<Option<Url>, TricorderRegistryError> {
         if let Some(ext) = path.extension() {
             if let Some(url) = self.find_tricorder(ext.to_str().unwrap()) {
                 return Ok(Some(url));
@@ -76,7 +68,7 @@ impl TricorderRegistry {
         Ok(None)
     }
 
-    fn find_tricorder(&self, name: &str) -> Option<ManifestUrl> {
+    fn find_tricorder(&self, name: &str) -> Option<Url> {
         if let Some(tricorder) = self.tricorders.get(name) {
             let tricorder = tricorder.clone();
             let tricorder = (*tricorder).clone();
@@ -108,11 +100,9 @@ mod tests {
 
         assert_eq!(
             url,
-            ManifestUrl::new(
-                "https://store.warp.build/tricorder/rust/manifest.json"
-                    .parse()
-                    .unwrap()
-            )
+            "https://store.warp.build/tricorder/rust/manifest.json"
+                .parse()
+                .unwrap()
         );
     }
 }

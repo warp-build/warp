@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use super::MANIFEST_FILE;
 use super::{
-    ArtifactId, ArtifactManifest, LocalStore, LocalStoreError, ManifestUrl, PackageManifest,
-    PublicStore, PublicStoreError, Store, StoreError,
+    ArtifactId, ArtifactManifest, LocalStore, LocalStoreError, PackageManifest, PublicStore,
+    PublicStoreError, Store, StoreError,
 };
 use crate::archive::ArchiveManager;
 use crate::model::ExecutableSpec;
@@ -11,6 +11,7 @@ use crate::sync::*;
 use crate::Config;
 use async_trait::async_trait;
 use tracing::instrument;
+use url::Url;
 
 /// The Default store implements the interface of an artifact store that orchestrates between the
 /// Public and Local stores to download, cache, and save artifacts.
@@ -46,11 +47,8 @@ impl Store for DefaultStore {
     /// Installs packages from the store via a Manifest Url.
     ///
     #[instrument(name = "DefaultStore::install_from_manifest_url", skip(self))]
-    async fn install_from_manifest_url(
-        &self,
-        url: &ManifestUrl,
-    ) -> Result<ArtifactManifest, StoreError> {
-        let archive = self.archive_manager.download(url.url()).await?;
+    async fn install_from_manifest_url(&self, url: &Url) -> Result<ArtifactManifest, StoreError> {
+        let archive = self.archive_manager.download(url).await?;
 
         let package_manifest = PackageManifest::from_file(archive.final_path())
             .await
@@ -192,11 +190,9 @@ mod tests {
         let am = ArchiveManager::new(&config).into();
         let ds = DefaultStore::new(config, am);
 
-        let manifest_url = ManifestUrl::new(
-            format!("{}/sample/project/manifest.json", mockito::server_url())
-                .parse()
-                .unwrap(),
-        );
+        let manifest_url = format!("{}/sample/project/manifest.json", mockito::server_url())
+            .parse()
+            .unwrap();
         let manifest = ds.install_from_manifest_url(&manifest_url).await.unwrap();
 
         assert_eq!(
@@ -247,11 +243,9 @@ mod tests {
         let am = ArchiveManager::new(&config).into();
         let ds = DefaultStore::new(config, am);
 
-        let manifest_url = ManifestUrl::new(
-            format!("{}/sample/project/manifest.json", mockito::server_url())
-                .parse()
-                .unwrap(),
-        );
+        let manifest_url = format!("{}/sample/project/manifest.json", mockito::server_url())
+            .parse()
+            .unwrap();
         let result = ds.install_from_manifest_url(&manifest_url).await;
 
         assert_matches!(
@@ -291,11 +285,9 @@ mod tests {
         let am = ArchiveManager::new(&config).into();
         let ds = DefaultStore::new(config, am);
 
-        let manifest_url = ManifestUrl::new(
-            format!("{}/sample/project/manifest.json", mockito::server_url())
-                .parse()
-                .unwrap(),
-        );
+        let manifest_url = format!("{}/sample/project/manifest.json", mockito::server_url())
+            .parse()
+            .unwrap();
         let result = ds.install_from_manifest_url(&manifest_url).await;
 
         assert_matches!(

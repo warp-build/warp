@@ -1,5 +1,4 @@
 use super::LocalStoreError;
-use super::ManifestUrl;
 use super::PublicStoreError;
 use crate::archive::ArchiveManagerError;
 use crate::util::from_file::FromFileError;
@@ -15,10 +14,7 @@ pub enum StoreError {
     UrlIsNotInstallable { url: Url },
 
     #[error("Could not read the package manifest at {url:?} due to: {err:?}")]
-    PackageManifestReadError {
-        err: FromFileError,
-        url: ManifestUrl,
-    },
+    PackageManifestReadError { err: FromFileError, url: Url },
 
     #[error(transparent)]
     ArchiveManagerError(ArchiveManagerError),
