@@ -81,6 +81,10 @@ pub struct Config {
     #[builder(default = "self.default_archive_root()")]
     archive_root: PathBuf,
 
+    /// The location of the extracted archives in the current host.
+    #[builder(default = "self.default_remote_workspace_root()")]
+    remote_workspace_root: PathBuf,
+
     /// The HTTP Client to be used across the application.
     /// NOTE(@ostera): this is safe to clone since it is really an [Arc] to a client pool.
     #[builder(default = "self.default_http_client()")]
@@ -161,6 +165,10 @@ impl Config {
     pub fn archive_root(&self) -> &PathBuf {
         &self.archive_root
     }
+
+    pub fn remote_workspace_root(&self) -> &PathBuf {
+        &self.remote_workspace_root
+    }
 }
 
 impl ConfigBuilder {
@@ -176,6 +184,10 @@ impl ConfigBuilder {
 
     fn default_archive_root(&self) -> PathBuf {
         self._warp_root().join("archives")
+    }
+
+    fn default_remote_workspace_root(&self) -> PathBuf {
+        self._warp_root().join("workspaces")
     }
 
     fn default_artifact_store_root(&self) -> PathBuf {

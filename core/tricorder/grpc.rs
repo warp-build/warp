@@ -1,7 +1,10 @@
 use self::proto::build::warp::tricorder::generate_signature_response::Response;
 use self::proto::build::warp::tricorder::EnsureReadyRequest;
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
-use crate::model::{rule, ConcreteTarget, Requirement, Signature, SignatureError};
+use crate::{
+    archive::Archive,
+    model::{rule, ConcreteTarget, Requirement, Signature, SignatureError},
+};
 use async_trait::async_trait;
 use tracing::instrument;
 use url::Url;
@@ -109,6 +112,7 @@ impl Tricorder for GrpcTricorder {
                         proto::build::warp::requirement::Requirement::Url(url) => {
                             Requirement::Url {
                                 url: url.url.parse::<Url>().unwrap(),
+                                tricorder_url: self.conn.tricorder_url.clone(),
                             }
                         }
                         proto::build::warp::requirement::Requirement::Dependency(dep) => {
@@ -127,6 +131,33 @@ impl Tricorder for GrpcTricorder {
                 Ok(SignatureGenerationFlow::MissingRequirements { requirements })
             }
         }
+    }
+
+    async fn ready_dependency(
+        &mut self,
+        concrete_target: &ConcreteTarget,
+        archive: &Archive,
+    ) -> Result<SignatureGenerationFlow, TricorderError> {
+        let request = proto::build::warp::tricorder::PrepareDependencyRequest {
+            package_root: archive.final_path().to_string_lossy().to_string(),
+            url: archive.url().to_string(),
+        };
+
+        let res = self.client.prepare_dependency(request).await?.into_inner();
+
+        let mut signatures = vec![];
+        for mut proto_sig in res.signatures.into_iter() {
+            let mut config: rule::Config = proto_sig.config.take().unwrap().into();
+            config.insert("name".to_string(), rule::Value::String(proto_sig.name));
+
+            let sig = Signature::builder()
+                .rule(proto_sig.rule)
+                .target(concrete_target.clone())
+                .config(config)
+                .build()?;
+            signatures.push(sig);
+        }
+        Ok(SignatureGenerationFlow::GeneratedSignatures { signatures })
     }
 }
 

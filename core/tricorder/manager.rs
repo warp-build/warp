@@ -2,8 +2,7 @@ use super::{
     Connection, Tricorder, TricorderError, TricorderRegistry, TricorderRegistryError,
     DEFAULT_TRICODER_BINARY_NAME,
 };
-use crate::model::ConcreteTarget;
-use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
+use crate::store::{ArtifactManifest, Store, StoreError};
 use crate::sync::*;
 use crate::util::port_finder::PortFinder;
 use crate::util::process_pool::{ProcessId, ProcessPool, ProcessPoolError, ProcessSpec};
@@ -11,8 +10,10 @@ use crate::Config;
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::path::Path;
 use thiserror::*;
 use tracing::instrument;
+use url::Url;
 
 /// A manager of Tricorder processes and creator of clients. This struct keeps a thread-safe pool
 /// of processes that can be used to create new clients for existing tricorders whenever needed.
@@ -21,7 +22,7 @@ pub struct TricorderManager<T: Tricorder, S: Store> {
     registry: TricorderRegistry,
     process_pool: ProcessPool<T>,
     artifact_store: Arc<S>,
-    tricorders: DashMap<ManifestUrl, (ProcessId<T>, Connection)>,
+    tricorders: DashMap<Url, (ProcessId<T>, Connection)>,
 
     // NOTE(@ostera): only used to serialize the calls to `next` and prevent fetching the same
     // target twice.
@@ -43,32 +44,35 @@ where
         }
     }
 
-    #[instrument(name = "TricorderManager::find_and_ready", skip(self, concrete_target))]
+    #[instrument(name = "TricorderManager::find_and_ready_by_path", skip(self))]
+    pub async fn find_and_ready_by_path(
+        &self,
+        path: &Path,
+    ) -> Result<Option<impl Tricorder>, TricorderManagerError> {
+        if let Some(url) = self.registry.find_by_path(path)? {
+            self.find_and_ready(&url).await
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[instrument(name = "TricorderManager::find_and_ready", skip(self))]
     pub async fn find_and_ready(
         &self,
-        concrete_target: &ConcreteTarget,
+        tricorder_url: &Url,
     ) -> Result<Option<impl Tricorder>, TricorderManagerError> {
         let _lock = self._lock.lock().await;
 
-        // 1. find exactly which tricorder we need.
-        //    if we can't find one, that's also okay, we'll just skip this target.
-        let tricorder_url =
-            if let Some(tricorder_url) = self.registry.find_by_path(concrete_target.path())? {
-                tricorder_url
-            } else {
-                return Ok(None);
-            };
-
-        if let Some(entry) = self.tricorders.get(&tricorder_url) {
+        if let Some(entry) = self.tricorders.get(tricorder_url) {
             let (_pid, conn) = &*entry;
-            let tricorder = T::connect(*conn).await?;
+            let tricorder = T::connect(conn.clone()).await?;
             return Ok(Some(tricorder));
         }
 
         // 2. install it
         let artifact_manifest = self
             .artifact_store
-            .install_from_manifest_url(&tricorder_url)
+            .install_from_manifest_url(tricorder_url)
             .await?;
 
         // 3. start it
@@ -96,13 +100,16 @@ where
         let pid = self.process_pool.spawn(spec).await?;
 
         // 4. connect to it
-        let conn = Connection { port };
-        let mut tricorder = T::connect(conn).await?;
+        let conn = Connection {
+            tricorder_url: tricorder_url.clone(),
+            port,
+        };
+        let mut tricorder = T::connect(conn.clone()).await?;
 
         // 5. ready it
         tricorder.ensure_ready().await?;
 
-        self.tricorders.insert(tricorder_url, (pid, conn));
+        self.tricorders.insert(tricorder_url.clone(), (pid, conn));
 
         Ok(Some(tricorder))
     }
@@ -153,8 +160,8 @@ impl From<StoreError> for TricorderManagerError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::archive::ArchiveManager;
-    use crate::model::{Goal, Target};
+    use crate::archive::{Archive, ArchiveManager};
+    use crate::model::{ConcreteTarget, Goal, Target};
     use crate::resolver::TargetRegistry;
     use crate::store::DefaultStore;
     use crate::tricorder::{Connection, SignatureGenerationFlow};
@@ -228,6 +235,14 @@ mod tests {
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
+
+            async fn ready_dependency(
+                &mut self,
+                _concrete_target: &ConcreteTarget,
+                _archive: &Archive,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!()
+            }
         }
 
         let mgr: TricorderManager<NoopTricorder, _> = TricorderManager::new(config, store);
@@ -237,7 +252,7 @@ mod tests {
         let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
         let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
-        mgr.find_and_ready(&ct).await.unwrap();
+        mgr.find_and_ready_by_path(ct.path()).await.unwrap();
 
         assert!(warp_root.child("store/a-hash/tricorder.exe").exists());
     }
@@ -302,6 +317,14 @@ mod tests {
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
+
+            async fn ready_dependency(
+                &mut self,
+                _concrete_target: &ConcreteTarget,
+                _archive: &Archive,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!()
+            }
         }
 
         let mgr: TricorderManager<UnreachableTricorder, _> = TricorderManager::new(config, store);
@@ -311,7 +334,7 @@ mod tests {
         let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
         let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
-        let err = mgr.find_and_ready(&ct).await.unwrap_err();
+        let err = mgr.find_and_ready_by_path(ct.path()).await.unwrap_err();
 
         assert_matches!(
             err,
@@ -384,6 +407,14 @@ mod tests {
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
+
+            async fn ready_dependency(
+                &mut self,
+                _concrete_target: &ConcreteTarget,
+                _archive: &Archive,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!()
+            }
         }
 
         let mgr: TricorderManager<UnconnectableTricorder, _> = TricorderManager::new(config, store);
@@ -393,7 +424,7 @@ mod tests {
         let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
         let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
-        let err = mgr.find_and_ready(&ct).await.unwrap_err();
+        let err = mgr.find_and_ready_by_path(ct.path()).await.unwrap_err();
 
         assert_matches!(
             err,
@@ -466,6 +497,14 @@ mod tests {
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
+
+            async fn ready_dependency(
+                &mut self,
+                _concrete_target: &ConcreteTarget,
+                _archive: &Archive,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!()
+            }
         }
 
         let mgr: TricorderManager<UnreadiableTricorder, _> = TricorderManager::new(config, store);
@@ -475,7 +514,7 @@ mod tests {
         let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
         let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
-        let err = mgr.find_and_ready(&ct).await.unwrap_err();
+        let err = mgr.find_and_ready_by_path(ct.path()).await.unwrap_err();
 
         assert_matches!(
             err,

@@ -3,7 +3,6 @@ mod artifact_manifest;
 mod default;
 mod error;
 mod local;
-mod manifest_url;
 mod package_manifest;
 mod public;
 
@@ -12,9 +11,9 @@ pub use artifact_manifest::*;
 pub use default::*;
 pub use error::*;
 use local::*;
-pub use manifest_url::*;
 pub use package_manifest::*;
 use public::*;
+use url::Url;
 
 use crate::sync::*;
 use async_trait::async_trait;
@@ -30,10 +29,7 @@ const MANIFEST_FILE: &str = "Manifest.json";
 ///
 #[async_trait]
 pub trait Store: Sync + Send + Clone + Sized {
-    async fn install_from_manifest_url(
-        &self,
-        url: &ManifestUrl,
-    ) -> Result<ArtifactManifest, StoreError>;
+    async fn install_from_manifest_url(&self, url: &Url) -> Result<ArtifactManifest, StoreError>;
 
     async fn find(&self, spec: &ExecutableSpec) -> Result<Option<ArtifactManifest>, StoreError>;
 

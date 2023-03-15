@@ -98,10 +98,6 @@ impl From<WorkerError> for WorkerPoolError {
 
 #[cfg(test)]
 mod tests {
-    use core::future::Future;
-    use core::pin::Pin;
-    use std::path::PathBuf;
-
     use super::*;
     use crate::events::EventChannel;
     use crate::model::{
@@ -109,13 +105,14 @@ mod tests {
     };
     use crate::planner::{Planner, PlannerError, PlanningFlow};
     use crate::resolver::{ResolutionFlow, Resolver, ResolverError, TargetRegistry};
-    use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
+    use crate::store::{ArtifactManifest, Store, StoreError};
     use crate::worker::local::LocalSharedContext;
     use crate::workspace::WorkspaceManager;
     use crate::Config;
     use assert_fs::prelude::*;
     use async_trait::async_trait;
-    use futures::FutureExt;
+    use std::path::PathBuf;
+    use url::Url;
 
     #[derive(Debug, Clone)]
     struct NoopStore;
@@ -123,7 +120,7 @@ mod tests {
     impl Store for NoopStore {
         async fn install_from_manifest_url(
             &self,
-            _url: &ManifestUrl,
+            _url: &Url,
         ) -> Result<ArtifactManifest, StoreError> {
             Err(StoreError::Unknown)
         }
@@ -227,7 +224,7 @@ mod tests {
         let ec = Arc::new(EventChannel::new());
         let config = Config::default();
 
-        let workspace_manager = WorkspaceManager::new().into();
+        let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let target_registry = Arc::new(TargetRegistry::new());
         let ctx = LocalSharedContext::new(
             ec.clone(),

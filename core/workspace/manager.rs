@@ -1,8 +1,9 @@
 use super::*;
-use crate::sync::{Arc, RwLock};
+use crate::sync::*;
 use crate::Config;
 use dashmap::DashMap;
 use thiserror::*;
+use url::Url;
 
 /// # Find, register, and access different workspaces.
 ///
@@ -23,11 +24,26 @@ pub struct WorkspaceManager {
     /// NOTE(@ostera): in the future we may wrap this with more metadata that is specific for local
     /// workspaces.
     local_workspaces: DashMap<WorkspaceId, Arc<Workspace>>,
+
+    remote_workspaces: DashMap<WorkspaceId, Arc<Workspace>>,
+
+    registered_urls: DashMap<Url, WorkspaceId>,
+
+    remote_workspace_root: PathBuf,
+
+    _register_lock: Arc<Mutex<()>>,
 }
 
 impl WorkspaceManager {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(config: Config) -> Self {
+        Self {
+            remote_workspace_root: config.remote_workspace_root().to_path_buf(),
+            current_workspace: Default::default(),
+            local_workspaces: Default::default(),
+            remote_workspaces: Default::default(),
+            registered_urls: Default::default(),
+            _register_lock: Arc::new(Mutex::new(())),
+        }
     }
 
     /// Get the current workspace. This function MUST BE called after calling
@@ -65,8 +81,37 @@ impl WorkspaceManager {
         Ok(id)
     }
 
+    pub fn register_remote_workspace(&self, url: &Url) -> WorkspaceId {
+        let _lock = self._register_lock.lock().unwrap();
+
+        if let Some(id) = self.find_remote_workspace(&url) {
+            id
+        } else {
+            let id = WorkspaceId::next();
+
+            let url = url.to_string();
+            let root = self.remote_workspace_root.join(url.replace("://", "/"));
+            let w = Workspace::builder().name(url).root(root).build().unwrap();
+
+            self.remote_workspaces.insert(id, w.into());
+            id
+        }
+    }
+
+    pub fn find_remote_workspace(&self, url: &Url) -> Option<WorkspaceId> {
+        self.registered_urls.get(&url).map(|r| *r.value())
+    }
+
     pub fn get_workspace(&self, id: WorkspaceId) -> Arc<Workspace> {
-        self.local_workspaces.get(&id).unwrap().clone()
+        if let Some(workspace) = self.local_workspaces.get(&id) {
+            return workspace.clone();
+        }
+
+        if let Some(workspace) = self.remote_workspaces.get(&id) {
+            return workspace.clone();
+        }
+
+        unreachable!()
     }
 
     pub fn set_current_workspace(&self, current_workspace_id: WorkspaceId) {
@@ -115,7 +160,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let wm = WorkspaceManager::new();
+        let wm = WorkspaceManager::new(config.clone());
         let _wid = wm.load_current_workspace(&config).await.unwrap();
 
         assert_eq!(
@@ -150,7 +195,7 @@ mod tests {
             .build()
             .unwrap();
 
-        let wm = WorkspaceManager::new();
+        let wm = WorkspaceManager::new(config.clone());
         let _wid = wm.load_current_workspace(&config).await.unwrap();
 
         assert_eq!(

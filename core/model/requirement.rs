@@ -19,6 +19,7 @@ pub enum Requirement {
 
     Url {
         url: Url,
+        tricorder_url: Url,
     },
 
     Dependency {

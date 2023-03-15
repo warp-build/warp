@@ -155,8 +155,29 @@ impl ToString for AliasTarget {
 #[derive(
     Builder, Default, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
 )]
+#[builder(build_fn(error = "TargetError"))]
 pub struct RemoteTarget {
+    #[builder(setter(into))]
     url: String,
+
+    #[builder(default, setter(into, strip_option))]
+    tricorder_url: Option<String>,
+}
+
+impl RemoteTarget {
+    pub fn builder() -> RemoteTargetBuilder {
+        RemoteTargetBuilder::default()
+    }
+
+    pub fn url(&self) -> Url {
+        self.url.parse::<Url>().unwrap()
+    }
+
+    pub fn tricorder_url(&self) -> Option<Url> {
+        self.tricorder_url
+            .as_ref()
+            .map(|url| url.clone().parse::<Url>().unwrap())
+    }
 }
 
 impl ToString for RemoteTarget {
@@ -169,6 +190,7 @@ impl From<url::Url> for RemoteTarget {
     fn from(url: url::Url) -> Self {
         Self {
             url: url.to_string(),
+            tricorder_url: None,
         }
     }
 }
@@ -233,7 +255,16 @@ impl From<&Path> for FsTarget {
 }
 
 #[derive(Error, Debug)]
-pub enum TargetError {}
+pub enum TargetError {
+    #[error(transparent)]
+    BuilderError(derive_builder::UninitializedFieldError),
+}
+
+impl From<derive_builder::UninitializedFieldError> for TargetError {
+    fn from(value: derive_builder::UninitializedFieldError) -> Self {
+        TargetError::BuilderError(value)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -274,6 +305,7 @@ mod tests {
                         .to_string_lossy()
                         .to_string()
                 ),
+                tricorder_url: None,
             }
         }
     }

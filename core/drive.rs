@@ -41,17 +41,19 @@ impl WarpDriveMarkII {
     pub async fn new(config: Config) -> Result<Self, WarpDriveError> {
         let event_channel = Arc::new(EventChannel::new());
 
-        let workspace_manager = Arc::new(WorkspaceManager::new());
+        let workspace_manager = Arc::new(WorkspaceManager::new(config.clone()));
         workspace_manager.load_current_workspace(&config).await?;
 
-        let archive_manager = ArchiveManager::new(&config).into();
-        let store: Arc<DefaultStore> = DefaultStore::new(config.clone(), archive_manager).into();
+        let archive_manager = Arc::new(ArchiveManager::new(&config));
+        let store: Arc<DefaultStore> =
+            DefaultStore::new(config.clone(), archive_manager.clone()).into();
 
         let target_registry = Arc::new(TargetRegistry::new());
         let resolver: DefaultResolver<GrpcTricorder> = DefaultResolver::new(
             config.clone(),
             store.clone(),
             target_registry.clone(),
+            archive_manager,
             workspace_manager.clone(),
         );
 

@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 
+use super::boot_resolver::BootstrapResolver;
+use super::net_resolver::NetResolver;
 use super::{FsResolver, ResolutionFlow, Resolver, ResolverError, TargetRegistry};
-use crate::model::{rule, ConcreteTarget, Goal, Requirement, Signature, Target, TargetId};
+use crate::archive::ArchiveManager;
+use crate::model::{ConcreteTarget, Goal, RemoteTarget, Requirement, Signature, Target, TargetId};
 use crate::store::DefaultStore;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
 use crate::workspace::WorkspaceManager;
@@ -11,7 +14,9 @@ use tracing::instrument;
 
 #[derive(Clone)]
 pub struct DefaultResolver<T: Tricorder + Clone> {
-    fs_resolver: Arc<FsResolver>,
+    fs_resolver: Arc<FsResolver<T>>,
+    net_resolver: Arc<NetResolver<T>>,
+    boot_resolver: Arc<BootstrapResolver>,
     tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
     target_registry: Arc<TargetRegistry>,
     workspace_manager: Arc<WorkspaceManager>,
@@ -23,64 +28,40 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         config: Config,
         store: Arc<DefaultStore>,
         target_registry: Arc<TargetRegistry>,
+        archive_manager: Arc<ArchiveManager>,
         workspace_manager: Arc<WorkspaceManager>,
     ) -> Self {
-        let fs_resolver = Arc::new(FsResolver::new());
         let tricorder_manager = Arc::new(TricorderManager::new(config.clone(), store));
+
+        let net_resolver = Arc::new(NetResolver::new(
+            config.clone(),
+            archive_manager,
+            workspace_manager.clone(),
+            tricorder_manager.clone(),
+            target_registry.clone(),
+        ));
+
+        let fs_resolver = Arc::new(FsResolver::new(
+            config.clone(),
+            workspace_manager.clone(),
+            tricorder_manager.clone(),
+            target_registry.clone(),
+        ));
+
+        let boot_resolver = Arc::new(BootstrapResolver::new(
+            config.clone(),
+            workspace_manager.clone(),
+            target_registry.clone(),
+        ));
+
         Self {
             fs_resolver,
+            net_resolver,
+            boot_resolver,
             tricorder_manager,
             target_registry,
             workspace_manager,
             config,
-        }
-    }
-
-    async fn concretize_target(
-        &self,
-        goal: Goal,
-        target_id: TargetId,
-        target: Arc<Target>,
-    ) -> Result<Arc<ConcreteTarget>, ResolverError> {
-        let workspace = self.workspace_manager.current_workspace();
-
-        let final_path = match &*target {
-            // Target::Alias(a) => self.alias_resolver.resolve(goal, a).await?,
-            // Target::Remote(r) => self.net_resolver.resolve(goal, r).await?,
-            Target::Fs(f) => self.fs_resolver.resolve(goal, f).await?,
-            _ => todo!(),
-        };
-
-        let final_path = if final_path.starts_with(workspace.root()) {
-            final_path
-                .strip_prefix(workspace.root())
-                .unwrap()
-                .to_path_buf()
-        } else {
-            final_path
-        };
-
-        let ct = ConcreteTarget::new(
-            goal,
-            target_id,
-            target,
-            final_path,
-            workspace.root().to_path_buf(),
-        );
-
-        Ok(self
-            .target_registry
-            .associate_concrete_target(target_id, ct))
-    }
-
-    fn bootstrap_signature(
-        &self,
-        concrete_target: Arc<ConcreteTarget>,
-    ) -> Result<ResolutionFlow, ResolverError> {
-        if let Some(signature) = SignatureBootstrapper::for_concrete_target(&concrete_target) {
-            Ok(ResolutionFlow::Resolved { signature })
-        } else {
-            Ok(ResolutionFlow::IgnoredTarget(concrete_target.target_id()))
         }
     }
 }
@@ -94,38 +75,39 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
         target_id: TargetId,
         target: Arc<Target>,
     ) -> Result<ResolutionFlow, ResolverError> {
-        if let Some(signature) =
-            ToolchainSignatures.for_target(&self.config, target_id, target.clone())
-        {
-            return Ok(ResolutionFlow::Resolved { signature });
-        }
+        let sig_flow = match &*target {
+            Target::Alias(_) => todo!(),
 
-        let concrete_target = self.concretize_target(goal, target_id, target).await?;
+            // NB: when our target is remote and we're building a rule, we will whip up a signature
+            // on the spot to make sure the rule is instantiatable as a signature.
+            Target::Remote(_t) if target.is_rule_target(&self.config) => {
+                let sig = target.to_rule_signature(&self.config, target_id, target.clone());
+                Ok(SignatureGenerationFlow::GeneratedSignatures {
+                    signatures: vec![sig],
+                })
+            }
 
-        if let Goal::Bootstrap = goal {
-            return self.bootstrap_signature(concrete_target);
-        }
+            Target::Remote(t) => self.net_resolver.resolve(goal, target_id, t).await,
 
-        // 1. find and ready the tricorder
-        let mut tricorder = if let Some(tricorder) = self
-            .tricorder_manager
-            .find_and_ready(&concrete_target)
-            .await?
-        {
-            tricorder
-        } else {
-            return Ok(ResolutionFlow::IgnoredTarget(target_id));
-        };
+            // NB: when we are bootstrapping, local targets may need a little help to get their
+            // signatures generated (for example, if we are building a tricorder but we need the
+            // tricorder to build itself).
+            Target::Fs(t) if goal.is_bootstrap() => {
+                self.boot_resolver.resolve(goal, target_id, t).await
+            }
+
+            Target::Fs(t) => self.fs_resolver.resolve(goal, target_id, t).await,
+        }?;
 
         // TODO(@ostera): at this stage, we want to use the concrete target and the tricorder to
         // call the CodeManager and ask it to tree-split, so we can avoid regenerating signatures
         // if parts of the file we don't care about haven't changed.
         // get_ast
 
-        // 2. generate signature for this concrete target
-        let sig_flow = tricorder.generate_signature(&concrete_target).await?;
-
         match sig_flow {
+            SignatureGenerationFlow::IgnoredTarget(target_id) => {
+                Ok(ResolutionFlow::IgnoredTarget(target_id))
+            }
             SignatureGenerationFlow::GeneratedSignatures { signatures }
                 if !signatures.is_empty() =>
             {
@@ -137,7 +119,13 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
                 for req in requirements {
                     let target: Target = match req {
                         Requirement::File { path } => path.into(),
-                        Requirement::Url { url } => url.into(),
+                        Requirement::Url { url, tricorder_url } => {
+                            let remote_target = RemoteTarget::builder()
+                                .url(url)
+                                .tricorder_url(tricorder_url)
+                                .build()?;
+                            Target::Remote(remote_target)
+                        }
                         Requirement::Symbol { .. } => unimplemented!(),
                         Requirement::Dependency { url, .. } => url.into(),
                     };
@@ -151,62 +139,13 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
     }
 }
 
-struct SignatureBootstrapper;
-
-impl SignatureBootstrapper {
-    pub fn for_concrete_target(concrete_target: &ConcreteTarget) -> Option<Signature> {
-        match concrete_target.name() {
-            "mix.exs" => Some(Self::mix_escript(concrete_target.clone())),
-            "Cargo.toml" => Some(Self::cargo_binary(concrete_target.clone())),
-            _ => None,
-        }
-    }
-
-    pub fn cargo_binary(concrete_target: ConcreteTarget) -> Signature {
-        Signature::builder()
-            .rule("cargo_binary".to_string())
-            .config({
-                let mut config = rule::Config::default();
-                config.insert("name".to_string(), concrete_target.name().into());
-                config.insert("bin".to_string(), "tricorder".into());
-                config
-            })
-            .target(concrete_target)
-            .build()
-            .unwrap()
-    }
-
-    pub fn mix_escript(concrete_target: ConcreteTarget) -> Signature {
-        Signature::builder()
-            .rule("mix_escript".to_string())
-            .config({
-                let mut config = rule::Config::default();
-                config.insert("name".to_string(), concrete_target.name().into());
-                config.insert("bin".to_string(), "tricorder".into());
-                config
-            })
-            .target(concrete_target)
-            .build()
-            .unwrap()
-    }
-}
-
-struct ToolchainSignatures;
-
-impl ToolchainSignatures {
-    pub fn for_target(
+impl Target {
+    pub fn to_rule_signature(
         &self,
         config: &Config,
         target_id: TargetId,
         target: Arc<Target>,
-    ) -> Option<Signature> {
-        if self.is_target_a_rule(config, &target) {
-            return Some(self.rule_target_signature(target_id, target));
-        }
-        None
-    }
-
-    fn rule_target_signature(&self, target_id: TargetId, target: Arc<Target>) -> Signature {
+    ) -> Signature {
         let rule = target.url().unwrap().to_string();
         let target = ConcreteTarget::new(
             Goal::Build,
@@ -222,9 +161,8 @@ impl ToolchainSignatures {
             .unwrap()
     }
 
-    fn is_target_a_rule(&self, config: &Config, target: &Target) -> bool {
-        target
-            .url()
+    pub fn is_rule_target(&self, config: &Config) -> bool {
+        self.url()
             .map(|url| {
                 let target_host = url.host_str().unwrap();
                 let public_rule_store_host = config.public_rule_store_url().host_str().unwrap();
@@ -240,9 +178,8 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use crate::archive::ArchiveManager;
+    use crate::archive::{Archive, ArchiveManager};
     use crate::model::Signature;
-    use crate::resolver::fs_resolver::FsResolverError;
     use crate::tricorder::{Connection, TricorderError};
     use crate::workspace::Workspace;
     use assert_fs::prelude::*;
@@ -285,19 +222,30 @@ mod tests {
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
+
+            async fn ready_dependency(
+                &mut self,
+                _concrete_target: &ConcreteTarget,
+                _archive: &Archive,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!()
+            }
         }
 
-        let workspace_manager = WorkspaceManager::new();
+        let workspace_manager = WorkspaceManager::new(config.clone());
         let workspace = Workspace::default();
         let wid = workspace_manager
             .register_local_workspace(workspace)
             .unwrap();
         workspace_manager.set_current_workspace(wid);
 
+        let archive_manager = Arc::new(ArchiveManager::new(&config));
+
         let r: DefaultResolver<UnreachableTricorder> = DefaultResolver::new(
             config,
             store,
             target_registry.clone(),
+            archive_manager.clone(),
             workspace_manager.into(),
         );
 
@@ -307,7 +255,7 @@ mod tests {
 
         assert_matches!(
             result.unwrap_err(),
-        ResolverError::FsResolverError(FsResolverError::CouldNotFindFile { path }) if path == PathBuf::from("bad/file/path.ex")
+        ResolverError::CouldNotFindFile { path } if path == PathBuf::from("bad/file/path.ex")
         );
     }
 
@@ -361,18 +309,29 @@ mod tests {
                         .unwrap()],
                 })
             }
+
+            async fn ready_dependency(
+                &mut self,
+                _concrete_target: &ConcreteTarget,
+                _archive: &Archive,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!()
+            }
         }
-        let workspace_manager = WorkspaceManager::new();
+        let workspace_manager = WorkspaceManager::new(config.clone());
         let workspace = Workspace::default();
         let wid = workspace_manager
             .register_local_workspace(workspace)
             .unwrap();
+
+        let archive_manager = Arc::new(ArchiveManager::new(&config));
 
         workspace_manager.set_current_workspace(wid);
         let r: DefaultResolver<HappyPathTricorder> = DefaultResolver::new(
             config,
             store,
             target_registry.clone(),
+            archive_manager.clone(),
             workspace_manager.into(),
         );
 

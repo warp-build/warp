@@ -288,19 +288,19 @@ impl From<TaskQueueError> for LocalWorkerError {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::*;
     use crate::events::EventChannel;
     use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target, TargetId};
     use crate::planner::PlannerError;
     use crate::resolver::TargetRegistry;
-    use crate::store::{ArtifactManifest, ManifestUrl, Store, StoreError};
+    use crate::store::{ArtifactManifest, Store, StoreError};
     use crate::worker::{Role, Task};
     use crate::workspace::WorkspaceManager;
     use crate::{sync::*, Config};
     use async_trait::async_trait;
     use quickcheck::Arbitrary;
+    use std::path::PathBuf;
+    use url::Url;
 
     #[derive(Debug, Clone)]
     struct NoopExecutor;
@@ -323,7 +323,7 @@ mod tests {
     impl Store for NoopStore {
         async fn install_from_manifest_url(
             &self,
-            _url: &ManifestUrl,
+            _url: &Url,
         ) -> Result<ArtifactManifest, StoreError> {
             Err(StoreError::Unknown)
         }
@@ -421,7 +421,7 @@ mod tests {
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
-        let workspace_manager = WorkspaceManager::new().into();
+        let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let ctx = LocalSharedContext::new(
             ec,
             config,
@@ -457,7 +457,7 @@ mod tests {
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
-        let workspace_manager = WorkspaceManager::new().into();
+        let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let ctx = LocalSharedContext::new(
             ec,
             config,
@@ -534,7 +534,7 @@ mod tests {
         let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
-        let workspace_manager = WorkspaceManager::new().into();
+        let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let ctx = LocalSharedContext::new(
             ec,
             config,
