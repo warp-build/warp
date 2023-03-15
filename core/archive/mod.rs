@@ -1,5 +1,6 @@
 mod manager;
 pub use manager::*;
+use url::Url;
 
 use std::path::PathBuf;
 
@@ -7,8 +8,13 @@ use std::path::PathBuf;
 ///
 #[derive(Builder, Debug)]
 pub struct Archive {
+    #[builder(setter(into))]
     final_path: PathBuf,
+
+    #[builder(setter(into))]
     hash: String,
+
+    url: Url,
 }
 
 impl Archive {
@@ -24,5 +30,9 @@ impl Archive {
     /// The hash of the downloaded contents.
     pub fn hash(&self) -> &str {
         self.hash.as_ref()
+    }
+
+    pub fn url(&self) -> &Url {
+        &self.url
     }
 }
