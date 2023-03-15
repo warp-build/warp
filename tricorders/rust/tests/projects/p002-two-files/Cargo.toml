@@ -1,5 +1,5 @@
 [package]
-name = "p001-hello-world"
+name = "p002-two-files"
 version = "0.1.0"
 edition = "2021"
 
