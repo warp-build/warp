@@ -32,6 +32,8 @@ service TricorderService {
   rpc GenerateSignature(GenerateSignatureRequest) returns (GenerateSignatureResponse);
   
   rpc GetAst(GetAstRequest) returns (GetAstResponse);
+
+  rpc PrepareDependency(PrepareDependencyRequest) returns (PrepareDependencyResponse);
 }
 
 message EnsureReadyRequest {}
@@ -124,3 +126,14 @@ message GetAstSuccessResponse {
 }
 
 
+message PrepareDependencyRequest {
+  // The root directory where this package is located.
+  string package_root = 1;
+ 
+  // The URL that this package was downloded from.c
+  string url = 2;
+}
+
+message PrepareDependencyResponse {
+  repeated Signature signatures = 2;
+}
