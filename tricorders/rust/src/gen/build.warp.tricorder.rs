@@ -131,6 +131,22 @@ pub struct GetAstSuccessResponse {
     #[prost(string, tag = "4")]
     pub ast: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PrepareDependencyRequest {
+    /// The root directory where this package is located.
+    #[prost(string, tag = "1")]
+    pub package_root: ::prost::alloc::string::String,
+    /// The URL that this package was downloded from.c
+    #[prost(string, tag = "2")]
+    pub url: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PrepareDependencyResponse {
+    #[prost(message, repeated, tag = "2")]
+    pub signatures: ::prost::alloc::vec::Vec<super::Signature>,
+}
 /// Generated client implementations.
 pub mod tricorder_service_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
@@ -280,6 +296,25 @@ pub mod tricorder_service_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        pub async fn prepare_dependency(
+            &mut self,
+            request: impl tonic::IntoRequest<super::PrepareDependencyRequest>,
+        ) -> Result<tonic::Response<super::PrepareDependencyResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/build.warp.tricorder.TricorderService/PrepareDependency",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -320,6 +355,10 @@ pub mod tricorder_service_server {
             &self,
             request: tonic::Request<super::GetAstRequest>,
         ) -> Result<tonic::Response<super::GetAstResponse>, tonic::Status>;
+        async fn prepare_dependency(
+            &self,
+            request: tonic::Request<super::PrepareDependencyRequest>,
+        ) -> Result<tonic::Response<super::PrepareDependencyResponse>, tonic::Status>;
     }
     /// A TricorderService is a repository and code analysis service created for a
     /// specific language ecosystem that will be started and managed from within
@@ -491,6 +530,46 @@ pub mod tricorder_service_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = GetAstSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/build.warp.tricorder.TricorderService/PrepareDependency" => {
+                    #[allow(non_camel_case_types)]
+                    struct PrepareDependencySvc<T: TricorderService>(pub Arc<T>);
+                    impl<
+                        T: TricorderService,
+                    > tonic::server::UnaryService<super::PrepareDependencyRequest>
+                    for PrepareDependencySvc<T> {
+                        type Response = super::PrepareDependencyResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::PrepareDependencyRequest>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).prepare_dependency(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = PrepareDependencySvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

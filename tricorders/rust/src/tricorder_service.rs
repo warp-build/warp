@@ -1,8 +1,10 @@
-use crate::proto::build::warp::tricorder::{
+use tricorder::build::warp::tricorder::{
     tricorder_service_server::TricorderService, EnsureReadyRequest, EnsureReadyResponse,
-    GenerateSignatureRequest, GenerateSignatureResponse, GetAstRequest, GetAstResponse,
+    GenerateSignatureRequest, GetAstRequest, PrepareDependencyRequest, PrepareDependencyResponse,
+	GetAstResponse, GenerateSignatureResponse
 };
 use tonic::{Request, Response, Status};
+use tricorder::{GenerateSignature, GetAst};
 
 #[derive(Default)]
 pub struct TricorderServiceImpl {}
@@ -19,13 +21,20 @@ impl TricorderService for TricorderServiceImpl {
         &self,
         request: Request<GetAstRequest>,
     ) -> Result<Response<GetAstResponse>, Status> {
-        crate::get_ast::GetAst::get_ast(request).await
+        GetAst::get_ast(request).await
     }
 
     async fn generate_signature(
         &self,
         request: Request<GenerateSignatureRequest>,
     ) -> Result<Response<GenerateSignatureResponse>, Status> {
-        crate::generate_signature::GenerateSignature::generate_signature(request).await
+        GenerateSignature::generate_signature(request).await
+    }
+
+    async fn prepare_dependency(
+        &self,
+        _request: Request<PrepareDependencyRequest>,
+    ) -> Result<Response<PrepareDependencyResponse>, Status> {
+        Ok(Response::new(PrepareDependencyResponse::default()))
     }
 }
