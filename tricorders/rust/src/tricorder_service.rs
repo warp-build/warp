@@ -1,4 +1,7 @@
-use crate::proto::build::warp::tricorder::{tricorder_service_server::TricorderService, EnsureReadyRequest, EnsureReadyResponse, GetAstRequest, GetAstResponse, GenerateSignatureRequest, GenerateSignatureResponse};
+use crate::proto::build::warp::tricorder::{
+    tricorder_service_server::TricorderService, EnsureReadyRequest, EnsureReadyResponse,
+    GenerateSignatureRequest, GenerateSignatureResponse, GetAstRequest, GetAstResponse,
+};
 use tonic::{Request, Response, Status};
 
 #[derive(Default)]
@@ -6,12 +9,12 @@ pub struct TricorderServiceImpl {}
 
 #[tonic::async_trait]
 impl TricorderService for TricorderServiceImpl {
-	async fn ensure_ready(
-		&self,
-		_request: Request<EnsureReadyRequest>
-	) -> Result<Response<EnsureReadyResponse>, Status> {
-		Ok(Response::new(EnsureReadyResponse::default()))	
-	}
+    async fn ensure_ready(
+        &self,
+        _request: Request<EnsureReadyRequest>,
+    ) -> Result<Response<EnsureReadyResponse>, Status> {
+        Ok(Response::new(EnsureReadyResponse::default()))
+    }
     async fn get_ast(
         &self,
         request: Request<GetAstRequest>,

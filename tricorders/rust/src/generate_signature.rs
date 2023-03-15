@@ -1,7 +1,7 @@
-use crate::proto::build::warp::{tricorder::*, Symbol};
-use crate::proto::build::warp::tricorder::generate_signature_response::Response as SigResponse;
-use crate::proto::build::warp::{Signature};
 use crate::proto::build::warp::symbol::Sym::All;
+use crate::proto::build::warp::tricorder::generate_signature_response::Response as SigResponse;
+use crate::proto::build::warp::Signature;
+use crate::proto::build::warp::{tricorder::*, Symbol};
 use crate::rs_generate_signature::*;
 use std::path::{Path, PathBuf};
 use thiserror::*;
@@ -50,21 +50,14 @@ impl GenerateSignature {
         request: GenerateSignatureRequest,
         _code_paths: Vec<PathBuf>,
         signatures: Vec<Signature>,
-    ) -> Result<
-        SigResponse,
-        GenerateSignatureError,
-    > {
-        Ok(
-            SigResponse::Ok(
-                GenerateSignatureSuccessResponse {
-					workspace_root: "".to_string(),
-                    file: request.file,
-					symbol: Some(Symbol {
-						sym: Some(All(true)),
-					}),
-                    signatures: signatures.clone(),
-                },
-            ),
-        )
+    ) -> Result<SigResponse, GenerateSignatureError> {
+        Ok(SigResponse::Ok(GenerateSignatureSuccessResponse {
+            workspace_root: "".to_string(),
+            file: request.file,
+            symbol: Some(Symbol {
+                sym: Some(All(true)),
+            }),
+            signatures: signatures.clone(),
+        }))
     }
 }

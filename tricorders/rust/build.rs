@@ -13,7 +13,7 @@ fn main() {
         .compile(
             &[
                 "./protos/schemas/build/warp/common.proto",
-				"./protos/schemas/build/warp/tricorder.proto",
+                "./protos/schemas/build/warp/tricorder.proto",
             ],
             &["./protos"],
         )
