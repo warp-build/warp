@@ -1,0 +1,35 @@
+---
+source: tricorders/rust/tests/get_deps_tests.rs
+expression: "format!(\"{:#?}\", & signatures)"
+---
+[
+    Signature {
+        name: "./tests/sources/t002_get_mods.rs",
+        rule: "rust_binary",
+        deps: [],
+        runtime_deps: [],
+        config: Some(
+            Struct {
+                fields: {
+                    "srcs": Value {
+                        kind: Some(
+                            ListValue(
+                                ListValue {
+                                    values: [
+                                        Value {
+                                            kind: Some(
+                                                StringValue(
+                                                    "./tests/sources/utils.rs",
+                                                ),
+                                            ),
+                                        },
+                                    ],
+                                },
+                            ),
+                        ),
+                    },
+                },
+            },
+        ),
+    },
+]

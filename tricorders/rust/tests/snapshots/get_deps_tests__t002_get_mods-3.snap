@@ -1,0 +1,135 @@
+---
+source: tricorders/rust/tests/get_deps_tests.rs
+expression: "format!(\"{:#?}\", & ast)"
+---
+File {
+    shebang: None,
+    attrs: [],
+    items: [
+        Mod(
+            ItemMod {
+                attrs: [],
+                vis: Inherited,
+                mod_token: Mod,
+                ident: Ident(
+                    utils,
+                ),
+                content: None,
+                semi: Some(
+                    Semi,
+                ),
+            },
+        ),
+        Mod(
+            ItemMod {
+                attrs: [],
+                vis: Inherited,
+                mod_token: Mod,
+                ident: Ident(
+                    foo,
+                ),
+                content: Some(
+                    (
+                        Brace,
+                        [],
+                    ),
+                ),
+                semi: None,
+            },
+        ),
+        Fn(
+            ItemFn {
+                attrs: [],
+                vis: Inherited,
+                sig: Signature {
+                    constness: None,
+                    asyncness: None,
+                    unsafety: None,
+                    abi: None,
+                    fn_token: Fn,
+                    ident: Ident(
+                        main,
+                    ),
+                    generics: Generics {
+                        lt_token: None,
+                        params: [],
+                        gt_token: None,
+                        where_clause: None,
+                    },
+                    paren_token: Paren,
+                    inputs: [],
+                    variadic: None,
+                    output: Default,
+                },
+                block: Block {
+                    brace_token: Brace,
+                    stmts: [
+                        Semi(
+                            Macro(
+                                ExprMacro {
+                                    attrs: [],
+                                    mac: Macro {
+                                        path: Path {
+                                            leading_colon: None,
+                                            segments: [
+                                                PathSegment {
+                                                    ident: Ident(
+                                                        println,
+                                                    ),
+                                                    arguments: None,
+                                                },
+                                            ],
+                                        },
+                                        bang_token: Bang,
+                                        delimiter: Paren(
+                                            Paren,
+                                        ),
+                                        tokens: TokenStream [
+                                            Literal {
+                                                lit: "{}",
+                                            },
+                                            Punct {
+                                                char: ',',
+                                                spacing: Alone,
+                                            },
+                                            Ident {
+                                                sym: utils,
+                                            },
+                                            Punct {
+                                                char: ':',
+                                                spacing: Joint,
+                                            },
+                                            Punct {
+                                                char: ':',
+                                                spacing: Alone,
+                                            },
+                                            Ident {
+                                                sym: add,
+                                            },
+                                            Group {
+                                                delimiter: Parenthesis,
+                                                stream: TokenStream [
+                                                    Literal {
+                                                        lit: 3,
+                                                    },
+                                                    Punct {
+                                                        char: ',',
+                                                        spacing: Alone,
+                                                    },
+                                                    Literal {
+                                                        lit: 2,
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                },
+                            ),
+                            Semi,
+                        ),
+                    ],
+                },
+            },
+        ),
+    ],
+}

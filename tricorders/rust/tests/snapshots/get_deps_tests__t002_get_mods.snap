@@ -1,0 +1,7 @@
+---
+source: tricorders/rust/tests/get_deps_tests.rs
+expression: "format!(\"{:#?}\", & mods)"
+---
+[
+    "utils",
+]
