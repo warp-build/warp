@@ -1,10 +1,16 @@
 use super::{Archive, ArchiveBuilderError};
 use crate::Config;
-use futures::{StreamExt, TryStreamExt};
+use async_compression::futures::bufread::GzipDecoder;
+use futures::{AsyncReadExt, StreamExt, TryStreamExt};
 use sha2::{Digest, Sha256};
-use std::path::PathBuf;
+use std::{
+    io::Read,
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
 use tokio::{fs, io::AsyncWriteExt};
+use tokio_util::compat::TokioAsyncReadCompatExt;
+use tracing::instrument;
 use url::Url;
 
 #[derive(Debug, Builder)]
@@ -21,6 +27,42 @@ impl ArchiveManager {
         }
     }
 
+    #[instrument(name = "ArchiveManager::extract", skip(self))]
+    pub async fn extract(
+        &self,
+        archive: &Archive,
+        root: &Path,
+    ) -> Result<Archive, ArchiveManagerError> {
+        let file = fs::File::open(archive.final_path()).await?;
+        {
+            let root = root.to_path_buf();
+            let mut data = vec![];
+            let mut unzip_stream = GzipDecoder::new(futures::io::BufReader::new(file.compat()));
+
+            if unzip_stream.read_to_end(&mut data).await.is_err() {
+                data = vec![];
+                let mut file = std::fs::File::open(archive.final_path()).unwrap();
+                file.read_to_end(&mut data)?;
+            };
+
+            tokio::task::spawn_blocking(move || {
+                let mut tar = tar::Archive::new(std::io::BufReader::new(&*data));
+                tar.unpack(root)
+            })
+            .await
+            .unwrap()
+        }?;
+
+        let archive = Archive::builder()
+            .final_path(root)
+            .hash(archive.hash())
+            .url(archive.url().clone())
+            .build()?;
+
+        Ok(archive)
+    }
+
+    #[instrument(name = "ArchiveManager::download", skip(self))]
     pub async fn download(&self, url: &Url) -> Result<Archive, ArchiveManagerError> {
         let response = self.client.get(url.clone()).send().await?;
 
@@ -30,6 +72,7 @@ impl ArchiveManager {
             let archive = Archive::builder()
                 .final_path(final_path)
                 .hash(hash)
+                .url(url.clone())
                 .build()?;
 
             return Ok(archive);
