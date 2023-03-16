@@ -264,7 +264,8 @@ impl LocalExecutor {
 
         // Copy sources
         for src in spec.srcs().files() {
-            let dst = store_path.join(src);
+            let dst = store_path.join(&src);
+            let src = spec.target().workspace_root().join(src);
             if src.eq(&dst) {
                 panic!(
                     r#"We almost copied a file onto itself!
@@ -279,7 +280,7 @@ spec = {:#?}
                     src, dst, store_path, spec
                 );
             }
-            self.copy_file(spec.target(), src, &dst).await?;
+            self.copy_file(spec.target(), &src, &dst).await?;
         }
 
         Ok(())
@@ -412,7 +413,11 @@ spec = {:#?}
                 .map(|_| ())?;
         };
 
-        match fs::copy(&src, &dst).await {
+        match if fs::metadata(src).await.unwrap().is_file() {
+            fs::copy(&src, &dst).await.map(|_| ())
+        } else {
+            fs::symlink(&src, &dst).await
+        } {
             Ok(_) => (),
             Err(err) if err.kind() == std::io::ErrorKind::InvalidInput => (),
             Err(err) => {
