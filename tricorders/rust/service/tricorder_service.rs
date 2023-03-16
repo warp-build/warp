@@ -1,10 +1,10 @@
 use tonic::{Request, Response, Status};
-use tricorder::build::warp::tricorder::{
+use tricorder_core::build::warp::tricorder::{
     tricorder_service_server::TricorderService, EnsureReadyRequest, EnsureReadyResponse,
     GenerateSignatureRequest, GenerateSignatureResponse, GetAstRequest, GetAstResponse,
     PrepareDependencyRequest, PrepareDependencyResponse,
 };
-use tricorder::{GenerateSignature, GetAst};
+use tricorder_core::{GenerateSignature, GetAst};
 
 #[derive(Default)]
 pub struct TricorderServiceImpl {}

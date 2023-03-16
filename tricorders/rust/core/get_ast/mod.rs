@@ -29,19 +29,19 @@ impl GetAst {
     ) -> Result<Response<proto::GetAstResponse>, Status> {
         let request_data = request.into_inner();
         let filename = request_data.clone().file;
+
         println!("Analyzing: {:?}", filename.clone());
 
         match Path::new(&filename).extension() {
             Some(ext) if ext == "rs" => match request_data.symbol.unwrap().sym.unwrap() {
                 All(_) => Ok(Response::new(proto::GetAstResponse {
                     response: Some(
-                        GetAst::do_get_all_rs_ast(&request_data.file, request_data.dependencies)
-                            .await,
+                        GetAst::do_get_all_ast(&request_data.file, request_data.dependencies).await,
                     ),
                 })),
                 Named(name) => Ok(Response::new(proto::GetAstResponse {
                     response: Some(
-                        GetAst::do_get_named_rs_ast(
+                        GetAst::do_get_named_ast(
                             &request_data.file,
                             &name,
                             request_data.dependencies,
@@ -54,7 +54,7 @@ impl GetAst {
         }
     }
 
-    async fn do_get_all_rs_ast(
+    async fn do_get_all_ast(
         file: &str,
         _deps: Vec<Dependency>,
     ) -> proto::get_ast_response::Response {
@@ -83,7 +83,7 @@ impl GetAst {
         })
     }
 
-    async fn do_get_named_rs_ast(
+    async fn do_get_named_ast(
         file: &str,
         symbol_name: &str,
         _deps: Vec<Dependency>,

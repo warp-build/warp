@@ -1,4 +1,6 @@
-use super::*;
+use crate::all_dependency::*;
+use crate::ast_filter::*;
+use crate::symbol_dependency::*;
 
 pub struct TreeSplitter {}
 
@@ -8,17 +10,12 @@ impl TreeSplitter {
         println!("{:#?}", ast);
         let mut mods: Vec<String> = Vec::new();
         let mut crates: Vec<String> = Vec::new();
-        let mut visitor = ModAndCrateVisitor {
+        let mut visitor = AllDependency {
             mods: &mut mods,
             crates: &mut crates,
         };
         syn::visit::visit_file(&mut visitor, &ast);
         (mods, crates)
-    }
-
-    // Mainly used for testing purposes
-    pub fn get_ast(sources: &str) -> syn::File {
-        syn::parse_file(sources).unwrap()
     }
 
     pub fn tree_split(symbol: &str, sources: &str) -> (syn::File, String) {
@@ -40,7 +37,7 @@ impl TreeSplitter {
     pub fn get_interested_symbols(ast: syn::File, full_ast: syn::File) -> Vec<String> {
         let mut symbols = Vec::new();
         let mut symbols_str = Vec::new();
-        let mut visitor = InternalDependencyAccumulator {
+        let mut visitor = SymbolDependency {
             symbols: &mut symbols,
             symbols_str: &mut symbols_str,
         };
@@ -53,7 +50,7 @@ impl TreeSplitter {
             let mut symbols_str_rec = Vec::new();
             for dep in symbols_temp.iter() {
                 let symbol_ast = Self::get_ast_named(dep, full_ast.clone());
-                let mut visitor_temp = InternalDependencyAccumulator {
+                let mut visitor_temp = SymbolDependency {
                     symbols: &mut symbols_rec,
                     symbols_str: &mut symbols_str_rec,
                 };
@@ -180,5 +177,10 @@ impl TreeSplitter {
             _ => println!("Unsupported item"),
         }
         None
+    }
+
+    // Mainly used for testing purposes
+    pub fn get_ast(sources: &str) -> syn::File {
+        syn::parse_file(sources).unwrap()
     }
 }

@@ -1,7 +1,7 @@
 mod tricorder_service;
-use crate::tricorder_service::TricorderServiceImpl;
 use tonic::transport::Server;
-use tricorder::build::warp::tricorder::tricorder_service_server::TricorderServiceServer;
+use tricorder_core::build::warp::tricorder::tricorder_service_server::TricorderServiceServer;
+pub use tricorder_service::*;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

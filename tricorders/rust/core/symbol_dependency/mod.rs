@@ -1,12 +1,12 @@
 use syn::visit::{self, Visit};
 use syn::{spanned::Spanned, Ident, Stmt};
 
-pub struct InternalDependencyAccumulator<'a> {
+pub struct SymbolDependency<'a> {
     pub symbols: &'a mut Vec<Ident>,
     pub symbols_str: &'a mut Vec<String>,
 }
 
-impl<'a> Visit<'a> for InternalDependencyAccumulator<'a> {
+impl<'a> Visit<'a> for SymbolDependency<'a> {
     fn visit_ident(&mut self, ident: &'a Ident) {
         if self.symbols.last().map_or(false, |i| i == "call") {
             self.symbols_str.push(ident.to_string());

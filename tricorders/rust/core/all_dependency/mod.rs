@@ -1,11 +1,11 @@
 use syn::{visit::Visit, ItemExternCrate, ItemMod};
 
-pub struct ModAndCrateVisitor<'a> {
+pub struct AllDependency<'a> {
     pub mods: &'a mut Vec<String>,
     pub crates: &'a mut Vec<String>,
 }
 
-impl<'a> Visit<'a> for ModAndCrateVisitor<'a> {
+impl<'a> Visit<'a> for AllDependency<'a> {
     fn visit_item_extern_crate(&mut self, item: &ItemExternCrate) {
         self.crates.push(item.ident.to_string());
     }

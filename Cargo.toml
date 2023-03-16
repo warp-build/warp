@@ -2,7 +2,6 @@
 members = [
   "cli",
   "core",
-  "tricorders/rust"
 ]
 resolver="2"
 
