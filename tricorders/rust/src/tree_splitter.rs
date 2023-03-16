@@ -1,7 +1,26 @@
 use super::*;
+
 pub struct TreeSplitter {}
 
 impl TreeSplitter {
+    pub fn get_deps_all(sources: &str) -> (Vec<String>, Vec<String>) {
+        let ast = syn::parse_file(sources).unwrap();
+        println!("{:#?}", ast);
+        let mut mods: Vec<String> = Vec::new();
+        let mut crates: Vec<String> = Vec::new();
+        let mut visitor = ModAndCrateVisitor {
+            mods: &mut mods,
+            crates: &mut crates,
+        };
+        syn::visit::visit_file(&mut visitor, &ast);
+        (mods, crates)
+    }
+
+    // Mainly used for testing purposes
+    pub fn get_ast(sources: &str) -> syn::File {
+        syn::parse_file(sources).unwrap()
+    }
+
     pub fn tree_split(symbol: &str, sources: &str) -> (syn::File, String) {
         let ast = syn::parse_file(sources).unwrap();
         let symbol_ast = Self::get_ast_named(symbol, ast.clone());
