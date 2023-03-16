@@ -11,6 +11,7 @@
 //!
 
 mod archive;
+mod code;
 mod config;
 mod drive;
 mod events;

@@ -1,10 +1,11 @@
 use super::*;
 use crate::archive::ArchiveManager;
+use crate::code::CodeDatabase;
 use crate::events::EventChannel;
 use crate::executor::local::LocalExecutor;
 use crate::model::{Goal, Target};
 use crate::planner::DefaultPlanner;
-use crate::resolver::{DefaultResolver, TargetRegistry};
+use crate::resolver::{DefaultResolver, ResolverError, TargetRegistry};
 use crate::rules::JsRuleExecutor;
 use crate::store::DefaultStore;
 use crate::sync::Arc;
@@ -59,7 +60,7 @@ impl WarpDriveMarkII {
             archive_manager,
             workspace_manager.clone(),
             task_results.clone(),
-        );
+        )?;
 
         let shared_ctx = LocalSharedContext::new(
             event_channel.clone(),
@@ -150,6 +151,9 @@ pub enum WarpDriveError {
         err: std::io::Error,
         root: std::path::PathBuf,
     },
+
+    #[error(transparent)]
+    ResolverError(ResolverError),
 }
 
 impl From<WorkspaceManagerError> for WarpDriveError {
@@ -161,5 +165,11 @@ impl From<WorkspaceManagerError> for WarpDriveError {
 impl From<WorkerPoolError> for WarpDriveError {
     fn from(err: WorkerPoolError) -> Self {
         Self::WorkerPoolError(err)
+    }
+}
+
+impl From<ResolverError> for WarpDriveError {
+    fn from(err: ResolverError) -> Self {
+        WarpDriveError::ResolverError(err)
     }
 }

@@ -1,4 +1,5 @@
 use super::{ResolverError, TargetRegistry};
+use crate::code::{CodeDatabase, SourceHasher};
 use crate::model::{ConcreteTarget, FsTarget, Goal, TargetId};
 use crate::store::DefaultStore;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
@@ -26,6 +27,7 @@ pub struct FsResolver<T: Tricorder> {
     workspace_manager: Arc<WorkspaceManager>,
     tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
     task_results: Arc<TaskResults>,
+    code_db: Arc<CodeDatabase>,
 }
 
 impl<T: Tricorder + Clone + 'static> FsResolver<T> {
@@ -35,6 +37,7 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
         target_registry: Arc<TargetRegistry>,
         task_results: Arc<TaskResults>,
+        code_db: Arc<CodeDatabase>,
     ) -> Self {
         Self {
             config,
@@ -42,6 +45,7 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             tricorder_manager,
             target_registry,
             task_results,
+            code_db,
         }
     }
 
@@ -71,6 +75,7 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             target.path().to_path_buf()
         };
 
+        let source_hash = SourceHasher::hash(&final_path).await?;
         let ct = ConcreteTarget::builder()
             .goal(goal)
             .target_id(target_id)
@@ -84,11 +89,21 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             .target_registry
             .associate_concrete_target(target_id, ct);
 
-        let deps = self.task_results.get_task_deps(target_id);
+        if let Some(mut signature) = self.code_db.get_signature(&ct, &source_hash)? {
+            let mut ct = signature.target().clone();
+            ct.set_target(self.target_registry.get_target(target_id), target_id);
+            let ct = self
+                .target_registry
+                .associate_concrete_target(target_id, ct);
+            signature.set_target((*ct).clone());
+            return Ok(SignatureGenerationFlow::GeneratedSignatures {
+                signatures: vec![signature],
+            });
+        }
 
         let mut tricorder = if let Some(tricorder) = self
             .tricorder_manager
-            .find_and_ready_by_path(&ct.path())
+            .find_and_ready_by_path(ct.path())
             .await?
         {
             tricorder
@@ -102,7 +117,14 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         // get_ast
 
         // 2. generate signature for this concrete target
+        let deps = self.task_results.get_task_deps(target_id);
         let sig = tricorder.generate_signature(&ct, &deps).await?;
+
+        // NB(@ostera): we'll just save the first signature here.
+        if let SignatureGenerationFlow::GeneratedSignatures { signatures } = &sig {
+            let sig = signatures.iter().next().unwrap();
+            self.code_db.save_signature(&ct, &source_hash, sig)?;
+        }
 
         Ok(sig)
     }

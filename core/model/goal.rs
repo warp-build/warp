@@ -1,8 +1,11 @@
 use super::RuleName;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::*;
 
-#[derive(Default, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(
+    Default, Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize,
+)]
 pub enum Goal {
     /// Build is the default goal, which is used to compile, link, produce container images, and
     /// any other task that produces an artifact that is used to either build more software or to

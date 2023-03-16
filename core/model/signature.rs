@@ -1,9 +1,10 @@
 use super::rule::Config;
 use super::{ConcreteTarget, RuleName, Target};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use thiserror::*;
 
-#[derive(Builder, Debug, Clone)]
+#[derive(Builder, Debug, Clone, Serialize, Deserialize)]
 #[builder(build_fn(error = "SignatureError"))]
 pub struct Signature {
     target: ConcreteTarget,
@@ -23,6 +24,10 @@ pub struct Signature {
 impl Signature {
     pub fn builder() -> SignatureBuilder {
         Default::default()
+    }
+
+    pub fn set_target(&mut self, target: ConcreteTarget) {
+        self.target = target;
     }
 
     pub fn target(&self) -> &ConcreteTarget {

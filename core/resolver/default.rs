@@ -4,6 +4,7 @@ use super::boot_resolver::BootstrapResolver;
 use super::net_resolver::NetResolver;
 use super::{FsResolver, ResolutionFlow, Resolver, ResolverError, TargetRegistry};
 use crate::archive::ArchiveManager;
+use crate::code::CodeDatabase;
 use crate::model::{ConcreteTarget, Goal, RemoteTarget, Requirement, Signature, Target, TargetId};
 use crate::store::DefaultStore;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
@@ -20,8 +21,6 @@ pub struct DefaultResolver<T: Tricorder + Clone> {
     fs_resolver: Arc<FsResolver<T>>,
     net_resolver: Arc<NetResolver<T>>,
     target_registry: Arc<TargetRegistry>,
-    tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
-    workspace_manager: Arc<WorkspaceManager>,
 }
 
 impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
@@ -32,8 +31,9 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         archive_manager: Arc<ArchiveManager>,
         workspace_manager: Arc<WorkspaceManager>,
         task_results: Arc<TaskResults>,
-    ) -> Self {
+    ) -> Result<Self, ResolverError> {
         let tricorder_manager = Arc::new(TricorderManager::new(config.clone(), store));
+        let code_db = Arc::new(CodeDatabase::new(config.clone())?);
 
         let net_resolver = Arc::new(NetResolver::new(
             config.clone(),
@@ -41,6 +41,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             workspace_manager.clone(),
             tricorder_manager.clone(),
             target_registry.clone(),
+            code_db.clone(),
         ));
 
         let fs_resolver = Arc::new(FsResolver::new(
@@ -49,6 +50,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             tricorder_manager.clone(),
             target_registry.clone(),
             task_results,
+            code_db.clone(),
         ));
 
         let boot_resolver = Arc::new(BootstrapResolver::new(
@@ -57,15 +59,13 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             target_registry.clone(),
         ));
 
-        Self {
+        Ok(Self {
             fs_resolver,
             net_resolver,
             boot_resolver,
-            tricorder_manager,
             target_registry,
-            workspace_manager,
             config,
-        }
+        })
     }
 }
 
@@ -259,7 +259,8 @@ mod tests {
             archive_manager.clone(),
             workspace_manager.into(),
             task_results,
-        );
+        )
+        .unwrap();
 
         let target: Target = "bad/file/path.ex".into();
         let target_id = target_registry.register_target(&target);
@@ -348,7 +349,8 @@ mod tests {
             archive_manager.clone(),
             workspace_manager.into(),
             task_results,
-        );
+        )
+        .unwrap();
 
         // NOTE(@ostera): this mock will be used to not fetch the real tricorder
         let _public_store_mock1 = mockito::mock("GET", "/a-hash.tar.gz")

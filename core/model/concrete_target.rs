@@ -1,17 +1,18 @@
-use tracing::instrument;
-
 use super::{Goal, Target, TargetId};
 use crate::sync::*;
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use tracing::instrument;
 
 static CURRENT_DIR: &str = ".";
 
 /// A ConcreteTarget is a target that has gone through the first phase of resolution.
 ///
-#[derive(Builder, Clone, Debug, PartialEq, Eq)]
+#[derive(Builder, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConcreteTarget {
     goal: Goal,
 
+    #[serde(skip)]
     #[builder(setter(into))]
     target_id: TargetId,
 
@@ -50,6 +51,11 @@ impl ConcreteTarget {
         }
     }
 
+    pub fn set_target(&mut self, target: Arc<Target>, target_id: TargetId) {
+        self.original_target = target;
+        self.target_id = target_id;
+    }
+
     pub fn original_target(&self) -> Arc<Target> {
         self.original_target.clone()
     }
@@ -79,7 +85,7 @@ impl ConcreteTarget {
         if let Some(file) = self.path.file_name() {
             file.to_str().unwrap()
         } else {
-            &self.path.to_str().unwrap()
+            self.path.to_str().unwrap()
         }
     }
 

@@ -1,4 +1,5 @@
 use crate::archive::ArchiveManagerError;
+use crate::code::{CodeDatabaseError, SourceHasherError};
 use crate::model::TargetError;
 use crate::tricorder::{TricorderError, TricorderManagerError};
 use crate::{Goal, Target};
@@ -25,8 +26,14 @@ pub enum ResolverError {
     #[error(transparent)]
     ArchiveManagerError(ArchiveManagerError),
 
+    #[error(transparent)]
+    CodeDatabaseError(CodeDatabaseError),
+
     #[error("Could not open file at {path:?}")]
     CouldNotFindFile { path: PathBuf },
+
+    #[error(transparent)]
+    SourceHasherError(SourceHasherError),
 }
 
 impl From<TricorderError> for ResolverError {
@@ -50,5 +57,17 @@ impl From<TargetError> for ResolverError {
 impl From<ArchiveManagerError> for ResolverError {
     fn from(value: ArchiveManagerError) -> Self {
         ResolverError::ArchiveManagerError(value)
+    }
+}
+
+impl From<CodeDatabaseError> for ResolverError {
+    fn from(value: CodeDatabaseError) -> Self {
+        ResolverError::CodeDatabaseError(value)
+    }
+}
+
+impl From<SourceHasherError> for ResolverError {
+    fn from(value: SourceHasherError) -> Self {
+        ResolverError::SourceHasherError(value)
     }
 }
