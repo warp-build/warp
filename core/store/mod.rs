@@ -3,7 +3,9 @@ mod artifact_manifest;
 mod default;
 mod error;
 mod local;
+mod package;
 mod package_manifest;
+mod packer;
 mod public;
 
 pub use artifact_id::*;
@@ -11,7 +13,9 @@ pub use artifact_manifest::*;
 pub use default::*;
 pub use error::*;
 use local::*;
+pub use package::*;
 pub use package_manifest::*;
+pub use packer::*;
 use public::*;
 
 use crate::model::ExecutableSpec;

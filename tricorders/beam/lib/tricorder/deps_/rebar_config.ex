@@ -11,7 +11,9 @@ defmodule Tricorder.Deps.RebarConfig do
     end
   end
 
+  defp clean(name) when is_atom(name), do: {name, Tricorder.Deps.Spec.parse(name)}
   defp clean({name, spec}), do: {name, Tricorder.Deps.Spec.parse(name, spec)}
+  defp clean({name, _, spec}), do: {name, Tricorder.Deps.Spec.parse(name, spec)}
 
   defp deps(conf) do
     conf |> Map.get(:deps, [])

@@ -4000,6 +4000,7 @@ dependencies = [
  "directories",
  "env_logger 0.9.3",
  "fixedbitset",
+ "flate2",
  "fs_extra",
  "futures",
  "fxhash",

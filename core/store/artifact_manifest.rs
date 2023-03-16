@@ -58,6 +58,9 @@ pub struct ArtifactManifest {
     hash: String,
 
     #[serde(default)]
+    exec_env: BTreeMap<String, String>,
+
+    #[serde(default)]
     store_path: PathBuf,
 
     #[serde(default)]
@@ -182,6 +185,26 @@ impl ArtifactManifest {
 
     pub fn buildstamps(&self) -> &BuildStamps {
         &self.buildstamps
+    }
+
+    pub fn exec_env(&self) -> &BTreeMap<String, String> {
+        &self.exec_env
+    }
+
+    pub fn toolchains(&self) -> &BTreeMap<String, String> {
+        &self.toolchains
+    }
+
+    pub fn transitive_deps(&self) -> &BTreeMap<String, String> {
+        &self.transitive_deps
+    }
+
+    pub fn runtime_deps(&self) -> &BTreeMap<String, String> {
+        &self.runtime_deps
+    }
+
+    pub fn deps(&self) -> &BTreeMap<String, String> {
+        &self.deps
     }
 }
 

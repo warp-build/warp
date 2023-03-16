@@ -142,6 +142,7 @@ impl LocalExecutor {
                     .transitive_deps(transitive_deps)
                     .toolchains(toolchains)
                     .provides(spec.provides().files().clone())
+                    .exec_env(spec.exec_env().clone().into())
                     .shell_env(shell_env)
                     .store_path(store_path)
                     .buildstamps(buildstamps)

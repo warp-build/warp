@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use thiserror::*;
 
 #[derive(Error, Debug)]
@@ -20,6 +21,16 @@ impl ExecutionEnvironment {
 impl Default for ExecutionEnvironment {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl From<ExecutionEnvironment> for BTreeMap<String, String> {
+    fn from(val: ExecutionEnvironment) -> Self {
+        let mut map: BTreeMap<String, String> = Default::default();
+
+        map.insert("host_triple".to_string(), val.host_triple);
+
+        map
     }
 }
 

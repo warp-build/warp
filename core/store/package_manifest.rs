@@ -1,24 +1,58 @@
+use crate::sync::Arc;
 use crate::util::from_file::FromFileError;
 use chrono::{DateTime, Utc};
+use fxhash::FxHashSet;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
 
+use super::ArtifactManifest;
+
 pub const PUBLISH_MANIFEST_FILE: &str = "Manifest.json";
 
 /// A manifest used for describing a published package with Warp.
 ///
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Builder, Default, Debug, Clone, Serialize, Deserialize)]
 pub struct PackageManifest {
     #[serde(with = "crate::util::serde::iso8601")]
+    #[builder(default = "Utc::now()")]
     published_at: DateTime<Utc>,
-
     keys: BTreeMap<String, Vec<String>>,
 }
 
 impl PackageManifest {
+    pub fn builder() -> PackageManifestBuilder {
+        Default::default()
+    }
+
+    pub fn from_artifact_manifest(manifest: Arc<ArtifactManifest>) -> Self {
+        let mut manifest_keys = BTreeMap::new();
+
+        let host_triple = manifest.exec_env().get("host_triple").unwrap();
+
+        let mut hashes: Vec<String> = vec![manifest.hash().to_string()];
+
+        let mut uniq_hashes: FxHashSet<String> = Default::default();
+
+        for (_, dep_hash) in manifest
+            .deps()
+            .iter()
+            .chain(manifest.runtime_deps().iter())
+            .chain(manifest.transitive_deps().iter())
+            .chain(manifest.toolchains().iter())
+        {
+            uniq_hashes.insert(dep_hash.to_string());
+        }
+
+        hashes.extend(uniq_hashes.into_iter());
+
+        manifest_keys.insert(host_triple.clone(), hashes.clone());
+
+        Self::builder().keys(manifest_keys).build().unwrap()
+    }
+
     // TODO(@ostera): fix util::FromFile to derive this function there
     pub async fn from_file(path: &Path) -> Result<Self, FromFileError> {
         let mut file =

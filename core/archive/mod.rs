@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 /// An archive represents a file or directory that was downloaded.
 ///
-#[derive(Builder, Debug)]
+#[derive(Builder, Debug, Clone)]
 pub struct Archive {
     #[builder(setter(into))]
     final_path: PathBuf,

@@ -1,6 +1,8 @@
 use super::{Archive, ArchiveBuilderError};
-use crate::Config;
+use crate::sync::Arc;
+use crate::{store::ArtifactManifest, Config};
 use async_compression::futures::bufread::GzipDecoder;
+use flate2::{write::GzEncoder, Compression};
 use futures::{StreamExt, TryStreamExt};
 use sha2::{Digest, Sha256};
 use std::io::Read;
@@ -17,6 +19,7 @@ pub struct ArchiveManager {
     client: reqwest::Client,
     archive_root: PathBuf,
     force_redownload: bool,
+    public_store_cdn_url: Url,
 }
 
 impl ArchiveManager {
@@ -25,6 +28,7 @@ impl ArchiveManager {
             client: config.http_client().clone(),
             archive_root: config.archive_root().to_path_buf(),
             force_redownload: config.force_redownload(),
+            public_store_cdn_url: config.public_store_cdn_url().clone(),
         }
     }
 
@@ -86,6 +90,56 @@ impl ArchiveManager {
             .build()?;
 
         Ok(archive)
+    }
+
+    #[instrument(name = "ArchiveManager::compress", skip(self))]
+    pub async fn compress(
+        &self,
+        manifest: Arc<ArtifactManifest>,
+    ) -> Result<Archive, ArchiveManagerError> {
+        let archive_url = self
+            .public_store_cdn_url
+            .join(&format!("{}.tar.gz", manifest.hash()))
+            .unwrap();
+
+        if let Some(archive) = self.find(&archive_url).await? {
+            return Ok(archive);
+        }
+
+        let tarball_path = self.archive_path(&archive_url);
+
+        {
+            let tarball_path = tarball_path.clone();
+            let manifest = manifest.clone();
+            tokio::task::spawn_blocking(move || {
+                std::env::set_current_dir(manifest.store_path()).unwrap();
+                let _ = std::fs::create_dir_all(tarball_path.parent().unwrap());
+                let tar_file = std::fs::File::create(tarball_path).unwrap();
+                let enc = GzEncoder::new(tar_file, Compression::default());
+                let mut tar = tar::Builder::new(enc);
+                for out in manifest.outs() {
+                    let mut f = std::fs::File::open(manifest.store_path().join(out))?;
+                    if f.metadata().unwrap().is_dir() {
+                        tar.append_dir_all(out, manifest.store_path().join(out))?;
+                    } else {
+                        tar.append_file(out, &mut f)?;
+                    }
+                }
+
+                tar.finish()
+            })
+            .await
+            .unwrap()?
+        };
+
+        fs::write(tarball_path.with_extension("sha256"), manifest.hash()).await?;
+
+        Ok(Archive::builder()
+            .final_path(tarball_path)
+            .url(archive_url)
+            .hash(manifest.hash().to_string())
+            .build()
+            .unwrap())
     }
 
     #[instrument(name = "ArchiveManager::download", skip(self))]
