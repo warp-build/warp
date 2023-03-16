@@ -25,8 +25,8 @@ impl Expander {
                 None => values
                     .get(key)
                     .ok_or_else(|| ExpanderError::MissingMandatoryField {
-                        sig: sig.clone().into(),
                         field_name: key.clone(),
+                        sig: sig.clone().into(),
                         rule: rule.clone().into(),
                     })?,
             }
@@ -44,7 +44,7 @@ impl Expander {
         Ok(values)
     }
 
-    #[instrument(name = "Expander::expand_value", skip(self))]
+    #[instrument(name = "Expander::expand_value", skip(self), ret)]
     pub fn expand_value(
         &self,
         root: &Path,
@@ -53,8 +53,8 @@ impl Expander {
     ) -> Result<Value, ExpanderError> {
         trace!("Expanding value {:?} of type {:?}", value, value_type);
         match (value_type, &value) {
-            (Type::File, Value::File(path)) => self.expand_glob(root, path.to_str().unwrap()),
-            (Type::File, Value::String(path)) => self.expand_glob(root, path),
+            (Type::File, Value::File(path)) => self.expand_glob(root, &path),
+            (Type::File, Value::String(path)) => self.expand_glob(root, Path::new(path)),
             (Type::Target, Value::String(name)) => {
                 let target = name.parse().map_err(ExpanderError::TargetError)?;
                 Ok(Value::Target(target))
@@ -76,7 +76,7 @@ impl Expander {
     }
 
     #[instrument(name = "Expander::expand_glob", skip(self))]
-    pub fn expand_glob(&self, root: &Path, cfg_path: &str) -> Result<Value, ExpanderError> {
+    pub fn expand_glob(&self, root: &Path, cfg_path: &Path) -> Result<Value, ExpanderError> {
         let path = root.join(cfg_path).to_string_lossy().to_string();
         if path.contains('*') {
             let entries = glob::glob(&path).map_err(|err| ExpanderError::InvalidGlobPattern {
