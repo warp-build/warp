@@ -141,6 +141,7 @@ impl Tricorder for GrpcTricorder {
         let request = proto::build::warp::tricorder::PrepareDependencyRequest {
             package_root: archive.final_path().to_string_lossy().to_string(),
             url: archive.url().to_string(),
+            ..Default::default()
         };
 
         let res = self.client.prepare_dependency(request).await?.into_inner();

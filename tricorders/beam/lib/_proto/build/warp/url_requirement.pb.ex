@@ -23,6 +23,20 @@ defmodule Build.Warp.UrlRequirement do
           proto3_optional: nil,
           type: :TYPE_STRING,
           type_name: nil
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          __unknown_fields__: [],
+          default_value: nil,
+          extendee: nil,
+          json_name: "subpath",
+          label: :LABEL_OPTIONAL,
+          name: "subpath",
+          number: 2,
+          oneof_index: nil,
+          options: nil,
+          proto3_optional: nil,
+          type: :TYPE_STRING,
+          type_name: nil
         }
       ],
       name: "UrlRequirement",
@@ -35,4 +49,5 @@ defmodule Build.Warp.UrlRequirement do
   end
 
   field(:url, 1, type: :string)
+  field(:subpath, 2, type: :string)
 end

@@ -130,8 +130,11 @@ message PrepareDependencyRequest {
   // The root directory where this package is located.
   string package_root = 1;
  
-  // The URL that this package was downloded from.c
+  // The URL that this package was downloded from.
   string url = 2;
+
+  // The name of the dependency to preprae.
+  string package_name = 3;
 }
 
 message PrepareDependencyResponse {

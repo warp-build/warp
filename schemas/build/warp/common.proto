@@ -41,6 +41,7 @@ message SymbolRequirement {
 
 message UrlRequirement {
   string url = 1;
+  string subpath = 2;
 }
 
 message DependencyRequirement {
@@ -93,6 +94,8 @@ message Dependency {
 
   // The URL of the Tricorder that should be used to handle this dependency.
   string tricorder_url = 8;
+
+  // A collection of strings pointing to the relative paths of the outputs this
+  // dependency created. All these paths are relative to the [store_path=7].
+  repeated string outputs = 9;
 }
-
-

@@ -26,6 +26,24 @@ defmodule Build.Warp.Tricorder.TricorderService.Service do
           options: nil,
           output_type: ".build.warp.tricorder.GenerateSignatureResponse",
           server_streaming: false
+        },
+        %Google.Protobuf.MethodDescriptorProto{
+          __unknown_fields__: [],
+          client_streaming: false,
+          input_type: ".build.warp.tricorder.GetAstRequest",
+          name: "GetAst",
+          options: nil,
+          output_type: ".build.warp.tricorder.GetAstResponse",
+          server_streaming: false
+        },
+        %Google.Protobuf.MethodDescriptorProto{
+          __unknown_fields__: [],
+          client_streaming: false,
+          input_type: ".build.warp.tricorder.PrepareDependencyRequest",
+          name: "PrepareDependency",
+          options: nil,
+          output_type: ".build.warp.tricorder.PrepareDependencyResponse",
+          server_streaming: false
         }
       ],
       name: "TricorderService",
@@ -43,6 +61,14 @@ defmodule Build.Warp.Tricorder.TricorderService.Service do
     :GenerateSignature,
     Build.Warp.Tricorder.GenerateSignatureRequest,
     Build.Warp.Tricorder.GenerateSignatureResponse
+  )
+
+  rpc(:GetAst, Build.Warp.Tricorder.GetAstRequest, Build.Warp.Tricorder.GetAstResponse)
+
+  rpc(
+    :PrepareDependency,
+    Build.Warp.Tricorder.PrepareDependencyRequest,
+    Build.Warp.Tricorder.PrepareDependencyResponse
   )
 end
 

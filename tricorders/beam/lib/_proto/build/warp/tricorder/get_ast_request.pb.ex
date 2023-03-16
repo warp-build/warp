@@ -1,4 +1,4 @@
-defmodule Build.Warp.Codedb.GetAstRequest do
+defmodule Build.Warp.Tricorder.GetAstRequest do
   @moduledoc false
   use Protobuf, protoc_gen_elixir_version: "0.11.0", syntax: :proto3
 

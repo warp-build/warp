@@ -121,6 +121,20 @@ defmodule Build.Warp.Dependency do
           proto3_optional: nil,
           type: :TYPE_STRING,
           type_name: nil
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          __unknown_fields__: [],
+          default_value: nil,
+          extendee: nil,
+          json_name: "outputs",
+          label: :LABEL_REPEATED,
+          name: "outputs",
+          number: 9,
+          oneof_index: nil,
+          options: nil,
+          proto3_optional: nil,
+          type: :TYPE_STRING,
+          type_name: nil
         }
       ],
       name: "Dependency",
@@ -140,4 +154,5 @@ defmodule Build.Warp.Dependency do
   field(:archive_subdir, 6, type: :string, json_name: "archiveSubdir")
   field(:store_path, 7, type: :string, json_name: "storePath")
   field(:tricorder_url, 8, type: :string, json_name: "tricorderUrl")
+  field(:outputs, 9, repeated: true, type: :string)
 end

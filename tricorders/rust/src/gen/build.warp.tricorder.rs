@@ -137,9 +137,12 @@ pub struct PrepareDependencyRequest {
     /// The root directory where this package is located.
     #[prost(string, tag = "1")]
     pub package_root: ::prost::alloc::string::String,
-    /// The URL that this package was downloded from.c
+    /// The URL that this package was downloded from.
     #[prost(string, tag = "2")]
     pub url: ::prost::alloc::string::String,
+    /// The name of the dependency to preprae.
+    #[prost(string, tag = "3")]
+    pub package_name: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -1,4 +1,4 @@
-defmodule Build.Warp.Codedb.GenerateSignatureResponse do
+defmodule Build.Warp.Tricorder.GetAstResponse do
   @moduledoc false
   use Protobuf, protoc_gen_elixir_version: "0.11.0", syntax: :proto3
 
@@ -22,7 +22,7 @@ defmodule Build.Warp.Codedb.GenerateSignatureResponse do
           options: nil,
           proto3_optional: nil,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.codedb.GenerateSignatureSuccessResponse"
+          type_name: ".build.warp.tricorder.GetAstSuccessResponse"
         },
         %Google.Protobuf.FieldDescriptorProto{
           __unknown_fields__: [],
@@ -36,10 +36,10 @@ defmodule Build.Warp.Codedb.GenerateSignatureResponse do
           options: nil,
           proto3_optional: nil,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.codedb.GenerateSignatureMissingDepsResponse"
+          type_name: ".build.warp.tricorder.GetAstMissingDepsResponse"
         }
       ],
-      name: "GenerateSignatureResponse",
+      name: "GetAstResponse",
       nested_type: [],
       oneof_decl: [
         %Google.Protobuf.OneofDescriptorProto{
@@ -56,10 +56,10 @@ defmodule Build.Warp.Codedb.GenerateSignatureResponse do
 
   oneof(:response, 0)
 
-  field(:ok, 1, type: Build.Warp.Codedb.GenerateSignatureSuccessResponse, oneof: 0)
+  field(:ok, 1, type: Build.Warp.Tricorder.GetAstSuccessResponse, oneof: 0)
 
   field(:missing_deps, 3,
-    type: Build.Warp.Codedb.GenerateSignatureMissingDepsResponse,
+    type: Build.Warp.Tricorder.GetAstMissingDepsResponse,
     json_name: "missingDeps",
     oneof: 0
   )

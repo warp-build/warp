@@ -1,4 +1,4 @@
-defmodule Build.Warp.Dependency.PrepareDependencyResponse do
+defmodule Build.Warp.Tricorder.PrepareDependencyRequest do
   @moduledoc false
   use Protobuf, protoc_gen_elixir_version: "0.11.0", syntax: :proto3
 
@@ -14,32 +14,46 @@ defmodule Build.Warp.Dependency.PrepareDependencyResponse do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "status",
+          json_name: "packageRoot",
           label: :LABEL_OPTIONAL,
-          name: "status",
+          name: "package_root",
           number: 1,
           oneof_index: nil,
           options: nil,
           proto3_optional: nil,
-          type: :TYPE_ENUM,
-          type_name: ".build.warp.Status"
+          type: :TYPE_STRING,
+          type_name: nil
         },
         %Google.Protobuf.FieldDescriptorProto{
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "signatures",
-          label: :LABEL_REPEATED,
-          name: "signatures",
+          json_name: "url",
+          label: :LABEL_OPTIONAL,
+          name: "url",
           number: 2,
           oneof_index: nil,
           options: nil,
           proto3_optional: nil,
-          type: :TYPE_MESSAGE,
-          type_name: ".build.warp.Signature"
+          type: :TYPE_STRING,
+          type_name: nil
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          __unknown_fields__: [],
+          default_value: nil,
+          extendee: nil,
+          json_name: "packageName",
+          label: :LABEL_OPTIONAL,
+          name: "package_name",
+          number: 3,
+          oneof_index: nil,
+          options: nil,
+          proto3_optional: nil,
+          type: :TYPE_STRING,
+          type_name: nil
         }
       ],
-      name: "PrepareDependencyResponse",
+      name: "PrepareDependencyRequest",
       nested_type: [],
       oneof_decl: [],
       options: nil,
@@ -48,6 +62,7 @@ defmodule Build.Warp.Dependency.PrepareDependencyResponse do
     }
   end
 
-  field(:status, 1, type: Build.Warp.Status, enum: true)
-  field(:signatures, 2, repeated: true, type: Build.Warp.Signature)
+  field(:package_root, 1, type: :string, json_name: "packageRoot")
+  field(:url, 2, type: :string)
+  field(:package_name, 3, type: :string, json_name: "packageName")
 end

@@ -58,6 +58,8 @@ pub struct SymbolRequirement {
 pub struct UrlRequirement {
     #[prost(string, tag = "1")]
     pub url: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub subpath: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -129,6 +131,10 @@ pub struct Dependency {
     /// The URL of the Tricorder that should be used to handle this dependency.
     #[prost(string, tag = "8")]
     pub tricorder_url: ::prost::alloc::string::String,
+    /// A collection of strings pointing to the relative paths of the outputs this
+    /// dependency created. All these paths are relative to the \[store_path=7\].
+    #[prost(string, repeated, tag = "9")]
+    pub outputs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]

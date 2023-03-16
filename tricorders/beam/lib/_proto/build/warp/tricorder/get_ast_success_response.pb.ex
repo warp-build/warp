@@ -1,4 +1,4 @@
-defmodule Build.Warp.Dependency.ResolveDependencyResponse do
+defmodule Build.Warp.Tricorder.GetAstSuccessResponse do
   @moduledoc false
   use Protobuf, protoc_gen_elixir_version: "0.11.0", syntax: :proto3
 
@@ -14,24 +14,10 @@ defmodule Build.Warp.Dependency.ResolveDependencyResponse do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "status",
+          json_name: "file",
           label: :LABEL_OPTIONAL,
-          name: "status",
+          name: "file",
           number: 1,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
-          type: :TYPE_ENUM,
-          type_name: ".build.warp.Status"
-        },
-        %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "packageName",
-          label: :LABEL_OPTIONAL,
-          name: "package_name",
-          number: 2,
           oneof_index: nil,
           options: nil,
           proto3_optional: nil,
@@ -42,9 +28,23 @@ defmodule Build.Warp.Dependency.ResolveDependencyResponse do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "version",
+          json_name: "symbol",
           label: :LABEL_OPTIONAL,
-          name: "version",
+          name: "symbol",
+          number: 2,
+          oneof_index: nil,
+          options: nil,
+          proto3_optional: nil,
+          type: :TYPE_MESSAGE,
+          type_name: ".build.warp.Symbol"
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          __unknown_fields__: [],
+          default_value: nil,
+          extendee: nil,
+          json_name: "source",
+          label: :LABEL_OPTIONAL,
+          name: "source",
           number: 3,
           oneof_index: nil,
           options: nil,
@@ -56,18 +56,18 @@ defmodule Build.Warp.Dependency.ResolveDependencyResponse do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "archive",
+          json_name: "ast",
           label: :LABEL_OPTIONAL,
-          name: "archive",
+          name: "ast",
           number: 4,
           oneof_index: nil,
           options: nil,
           proto3_optional: nil,
-          type: :TYPE_MESSAGE,
-          type_name: ".build.warp.Archive"
+          type: :TYPE_STRING,
+          type_name: nil
         }
       ],
-      name: "ResolveDependencyResponse",
+      name: "GetAstSuccessResponse",
       nested_type: [],
       oneof_decl: [],
       options: nil,
@@ -76,8 +76,8 @@ defmodule Build.Warp.Dependency.ResolveDependencyResponse do
     }
   end
 
-  field(:status, 1, type: Build.Warp.Status, enum: true)
-  field(:package_name, 2, type: :string, json_name: "packageName")
-  field(:version, 3, type: :string)
-  field(:archive, 4, type: Build.Warp.Archive)
+  field(:file, 1, type: :string)
+  field(:symbol, 2, type: Build.Warp.Symbol)
+  field(:source, 3, type: :string)
+  field(:ast, 4, type: :string)
 end

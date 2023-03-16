@@ -1,4 +1,4 @@
-defmodule Build.Warp.Codedb.GetProvidedSymbolsRequest do
+defmodule Build.Warp.Tricorder.PrepareDependencyResponse do
   @moduledoc false
   use Protobuf, protoc_gen_elixir_version: "0.11.0", syntax: :proto3
 
@@ -14,18 +14,18 @@ defmodule Build.Warp.Codedb.GetProvidedSymbolsRequest do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "file",
-          label: :LABEL_OPTIONAL,
-          name: "file",
-          number: 1,
+          json_name: "signatures",
+          label: :LABEL_REPEATED,
+          name: "signatures",
+          number: 2,
           oneof_index: nil,
           options: nil,
           proto3_optional: nil,
-          type: :TYPE_STRING,
-          type_name: nil
+          type: :TYPE_MESSAGE,
+          type_name: ".build.warp.Signature"
         }
       ],
-      name: "GetProvidedSymbolsRequest",
+      name: "PrepareDependencyResponse",
       nested_type: [],
       oneof_decl: [],
       options: nil,
@@ -34,5 +34,5 @@ defmodule Build.Warp.Codedb.GetProvidedSymbolsRequest do
     }
   end
 
-  field(:file, 1, type: :string)
+  field(:signatures, 2, repeated: true, type: Build.Warp.Signature)
 end
