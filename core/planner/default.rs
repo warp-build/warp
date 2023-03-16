@@ -2,6 +2,7 @@ use super::{DefaultPlannerContext, Dependencies, Planner, PlannerError, Planning
 use crate::model::{ExecutableSpec, ExecutionEnvironment, Goal, Signature, TargetId};
 use crate::rules::RuleExecutor;
 use async_trait::async_trait;
+use tracing::instrument;
 
 pub struct DefaultPlanner<RE: RuleExecutor> {
     ctx: DefaultPlannerContext,
@@ -23,7 +24,7 @@ where
         })
     }
 
-    #[tracing::instrument(name = "DefaultPlanner::plan", skip(self, sig, env))]
+    #[instrument(name = "DefaultPlanner::plan", skip(self, env))]
     async fn plan(
         &mut self,
         goal: Goal,
@@ -32,17 +33,33 @@ where
     ) -> Result<PlanningFlow, PlannerError> {
         let planning_start_time = chrono::Utc::now();
 
+        let target_id = sig.target().target_id();
+
+        // TODO(@ostera): these can also be toolchains, so we should split 'em up
+        let prior_deps: Vec<TargetId> = self
+            .ctx
+            .task_results
+            .get_task_deps(target_id)
+            .into_iter()
+            .map(|(spec, _manifest)| spec.target().target_id())
+            .collect();
+
         let deps = self.ctx.target_registry.register_many_targets(sig.deps());
-        let compile_deps = match self._deps(sig.target().target_id(), &deps) {
+        let compile_deps = match self._deps(target_id, &deps, DepKind::Compile) {
             DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
-            DepFinderFlow::AllDepsFound(deps) => deps,
+            DepFinderFlow::AllDepsFound(deps) => deps, //vec![deps, prior_deps].concat(),
         };
 
         let runtime_deps = self
             .ctx
             .target_registry
             .register_many_targets(sig.runtime_deps());
-        let runtime_deps = match self._deps(sig.target().target_id(), &runtime_deps) {
+        let runtime_deps = match self._deps(target_id, &runtime_deps, DepKind::Runtime) {
+            DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
+            DepFinderFlow::AllDepsFound(deps) => deps,
+        };
+
+        let transitive_deps = match self._deps(target_id, &compile_deps, DepKind::Transitive) {
             DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
             DepFinderFlow::AllDepsFound(deps) => deps,
         };
@@ -50,7 +67,7 @@ where
         let mut deps = Dependencies::builder()
             .compile_deps(compile_deps)
             .toolchains(vec![])
-            .transitive_deps(vec![])
+            .transitive_deps(transitive_deps)
             .runtime_deps(runtime_deps)
             .build()?;
 
@@ -60,7 +77,8 @@ where
             .ctx
             .target_registry
             .register_many_targets(&plan.toolchains);
-        match self._deps(sig.target().target_id(), &toolchains) {
+
+        match self._deps(sig.target().target_id(), &toolchains, DepKind::Toolchain) {
             DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
             DepFinderFlow::AllDepsFound(toolchains) => deps.set_toolchains(toolchains),
         };
@@ -87,7 +105,7 @@ where
 }
 
 impl<RE: RuleExecutor> DefaultPlanner<RE> {
-    fn _deps(&self, target: TargetId, deps: &[TargetId]) -> DepFinderFlow {
+    fn _deps(&self, target: TargetId, deps: &[TargetId], kind: DepKind) -> DepFinderFlow {
         let mut collected_deps: Vec<TargetId> = vec![];
         let mut missing_deps: Vec<TargetId> = vec![];
 
@@ -104,7 +122,12 @@ impl<RE: RuleExecutor> DefaultPlanner<RE> {
                 collected_deps.push(dep);
                 if let Some(task_result) = self.ctx.task_results.get_task_result(dep) {
                     let deps = task_result.executable_spec.deps();
-                    pending.extend(deps.compile_deps());
+                    pending.extend(match kind {
+                        DepKind::Compile => deps.compile_deps(),
+                        DepKind::Runtime => deps.runtime_deps(),
+                        DepKind::Toolchain => deps.toolchains(),
+                        DepKind::Transitive => deps.transitive_deps(),
+                    });
                 }
             } else {
                 missing_deps.push(dep);
@@ -117,6 +140,13 @@ impl<RE: RuleExecutor> DefaultPlanner<RE> {
             DepFinderFlow::AllDepsFound(collected_deps)
         }
     }
+}
+
+enum DepKind {
+    Compile,
+    Runtime,
+    Toolchain,
+    Transitive,
 }
 
 enum DepFinderFlow {
