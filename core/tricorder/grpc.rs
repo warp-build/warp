@@ -1,11 +1,13 @@
 use self::proto::build::warp::tricorder::generate_signature_response::Response;
 use self::proto::build::warp::tricorder::EnsureReadyRequest;
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
-use crate::{
-    archive::Archive,
-    model::{rule, ConcreteTarget, Requirement, Signature, SignatureError},
-};
+use crate::archive::Archive;
+use crate::model::{rule, ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError};
+use crate::store::ArtifactManifest;
+use crate::sync::Arc;
+use crate::Target;
 use async_trait::async_trait;
+use std::path::PathBuf;
 use tracing::instrument;
 use url::Url;
 
@@ -57,6 +59,7 @@ impl Tricorder for GrpcTricorder {
     async fn generate_signature(
         &mut self,
         concrete_target: &ConcreteTarget,
+        dependencies: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
     ) -> Result<SignatureGenerationFlow, TricorderError> {
         let request = proto::build::warp::tricorder::GenerateSignatureRequest {
             workspace_root: concrete_target
@@ -65,7 +68,19 @@ impl Tricorder for GrpcTricorder {
                 .to_string(),
             file: concrete_target.path().to_string_lossy().to_string(),
             symbol: None,
-            dependencies: vec![],
+            dependencies: dependencies
+                .iter()
+                .map(|(spec, manifest)| proto::build::warp::Dependency {
+                    store_path: manifest.store_path().to_string_lossy().to_string(),
+                    name: spec.signature().target().name().to_string(),
+                    outputs: manifest
+                        .outs()
+                        .iter()
+                        .map(|path| path.to_string_lossy().to_string())
+                        .collect(),
+                    ..Default::default()
+                })
+                .collect(),
         };
 
         let res = self
@@ -78,6 +93,11 @@ impl Tricorder for GrpcTricorder {
 
         match res {
             Response::Ok(res) => {
+                let deps: Vec<Target> = dependencies
+                    .into_iter()
+                    .map(|(spec, manifest)| (*spec.target().original_target()).clone())
+                    .collect();
+
                 let mut signatures = vec![];
                 for mut proto_sig in res.signatures.into_iter() {
                     let mut config: rule::Config = proto_sig.config.take().unwrap().into();
@@ -87,7 +107,9 @@ impl Tricorder for GrpcTricorder {
                         .rule(proto_sig.rule)
                         .target(concrete_target.clone())
                         .config(config)
+                        .deps(deps.clone())
                         .build()?;
+
                     signatures.push(sig);
                 }
                 Ok(SignatureGenerationFlow::GeneratedSignatures { signatures })
@@ -95,7 +117,6 @@ impl Tricorder for GrpcTricorder {
             Response::MissingDeps(res) => {
                 let mut requirements = vec![];
 
-                dbg!(&res);
                 for req in res.requirements {
                     let req = match req.requirement.unwrap() {
                         proto::build::warp::requirement::Requirement::File(file) => {
@@ -113,6 +134,7 @@ impl Tricorder for GrpcTricorder {
                             Requirement::Url {
                                 url: url.url.parse::<Url>().unwrap(),
                                 tricorder_url: self.conn.tricorder_url.clone(),
+                                subpath: Some(PathBuf::from(url.subpath)),
                             }
                         }
                         proto::build::warp::requirement::Requirement::Dependency(dep) => {
@@ -126,7 +148,6 @@ impl Tricorder for GrpcTricorder {
                     };
                     requirements.push(req)
                 }
-                dbg!(&requirements);
 
                 Ok(SignatureGenerationFlow::MissingRequirements { requirements })
             }
@@ -139,6 +160,7 @@ impl Tricorder for GrpcTricorder {
         archive: &Archive,
     ) -> Result<SignatureGenerationFlow, TricorderError> {
         let request = proto::build::warp::tricorder::PrepareDependencyRequest {
+            package_name: concrete_target.name().to_string(),
             package_root: archive.final_path().to_string_lossy().to_string(),
             url: archive.url().to_string(),
             ..Default::default()
@@ -156,8 +178,10 @@ impl Tricorder for GrpcTricorder {
                 .target(concrete_target.clone())
                 .config(config)
                 .build()?;
+
             signatures.push(sig);
         }
+
         Ok(SignatureGenerationFlow::GeneratedSignatures { signatures })
     }
 }

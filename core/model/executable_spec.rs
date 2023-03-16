@@ -182,7 +182,11 @@ impl ExecutableSpecBuilder {
             s.update(seed.as_bytes());
         }
 
+        let target = self.target.as_ref().unwrap();
+        let root = target.workspace_root();
+
         for src in spec.srcs().files() {
+            let src = root.join(src);
             let f = File::open(&src).unwrap_or_else(|_| panic!("Unable to open: {:?}", &src));
             let mut buffer = [0; 2048];
             let mut reader = BufReader::new(f);

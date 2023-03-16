@@ -7,45 +7,37 @@ defmodule Tricorder.Analysis.Paths do
 
   """
 
-  def build_paths(file, store_paths) do
-    include_paths = include_paths(file, store_paths)
-
-    code_paths = store_paths |> Enum.map(&Path.dirname/1) |> Enum.uniq()
-
-    %{include_paths: include_paths, code_paths: code_paths}
+  def build_paths(file, deps) do
+    %{
+      include_paths: include_paths(file, deps),
+      code_paths: code_paths(file, deps)
+    }
   end
 
-  defp include_paths(file, dependencies) do
-    # NOTE(@ostera): we don't want to discover things on the FS root
-    parts =
-      case file |> Path.dirname() |> Path.split() do
-        ["/" | parts] -> parts
-        parts -> parts
-      end
+  defp code_paths(file, deps) do
+    deps
+    |> Enum.flat_map(fn dep ->
+      Enum.flat_map(dep.outputs, fn out ->
+        [
+          Path.join([dep.store_path, out, "ebin"]),
+          Path.join([dep.store_path, out, "src"])
+        ]
+      end)
+    end)
+    |> Enum.sort()
+    |> Enum.uniq()
+  end
 
-    include_paths =
-      [
-        "include",
-        Enum.map(dependencies, fn dep ->
-          [
-            Path.dirname(Path.dirname(dep.store_path)),
-            Path.dirname(dep.store_path)
-          ]
-        end),
-        for i <- 0..(Enum.count(parts) - 1) do
-          path =
-            case Enum.take(parts, i) do
-              [] -> "."
-              parts -> parts |> Path.join()
-            end
-
-          [path, Path.join(path, "include")]
-        end
-      ]
-      |> List.flatten()
-      |> Enum.sort()
-      |> Enum.uniq()
-
-    include_paths
+  defp include_paths(file, deps) do
+    Enum.flat_map(deps, fn dep ->
+      Enum.flat_map(dep.outputs, fn out ->
+        [
+          Path.join([dep.store_path, out]) |> Path.dirname(),
+          Path.join([dep.store_path, out, "include"])
+        ]
+      end)
+    end)
+    |> Enum.sort()
+    |> Enum.uniq()
   end
 end

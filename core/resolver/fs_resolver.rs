@@ -2,6 +2,7 @@ use super::{ResolverError, TargetRegistry};
 use crate::model::{ConcreteTarget, FsTarget, Goal, TargetId};
 use crate::store::DefaultStore;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
+use crate::worker::TaskResults;
 use crate::workspace::WorkspaceManager;
 use crate::{sync::*, Config};
 use tracing::instrument;
@@ -24,6 +25,7 @@ pub struct FsResolver<T: Tricorder> {
     target_registry: Arc<TargetRegistry>,
     workspace_manager: Arc<WorkspaceManager>,
     tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
+    task_results: Arc<TaskResults>,
 }
 
 impl<T: Tricorder + Clone + 'static> FsResolver<T> {
@@ -32,12 +34,14 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         workspace_manager: Arc<WorkspaceManager>,
         tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
         target_registry: Arc<TargetRegistry>,
+        task_results: Arc<TaskResults>,
     ) -> Self {
         Self {
             config,
             workspace_manager,
             tricorder_manager,
             target_registry,
+            task_results,
         }
     }
 
@@ -80,6 +84,8 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             .target_registry
             .associate_concrete_target(target_id, ct);
 
+        let deps = self.task_results.get_task_deps(target_id);
+
         let mut tricorder = if let Some(tricorder) = self
             .tricorder_manager
             .find_and_ready_by_path(&ct.path())
@@ -96,7 +102,7 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         // get_ast
 
         // 2. generate signature for this concrete target
-        let sig = tricorder.generate_signature(&ct).await?;
+        let sig = tricorder.generate_signature(&ct, &deps).await?;
 
         Ok(sig)
     }

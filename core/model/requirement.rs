@@ -20,6 +20,7 @@ pub enum Requirement {
     Url {
         url: Url,
         tricorder_url: Url,
+        subpath: Option<PathBuf>,
     },
 
     Dependency {

@@ -181,7 +181,9 @@ mod tests {
         root.child("hello/2").touch().unwrap();
         root.child("hello/3").touch().unwrap();
 
-        let value = Expander.expand_glob(root.path(), "hello/*").unwrap();
+        let value = Expander
+            .expand_glob(root.path(), Path::new("hello/*"))
+            .unwrap();
 
         assert_matches!(value, Value::List(values) if values.len() == 3);
     }

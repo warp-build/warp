@@ -5,13 +5,17 @@ mod registry;
 pub use grpc::*;
 pub use manager::*;
 pub use registry::*;
-use url::Url;
 
 use crate::archive::Archive;
-use crate::model::{ConcreteTarget, Requirement, Signature, SignatureError, TargetId};
+use crate::model::{
+    ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, TargetId,
+};
+use crate::store::ArtifactManifest;
+use crate::sync::*;
 use async_trait::async_trait;
 use std::fmt::Debug;
 use thiserror::*;
+use url::Url;
 
 const DEFAULT_TRICODER_BINARY_NAME: &str = "tricorder";
 
@@ -32,6 +36,7 @@ pub trait Tricorder: Send + Sync + Debug {
     async fn generate_signature(
         &mut self,
         concrete_target: &ConcreteTarget,
+        dependencies: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
     ) -> Result<SignatureGenerationFlow, TricorderError>;
 
     async fn ready_dependency(
@@ -53,6 +58,7 @@ pub enum TricorderError {
     SignatureError(SignatureError),
 }
 
+#[derive(Debug)]
 pub enum SignatureGenerationFlow {
     GeneratedSignatures { signatures: Vec<Signature> },
     MissingRequirements { requirements: Vec<Requirement> },

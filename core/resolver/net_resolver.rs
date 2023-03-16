@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use super::{ResolverError, TargetRegistry};
 use crate::archive::ArchiveManager;
 use crate::model::{ConcreteTarget, RemoteTarget, TargetId};
@@ -93,10 +95,14 @@ impl<T: Tricorder + Clone + 'static> NetResolver<T> {
             .goal(goal)
             .target_id(target_id)
             .target(self.target_registry.get_target(target_id))
-            .path(archive.final_path())
+            .path(target.subpath().unwrap())
             .workspace_root(workspace.root())
             .build()
             .unwrap();
+
+        let ct = self
+            .target_registry
+            .associate_concrete_target(target_id, ct);
 
         let sig = tricorder.ready_dependency(&ct, &archive).await?;
 

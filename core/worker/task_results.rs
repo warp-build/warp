@@ -8,6 +8,7 @@ use daggy::{Dag, NodeIndex};
 use dashmap::DashMap;
 use dashmap::DashSet;
 use fxhash::*;
+use petgraph::dot::Dot;
 use thiserror::*;
 use tracing::*;
 
@@ -106,7 +107,19 @@ impl TaskResults {
         target: TargetId,
         deps: &[TargetId],
     ) -> Result<(), TaskResultError> {
-        self.build_graph.insert(target, deps.to_vec());
+        let deps = if let Some(old_deps) = self.build_graph.get(&target) {
+            (*old_deps)
+                .iter()
+                .chain(deps.iter())
+                .map(|p| *p)
+                .collect::<FxHashSet<TargetId>>()
+                .into_iter()
+                .collect::<Vec<TargetId>>()
+        } else {
+            deps.to_vec()
+        };
+
+        self.build_graph.insert(target, deps);
 
         let mut dag: Dag<TargetId, (), u32> = Dag::new();
 
@@ -135,6 +148,24 @@ impl TaskResults {
             })?;
 
         Ok(())
+    }
+
+    #[instrument(name = "TaskResults::get_task_deps", skip(self))]
+    pub fn get_task_deps(
+        &self,
+        target: TargetId,
+    ) -> Vec<(Arc<ExecutableSpec>, Arc<ArtifactManifest>)> {
+        self.build_graph
+            .get(&target)
+            .as_ref()
+            .map(|deps| {
+                (*deps)
+                    .iter()
+                    .flat_map(|dep| self.get_task_result(*dep))
+                    .map(|result| (result.executable_spec, result.artifact_manifest))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 
     pub fn get_task_result(&self, target: TargetId) -> Option<TaskResult> {

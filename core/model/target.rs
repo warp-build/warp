@@ -162,6 +162,9 @@ pub struct RemoteTarget {
 
     #[builder(default, setter(into, strip_option))]
     tricorder_url: Option<String>,
+
+    #[builder(default, setter(into, strip_option))]
+    subpath: Option<PathBuf>,
 }
 
 impl RemoteTarget {
@@ -178,6 +181,10 @@ impl RemoteTarget {
             .as_ref()
             .map(|url| url.clone().parse::<Url>().unwrap())
     }
+
+    pub fn subpath(&self) -> Option<&PathBuf> {
+        self.subpath.as_ref()
+    }
 }
 
 impl ToString for RemoteTarget {
@@ -191,6 +198,7 @@ impl From<url::Url> for RemoteTarget {
         Self {
             url: url.to_string(),
             tricorder_url: None,
+            subpath: None,
         }
     }
 }
@@ -306,6 +314,7 @@ mod tests {
                         .to_string()
                 ),
                 tricorder_url: None,
+                subpath: None,
             }
         }
     }

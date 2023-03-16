@@ -1,3 +1,5 @@
+use tracing::instrument;
+
 use super::{Goal, Target, TargetId};
 use crate::sync::*;
 use std::path::{Path, PathBuf};
@@ -69,8 +71,16 @@ impl ConcreteTarget {
         &self.path
     }
 
+    #[instrument(name = "ConcreteTarget::name", skip(self), ret)]
     pub fn name(&self) -> &str {
-        self.path.file_name().unwrap().to_str().unwrap()
+        // NB(@ostera): sometimes [self.path] does not have a file name, since its a single
+        // components. This happens when the ConcreteTarget is coming from a RemoteTarget and we
+        // have an interesting subpath on it.
+        if let Some(file) = self.path.file_name() {
+            file.to_str().unwrap()
+        } else {
+            &self.path.to_str().unwrap()
+        }
     }
 
     pub fn target_id(&self) -> TargetId {

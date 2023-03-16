@@ -2,10 +2,16 @@ use crate::model::rule::{Config, Value};
 use crate::model::{Dependencies, ExecutionEnvironment, Rule, Signature};
 use crate::sync::*;
 use crate::worker::TaskResults;
+use tracing::instrument;
 
 pub struct ComputeScript;
 
 impl ComputeScript {
+    #[instrument(
+        name = "ComputeScript::as_js_source",
+        skip(task_results, env, sig, rule, config),
+        ret
+    )]
     pub fn as_js_source(
         task_results: Arc<TaskResults>,
         env: &ExecutionEnvironment,
@@ -45,6 +51,7 @@ impl ComputeScript {
                         serde_json::Value::Array(
                             dep.outs()
                                 .iter()
+                                .map(|p| dep.store_path().join(p))
                                 .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
                                 .collect(),
                         ),
@@ -87,6 +94,7 @@ impl ComputeScript {
                         serde_json::Value::Array(
                             dep.outs()
                                 .iter()
+                                .map(|p| dep.store_path().join(p))
                                 .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
                                 .collect(),
                         ),
@@ -129,6 +137,7 @@ impl ComputeScript {
                         serde_json::Value::Array(
                             dep.outs()
                                 .iter()
+                                .map(|p| dep.store_path().join(p))
                                 .map(|p| serde_json::Value::String(p.to_str().unwrap().to_string()))
                                 .collect(),
                         ),

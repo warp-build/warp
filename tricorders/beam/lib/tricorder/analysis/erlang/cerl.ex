@@ -12,7 +12,7 @@ defmodule Tricorder.Analysis.Erlang.Cerl do
 
   def compile(file, include_paths, code_paths) do
     for code_path <- code_paths do
-      :code.add_path(code_path)
+      code_path |> :binary.bin_to_list() |> :code.add_path()
     end
 
     compile_opts =
@@ -25,6 +25,20 @@ defmodule Tricorder.Analysis.Erlang.Cerl do
       tree = :cerl.from_records(core)
       attrs = :cerl.module_attrs(core)
       {:ok, tree, attrs}
+    else
+      {:error, err, _} ->
+        {:missing_dependencies, %{modules: parse_transforms(err, [])}}
     end
   end
+
+  defp parse_transforms([], acc), do: acc
+  defp parse_transforms([h | t], acc), do: parse_transforms(t, [extract_mod(h) | acc])
+
+  defp extract_mod(
+         {_file,
+          [
+            {:none, :compile, {:undef_parse_transform, mod}}
+          ]}
+       ),
+       do: mod
 end

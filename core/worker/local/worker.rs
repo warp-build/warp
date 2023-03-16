@@ -146,20 +146,19 @@ where
                     artifact_manifest,
                 );
                 self.ctx.task_queue.ack(task);
-                Ok(())
             }
             WorkerFlow::Skipped(task) => {
                 debug!("Skipped task {}", task.target_id);
                 self.ctx.task_queue.skip(task);
-                Ok(())
             }
             WorkerFlow::QueueDeps { deps } => {
                 debug!("QueueDeps: {} deps", deps.len());
                 self.ctx.task_queue.queue_deps(task, &deps)?;
                 self.ctx.task_queue.nack(task);
-                Ok(())
             }
         }
+
+        Ok(())
     }
 
     pub async fn handle_task(&mut self, task: Task) -> Result<WorkerFlow, LocalWorkerError> {
@@ -294,7 +293,7 @@ mod tests {
     use crate::planner::PlannerError;
     use crate::resolver::TargetRegistry;
     use crate::store::{ArtifactManifest, Store, StoreError};
-    use crate::worker::{Role, Task};
+    use crate::worker::{Role, Task, TaskResults};
     use crate::workspace::WorkspaceManager;
     use crate::{sync::*, Config};
     use async_trait::async_trait;
@@ -422,6 +421,7 @@ mod tests {
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
+        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let ctx = LocalSharedContext::new(
             ec,
             config,
@@ -429,6 +429,7 @@ mod tests {
             NoopResolver,
             NoopStore.into(),
             workspace_manager,
+            task_results,
         );
 
         ctx.coordinator.signal_shutdown();
@@ -458,6 +459,7 @@ mod tests {
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
+        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let ctx = LocalSharedContext::new(
             ec,
             config,
@@ -465,6 +467,7 @@ mod tests {
             ErrResolver,
             NoopStore.into(),
             workspace_manager,
+            task_results,
         );
 
         let mut gen = quickcheck::Gen::new(100);
@@ -535,6 +538,7 @@ mod tests {
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
+        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let ctx = LocalSharedContext::new(
             ec,
             config,
@@ -542,6 +546,7 @@ mod tests {
             DummyResolver,
             NoopStore.into(),
             workspace_manager,
+            task_results,
         );
 
         let mut gen = quickcheck::Gen::new(100);

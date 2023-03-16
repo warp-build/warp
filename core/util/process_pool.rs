@@ -1,5 +1,9 @@
 use dashmap::DashMap;
-use std::{collections::HashMap, marker::PhantomData, path::PathBuf};
+use std::collections::HashMap;
+use std::io::Stdin;
+use std::marker::PhantomData;
+use std::path::PathBuf;
+use std::process::Stdio;
 use thiserror::Error;
 use tokio::process::{Child, Command};
 
@@ -34,6 +38,10 @@ impl<P> ProcessPool<P> {
                 env.get("PATH").unwrap_or(&String::default())
             ),
         );
+
+        if std::env::var("WARP_LOG").unwrap_or_default().is_empty() {
+            cmd.stdout(Stdio::null()).stderr(Stdio::null());
+        }
 
         cmd.env_clear()
             .envs(env)

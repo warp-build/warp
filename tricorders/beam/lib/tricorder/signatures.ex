@@ -10,6 +10,7 @@ defmodule Tricorder.Signatures do
   def rebar3_library(name, file) do
     %{
       name: file,
+      lib: name,
       rule: "rebar3_library"
     }
   end

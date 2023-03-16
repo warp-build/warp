@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::rc::Rc;
 use tokio::fs;
-use tracing::trace;
+use tracing::{debug, trace};
 
 static JS_SNAPSHOT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/JS_SNAPSHOT.bin"));
 
@@ -52,6 +52,7 @@ impl RuleExecutor for JsRuleExecutor {
                     js_ffi::op_target_path::decl(),
                     js_ffi::op_target_dir::decl(),
                     js_ffi::op_rule_new::decl(),
+                    js_ffi::op_env_var::decl(),
                 ])
                 .state(move |state| {
                     state.put(ffi_ctx.clone());
@@ -84,12 +85,11 @@ impl RuleExecutor for JsRuleExecutor {
         sig: &Signature,
         deps: &Dependencies,
     ) -> Result<ExecutionResult, RuleExecutorError> {
+        debug!("{:#?}", &deps);
+
         let rule = self.load_rule(sig.rule()).await?;
 
-        let config = Expander
-            .expand(&rule, sig)
-            .await
-            .map_err(RuleExecutorError::ConfigExpanderError)?;
+        let config = Expander.expand(&rule, sig).await?;
 
         let compute_program = ComputeScript::as_js_source(
             self.ctx.task_results.clone(),

@@ -7,6 +7,7 @@ use crate::archive::ArchiveManager;
 use crate::model::{ConcreteTarget, Goal, RemoteTarget, Requirement, Signature, Target, TargetId};
 use crate::store::DefaultStore;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
+use crate::worker::TaskResults;
 use crate::workspace::WorkspaceManager;
 use crate::{sync::*, Config};
 use async_trait::async_trait;
@@ -14,13 +15,13 @@ use tracing::instrument;
 
 #[derive(Clone)]
 pub struct DefaultResolver<T: Tricorder + Clone> {
+    boot_resolver: Arc<BootstrapResolver>,
+    config: Config,
     fs_resolver: Arc<FsResolver<T>>,
     net_resolver: Arc<NetResolver<T>>,
-    boot_resolver: Arc<BootstrapResolver>,
-    tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
     target_registry: Arc<TargetRegistry>,
+    tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
     workspace_manager: Arc<WorkspaceManager>,
-    config: Config,
 }
 
 impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
@@ -30,6 +31,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         target_registry: Arc<TargetRegistry>,
         archive_manager: Arc<ArchiveManager>,
         workspace_manager: Arc<WorkspaceManager>,
+        task_results: Arc<TaskResults>,
     ) -> Self {
         let tricorder_manager = Arc::new(TricorderManager::new(config.clone(), store));
 
@@ -46,6 +48,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             workspace_manager.clone(),
             tricorder_manager.clone(),
             target_registry.clone(),
+            task_results,
         ));
 
         let boot_resolver = Arc::new(BootstrapResolver::new(
@@ -119,10 +122,15 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
                 for req in requirements {
                     let target: Target = match req {
                         Requirement::File { path } => path.into(),
-                        Requirement::Url { url, tricorder_url } => {
+                        Requirement::Url {
+                            url,
+                            tricorder_url,
+                            subpath,
+                        } => {
                             let remote_target = RemoteTarget::builder()
                                 .url(url)
                                 .tricorder_url(tricorder_url)
+                                .subpath(subpath.unwrap())
                                 .build()?;
                             Target::Remote(remote_target)
                         }
@@ -179,7 +187,8 @@ mod tests {
 
     use super::*;
     use crate::archive::{Archive, ArchiveManager};
-    use crate::model::Signature;
+    use crate::model::{ExecutableSpec, Signature};
+    use crate::store::ArtifactManifest;
     use crate::tricorder::{Connection, TricorderError};
     use crate::workspace::Workspace;
     use assert_fs::prelude::*;
@@ -219,6 +228,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
+                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
@@ -240,6 +250,7 @@ mod tests {
         workspace_manager.set_current_workspace(wid);
 
         let archive_manager = Arc::new(ArchiveManager::new(&config));
+        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
 
         let r: DefaultResolver<UnreachableTricorder> = DefaultResolver::new(
             config,
@@ -247,6 +258,7 @@ mod tests {
             target_registry.clone(),
             archive_manager.clone(),
             workspace_manager.into(),
+            task_results,
         );
 
         let target: Target = "bad/file/path.ex".into();
@@ -300,6 +312,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 concrete_target: &ConcreteTarget,
+                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 Ok(SignatureGenerationFlow::GeneratedSignatures {
                     signatures: vec![Signature::builder()
@@ -325,6 +338,7 @@ mod tests {
             .unwrap();
 
         let archive_manager = Arc::new(ArchiveManager::new(&config));
+        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
 
         workspace_manager.set_current_workspace(wid);
         let r: DefaultResolver<HappyPathTricorder> = DefaultResolver::new(
@@ -333,6 +347,7 @@ mod tests {
             target_registry.clone(),
             archive_manager.clone(),
             workspace_manager.into(),
+            task_results,
         );
 
         // NOTE(@ostera): this mock will be used to not fetch the real tricorder

@@ -84,10 +84,19 @@ pub enum RuleExecutorError {
 
     #[error("Could not load file at {file:?} due to {err:?}")]
     CouldNotReadFile { file: PathBuf, err: std::io::Error },
+
+    #[error(transparent)]
+    RuleExpanderError(ExpanderError),
 }
 
 impl From<RuleStoreError> for RuleExecutorError {
     fn from(value: RuleStoreError) -> Self {
         RuleExecutorError::RuleStoreError(value)
+    }
+}
+
+impl From<ExpanderError> for RuleExecutorError {
+    fn from(value: ExpanderError) -> Self {
+        RuleExecutorError::RuleExpanderError(value)
     }
 }

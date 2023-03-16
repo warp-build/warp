@@ -49,12 +49,16 @@ impl WarpDriveMarkII {
             DefaultStore::new(config.clone(), archive_manager.clone()).into();
 
         let target_registry = Arc::new(TargetRegistry::new());
+
+        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+
         let resolver: DefaultResolver<GrpcTricorder> = DefaultResolver::new(
             config.clone(),
             store.clone(),
             target_registry.clone(),
             archive_manager,
             workspace_manager.clone(),
+            task_results.clone(),
         );
 
         let shared_ctx = LocalSharedContext::new(
@@ -64,6 +68,7 @@ impl WarpDriveMarkII {
             resolver,
             store,
             workspace_manager,
+            task_results.clone(),
         );
 
         let worker_pool = WorkerPool::from_shared_context(

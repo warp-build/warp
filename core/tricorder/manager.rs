@@ -161,7 +161,7 @@ impl From<StoreError> for TricorderManagerError {
 mod tests {
     use super::*;
     use crate::archive::{Archive, ArchiveManager};
-    use crate::model::{ConcreteTarget, Goal, Target};
+    use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Target};
     use crate::resolver::TargetRegistry;
     use crate::store::DefaultStore;
     use crate::tricorder::{Connection, SignatureGenerationFlow};
@@ -232,6 +232,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
+                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
@@ -314,6 +315,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
+                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
@@ -404,6 +406,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
+                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
@@ -494,6 +497,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
+                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }

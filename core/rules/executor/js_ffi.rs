@@ -10,6 +10,11 @@ use std::path::PathBuf;
 use tracing::*;
 
 #[op]
+pub fn op_env_var(var: String) -> Result<String, AnyError> {
+    Ok(std::env::var(var).unwrap_or_default())
+}
+
+#[op]
 pub fn op_target_dir(state: &mut OpState, target: TargetId) -> Result<String, AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let target = ctx.target_registry.get_concrete_target(target);

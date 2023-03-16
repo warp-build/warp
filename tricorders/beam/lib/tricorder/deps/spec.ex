@@ -1,8 +1,9 @@
 defmodule Tricorder.Deps.Spec do
-  defstruct [:protocol, :host, :package, :version, :url, :ref, :opts]
+  defstruct [:name, :protocol, :host, :package, :version, :url, :ref, :opts]
 
   def parse(name, {:hex, pkg_name, vsn, _hash, tools, opts, host, _hash2}),
     do: %__MODULE__{
+      name: Atom.to_string(name),
       protocol: :https,
       host: host,
       package: Atom.to_string(pkg_name),
@@ -12,6 +13,7 @@ defmodule Tricorder.Deps.Spec do
 
   def parse(name, {:pkg, pkg_name, vsn}),
     do: %__MODULE__{
+      name: Atom.to_string(name),
       protocol: :https,
       package: pkg_name,
       version: vsn,
@@ -23,6 +25,7 @@ defmodule Tricorder.Deps.Spec do
     url = clean_url(repo)
 
     %__MODULE__{
+      name: Atom.to_string(name),
       protocol: :git,
       url: url,
       ref: ref,
@@ -34,6 +37,7 @@ defmodule Tricorder.Deps.Spec do
     ref = clean_ref(ref)
 
     %__MODULE__{
+      name: Atom.to_string(name),
       protocol: :git,
       url: :binary.list_to_bin(repo),
       ref: ref
@@ -44,6 +48,7 @@ defmodule Tricorder.Deps.Spec do
     vsn = :binary.list_to_bin(vsn)
 
     %__MODULE__{
+      name: Atom.to_string(name),
       protocol: :hexpm,
       version: vsn,
       url: "https://repo.hex.pm/tarballs/#{name}-#{vsn}.tar"

@@ -8,7 +8,6 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     Logger.info("Analyzing: #{req.file}")
 
     with {:ok, response} <- do_generate_signature(req) do
-      Logger.info("Response: #{inspect(response)}")
       Build.Warp.Tricorder.GenerateSignatureResponse.new(response: response)
     else
       err -> Logger.error("#{err}")
@@ -16,11 +15,15 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
   end
 
   defp do_generate_signature(req) do
+    Logger.info("Generating signature with deps: #{inspect(req.dependencies)}")
+
     paths =
       Analysis.Paths.build_paths(
         req.file,
-        Enum.map(req.dependencies, fn req -> req.store_path end)
+        req.dependencies
       )
+
+    Logger.info("Generating signature with paths: #{inspect(paths)}")
 
     cond do
       Path.basename(req.file) in ["mix.exs"] ->
@@ -134,7 +137,11 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
       req =
         case Deps.find_header(hrl) do
           {:ok, dep} ->
-            {:url, Build.Warp.UrlRequirement.new(url: dep.url)}
+            {:url,
+             Build.Warp.UrlRequirement.new(
+               url: dep.url,
+               subpath: dep.name
+             )}
 
           _ ->
             {:file, Build.Warp.FileRequirement.new(path: hrl)}

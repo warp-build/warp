@@ -50,10 +50,9 @@ where
         resolver: R,
         artifact_store: Arc<S>,
         workspace_manager: Arc<WorkspaceManager>,
+        task_results: Arc<TaskResults>,
     ) -> Self {
         let coordinator = Arc::new(Coordinator::new());
-
-        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
 
         let task_queue = Arc::new(TaskQueue::new(
             task_results.clone(),

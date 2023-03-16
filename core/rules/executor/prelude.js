@@ -2,10 +2,7 @@ Array.prototype.unique = function () {
   return [...new Set(this)];
 };
 
-// TODO(@ostera): maybe make this an ffi that uses `trace!` ?
-const trace = (...args) => {
-  // Deno.core.print(args.join(" ")+'\n')
-};
+let trace = () => {};
 
 let _FFI_CALL_COUNT = 0;
 const ffi = (name, args) => {
@@ -16,12 +13,19 @@ const ffi = (name, args) => {
   );
   return Deno.core.ops[name].call({}, args);
 };
+
 const panic = (x) => {
   if (typeof x === "object") {
     x = JSON.stringify(x, null, 2);
   }
   throw new Error(x);
 };
+
+if (ffi("op_env_var", "WARP_LOG") === "DEBUG") {
+  trace = (...args) => {
+    Deno.core.print(args.join(" ") + "\n");
+  };
+}
 
 const target = () => "target";
 const string = () => "string";

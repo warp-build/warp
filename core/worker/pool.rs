@@ -4,6 +4,7 @@ use crate::sync::Arc;
 use crate::Config;
 use std::marker::PhantomData;
 use thiserror::*;
+use tokio::task::JoinError;
 use tokio_util::task::LocalPoolHandle;
 use tracing::*;
 
@@ -21,7 +22,7 @@ pub struct WorkerPool<W: Worker> {
 }
 
 impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
-    #[tracing::instrument(name = "WorkerPool::from_shared_context", skip(ctx))]
+    #[instrument(name = "WorkerPool::from_shared_context", skip(ctx, event_channel))]
     pub fn from_shared_context(event_channel: Arc<EventChannel>, cfg: Config, ctx: Ctx) -> Self {
         let worker_pool = LocalPoolHandle::new({
             // NOTE(@ostera): we want to make sure you don't ask for more workers than the number
@@ -43,7 +44,7 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
     /// Execute a number of `Target`s. The order of execution is only guaranteed to follow some
     /// topographical-sort over the dependency graph of the targets.
     ///
-    #[tracing::instrument(name = "WorkerPool::execute", skip(self))]
+    #[instrument(name = "WorkerPool::execute", skip(self))]
     pub async fn execute(&self, tasks: &[Task]) -> Result<Arc<TaskResults>, WorkerPoolError> {
         if tasks.is_empty() {
             self.event_channel
@@ -88,6 +89,15 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
 pub enum WorkerPoolError {
     #[error(transparent)]
     WorkerError(WorkerError),
+
+    #[error(transparent)]
+    WorkerJoinError(JoinError),
+}
+
+impl From<JoinError> for WorkerPoolError {
+    fn from(value: JoinError) -> Self {
+        WorkerPoolError::WorkerJoinError(value)
+    }
 }
 
 impl From<WorkerError> for WorkerPoolError {
@@ -226,6 +236,7 @@ mod tests {
 
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let target_registry = Arc::new(TargetRegistry::new());
+        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let ctx = LocalSharedContext::new(
             ec.clone(),
             config.clone(),
@@ -233,6 +244,7 @@ mod tests {
             NoopResolver,
             NoopStore.into(),
             workspace_manager,
+            task_results,
         );
         WorkerPool::from_shared_context(ec, config, ctx)
     }

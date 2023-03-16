@@ -5,8 +5,9 @@ defmodule Tricorder.Analysis.Erlang do
   require Erlang.Cerl
 
   def analyze(file, %{include_paths: include_paths, code_paths: code_paths}) do
-    with {:ok, ast} <- Erlang.Ast.parse(file, include_paths) do
-      analyze_source(file, include_paths, code_paths, ast)
+    with {:ok, ast} <- Erlang.Ast.parse(file, include_paths),
+         {:ok, result} <- analyze_source(file, include_paths, code_paths, ast) do
+      {:ok, result}
     else
       diag = {:missing_dependencies, _} -> {:ok, diag}
     end
