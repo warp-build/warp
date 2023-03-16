@@ -1,7 +1,9 @@
-use crate::model::{ConcreteTarget, Signature};
+use crate::model::{ConcreteTarget, ExecutableSpec, Signature};
 use crate::sync::{Arc, Mutex};
 use crate::Config;
+use seahash::SeaHasher;
 use sha2::{Digest, Sha256};
+use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
 use tokio::fs;
@@ -44,6 +46,7 @@ pub enum SourceHasherError {
     CouldNotOpenSource { path: PathBuf, err: std::io::Error },
 }
 
+#[derive(Debug)]
 pub struct CodeDatabase {
     config: Config,
     sql: Arc<Mutex<rusqlite::Connection>>,
@@ -64,8 +67,85 @@ impl CodeDatabase {
             (),
         )?;
 
+        sql.execute(
+            r"
+            CREATE TABLE IF NOT EXISTS executable_specs (
+                target TEXT,
+                signature_hash TEXT,
+                executable_spec TEXT
+            );
+        ",
+            (),
+        )?;
+
         let sql = Arc::new(Mutex::new(sql));
         Ok(Self { config, sql })
+    }
+
+    #[instrument(name = "CodeDatabase::get_executable_spec", skip(self))]
+    pub fn get_executable_spec(
+        &self,
+        sig: &Signature,
+    ) -> Result<Option<ExecutableSpec>, CodeDatabaseError> {
+        if !self.config.enable_code_database() {
+            return Ok(None);
+        }
+
+        let sql = self.sql.lock().unwrap();
+
+        let mut query = sql.prepare(
+            r#" SELECT executable_spec FROM executable_specs
+                WHERE signature_hash = ?1
+            "#,
+        )?;
+
+        let sig_hash = {
+            let mut s = SeaHasher::default();
+            sig.hash(&mut s);
+            format!("{:x}", s.finish())
+        };
+
+        let mut rows = query.query_map(rusqlite::params![sig_hash], |row| {
+            let spec_json: String = row.get(0).unwrap();
+            let spec: ExecutableSpec = serde_json::from_str(&spec_json).unwrap();
+            Ok(spec)
+        })?;
+
+        let result = rows.next().map(|row| row.unwrap());
+
+        Ok(result)
+    }
+
+    #[instrument(name = "CodeDatabase::save_executable_spec", skip(self))]
+    pub fn save_executable_spec(
+        &self,
+        sig: &Signature,
+        spec: &ExecutableSpec,
+    ) -> Result<(), CodeDatabaseError> {
+        if !self.config.enable_code_database() {
+            return Ok(());
+        }
+
+        let sql = self.sql.lock().unwrap();
+
+        let sig_hash = {
+            let mut s = SeaHasher::default();
+            sig.hash(&mut s);
+            format!("{:x}", s.finish())
+        };
+
+        sql.execute(
+            r#" INSERT
+                    INTO executable_specs (target, signature_hash, executable_spec)
+                    VALUES (?1, ?2, ?3)
+                "#,
+            (
+                sig.target().to_string(),
+                sig_hash,
+                serde_json::to_string(spec).unwrap(),
+            ),
+        )?;
+        Ok(())
     }
 
     #[instrument(name = "CodeDatabase::get_signature", skip(self))]
@@ -74,6 +154,10 @@ impl CodeDatabase {
         concrete_target: &ConcreteTarget,
         source_hash: &str,
     ) -> Result<Option<Signature>, CodeDatabaseError> {
+        if !self.config.enable_code_database() {
+            return Ok(None);
+        }
+
         let sql = self.sql.lock().unwrap();
 
         let mut query = sql.prepare(
@@ -103,6 +187,10 @@ impl CodeDatabase {
         source_hash: &str,
         sig: &Signature,
     ) -> Result<(), CodeDatabaseError> {
+        if !self.config.enable_code_database() {
+            return Ok(());
+        }
+
         let sql = self.sql.lock().unwrap();
         sql.execute(
             r#" INSERT

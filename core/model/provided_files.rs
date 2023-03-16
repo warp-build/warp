@@ -1,8 +1,9 @@
+use serde::{Deserialize, Serialize};
 use std::collections::btree_map::Values;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct ProvidedFiles {
     _inner: BTreeMap<String, PathBuf>,
 }

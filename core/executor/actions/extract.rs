@@ -1,13 +1,12 @@
 use crate::model::ConcreteTarget;
-use crate::sync::Arc;
-use crate::Target;
 use async_compression::futures::bufread::GzipDecoder;
 use futures::AsyncReadExt;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExtractAction {
     pub src: PathBuf,
     pub dst: PathBuf,

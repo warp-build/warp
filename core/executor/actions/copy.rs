@@ -1,8 +1,9 @@
 use anyhow::*;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CopyAction {
     pub src: PathBuf,
     pub dst: PathBuf,

@@ -1,7 +1,8 @@
 use super::TargetId;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Builder, Debug, Default, Clone)]
+#[derive(Builder, Debug, Default, Clone, Serialize, Deserialize)]
 #[builder(build_fn(error = "DependenciesError"))]
 pub struct Dependencies {
     toolchains: Vec<TargetId>,

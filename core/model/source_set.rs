@@ -1,7 +1,8 @@
 use fxhash::FxHashSet;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 pub struct SourceSet {
     _inner: FxHashSet<PathBuf>,
 }

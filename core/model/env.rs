@@ -1,9 +1,10 @@
+use serde::{Deserialize, Serialize};
 use thiserror::*;
 
 #[derive(Error, Debug)]
 pub enum ExecutionEnvironmentError {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionEnvironment {
     pub host_triple: String,
 }

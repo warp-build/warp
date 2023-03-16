@@ -30,9 +30,9 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
         {:ok, analysis} = Analysis.Mix.analyze(req.file, paths)
         {:ok, analysis_to_resp(req, analysis)}
 
-      Path.basename(req.file) in ["rebar.config"] ->
-        {:ok, analysis} = Analysis.Rebar3.analyze(req.file, paths)
-        {:ok, analysis_to_resp(req, analysis)}
+      # Path.basename(req.file) in ["rebar.config"] ->
+      #   {:ok, analysis} = Analysis.Rebar3.analyze(req.file, paths)
+      #   {:ok, analysis_to_resp(req, analysis)}
 
       Path.extname(req.file) in [".erl", ".hrl"] ->
         {:ok, analysis} = Analysis.Erlang.analyze(req.file, paths)
@@ -156,8 +156,12 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     |> Enum.uniq()
     |> Enum.map(fn dep ->
       dep = Atom.to_string(dep)
-      req = {:symbol, Build.Warp.SymbolRequirement.new(raw: dep, kind: "module")}
-      Build.Warp.Requirement.new(requirement: req)
+
+      req = case Path.wildcard("./**/#{dep}.erl") do
+        [file] -> {:file, Build.Warp.FileRequirement.new(path: file)}
+        _ -> {:symbol, Build.Warp.SymbolRequirement.new(raw: dep, kind: "module")}
+      end
+        Build.Warp.Requirement.new(requirement: req)
     end)
   end
 end

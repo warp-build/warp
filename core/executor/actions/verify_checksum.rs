@@ -1,14 +1,13 @@
 use crate::model::ConcreteTarget;
-use crate::sync::Arc;
-use crate::Target;
 use anyhow::*;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VerifyChecksumAction {
     pub file: PathBuf,
     pub sha1: String,

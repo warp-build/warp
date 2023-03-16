@@ -109,6 +109,7 @@ impl From<WorkerError> for WorkerPoolError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::code::CodeDatabase;
     use crate::events::EventChannel;
     use crate::model::{
         ConcreteTarget, ExecutableSpec, ExecutionEnvironment, Goal, Signature, Target, TargetId,
@@ -237,6 +238,7 @@ mod tests {
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let target_registry = Arc::new(TargetRegistry::new());
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             ec.clone(),
             config.clone(),
@@ -245,6 +247,7 @@ mod tests {
             NoopStore.into(),
             workspace_manager,
             task_results,
+            code_db,
         );
         WorkerPool::from_shared_context(ec, config, ctx)
     }

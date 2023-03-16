@@ -1,4 +1,5 @@
 use super::*;
+use crate::code::CodeDatabase;
 use crate::config::Config;
 use crate::events::EventChannel;
 use crate::executor::local::LocalExecutorContext;
@@ -32,6 +33,7 @@ pub struct LocalSharedContext<R: Resolver, S: Store> {
     pub(crate) resolver: Arc<R>,
     pub(crate) artifact_store: Arc<S>,
     pub(crate) rule_store: Arc<RuleStore>,
+    pub(crate) code_db: Arc<CodeDatabase>,
 }
 
 impl<R, S> LocalSharedContext<R, S>
@@ -51,6 +53,7 @@ where
         artifact_store: Arc<S>,
         workspace_manager: Arc<WorkspaceManager>,
         task_results: Arc<TaskResults>,
+        code_db: Arc<CodeDatabase>,
     ) -> Self {
         let coordinator = Arc::new(Coordinator::new());
 
@@ -74,6 +77,7 @@ where
             task_results,
             workspace_manager,
             rule_store,
+            code_db,
         }
     }
 }
@@ -101,6 +105,7 @@ impl<R: Resolver> From<LocalSharedContext<R, DefaultStore>> for DefaultPlannerCo
             ctx.target_registry,
             ctx.task_results,
             ctx.rule_store,
+            ctx.code_db,
         )
     }
 }

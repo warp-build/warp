@@ -13,7 +13,20 @@ pub enum Type {
     Map(FxHashMap<String, Type>),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+impl std::hash::Hash for Type {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        if let Type::Map(kvs) = &self {
+            for (k, v) in kvs {
+                k.hash(state);
+                v.hash(state);
+            }
+        } else {
+            core::mem::discriminant(self).hash(state);
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Value {
     String(String),
     File(PathBuf),
@@ -31,6 +44,15 @@ impl From<&str> for Value {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Spec {
     _inner: FxHashMap<String, Type>,
+}
+
+impl std::hash::Hash for Spec {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for (k, v) in &self._inner {
+            k.hash(state);
+            v.hash(state);
+        }
+    }
 }
 
 impl Spec {
@@ -54,6 +76,15 @@ impl Spec {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
     _inner: FxHashMap<String, Value>,
+}
+
+impl std::hash::Hash for Config {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for (k, v) in &self._inner {
+            k.hash(state);
+            v.hash(state);
+        }
+    }
 }
 
 impl Config {

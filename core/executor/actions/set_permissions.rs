@@ -1,9 +1,10 @@
 use anyhow::*;
+use serde::{Deserialize, Serialize};
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use tokio::fs;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SetPermissionsAction {
     pub file: PathBuf,
     pub executable: bool,

@@ -288,6 +288,7 @@ impl From<TaskQueueError> for LocalWorkerError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::code::CodeDatabase;
     use crate::events::EventChannel;
     use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target, TargetId};
     use crate::planner::PlannerError;
@@ -422,6 +423,7 @@ mod tests {
         let target_registry = Arc::new(TargetRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             ec,
             config,
@@ -430,6 +432,7 @@ mod tests {
             NoopStore.into(),
             workspace_manager,
             task_results,
+            code_db,
         );
 
         ctx.coordinator.signal_shutdown();
@@ -460,6 +463,7 @@ mod tests {
         let target_registry = Arc::new(TargetRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             ec,
             config,
@@ -468,6 +472,7 @@ mod tests {
             NoopStore.into(),
             workspace_manager,
             task_results,
+            code_db,
         );
 
         let mut gen = quickcheck::Gen::new(100);
@@ -539,6 +544,7 @@ mod tests {
         let target_registry = Arc::new(TargetRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             ec,
             config,
@@ -547,6 +553,7 @@ mod tests {
             NoopStore.into(),
             workspace_manager,
             task_results,
+            code_db,
         );
 
         let mut gen = quickcheck::Gen::new(100);

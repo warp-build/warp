@@ -1,11 +1,13 @@
 use super::*;
 use crate::model::ConcreteTarget;
 use anyhow::*;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Action {
     Copy(CopyAction),
     Download(DownloadAction),

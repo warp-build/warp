@@ -37,6 +37,9 @@ pub struct Flags {
 
     #[structopt(long = "public-store-metadata-url")]
     pub(crate) public_store_metadata_url: Option<Url>,
+
+    #[structopt(long = "use-db")]
+    pub(crate) use_db: bool,
 }
 
 impl From<Flags> for Config {
@@ -45,6 +48,7 @@ impl From<Flags> for Config {
 
         config
             .offline(flags.offline.unwrap_or(false))
+            .enable_code_database(flags.use_db)
             .max_local_workers(flags.max_local_workers.unwrap_or_else(num_cpus::get));
 
         if let Some(url) = flags.public_store_metadata_url {

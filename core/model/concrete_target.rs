@@ -29,6 +29,16 @@ pub struct ConcreteTarget {
     deps: Vec<TargetId>,
 }
 
+impl std::hash::Hash for ConcreteTarget {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.goal.hash(state);
+        self.original_target.hash(state);
+        self.path.hash(state);
+        self.workspace_root.hash(state);
+        self.deps.hash(state);
+    }
+}
+
 impl ConcreteTarget {
     pub fn builder() -> ConcreteTargetBuilder {
         Default::default()

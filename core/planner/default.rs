@@ -33,10 +33,21 @@ where
     ) -> Result<PlanningFlow, PlannerError> {
         let planning_start_time = chrono::Utc::now();
 
+        /*
+        if let Some(mut spec) = self.ctx.code_db.get_executable_spec(&sig).unwrap() {
+            spec.set_target(sig.target().clone());
+            spec.set_signature(sig);
+
+            let deps = spec.deps().rehydrate();
+
+            return Ok(PlanningFlow::Planned { spec });
+        }
+        */
+
         let target_id = sig.target().target_id();
 
         // TODO(@ostera): these can also be toolchains, so we should split 'em up
-        let prior_deps: Vec<TargetId> = self
+        let _prior_deps: Vec<TargetId> = self
             .ctx
             .task_results
             .get_task_deps(target_id)
@@ -88,7 +99,7 @@ where
         let spec = ExecutableSpec::builder()
             .goal(goal)
             .target(sig.target().clone())
-            .signature(sig)
+            .signature(sig.clone())
             .exec_env(env)
             .shell_env(plan.shell_env.into_iter().collect())
             .planning_start_time(planning_start_time)
@@ -99,6 +110,8 @@ where
             .actions(plan.actions)
             .deps(deps)
             .hash_and_build(&self.ctx.task_results)?;
+
+        self.ctx.code_db.save_executable_spec(&sig, &spec).unwrap();
 
         Ok(PlanningFlow::Planned { spec })
     }
@@ -158,6 +171,7 @@ enum DepFinderFlow {
 mod tests {
     use super::*;
     use crate::archive::ArchiveManager;
+    use crate::code::CodeDatabase;
     use crate::model::ConcreteTarget;
     use crate::resolver::TargetRegistry;
     use crate::rules::{ExecutionResult, RuleExecutorError, RuleStore};
@@ -190,10 +204,12 @@ mod tests {
         let config = Config::builder().build().unwrap();
         let archive_manager = ArchiveManager::new(&config).into();
         let rule_store = RuleStore::new(&config).into();
-        let store = DefaultStore::new(config, archive_manager).into();
+        let store = DefaultStore::new(config.clone(), archive_manager).into();
         let target_registry = Arc::new(TargetRegistry::new());
         let task_results = TaskResults::new(target_registry.clone()).into();
-        let ctx = DefaultPlannerContext::new(store, target_registry, task_results, rule_store);
+        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
+        let ctx =
+            DefaultPlannerContext::new(store, target_registry, task_results, rule_store, code_db);
 
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
@@ -219,10 +235,12 @@ mod tests {
         let config = Config::builder().build().unwrap();
         let archive_manager = ArchiveManager::new(&config).into();
         let rule_store = RuleStore::new(&config).into();
-        let store = DefaultStore::new(config, archive_manager).into();
+        let store = DefaultStore::new(config.clone(), archive_manager).into();
         let target_registry = Arc::new(TargetRegistry::new());
         let task_results = TaskResults::new(target_registry.clone()).into();
-        let ctx = DefaultPlannerContext::new(store, target_registry, task_results, rule_store);
+        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
+        let ctx =
+            DefaultPlannerContext::new(store, target_registry, task_results, rule_store, code_db);
 
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
@@ -273,10 +291,12 @@ mod tests {
         let config = Config::builder().build().unwrap();
         let archive_manager = ArchiveManager::new(&config).into();
         let rule_store = RuleStore::new(&config).into();
-        let store = DefaultStore::new(config, archive_manager).into();
+        let store = DefaultStore::new(config.clone(), archive_manager).into();
         let target_registry = Arc::new(TargetRegistry::new());
         let task_results = TaskResults::new(target_registry.clone()).into();
-        let ctx = DefaultPlannerContext::new(store, target_registry, task_results, rule_store);
+        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
+        let ctx =
+            DefaultPlannerContext::new(store, target_registry, task_results, rule_store, code_db);
 
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());

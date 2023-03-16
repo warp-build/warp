@@ -85,6 +85,10 @@ pub struct Config {
     #[builder(default = "self.default_remote_workspace_root()")]
     remote_workspace_root: PathBuf,
 
+    /// Wether to use the code database or not.
+    #[builder(default = "true")]
+    enable_code_database: bool,
+
     /// The HTTP Client to be used across the application.
     /// NOTE(@ostera): this is safe to clone since it is really an [Arc] to a client pool.
     #[builder(default = "self.default_http_client()")]
@@ -168,6 +172,10 @@ impl Config {
 
     pub fn remote_workspace_root(&self) -> &PathBuf {
         &self.remote_workspace_root
+    }
+
+    pub fn enable_code_database(&self) -> bool {
+        self.enable_code_database
     }
 }
 

@@ -4,8 +4,10 @@ use super::{
 };
 use crate::executor::actions::Action;
 use crate::store::ArtifactId;
+use crate::util::serde::*;
 use crate::worker::TaskResults;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -13,7 +15,7 @@ use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use thiserror::Error;
 
-#[derive(Builder, Debug)]
+#[derive(Builder, Debug, Serialize, Deserialize)]
 #[builder(build_fn(error = "ExecutableSpecError", name = "inner_build"))]
 pub struct ExecutableSpec {
     goal: Goal,
@@ -45,9 +47,11 @@ pub struct ExecutableSpec {
     #[builder(default)]
     deps: Dependencies,
 
+    #[serde(with = "iso8601")]
     #[builder(default)]
     planning_start_time: DateTime<Utc>,
 
+    #[serde(with = "iso8601")]
     #[builder(default)]
     planning_end_time: DateTime<Utc>,
 
@@ -132,6 +136,14 @@ impl ExecutableSpec {
 
     pub fn signature(&self) -> &Signature {
         &self.signature
+    }
+
+    pub fn set_signature(&mut self, signature: Signature) {
+        self.signature = signature;
+    }
+
+    pub fn set_target(&mut self, target: ConcreteTarget) {
+        self.target = target;
     }
 }
 

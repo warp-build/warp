@@ -31,9 +31,9 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         archive_manager: Arc<ArchiveManager>,
         workspace_manager: Arc<WorkspaceManager>,
         task_results: Arc<TaskResults>,
+        code_db: Arc<CodeDatabase>,
     ) -> Result<Self, ResolverError> {
         let tricorder_manager = Arc::new(TricorderManager::new(config.clone(), store));
-        let code_db = Arc::new(CodeDatabase::new(config.clone())?);
 
         let net_resolver = Arc::new(NetResolver::new(
             config.clone(),
@@ -252,6 +252,7 @@ mod tests {
         let archive_manager = Arc::new(ArchiveManager::new(&config));
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
 
+        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let r: DefaultResolver<UnreachableTricorder> = DefaultResolver::new(
             config,
             store,
@@ -259,6 +260,7 @@ mod tests {
             archive_manager.clone(),
             workspace_manager.into(),
             task_results,
+            code_db,
         )
         .unwrap();
 
@@ -342,6 +344,7 @@ mod tests {
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
 
         workspace_manager.set_current_workspace(wid);
+        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let r: DefaultResolver<HappyPathTricorder> = DefaultResolver::new(
             config,
             store,
@@ -349,6 +352,7 @@ mod tests {
             archive_manager.clone(),
             workspace_manager.into(),
             task_results,
+            code_db,
         )
         .unwrap();
 

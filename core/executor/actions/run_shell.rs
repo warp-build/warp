@@ -1,11 +1,13 @@
 use anyhow::*;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::process::Command;
 use tracing::*;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RunShellAction {
     pub env: HashMap<String, String>,
     pub script: String,

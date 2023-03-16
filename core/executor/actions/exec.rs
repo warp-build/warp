@@ -1,10 +1,11 @@
 use anyhow::*;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
 use tracing::*;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecAction {
     pub env: HashMap<String, String>,
     pub cmd: PathBuf,

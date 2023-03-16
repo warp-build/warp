@@ -6,6 +6,7 @@ use crate::Config;
 use std::path::PathBuf;
 use thiserror::Error;
 use tokio::fs;
+use tracing::instrument;
 
 #[derive(Debug, Clone)]
 pub struct LocalStore {
@@ -41,6 +42,7 @@ impl LocalStore {
         }
     }
 
+    #[instrument(name = "LocalStore::clean", skip(self, spec))]
     pub async fn clean(&self, spec: &ExecutableSpec) -> Result<(), LocalStoreError> {
         let spec_path = self.store_root.join(spec.hash());
         let _ = fs::remove_dir_all(&spec_path).await;

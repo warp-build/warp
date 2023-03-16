@@ -217,7 +217,7 @@ mod tests {
 
         assert_eq!(
             final_path.to_string_lossy().to_string(),
-            "http/127.0.0.1/bc9dafed273baa380bdea9345edf41732ae1e0b42fc0369215625e84ccd9c9e2"
+            "http/127.0.0.1/53c7c792c4667c37741310914aa53416fe9750c8f787641e7aff55ecfdbe97d0"
         );
     }
 

@@ -1,6 +1,6 @@
 use super::*;
 use crate::archive::ArchiveManager;
-use crate::code::CodeDatabase;
+use crate::code::{CodeDatabase, CodeDatabaseError};
 use crate::events::EventChannel;
 use crate::executor::local::LocalExecutor;
 use crate::model::{Goal, Target};
@@ -53,6 +53,8 @@ impl WarpDriveMarkII {
 
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
 
+        let code_db = Arc::new(CodeDatabase::new(config.clone())?);
+
         let resolver: DefaultResolver<GrpcTricorder> = DefaultResolver::new(
             config.clone(),
             store.clone(),
@@ -60,6 +62,7 @@ impl WarpDriveMarkII {
             archive_manager,
             workspace_manager.clone(),
             task_results.clone(),
+            code_db.clone(),
         )?;
 
         let shared_ctx = LocalSharedContext::new(
@@ -70,6 +73,7 @@ impl WarpDriveMarkII {
             store,
             workspace_manager,
             task_results.clone(),
+            code_db.clone(),
         );
 
         let worker_pool = WorkerPool::from_shared_context(
@@ -154,6 +158,9 @@ pub enum WarpDriveError {
 
     #[error(transparent)]
     ResolverError(ResolverError),
+
+    #[error(transparent)]
+    CodeDatabaseError(CodeDatabaseError),
 }
 
 impl From<WorkspaceManagerError> for WarpDriveError {
@@ -171,5 +178,11 @@ impl From<WorkerPoolError> for WarpDriveError {
 impl From<ResolverError> for WarpDriveError {
     fn from(err: ResolverError) -> Self {
         WarpDriveError::ResolverError(err)
+    }
+}
+
+impl From<CodeDatabaseError> for WarpDriveError {
+    fn from(err: CodeDatabaseError) -> Self {
+        WarpDriveError::CodeDatabaseError(err)
     }
 }

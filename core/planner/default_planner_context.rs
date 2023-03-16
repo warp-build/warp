@@ -1,3 +1,4 @@
+use crate::code::CodeDatabase;
 use crate::resolver::TargetRegistry;
 use crate::rules::{RuleStore, SharedJsContext};
 use crate::store::DefaultStore;
@@ -10,6 +11,7 @@ pub struct DefaultPlannerContext {
     pub(crate) target_registry: Arc<TargetRegistry>,
     pub(crate) task_results: Arc<TaskResults>,
     pub(crate) rule_store: Arc<RuleStore>,
+    pub(crate) code_db: Arc<CodeDatabase>,
 }
 
 impl DefaultPlannerContext {
@@ -18,12 +20,14 @@ impl DefaultPlannerContext {
         target_registry: Arc<TargetRegistry>,
         task_results: Arc<TaskResults>,
         rule_store: Arc<RuleStore>,
+        code_db: Arc<CodeDatabase>,
     ) -> Self {
         Self {
             artifact_store,
             target_registry,
             task_results,
             rule_store,
+            code_db,
         }
     }
 }
