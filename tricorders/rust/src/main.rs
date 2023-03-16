@@ -1,5 +1,12 @@
+mod proto {
+    include!("./gen/_include.rs");
+}
+mod generate_signature;
+mod get_ast;
+mod rs_generate_signature;
 mod tricorder_service;
-use tricorder::build::warp::tricorder::tricorder_service_server::TricorderServiceServer;
+
+use crate::proto::build::warp::tricorder::tricorder_service_server::TricorderServiceServer;
 use crate::tricorder_service::TricorderServiceImpl;
 use tonic::transport::Server;
 

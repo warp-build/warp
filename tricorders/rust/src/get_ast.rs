@@ -1,15 +1,13 @@
 use crate::proto::build::warp::symbol::Sym::*;
 use crate::proto::build::warp::tricorder::get_ast_response::Response as AstResponse;
+use crate::proto::build::warp::tricorder::*;
 use crate::proto::build::warp::{Dependency, Symbol};
 use std::path::Path;
 pub(crate) use thiserror::*;
 use tokio::fs;
 use tonic::{Request, Response, Status};
 use tracing::*;
-use crate::tree_splitter::TreeSplitter;
-mod proto {
-	pub use crate::proto::build::warp::tricorder::*;
-}
+use tricorder::TreeSplitter;
 
 #[derive(Default)]
 pub struct GetAst {}
@@ -25,21 +23,21 @@ pub enum GetAstError {
 
 impl GetAst {
     pub async fn get_ast(
-        request: Request<proto::GetAstRequest>,
-    ) -> Result<Response<proto::GetAstResponse>, Status> {
+        request: Request<GetAstRequest>,
+    ) -> Result<Response<GetAstResponse>, Status> {
         let request_data = request.into_inner();
         let filename = request_data.clone().file;
         println!("Analyzing: {:?}", filename.clone());
 
         match Path::new(&filename).extension() {
             Some(ext) if ext == "rs" => match request_data.symbol.unwrap().sym.unwrap() {
-                All(_) => Ok(Response::new(proto::GetAstResponse {
+                All(_) => Ok(Response::new(GetAstResponse {
                     response: Some(
                         GetAst::do_get_all_rs_ast(&request_data.file, request_data.dependencies)
                             .await,
                     ),
                 })),
-                Named(name) => Ok(Response::new(proto::GetAstResponse {
+                Named(name) => Ok(Response::new(GetAstResponse {
                     response: Some(
                         GetAst::do_get_named_rs_ast(
                             &request_data.file,
@@ -50,11 +48,11 @@ impl GetAst {
                     ),
                 })),
             },
-            _ => Ok(Response::new(proto::GetAstResponse::default())),
+            _ => Ok(Response::new(GetAstResponse::default())),
         }
     }
 
-    async fn do_get_all_rs_ast(file: &str, _deps: Vec<Dependency>) -> proto::get_ast_response::Response {
+    async fn do_get_all_rs_ast(file: &str, _deps: Vec<Dependency>) -> get_ast_response::Response {
         let source = fs::read_to_string(&file)
             .await
             .map_err(|err| GetAstError::CouldNotReadFile {
@@ -70,7 +68,7 @@ impl GetAst {
             })
             .unwrap();
 
-        AstResponse::Ok(proto::GetAstSuccessResponse {
+        AstResponse::Ok(GetAstSuccessResponse {
             file: file.to_string(),
             symbol: Some(Symbol {
                 sym: Some(All(true)),
@@ -84,7 +82,7 @@ impl GetAst {
         file: &str,
         symbol_name: &str,
         _deps: Vec<Dependency>,
-    ) -> proto::get_ast_response::Response {
+    ) -> get_ast_response::Response {
         let source = fs::read_to_string(&file)
             .await
             .map_err(|err| GetAstError::CouldNotReadFile {
@@ -94,7 +92,7 @@ impl GetAst {
             .unwrap();
 
         let (ast, src) = TreeSplitter::tree_split(symbol_name, &source);
-        AstResponse::Ok(proto::GetAstSuccessResponse {
+        AstResponse::Ok(GetAstSuccessResponse {
             file: file.to_string(),
             symbol: Some(Symbol {
                 sym: Some(Named(symbol_name.to_string())),

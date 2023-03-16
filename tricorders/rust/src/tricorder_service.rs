@@ -1,10 +1,12 @@
-use tricorder::build::warp::tricorder::{
+use crate::generate_signature::GenerateSignature;
+use crate::get_ast::GetAst;
+use crate::proto::build::warp::tricorder::PrepareDependencyResponse;
+use crate::proto::build::warp::tricorder::{
     tricorder_service_server::TricorderService, EnsureReadyRequest, EnsureReadyResponse,
-    GenerateSignatureRequest, GetAstRequest, PrepareDependencyRequest, PrepareDependencyResponse,
-	GetAstResponse, GenerateSignatureResponse
+    GenerateSignatureRequest, GenerateSignatureResponse, GetAstRequest, GetAstResponse,
+    PrepareDependencyRequest,
 };
 use tonic::{Request, Response, Status};
-use tricorder::{GenerateSignature, GetAst};
 
 #[derive(Default)]
 pub struct TricorderServiceImpl {}
@@ -17,12 +19,6 @@ impl TricorderService for TricorderServiceImpl {
     ) -> Result<Response<EnsureReadyResponse>, Status> {
         Ok(Response::new(EnsureReadyResponse::default()))
     }
-    async fn get_ast(
-        &self,
-        request: Request<GetAstRequest>,
-    ) -> Result<Response<GetAstResponse>, Status> {
-        GetAst::get_ast(request).await
-    }
 
     async fn generate_signature(
         &self,
@@ -31,10 +27,17 @@ impl TricorderService for TricorderServiceImpl {
         GenerateSignature::generate_signature(request).await
     }
 
+    async fn get_ast(
+        &self,
+        request: Request<GetAstRequest>,
+    ) -> Result<Response<GetAstResponse>, Status> {
+        GetAst::get_ast(request).await
+    }
+
     async fn prepare_dependency(
         &self,
         _request: Request<PrepareDependencyRequest>,
     ) -> Result<Response<PrepareDependencyResponse>, Status> {
-        Ok(Response::new(PrepareDependencyResponse::default()))
+        unimplemented!()
     }
 }
