@@ -1,14 +1,13 @@
 use super::{Archive, ArchiveBuilderError};
 use crate::Config;
 use async_compression::futures::bufread::GzipDecoder;
-use futures::{AsyncReadExt, StreamExt, TryStreamExt};
+use futures::{StreamExt, TryStreamExt};
 use sha2::{Digest, Sha256};
-use std::{
-    io::Read,
-    path::{Path, PathBuf},
-};
+use std::io::Read;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
-use tokio::{fs, io::AsyncWriteExt};
+use tokio::fs;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use tracing::instrument;
 use url::Url;
@@ -27,6 +26,28 @@ impl ArchiveManager {
         }
     }
 
+    #[instrument(name = "ArchiveManager::find", skip(self))]
+    pub async fn find(&self, url: &Url) -> Result<Option<Archive>, ArchiveManagerError> {
+        let path = self.archive_path(url);
+
+        if fs::File::open(&path).await.is_err() {
+            return Ok(None);
+        };
+
+        let mut hash_file = fs::File::open(path.with_extension("sha256")).await.unwrap();
+        let mut hash = String::new();
+        hash_file.read_to_string(&mut hash).await.unwrap();
+
+        Ok(Some(
+            Archive::builder()
+                .final_path(path)
+                .hash(hash)
+                .url(url.clone())
+                .build()
+                .unwrap(),
+        ))
+    }
+
     #[instrument(name = "ArchiveManager::extract", skip(self))]
     pub async fn extract(
         &self,
@@ -39,7 +60,10 @@ impl ArchiveManager {
             let mut data = vec![];
             let mut unzip_stream = GzipDecoder::new(futures::io::BufReader::new(file.compat()));
 
-            if unzip_stream.read_to_end(&mut data).await.is_err() {
+            if futures::AsyncReadExt::read_to_end(&mut unzip_stream, &mut data)
+                .await
+                .is_err()
+            {
                 data = vec![];
                 let mut file = std::fs::File::open(archive.final_path()).unwrap();
                 file.read_to_end(&mut data)?;
@@ -64,6 +88,10 @@ impl ArchiveManager {
 
     #[instrument(name = "ArchiveManager::download", skip(self))]
     pub async fn download(&self, url: &Url) -> Result<Archive, ArchiveManagerError> {
+        if let Some(archive) = self.find(&url).await? {
+            return Ok(archive);
+        }
+
         let response = self.client.get(url.clone()).send().await?;
 
         if response.status().is_success() {
@@ -106,16 +134,21 @@ impl ArchiveManager {
             outfile.write_all_buf(&mut chunk).await?;
         }
 
-        let hash = format!("{:x}", s.finalize());
-
-        let path = self.archive_path(url, &hash);
+        let path = self.archive_path(url);
         fs::create_dir_all(&path.parent().unwrap()).await?;
         tempfile.persist(&path)?;
+
+        let hash = format!("{:x}", s.finalize());
+        fs::write(path.with_extension("sha256"), &hash).await?;
 
         Ok((path, hash))
     }
 
-    fn archive_path(&self, url: &Url, hash: &str) -> PathBuf {
+    fn archive_path(&self, url: &Url) -> PathBuf {
+        let mut s = Sha256::new();
+        s.update(&url.to_string());
+        let hash = format!("{:x}", s.finalize());
+
         let scheme_and_host = PathBuf::from(url.scheme()).join(url.host_str().unwrap());
         self.archive_root.join(scheme_and_host).join(hash)
     }

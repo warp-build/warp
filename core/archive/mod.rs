@@ -35,4 +35,8 @@ impl Archive {
     pub fn url(&self) -> &Url {
         &self.url
     }
+
+    pub fn set_final_path(&mut self, final_path: PathBuf) {
+        self.final_path = final_path;
+    }
 }
