@@ -3738,6 +3738,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "tricorder-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "insta",
+ "prettyplease",
+ "prost 0.11.8",
+ "prost-types 0.10.1",
+ "syn",
+ "thiserror",
+ "tokio",
+ "tonic",
+ "tonic-build",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "tricorder-service"
+version = "0.1.0"
+dependencies = [
+ "tokio",
+ "tonic",
+ "tricorder-core",
+]
+
+[[package]]
 name = "try-lock"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
