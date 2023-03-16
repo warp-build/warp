@@ -1,6 +1,5 @@
 use dashmap::DashMap;
 use std::collections::HashMap;
-use std::io::Stdin;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -58,6 +57,12 @@ impl<P> ProcessPool<P> {
         self.processes.insert(next_id, handle);
 
         Ok(ProcessId(next_id, PhantomData::default()))
+    }
+}
+
+impl<P> Default for ProcessPool<P> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

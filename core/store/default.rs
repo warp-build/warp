@@ -54,7 +54,7 @@ impl Store for DefaultStore {
             .await
             .map_err(|err| StoreError::PackageManifestReadError {
                 err,
-                url: url.clone(),
+                url: url.clone().into(),
             })?;
 
         let mut downloads = vec![];
@@ -85,7 +85,7 @@ impl Store for DefaultStore {
     }
 
     async fn clean(&self, spec: &ExecutableSpec) -> Result<(), StoreError> {
-        self.local_store.clean(&spec).await?;
+        self.local_store.clean(spec).await?;
         Ok(())
     }
 
@@ -96,7 +96,7 @@ impl Store for DefaultStore {
 
     async fn save(
         &self,
-        spec: &ExecutableSpec,
+        _spec: &ExecutableSpec,
         manifest: &ArtifactManifest,
     ) -> Result<(), StoreError> {
         let mut artifacts = manifest.outs().to_vec();
@@ -122,7 +122,7 @@ impl Store for DefaultStore {
         am: &ArtifactManifest,
         name: N,
     ) -> Option<PathBuf> {
-        let manifest_root = self.get_local_store_path_for_manifest(&am);
+        let manifest_root = self.get_local_store_path_for_manifest(am);
         am.provides(name.as_ref())
             .map(|rel_path| manifest_root.join(rel_path))
     }

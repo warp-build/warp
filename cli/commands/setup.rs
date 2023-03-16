@@ -1,7 +1,6 @@
 use anyhow::*;
 use structopt::StructOpt;
 use tokio::process::Command;
-use warp_core::Config;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(

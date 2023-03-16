@@ -13,15 +13,12 @@ pub use error::*;
 use local::*;
 pub use package_manifest::*;
 use public::*;
-use url::Url;
-
-use crate::sync::*;
-use async_trait::async_trait;
-use std::path::PathBuf;
 
 use crate::model::ExecutableSpec;
+use async_trait::async_trait;
+use std::path::PathBuf;
+use url::Url;
 
-const DEFAULT_WARP_STORE_HOST: &str = "store.warp.build";
 const MANIFEST_FILE: &str = "Manifest.json";
 
 /// The Store trait represents an abstract artifact store that works with [ExecutableSpec]s and

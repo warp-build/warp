@@ -26,14 +26,14 @@ build their dependencies and exit.
     flags: Flags,
 
     #[structopt(name = "ARGUMENTS")]
-    args: Vec<String>,
+    _args: Vec<String>,
 }
 
 impl RunCommand {
     pub async fn run(self) -> Result<(), anyhow::Error> {
         let mut warp = WarpDriveMarkII::new(self.flags.into()).await?;
         let target = self.target.into();
-        let results = warp.execute(Goal::Build, &[target]).await?;
+        let _results = warp.execute(Goal::Build, &[target]).await?;
         Ok(())
     }
 }

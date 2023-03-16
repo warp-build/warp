@@ -1,8 +1,8 @@
 use super::{ResolverError, TargetRegistry};
 use crate::model::{rule, ConcreteTarget, FsTarget, Goal, Signature, TargetId};
+use crate::sync::*;
 use crate::tricorder::SignatureGenerationFlow;
 use crate::workspace::WorkspaceManager;
-use crate::{sync::*, Config, Target};
 use tracing::instrument;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
@@ -11,19 +11,16 @@ use tracing::instrument;
 ///
 #[derive(Clone)]
 pub struct BootstrapResolver {
-    config: Config,
     workspace_manager: Arc<WorkspaceManager>,
     target_registry: Arc<TargetRegistry>,
 }
 
 impl BootstrapResolver {
     pub fn new(
-        config: Config,
         workspace_manager: Arc<WorkspaceManager>,
         target_registry: Arc<TargetRegistry>,
     ) -> Self {
         Self {
-            config,
             workspace_manager,
             target_registry,
         }

@@ -56,9 +56,9 @@ pub enum RuleExecutorError {
     #[error("Execution Error for {}\nSignature: {sig:#?}\n\nError: {err:?}", target.to_string())]
     ExecutionError {
         err: anyhow::Error,
-        target: Target,
+        target: Box<Target>,
         sig: Box<Signature>,
-        rule: Rule,
+        rule: Box<Rule>,
     },
 
     #[error("The module name `{module_name}` is invalid: {reason:?}")]

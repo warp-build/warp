@@ -15,7 +15,7 @@ pub enum ExecutorError {
 
     #[error("When building {}, could not create directory {dst:?} at: {dst_parent:?}", .target.to_string())]
     CouldNotCreateDir {
-        target: ConcreteTarget,
+        target: Box<ConcreteTarget>,
         dst: PathBuf,
         dst_parent: PathBuf,
     },
@@ -40,7 +40,7 @@ due to:
   .dst.to_string_lossy(),
     )]
     CouldNotCopy {
-        target: ConcreteTarget,
+        target: Box<ConcreteTarget>,
         src: PathBuf,
         dst: PathBuf,
         err: std::io::Error,

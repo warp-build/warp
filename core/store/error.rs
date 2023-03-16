@@ -11,10 +11,10 @@ pub enum StoreError {
     Unknown,
 
     #[error("Tried to install an artifact by url, but the url {url:?} is not installable.")]
-    UrlIsNotInstallable { url: Url },
+    UrlIsNotInstallable { url: Box<Url> },
 
     #[error("Could not read the package manifest at {url:?} due to: {err:?}")]
-    PackageManifestReadError { err: FromFileError, url: Url },
+    PackageManifestReadError { err: FromFileError, url: Box<Url> },
 
     #[error(transparent)]
     ArchiveManagerError(ArchiveManagerError),

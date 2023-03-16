@@ -61,14 +61,14 @@ impl GetAst {
         let source = fs::read_to_string(&file)
             .await
             .map_err(|err| GetAstError::CouldNotReadFile {
-                file: file.clone().to_string(),
+                file: file.to_string(),
                 err,
             });
 
         let src = source.unwrap();
         let ast = syn::parse_file(&src)
             .map_err(|err| GetAstError::CouldNotParseFile {
-                file: file.clone().to_string(),
+                file: file.to_string(),
                 err,
             })
             .unwrap();
@@ -78,7 +78,7 @@ impl GetAst {
             symbol: Some(Symbol {
                 sym: Some(All(true)),
             }),
-            source: src.to_string(),
+            source: src,
             ast: format!("{:#?}", ast.items),
         })
     }
@@ -91,7 +91,7 @@ impl GetAst {
         let source = fs::read_to_string(&file)
             .await
             .map_err(|err| GetAstError::CouldNotReadFile {
-                file: file.clone().to_string(),
+                file: file.to_string(),
                 err,
             })
             .unwrap();
@@ -102,7 +102,7 @@ impl GetAst {
             symbol: Some(Symbol {
                 sym: Some(Named(symbol_name.to_string())),
             }),
-            source: src.to_string(),
+            source: src,
             ast: format!("{:#?}", ast),
         })
     }

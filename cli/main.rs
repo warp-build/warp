@@ -1,9 +1,7 @@
 mod commands;
 
 use commands::*;
-use std::path::PathBuf;
 use structopt::StructOpt;
-use tokio::fs;
 use tracing::{error, log};
 
 #[derive(StructOpt, Debug, Clone)]
@@ -19,8 +17,6 @@ struct Warp {
 
 impl Warp {
     async fn run(mut self) -> Result<(), anyhow::Error> {
-        let t0 = std::time::Instant::now();
-
         human_panic::setup_panic!(Metadata {
             name: "warp".into(),
             version: env!("CARGO_PKG_VERSION").into(),
@@ -63,12 +59,11 @@ enum Command {
 impl Command {
     async fn run(self) -> Result<(), anyhow::Error> {
         match self {
-            Command::Setup(s) => s.run().await,
-            Command::Build(x) => x.run().await,
             Command::Bootstrap(x) => x.run().await,
+            Command::Build(x) => x.run().await,
             Command::Run(x) => x.run().await,
+            Command::Setup(s) => s.run().await,
             Command::Test(x) => x.run().await,
-            _ => todo!(),
         }
     }
 }

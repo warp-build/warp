@@ -51,8 +51,8 @@ impl LocalExecutor {
         if let ActionRunnerFlow::MissingInputs { inputs } =
             TracedActionRunner::run(&store_path, &shell_env, spec).await?
         {
-            let mut deps = vec![];
-            for input in inputs {}
+            let deps = vec![];
+            for _input in inputs {}
             return Ok(ExecutionFlow::MissingDeps { deps });
         }
 
@@ -264,7 +264,7 @@ impl LocalExecutor {
 
         // Copy sources
         for src in spec.srcs().files() {
-            let dst = store_path.join(&src);
+            let dst = store_path.join(src);
             let src = spec.target().workspace_root().join(src);
             if src.eq(&dst) {
                 panic!(
@@ -406,7 +406,7 @@ spec = {:#?}
             fs::create_dir_all(dst_parent)
                 .await
                 .map_err(|_| ExecutorError::CouldNotCreateDir {
-                    target: target.clone(),
+                    target: target.clone().into(),
                     dst: dst.clone(),
                     dst_parent: dst_parent.to_path_buf(),
                 })
@@ -423,7 +423,7 @@ spec = {:#?}
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => (),
             Err(err) => {
                 return Err(ExecutorError::CouldNotCopy {
-                    target: target.clone(),
+                    target: target.clone().into(),
                     src: src.clone(),
                     dst: dst.clone(),
                     err,

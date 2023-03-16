@@ -2,10 +2,10 @@ use super::{ResolverError, TargetRegistry};
 use crate::code::{CodeDatabase, SourceHasher};
 use crate::model::{ConcreteTarget, FsTarget, Goal, TargetId};
 use crate::store::DefaultStore;
+use crate::sync::*;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
 use crate::worker::TaskResults;
 use crate::workspace::WorkspaceManager;
-use crate::{sync::*, Config};
 use tracing::instrument;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
@@ -22,7 +22,6 @@ use tracing::instrument;
 /// ```
 #[derive(Clone)]
 pub struct FsResolver<T: Tricorder> {
-    config: Config,
     target_registry: Arc<TargetRegistry>,
     workspace_manager: Arc<WorkspaceManager>,
     tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
@@ -32,7 +31,6 @@ pub struct FsResolver<T: Tricorder> {
 
 impl<T: Tricorder + Clone + 'static> FsResolver<T> {
     pub fn new(
-        config: Config,
         workspace_manager: Arc<WorkspaceManager>,
         tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
         target_registry: Arc<TargetRegistry>,
@@ -40,7 +38,6 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         code_db: Arc<CodeDatabase>,
     ) -> Self {
         Self {
-            config,
             workspace_manager,
             tricorder_manager,
             target_registry,

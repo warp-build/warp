@@ -92,7 +92,7 @@ impl FileScanner {
 
                     if entry.metadata().await.unwrap().is_dir() {
                         let relative_dir = &path.strip_prefix(&root).unwrap().to_str().unwrap();
-                        let should_skip = skip_patterns.is_match(&relative_dir);
+                        let should_skip = skip_patterns.is_match(relative_dir);
                         if should_skip {
                             debug!("Skipped {:?}", &path);
                             continue;

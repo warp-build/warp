@@ -7,7 +7,6 @@ use crate::worker::TaskResults;
 use dashmap::DashMap;
 use fxhash::FxHashMap;
 use std::path::PathBuf;
-use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct SharedJsContext {
@@ -50,7 +49,6 @@ impl SharedJsContext {
 pub struct FfiContext {
     pub(crate) action_map: Arc<DashMap<TargetId, Vec<Action>>>,
     pub(crate) shell_env_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
-    pub(crate) id: Uuid,
     pub(crate) output_map: Arc<DashMap<TargetId, Vec<PathBuf>>>,
     pub(crate) provides_map: Arc<DashMap<TargetId, FxHashMap<String, String>>>,
     pub(crate) rule_map: Arc<DashMap<String, Rule>>,
@@ -63,7 +61,6 @@ impl From<SharedJsContext> for FfiContext {
         Self {
             action_map: ctx.action_map,
             shell_env_map: ctx.shell_env_map,
-            id: Uuid::new_v4(),
             output_map: ctx.output_map,
             provides_map: ctx.provides_map,
             rule_map: ctx.rule_map,

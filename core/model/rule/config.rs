@@ -102,10 +102,10 @@ impl Config {
 
     pub fn get_file_set(&self) -> FxHashSet<PathBuf> {
         let values: Vec<Value> = self._inner.values().cloned().collect();
-        self._extract_files(&values)
+        Self::_extract_files(&values)
     }
 
-    fn _extract_files(&self, values: &[Value]) -> FxHashSet<PathBuf> {
+    fn _extract_files(values: &[Value]) -> FxHashSet<PathBuf> {
         let mut files = FxHashSet::default();
         for val in values {
             match val {
@@ -113,7 +113,7 @@ impl Config {
                     files.insert(file.clone());
                 }
                 Value::List(values) => {
-                    let inner = self._extract_files(values);
+                    let inner = Self::_extract_files(values);
                     files.extend(inner);
                 }
                 _ => (),

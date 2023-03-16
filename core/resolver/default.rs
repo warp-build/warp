@@ -36,7 +36,6 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         let tricorder_manager = Arc::new(TricorderManager::new(config.clone(), store));
 
         let net_resolver = Arc::new(NetResolver::new(
-            config.clone(),
             archive_manager,
             workspace_manager.clone(),
             tricorder_manager.clone(),
@@ -45,17 +44,15 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         ));
 
         let fs_resolver = Arc::new(FsResolver::new(
-            config.clone(),
             workspace_manager.clone(),
-            tricorder_manager.clone(),
+            tricorder_manager,
             target_registry.clone(),
             task_results,
-            code_db.clone(),
+            code_db,
         ));
 
         let boot_resolver = Arc::new(BootstrapResolver::new(
-            config.clone(),
-            workspace_manager.clone(),
+            workspace_manager,
             target_registry.clone(),
         ));
 
@@ -84,7 +81,7 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
             // NB: when our target is remote and we're building a rule, we will whip up a signature
             // on the spot to make sure the rule is instantiatable as a signature.
             Target::Remote(_t) if target.is_rule_target(&self.config) => {
-                let sig = target.to_rule_signature(&self.config, target_id, target.clone());
+                let sig = target.to_rule_signature(target_id, target.clone());
                 Ok(SignatureGenerationFlow::GeneratedSignatures {
                     signatures: vec![sig],
                 })
@@ -148,12 +145,7 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
 }
 
 impl Target {
-    pub fn to_rule_signature(
-        &self,
-        config: &Config,
-        target_id: TargetId,
-        target: Arc<Target>,
-    ) -> Signature {
+    pub fn to_rule_signature(&self, target_id: TargetId, target: Arc<Target>) -> Signature {
         let rule = target.url().unwrap().to_string();
         let target = ConcreteTarget::new(
             Goal::Build,

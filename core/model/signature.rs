@@ -1,7 +1,6 @@
 use super::rule::Config;
 use super::{ConcreteTarget, RuleName, Target};
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use std::hash::Hash;
 use std::path::PathBuf;
 use thiserror::*;

@@ -173,7 +173,7 @@ impl ComputeScript {
 
         program_template
             .replace("{TARGET}", &target.to_string())
-            .replace("{RULE_NAME}", &rule.name())
+            .replace("{RULE_NAME}", rule.name())
             .replace("{CONFIG}", &config.to_string())
             .replace("{DEPS}", &compile_deps.to_string())
             .replace("{TRANSITIVE_DEPS}", &transitive_deps.to_string())

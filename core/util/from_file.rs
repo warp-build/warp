@@ -24,7 +24,7 @@ pub enum FromFileError {
 
 #[async_trait]
 pub trait FromFile<'a> {
-    async fn from_file(path: &Path) -> Result<Self, FromFileError>
+    async fn from_file(_path: &Path) -> Result<Self, FromFileError>
     where
         Self: Sized + Deserialize<'a>,
     {

@@ -72,8 +72,8 @@ impl WarpDriveMarkII {
             resolver,
             store,
             workspace_manager,
-            task_results.clone(),
-            code_db.clone(),
+            task_results,
+            code_db,
         );
 
         let worker_pool = WorkerPool::from_shared_context(

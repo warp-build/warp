@@ -69,10 +69,8 @@ impl TricorderRegistry {
     }
 
     fn find_tricorder(&self, name: &str) -> Option<Url> {
-        if let Some(tricorder) = self.tricorders.get(name) {
-            let tricorder = tricorder.clone();
-            let tricorder = (*tricorder).clone();
-            return Some(tricorder.try_into().unwrap());
+        if let Some(tricorder) = self.tricorders.get(name).cloned() {
+            return Some((*tricorder).clone());
         }
         None
     }

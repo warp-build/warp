@@ -25,7 +25,7 @@ impl RsGenerateSignature {
         let source = fs::read_to_string(&file)
             .await
             .map_err(|err| RsGenerateSignatureError::CouldNotReadFile {
-                file: file.clone().to_string(),
+                file: file.to_string(),
                 err,
             })
             .unwrap();
@@ -73,12 +73,10 @@ impl RsGenerateSignature {
             let path2 = path.join(format!("mod/{}.rs", m));
             if path1.exists() {
                 mod_files.push(path1.display().to_string())
+            } else if path2.exists() {
+                mod_files.push(path2.display().to_string())
             } else {
-                if path2.exists() {
-                    mod_files.push(path2.display().to_string())
-                } else {
-                    return Err(RsGenerateSignatureError::MissingDependency { dep: m.to_string() });
-                }
+                return Err(RsGenerateSignatureError::MissingDependency { dep: m.to_string() });
             }
         }
         Ok(mod_files)

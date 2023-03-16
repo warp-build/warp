@@ -108,9 +108,9 @@ impl RuleExecutor for JsRuleExecutor {
             .execute_script(&script_name, &compute_program)
             .map_err(|err| RuleExecutorError::ExecutionError {
                 err,
-                target: (*sig.target().original_target()).clone(),
-                sig: Box::new(sig.clone()),
-                rule: rule.clone(),
+                target: (*sig.target().original_target()).clone().into(),
+                sig: sig.clone().into(),
+                rule: rule.clone().into(),
             })?;
 
         trace!("Done!");

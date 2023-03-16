@@ -38,7 +38,7 @@ impl Visitor<'_> for TargetVisitor {
         Ok(TargetId(uuid::Uuid::parse_str(v).unwrap().to_u128_le()))
     }
 
-    fn expecting(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn expecting(&self, _fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         todo!()
     }
 }

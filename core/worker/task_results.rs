@@ -8,7 +8,6 @@ use daggy::{Dag, NodeIndex};
 use dashmap::DashMap;
 use dashmap::DashSet;
 use fxhash::*;
-use petgraph::dot::Dot;
 use thiserror::*;
 use tracing::*;
 
@@ -58,6 +57,11 @@ impl TaskResults {
 
     pub fn len(&self) -> usize {
         self.results.len()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn clear_results(&self) {
@@ -111,7 +115,7 @@ impl TaskResults {
             (*old_deps)
                 .iter()
                 .chain(deps.iter())
-                .map(|p| *p)
+                .copied()
                 .collect::<FxHashSet<TargetId>>()
                 .into_iter()
                 .collect::<Vec<TargetId>>()

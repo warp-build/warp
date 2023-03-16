@@ -5,11 +5,9 @@ mod fs_resolver;
 mod net_resolver;
 mod target_registry;
 
-use boot_resolver::*;
 pub use default::*;
 pub use error::*;
 use fs_resolver::*;
-use net_resolver::*;
 pub use target_registry::*;
 
 use crate::model::{Goal, Signature, Target, TargetId};

@@ -1,4 +1,3 @@
-use super::*;
 use crate::code::CodeDatabase;
 use crate::config::Config;
 use crate::events::EventChannel;
@@ -100,13 +99,7 @@ impl<R: Resolver> From<LocalSharedContext<R, DefaultStore>> for LocalExecutorCon
 
 impl<R: Resolver> From<LocalSharedContext<R, DefaultStore>> for DefaultPlannerContext {
     fn from(ctx: LocalSharedContext<R, DefaultStore>) -> Self {
-        Self::new(
-            ctx.artifact_store,
-            ctx.target_registry,
-            ctx.task_results,
-            ctx.rule_store,
-            ctx.code_db,
-        )
+        Self::new(ctx.target_registry, ctx.task_results, ctx.rule_store)
     }
 }
 

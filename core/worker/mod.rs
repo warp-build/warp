@@ -8,18 +8,14 @@ mod task;
 mod task_queue;
 mod task_results;
 
-use async_trait::async_trait;
-use coordinator::*;
 pub use error::*;
-use futures::Future;
 pub use pool::*;
 pub use task::*;
-use task_queue::*;
 pub use task_results::*;
 
 use crate::sync::*;
+use async_trait::async_trait;
 use std::fmt::Debug;
-use std::pin::Pin;
 
 /// A Context object used across workers. It must be thread-safe and shareable, but the things it
 /// contains do not need to be.

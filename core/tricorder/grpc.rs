@@ -94,8 +94,8 @@ impl Tricorder for GrpcTricorder {
         match res {
             Response::Ok(res) => {
                 let deps: Vec<Target> = dependencies
-                    .into_iter()
-                    .map(|(spec, manifest)| (*spec.target().original_target()).clone())
+                    .iter()
+                    .map(|(spec, _manifest)| (*spec.target().original_target()).clone())
                     .collect();
 
                 let mut signatures = vec![];
@@ -163,7 +163,6 @@ impl Tricorder for GrpcTricorder {
             package_name: concrete_target.name().to_string(),
             package_root: archive.final_path().to_string_lossy().to_string(),
             url: archive.url().to_string(),
-            ..Default::default()
         };
 
         let res = self.client.prepare_dependency(request).await?.into_inner();

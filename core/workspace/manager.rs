@@ -84,7 +84,7 @@ impl WorkspaceManager {
     pub fn register_remote_workspace(&self, url: &Url) -> WorkspaceId {
         let _lock = self._register_lock.lock().unwrap();
 
-        if let Some(id) = self.find_remote_workspace(&url) {
+        if let Some(id) = self.find_remote_workspace(url) {
             id
         } else {
             let id = WorkspaceId::next();
@@ -99,7 +99,7 @@ impl WorkspaceManager {
     }
 
     pub fn find_remote_workspace(&self, url: &Url) -> Option<WorkspaceId> {
-        self.registered_urls.get(&url).map(|r| *r.value())
+        self.registered_urls.get(url).map(|r| *r.value())
     }
 
     pub fn get_workspace(&self, id: WorkspaceId) -> Arc<Workspace> {

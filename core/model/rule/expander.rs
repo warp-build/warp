@@ -53,7 +53,7 @@ impl Expander {
     ) -> Result<Value, ExpanderError> {
         trace!("Expanding value {:?} of type {:?}", value, value_type);
         match (value_type, &value) {
-            (Type::File, Value::File(path)) => self.expand_glob(root, &path),
+            (Type::File, Value::File(path)) => self.expand_glob(root, path),
             (Type::File, Value::String(path)) => self.expand_glob(root, Path::new(path)),
             (Type::Target, Value::String(name)) => {
                 let target = name.parse().map_err(ExpanderError::TargetError)?;

@@ -88,7 +88,7 @@ impl ArchiveManager {
 
     #[instrument(name = "ArchiveManager::download", skip(self))]
     pub async fn download(&self, url: &Url) -> Result<Archive, ArchiveManagerError> {
-        if let Some(archive) = self.find(&url).await? {
+        if let Some(archive) = self.find(url).await? {
             return Ok(archive);
         }
 

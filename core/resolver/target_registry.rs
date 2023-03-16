@@ -107,6 +107,11 @@ impl TargetRegistry {
     pub fn len(&self) -> usize {
         self.ids.len()
     }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[derive(Error, Debug)]

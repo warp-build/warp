@@ -1,6 +1,5 @@
-use super::{ArtifactId, ArtifactManifest, ARTIFACT_MANIFEST_FILE, MANIFEST_FILE};
+use super::{ArtifactId, ArtifactManifest, ARTIFACT_MANIFEST_FILE};
 use crate::model::ExecutableSpec;
-use crate::sync::*;
 use crate::util::from_file::FromFileError;
 use crate::Config;
 use std::path::PathBuf;
@@ -10,7 +9,6 @@ use tracing::instrument;
 
 #[derive(Debug, Clone)]
 pub struct LocalStore {
-    config: Config,
     store_root: PathBuf,
 }
 
@@ -18,7 +16,6 @@ impl LocalStore {
     pub fn new(config: Config) -> Self {
         Self {
             store_root: config.artifact_store_root().to_path_buf(),
-            config,
         }
     }
 
@@ -50,7 +47,7 @@ impl LocalStore {
         Ok(())
     }
 
-    pub async fn promote(&self, manifest: &ArtifactManifest) -> Result<(), LocalStoreError> {
+    pub async fn promote(&self, _manifest: &ArtifactManifest) -> Result<(), LocalStoreError> {
         Ok(())
     }
 

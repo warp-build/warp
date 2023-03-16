@@ -1,12 +1,10 @@
 include!(concat!(env!("OUT_DIR"), "/_include.rs"));
 
-use std::collections::HashMap;
-
 use build::warp::tricorder::generate_signature_response;
-use build::warp::tricorder::get_ast_response;
 use build::warp::tricorder::tricorder_service_server::{TricorderService, TricorderServiceServer};
 use build::warp::tricorder::*;
 use build::warp::Signature;
+use std::collections::HashMap;
 use tonic::{transport::Server, Request, Response, Status};
 
 #[derive(Default)]
@@ -75,12 +73,12 @@ impl TricorderService for TestTricorder {
         Ok(Response::new(res))
     }
 
-	async fn get_ast(
-		&self,
-		_request: Request<GetAstRequest>,
-	) -> Result<Response<GetAstResponse>, Status> {
-		Ok(Response::new(GetAstResponse::default()))
-	}
+    async fn get_ast(
+        &self,
+        _request: Request<GetAstRequest>,
+    ) -> Result<Response<GetAstResponse>, Status> {
+        Ok(Response::new(GetAstResponse::default()))
+    }
 }
 
 #[tokio::main]

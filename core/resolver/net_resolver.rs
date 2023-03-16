@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use super::{ResolverError, TargetRegistry};
 use crate::archive::ArchiveManager;
 use crate::code::CodeDatabase;
@@ -8,8 +6,7 @@ use crate::store::DefaultStore;
 use crate::sync::Arc;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
 use crate::workspace::WorkspaceManager;
-use crate::{Config, Goal};
-use futures::TryFutureExt;
+use crate::Goal;
 use tracing::instrument;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
@@ -36,7 +33,6 @@ use tracing::instrument;
 /// ```
 #[derive(Clone)]
 pub struct NetResolver<T: Tricorder> {
-    config: Config,
     archive_manager: Arc<ArchiveManager>,
     workspace_manager: Arc<WorkspaceManager>,
     tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
@@ -46,7 +42,6 @@ pub struct NetResolver<T: Tricorder> {
 
 impl<T: Tricorder + Clone + 'static> NetResolver<T> {
     pub fn new(
-        config: Config,
         archive_manager: Arc<ArchiveManager>,
         workspace_manager: Arc<WorkspaceManager>,
         tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
@@ -54,7 +49,6 @@ impl<T: Tricorder + Clone + 'static> NetResolver<T> {
         code_db: Arc<CodeDatabase>,
     ) -> Self {
         Self {
-            config,
             archive_manager,
             workspace_manager,
             tricorder_manager,

@@ -9,11 +9,9 @@ pub use default_planner_context::*;
 
 use crate::model::{
     Dependencies, DependenciesError, ExecutableSpec, ExecutableSpecError, ExecutionEnvironment,
-    Goal, Requirement, Signature, TargetId,
+    Goal, Signature, TargetId,
 };
 use crate::rules::RuleExecutorError;
-use futures::Future;
-use std::pin::Pin;
 use thiserror::*;
 
 #[derive(Debug)]

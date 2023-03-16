@@ -308,11 +308,14 @@ mod tests {
     impl Executor for NoopExecutor {
         type Context = ();
 
-        fn new(ctx: Self::Context) -> Result<Self, ExecutorError> {
+        fn new(_ctx: Self::Context) -> Result<Self, ExecutorError> {
             Ok(Self)
         }
 
-        async fn execute(&mut self, spec: &ExecutableSpec) -> Result<ExecutionFlow, ExecutorError> {
+        async fn execute(
+            &mut self,
+            _spec: &ExecutableSpec,
+        ) -> Result<ExecutionFlow, ExecutorError> {
             todo!()
         }
     }

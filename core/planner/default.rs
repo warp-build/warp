@@ -170,12 +170,10 @@ enum DepFinderFlow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::archive::ArchiveManager;
-    use crate::code::CodeDatabase;
     use crate::model::ConcreteTarget;
     use crate::resolver::TargetRegistry;
     use crate::rules::{ExecutionResult, RuleExecutorError, RuleStore};
-    use crate::store::{ArtifactManifest, DefaultStore};
+    use crate::store::ArtifactManifest;
     use crate::sync::Arc;
     use crate::worker::TaskResults;
     use crate::{Config, Goal};
@@ -202,14 +200,10 @@ mod tests {
     #[tokio::test]
     async fn plans_a_signature_for_execution() {
         let config = Config::builder().build().unwrap();
-        let archive_manager = ArchiveManager::new(&config).into();
         let rule_store = RuleStore::new(&config).into();
-        let store = DefaultStore::new(config.clone(), archive_manager).into();
         let target_registry = Arc::new(TargetRegistry::new());
         let task_results = TaskResults::new(target_registry.clone()).into();
-        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
-        let ctx =
-            DefaultPlannerContext::new(store, target_registry, task_results, rule_store, code_db);
+        let ctx = DefaultPlannerContext::new(target_registry, task_results, rule_store);
 
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
@@ -233,14 +227,10 @@ mod tests {
     #[tokio::test]
     async fn finds_built_dependencies() {
         let config = Config::builder().build().unwrap();
-        let archive_manager = ArchiveManager::new(&config).into();
         let rule_store = RuleStore::new(&config).into();
-        let store = DefaultStore::new(config.clone(), archive_manager).into();
         let target_registry = Arc::new(TargetRegistry::new());
         let task_results = TaskResults::new(target_registry.clone()).into();
-        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
-        let ctx =
-            DefaultPlannerContext::new(store, target_registry, task_results, rule_store, code_db);
+        let ctx = DefaultPlannerContext::new(target_registry, task_results, rule_store);
 
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
@@ -289,14 +279,10 @@ mod tests {
     #[tokio::test]
     async fn when_missing_dependencies_we_abort() {
         let config = Config::builder().build().unwrap();
-        let archive_manager = ArchiveManager::new(&config).into();
         let rule_store = RuleStore::new(&config).into();
-        let store = DefaultStore::new(config.clone(), archive_manager).into();
         let target_registry = Arc::new(TargetRegistry::new());
         let task_results = TaskResults::new(target_registry.clone()).into();
-        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
-        let ctx =
-            DefaultPlannerContext::new(store, target_registry, task_results, rule_store, code_db);
+        let ctx = DefaultPlannerContext::new(target_registry, task_results, rule_store);
 
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
