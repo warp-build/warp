@@ -10,22 +10,22 @@
 //! the results of the execution.
 //!
 
-mod archive;
-mod code;
-mod config;
-mod drive;
-mod events;
-mod executor;
-mod model;
-mod planner;
-mod resolver;
-mod rules;
-mod store;
-mod sync;
-mod tricorder;
-mod util;
-mod worker;
-mod workspace;
+pub mod archive;
+pub mod code;
+pub mod config;
+pub mod drive;
+pub mod events;
+pub mod executor;
+pub mod model;
+pub mod planner;
+pub mod resolver;
+pub mod rules;
+pub mod store;
+pub mod sync;
+pub mod tricorder;
+pub mod util;
+pub mod worker;
+pub mod workspace;
 
 pub use config::*;
 pub use drive::*;

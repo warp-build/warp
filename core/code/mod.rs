@@ -1,50 +1,15 @@
+mod source_hasher;
+pub use source_hasher::*;
+
 use crate::model::{ConcreteTarget, ExecutableSpec, Signature};
 use crate::sync::{Arc, Mutex};
 use crate::Config;
 use seahash::SeaHasher;
-use sha2::{Digest, Sha256};
 use std::hash::{Hash, Hasher};
-use std::path::{Path, PathBuf};
 use thiserror::Error;
-use tokio::fs;
-use tokio::io::AsyncReadExt;
 use tracing::instrument;
 
 const CODE_DATABASE_NAME: &str = "code.db";
-
-pub struct SourceHasher;
-
-impl SourceHasher {
-    pub async fn hash(file: &Path) -> Result<String, SourceHasherError> {
-        let mut f =
-            fs::File::open(&file)
-                .await
-                .map_err(|err| SourceHasherError::CouldNotOpenSource {
-                    path: file.into(),
-                    err,
-                })?;
-        let mut buffer = Vec::with_capacity(2048);
-        f.read_to_end(&mut buffer)
-            .await
-            .map_err(|err| SourceHasherError::CouldNotReadSource {
-                path: file.into(),
-                err,
-            })?;
-
-        let mut s = Sha256::new();
-        s.update(&buffer);
-        Ok(format!("{:x}", s.finalize()))
-    }
-}
-
-#[derive(Error, Debug)]
-pub enum SourceHasherError {
-    #[error("Source hasher could not read source file at {path:?} due to {err:?}")]
-    CouldNotReadSource { path: PathBuf, err: std::io::Error },
-
-    #[error("Source hasher could not open source file at {path:?} due to {err:?}")]
-    CouldNotOpenSource { path: PathBuf, err: std::io::Error },
-}
 
 #[derive(Debug)]
 pub struct CodeDatabase {

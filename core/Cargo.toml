@@ -8,6 +8,11 @@ edition = "2021"
 [lib]
 path = "lib.rs"
 
+
+[[bench]]
+name = "source_hashing"
+harness = false
+
 [dependencies]
 
 anyhow = "1"
@@ -22,6 +27,7 @@ async-trait = "0.1"
 async_zip = "0.0.7"
 bincode = "1.3"
 chrono = "0.4"
+criterion = { version = "0.4.0", features = ["async_tokio"] }
 crossbeam = "0.8"
 daggy = "0.8"
 dashmap = "5.2"

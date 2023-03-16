@@ -10,6 +10,10 @@ clean:
 build:
 	cargo build
 
+.PHONY: build
+bench:
+	cargo criterion
+
 .PHONY: release
 release:
 	cargo build --release
@@ -38,7 +42,7 @@ setup.local: setup
 	rustup target add x86_64-apple-darwin
 	rustup target add x86_64-unknown-linux-gnu
 	rustup target add aarch64-unknown-linux-gnu
-	cargo install hyperfine cargo-strip cargo-insta mdbook flamegraph miri cargo-asm
+	cargo install hyperfine cargo-strip cargo-insta mdbook flamegraph miri cargo-asm cargo-criterion
 
 .PHONY: test
 test: test.tricorder test.unit test.conc test.beam
