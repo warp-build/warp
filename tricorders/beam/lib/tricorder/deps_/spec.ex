@@ -1,5 +1,8 @@
 defmodule Tricorder.Deps.Spec do
+  require Logger
+
   defstruct [:name, :protocol, :host, :package, :version, :url, :ref, :opts, :subdir]
+
 
   def parse(name) do
     hex_config =

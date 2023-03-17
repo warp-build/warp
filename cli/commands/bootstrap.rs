@@ -18,8 +18,8 @@ impl BootstrapCommand {
         let mut warp = WarpDriveMarkII::new(self.flags.clone().into()).await?;
 
         let targets: Vec<Target> = vec![
-            "./tricorders/beam/mix.exs".into(),
-            "./tricorders/rust/Cargo.toml".into(),
+            "tricorders/beam/mix.exs".into(),
+            "tricorders/rust/Cargo.toml".into(),
         ];
 
         let results = warp.execute(Goal::Bootstrap, &targets).await?;
