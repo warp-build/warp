@@ -87,8 +87,11 @@ defmodule Tricorder.Analysis.Erlang.Ast do
       ast,
       _acc = [],
       fn
-        {:remote_type, _, [{:atom, _, mod}, _, _]}, acc -> [mod | acc]
-        _, acc -> acc
+        {:attribute, _, :type, {_, {:remote_type, _, [{:atom, _, mod}, _, _]}, _}}, acc ->
+          [mod | acc]
+
+        _, acc ->
+          acc
       end
     )
   end

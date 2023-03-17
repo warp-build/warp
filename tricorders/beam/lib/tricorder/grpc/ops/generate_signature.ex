@@ -157,11 +157,13 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     |> Enum.map(fn dep ->
       dep = Atom.to_string(dep)
 
-      req = case Path.wildcard("./**/#{dep}.erl") do
-        [file] -> {:file, Build.Warp.FileRequirement.new(path: file)}
-        _ -> {:symbol, Build.Warp.SymbolRequirement.new(raw: dep, kind: "module")}
-      end
-        Build.Warp.Requirement.new(requirement: req)
+      req =
+        case Path.wildcard("./**/#{dep}.erl") do
+          [file] -> {:file, Build.Warp.FileRequirement.new(path: file)}
+          _ -> {:symbol, Build.Warp.SymbolRequirement.new(raw: dep, kind: "module")}
+        end
+
+      Build.Warp.Requirement.new(requirement: req)
     end)
   end
 end

@@ -1,6 +1,5 @@
 defmodule TricorderDepsTest do
   use ExUnit.Case
-  doctest Gitignore
 
   test "scans mix lock" do
     assert %{

@@ -33,12 +33,9 @@ defmodule Tricorder.Analysis.Erlang do
   def analyze_erl(file, include_paths, code_paths, ast, src_analysis) do
     with {:ok, _, _} <- Erlang.Cerl.compile(file, include_paths, code_paths) do
       modules =
-        for {mod, _, _} <-
-              src_analysis.remote_functions ++
-                src_analysis.remote_types ++
-                src_analysis.imported_mods ++ src_analysis.parse_transforms do
-          mod
-        end
+        (src_analysis.remote_functions ++
+           src_analysis.remote_types ++
+           src_analysis.imported_mods ++ src_analysis.parse_transforms)
         |> Enum.uniq()
 
       includes = (src_analysis.includes ++ src_analysis.missing_includes) |> Enum.uniq()

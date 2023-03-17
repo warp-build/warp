@@ -11,10 +11,19 @@ defmodule GitignoreTest do
     gitignore = Gitignore.read("./test/fixtures/.gitignore")
 
     assert [
-             "test/fixtures/rebar.config",
              "test/fixtures/.gitignore",
-             "test/fixtures/rebar.lock",
-             "test/fixtures/mix.lock"
-           ] = Gitignore.find(gitignore, "test/fixtures", fn x -> {:keep, x} end)
+             "test/fixtures/direct_deps.erl",
+             "test/fixtures/direct_type_deps.erl",
+             "test/fixtures/found_header.hrl",
+             "test/fixtures/found_includes.erl",
+             "test/fixtures/imported_deps.erl",
+             "test/fixtures/missing_includes.erl",
+             "test/fixtures/missing_parse_transforms.erl",
+             "test/fixtures/mix.lock",
+             "test/fixtures/rebar.config",
+             "test/fixtures/rebar.lock"
+           ] =
+             Gitignore.find(gitignore, "test/fixtures", fn x -> {:keep, x} end)
+             |> Enum.sort()
   end
 end
