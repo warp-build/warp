@@ -72,6 +72,8 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
       |> Enum.map(fn sig ->
         modules = Map.get(sig, :modules, []) |> handle_modules
 
+        IO.inspect(modules)
+
         type_modules = Map.get(sig, :type_modules, []) |> handle_modules
 
         parse_transforms =

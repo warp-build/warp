@@ -18,10 +18,16 @@ defmodule Tricorder.Analysis.Paths do
     deps
     |> Enum.flat_map(fn dep ->
       Enum.flat_map(dep.outputs, fn out ->
-        [
-          Path.join([dep.store_path, out, "ebin"]),
-          Path.join([dep.store_path, out, "src"])
-        ]
+        full_path = Path.join(dep.store_path, out)
+
+        if File.dir?(full_path) do
+          [
+            Path.join(full_path, "ebin"),
+            Path.join(full_path, "src")
+          ]
+        else
+          [Path.dirname(full_path)]
+        end
       end)
     end)
     |> Enum.sort()
