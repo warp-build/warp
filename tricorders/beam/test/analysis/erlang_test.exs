@@ -100,4 +100,37 @@ defmodule Tricorder.Analysis.ErlangTest do
                code_paths: []
              })
   end
+
+  test "use-case: detect deps in proper tests" do
+    assert {:ok,
+            {:completed,
+             [
+               %{
+                 includes: [
+                   # NB(@ostera): we ignore this path since it is system dependant
+                   _assert,
+                   "./test/fixtures/proper.hrl",
+                   "./test/fixtures/proper_common.hrl"
+                 ],
+                 modules: [
+                   :verl,
+                   :proper,
+                   :re,
+                   :proper_unused_imports_remover,
+                   :proper_statem,
+                   :proper_symb,
+                   :proper_types,
+                   :proper_unicode,
+                   :proper_transformer
+                 ],
+                 name: "./test/fixtures/prop_verl.erl",
+                 rule: "erlang_library",
+                 srcs: ["prop_verl.erl"]
+               }
+             ]}} =
+             Tricorder.Analysis.Erlang.analyze("./test/fixtures/prop_verl.erl", %{
+               include_paths: [],
+               code_paths: ["./test/fixtures"]
+             })
+  end
 end

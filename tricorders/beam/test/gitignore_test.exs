@@ -20,6 +20,14 @@ defmodule GitignoreTest do
              "test/fixtures/missing_includes.erl",
              "test/fixtures/missing_parse_transforms.erl",
              "test/fixtures/mix.lock",
+             "test/fixtures/prop_verl.erl",
+             "test/fixtures/proper.hrl",
+             "test/fixtures/proper_common.hrl",
+             "test/fixtures/proper_internal.hrl",
+             "test/fixtures/proper_transformer.beam",
+             "test/fixtures/proper_transformer.erl",
+             "test/fixtures/proper_unused_imports_remover.beam",
+             "test/fixtures/proper_unused_imports_remover.erl",
              "test/fixtures/rebar.config",
              "test/fixtures/rebar.lock"
            ] =
