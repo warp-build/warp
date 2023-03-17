@@ -49,9 +49,9 @@ defmodule Tricorder.Deps.Server do
         state.root,
         fn file ->
           case Path.basename(file) do
-            "mix.lock" -> {:keep, Tricorder.Dep.MixLock.load(file)}
-            "rebar.lock" -> {:keep, Tricorder.Dep.RebarLock.load(file)}
-            "rebar.config" -> {:keep, Tricorder.Dep.RebarConfig.load(file)}
+            "mix.lock" -> {:keep, Tricorder.Deps.MixLock.load(file)}
+            "rebar.lock" -> {:keep, Tricorder.Deps.RebarLock.load(file)}
+            "rebar.config" -> {:keep, Tricorder.Deps.RebarConfig.load(file)}
             _ -> :skip
           end
         end
