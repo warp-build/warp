@@ -85,7 +85,7 @@ impl BootstrapResolver {
                     "srcs".to_string(),
                     rule::Value::List(vec![
                         rule::Value::File("protos/**/*".into()),
-						rule::Value::File("core/**/*".into()),
+                        rule::Value::File("core/**/*".into()),
                         rule::Value::File("service/**/*".into()),
                         rule::Value::File("tests/**/*".into()),
                         rule::Value::File("Cargo.toml".into()),
