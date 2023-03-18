@@ -1,6 +1,5 @@
-use crate::all_dependency::*;
-use crate::ast_filter::*;
-use crate::symbol_dependency::*;
+use crate::ast::*;
+use crate::dependency::*;
 
 pub struct TreeSplitter {}
 

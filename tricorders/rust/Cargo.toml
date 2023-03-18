@@ -1,12 +1,28 @@
-[workspace]
-members = [
-  "service",
-  "core",
-]
-resolver="2"
+[package]
+name = "tricorder"
+version = "0.1.0"
+edition = "2021"
 
-[profile.release]
-opt-level = 3
-lto = true
+[[bin]]
+name = "tricorder"
+path = "src/main.rs"
 
+[lib]
+path = "src/lib.rs"
 
+[dependencies]
+anyhow = "1.0"
+thiserror = "1.0"
+tonic = "0.8.2"
+tokio = { version = "1", features = ["full"] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-opentelemetry = "0.17"
+tracing-subscriber = "0.3"
+prost = "0.11.2"
+prost-types = "0.10"
+syn = { version = "1.0.109", features = ["full", "parsing", "extra-traits", "visit", "visit-mut", "fold"] }
+insta = "1.28.0"
+prettyplease="0.1.23"
+
+[build-dependencies]
+tonic-build = "0.8.2"

@@ -1,10 +1,14 @@
+mod mappers;
 use tonic::{Request, Response, Status};
-use tricorder_core::build::warp::tricorder::{
+use crate::proto::build::warp::tricorder::{
     tricorder_service_server::TricorderService, EnsureReadyRequest, EnsureReadyResponse,
     GenerateSignatureRequest, GenerateSignatureResponse, GetAstRequest, GetAstResponse,
     PrepareDependencyRequest, PrepareDependencyResponse,
 };
-use tricorder_core::{GenerateSignature, GetAst};
+use crate::analysis::GenerateSignature;
+use crate::ast::GetAst;
+use crate::models::Symbol;
+
 
 #[derive(Default)]
 pub struct TricorderServiceImpl {}
@@ -21,6 +25,9 @@ impl TricorderService for TricorderServiceImpl {
         &self,
         request: Request<GetAstRequest>,
     ) -> Result<Response<GetAstResponse>, Status> {
+		let request_data = request.into_inner();
+		let file = request_data.file;
+		let symbol: Symbol = request_data.symbol.unwrap().into();
         GetAst::get_ast(request).await
     }
 

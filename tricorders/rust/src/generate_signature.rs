@@ -1,10 +1,8 @@
-mod rs_generate_signature;
-pub use rs_generate_signature::*;
-
-use crate::proto::build::warp::{
-    symbol::Sym::*, tricorder::generate_signature_response::Response as SigResponse, tricorder::*,
-    Symbol,
-};
+use crate::proto::build::warp::symbol::Sym::*;
+use crate::proto::build::warp::tricorder::generate_signature_response::Response as SigResponse;
+use crate::proto::build::warp::Signature;
+use crate::proto::build::warp::{tricorder::*, Symbol};
+use crate::rs_generate_signature::RsGenerateSignature;
 use std::path::{Path, PathBuf};
 use thiserror::*;
 use tonic::{Request, Response, Status};
@@ -27,7 +25,6 @@ impl GenerateSignature {
     ) -> Result<Response<GenerateSignatureResponse>, Status> {
         let request_data = request.into_inner();
         let filename = request_data.clone().file;
-
         println!("Analyzing: {:?}", filename.clone());
 
         match Path::new(&filename).extension() {
@@ -35,8 +32,6 @@ impl GenerateSignature {
                 All(_) => Ok(Response::new(
                     GenerateSignature::do_gen_sig_all_rs(request_data).await,
                 )),
-                // TODO(@calin): generate signature for a symbol - ask @leandro on what is the point here
-                // i.e. how is a single symbol being build?
                 Named(_name) => Ok(Response::new(GenerateSignatureResponse::default())),
             },
             _ => Ok(Response::new(GenerateSignatureResponse::default())),
@@ -53,15 +48,25 @@ impl GenerateSignature {
 
         let signatures = RsGenerateSignature::generate_all(&request.file, code_paths.clone()).await;
 
+        let response = GenerateSignature::handle_result(request, code_paths, signatures).await;
+
         GenerateSignatureResponse {
-            response: Some(SigResponse::Ok(GenerateSignatureSuccessResponse {
-                workspace_root: request.workspace_root,
-                file: request.file,
-                symbol: Some(Symbol {
-                    sym: Some(All(true)),
-                }),
-                signatures,
-            })),
+            response: Some(response.unwrap()),
         }
+    }
+
+    async fn handle_result(
+        request: GenerateSignatureRequest,
+        _code_paths: Vec<PathBuf>,
+        signatures: Vec<Signature>,
+    ) -> Result<SigResponse, GenerateSignatureError> {
+        Ok(SigResponse::Ok(GenerateSignatureSuccessResponse {
+            workspace_root: request.workspace_root,
+            file: request.file,
+            symbol: Some(Symbol {
+                sym: Some(All(true)),
+            }),
+            signatures,
+        }))
     }
 }

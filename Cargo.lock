@@ -3738,7 +3738,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tricorder-core"
+name = "tricorder"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -3754,15 +3754,6 @@ dependencies = [
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "tricorder-service"
-version = "0.1.0"
-dependencies = [
- "tokio",
- "tonic",
- "tricorder-core",
 ]
 
 [[package]]
