@@ -413,7 +413,11 @@ spec = {:#?}
                 .map(|_| ())?;
         };
 
-        match fs::copy(&src, &dst).await.map(|_| ()) {
+        match if fs::metadata(src).await.unwrap().is_file() {
+            fs::copy(&src, &dst).await.map(|_| ())
+        } else {
+            fs::symlink(&src, &dst).await
+        } {
             Ok(_) => (),
             Err(err) if err.kind() == std::io::ErrorKind::InvalidInput => (),
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => (),

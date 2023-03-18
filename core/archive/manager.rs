@@ -16,6 +16,7 @@ use url::Url;
 pub struct ArchiveManager {
     client: reqwest::Client,
     archive_root: PathBuf,
+    force_redownload: bool,
 }
 
 impl ArchiveManager {
@@ -23,6 +24,7 @@ impl ArchiveManager {
         Self {
             client: config.http_client().clone(),
             archive_root: config.archive_root().to_path_buf(),
+            force_redownload: config.force_redownload(),
         }
     }
 
@@ -88,8 +90,10 @@ impl ArchiveManager {
 
     #[instrument(name = "ArchiveManager::download", skip(self))]
     pub async fn download(&self, url: &Url) -> Result<Archive, ArchiveManagerError> {
-        if let Some(archive) = self.find(url).await? {
-            return Ok(archive);
+        if !self.force_redownload {
+            if let Some(archive) = self.find(url).await? {
+                return Ok(archive);
+            }
         }
 
         let response = self.client.get(url.clone()).send().await?;

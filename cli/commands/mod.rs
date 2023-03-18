@@ -40,6 +40,9 @@ pub struct Flags {
 
     #[structopt(long = "use-db")]
     pub(crate) use_db: bool,
+
+    #[structopt(long = "force-redownload")]
+    pub(crate) force_redownload: bool,
 }
 
 impl From<Flags> for Config {
@@ -49,7 +52,8 @@ impl From<Flags> for Config {
         config
             .offline(flags.offline.unwrap_or(false))
             .enable_code_database(flags.use_db)
-            .max_local_workers(flags.max_local_workers.unwrap_or_else(num_cpus::get));
+            .max_local_workers(flags.max_local_workers.unwrap_or_else(num_cpus::get))
+            .force_redownload(flags.force_redownload);
 
         if let Some(url) = flags.public_store_metadata_url {
             config.public_store_metadata_url(url);

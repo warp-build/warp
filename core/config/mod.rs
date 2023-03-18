@@ -89,6 +89,10 @@ pub struct Config {
     #[builder(default = "true")]
     enable_code_database: bool,
 
+    /// Whether or not to redownload any of the archives, even if they are cached.
+    #[builder(default = "false")]
+    force_redownload: bool,
+
     /// The HTTP Client to be used across the application.
     /// NOTE(@ostera): this is safe to clone since it is really an [Arc] to a client pool.
     #[builder(default = "self.default_http_client()")]
@@ -176,6 +180,10 @@ impl Config {
 
     pub fn enable_code_database(&self) -> bool {
         self.enable_code_database
+    }
+
+    pub fn force_redownload(&self) -> bool {
+        self.force_redownload
     }
 }
 

@@ -84,7 +84,6 @@ impl BootstrapResolver {
                 config.insert(
                     "srcs".to_string(),
                     rule::Value::List(vec![
-                        rule::Value::File("protos/**/*".into()),
                         rule::Value::File("core/**/*".into()),
                         rule::Value::File("service/**/*".into()),
                         rule::Value::File("tests/**/*".into()),
