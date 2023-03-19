@@ -1,15 +1,10 @@
-use crate::proto::build::warp::symbol::Sym::*;
-use crate::proto::build::warp::tricorder::get_ast_response::Response as AstResponse;
-use crate::proto::build::warp::{Dependency, Symbol};
+use crate::models::{Ast, Symbol, SymbolScope};
 use crate::tree_splitter::TreeSplitter;
+use crate::AstError;
 use std::path::Path;
 pub(crate) use thiserror::*;
 use tokio::fs;
-use tonic::{Request, Response, Status};
 use tracing::*;
-mod proto {
-    pub use crate::proto::build::warp::tricorder::*;
-}
 
 #[derive(Default)]
 pub struct GetAst {}
@@ -24,40 +19,19 @@ pub enum GetAstError {
 }
 
 impl GetAst {
-    pub async fn get_ast(
-        request: Request<proto::GetAstRequest>,
-    ) -> Result<Response<proto::GetAstResponse>, Status> {
-        let request_data = request.into_inner();
-        let filename = request_data.clone().file;
+    pub async fn get_ast(file: String, symbol: Symbol) -> Result<Ast, AstError> {
+        println!("Analyzing: {:?}", file);
 
-        println!("Analyzing: {:?}", filename.clone());
-
-        match Path::new(&filename).extension() {
-            Some(ext) if ext == "rs" => match request_data.symbol.unwrap().sym.unwrap() {
-                All(_) => Ok(Response::new(proto::GetAstResponse {
-                    response: Some(
-                        GetAst::do_get_all_ast(&request_data.file, request_data.dependencies).await,
-                    ),
-                })),
-                Named(name) => Ok(Response::new(proto::GetAstResponse {
-                    response: Some(
-                        GetAst::do_get_named_ast(
-                            &request_data.file,
-                            &name,
-                            request_data.dependencies,
-                        )
-                        .await,
-                    ),
-                })),
+        match Path::new(&file).extension() {
+            Some(ext) if ext == "rs" => match symbol.scope() {
+                SymbolScope::All => Self::do_get_all_ast(file).await,
+                SymbolScope::Named => Self::do_get_named_ast(file, symbol).await,
             },
-            _ => Ok(Response::new(proto::GetAstResponse::default())),
+            _ => Ok(Ast::default()),
         }
     }
 
-    async fn do_get_all_ast(
-        file: &str,
-        _deps: Vec<Dependency>,
-    ) -> proto::get_ast_response::Response {
+    async fn do_get_all_ast(file: String) -> Result<Ast, AstError> {
         let source = fs::read_to_string(&file)
             .await
             .map_err(|err| GetAstError::CouldNotReadFile {
@@ -73,21 +47,10 @@ impl GetAst {
             })
             .unwrap();
 
-        AstResponse::Ok(proto::GetAstSuccessResponse {
-            file: file.to_string(),
-            symbol: Some(Symbol {
-                sym: Some(All(true)),
-            }),
-            source: src,
-            ast: format!("{:#?}", ast.items),
-        })
+        Ok(Ast::builder().ast(ast).source(src).file(file).build()?)
     }
 
-    async fn do_get_named_ast(
-        file: &str,
-        symbol_name: &str,
-        _deps: Vec<Dependency>,
-    ) -> proto::get_ast_response::Response {
+    async fn do_get_named_ast(file: String, symbol: Symbol) -> Result<Ast, AstError> {
         let source = fs::read_to_string(&file)
             .await
             .map_err(|err| GetAstError::CouldNotReadFile {
@@ -96,14 +59,13 @@ impl GetAst {
             })
             .unwrap();
 
-        let (ast, src) = TreeSplitter::tree_split(symbol_name, &source);
-        AstResponse::Ok(proto::GetAstSuccessResponse {
-            file: file.to_string(),
-            symbol: Some(Symbol {
-                sym: Some(Named(symbol_name.to_string())),
-            }),
-            source: src,
-            ast: format!("{:#?}", ast),
-        })
+        let (ast, src) = TreeSplitter::tree_split(symbol.clone(), &source);
+
+        Ok(Ast::builder()
+            .ast(ast)
+            .source(src)
+            .file(file)
+            .symbol(symbol)
+            .build()?)
     }
 }

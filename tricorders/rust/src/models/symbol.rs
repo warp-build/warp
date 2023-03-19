@@ -1,31 +1,42 @@
-#[derive(Builder, Debug, Clone)]
-pub struct Symbol {
-	scope: SymbolScope,
-	name: String,
-}
+use thiserror::Error;
 
-impl Default for Symbol {
-    fn default() -> Self {
-        Self::builder().build().unwrap()
-    }
+#[derive(Builder, Debug, Default, Clone)]
+#[builder(build_fn(error = "SymbolError"))]
+pub struct Symbol {
+    scope: SymbolScope,
+    name: String,
 }
 
 impl Symbol {
-	pub fn builder() -> ConfigBuilder {
-        ConfigBuilder::default()
+    pub fn builder() -> SymbolBuilder {
+        SymbolBuilder::default()
     }
 
-	pub fn scope(&self) -> SymbolType {
-		self.scope
-	}
+    pub fn scope(&self) -> SymbolScope {
+        self.scope.clone()
+    }
+
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
 }
 
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub enum SymbolScope {
-	
-	#[default]
-	All,
-	
-	Named(String)
+    #[default]
+    All,
+
+    Named,
+}
+
+#[derive(Error, Debug)]
+pub enum SymbolError {
+    #[error(transparent)]
+    BuilderError(derive_builder::UninitializedFieldError),
+}
+
+impl From<derive_builder::UninitializedFieldError> for SymbolError {
+    fn from(value: derive_builder::UninitializedFieldError) -> Self {
+        SymbolError::BuilderError(value)
+    }
 }

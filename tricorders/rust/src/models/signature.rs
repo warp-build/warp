@@ -1,20 +1,19 @@
-use super::rule::Config;
-use super::{ConcreteTarget, RuleName, Target};
-use serde::{Deserialize, Serialize};
-use std::hash::Hash;
+use crate::models::{Config, Requirement};
 use std::path::PathBuf;
 use thiserror::*;
 
-#[derive(Builder, Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Builder, Debug, Clone)]
 #[builder(build_fn(error = "SignatureError"))]
 pub struct Signature {
-    rule: RuleName,
+    target: String,
+
+    rule: String,
 
     #[builder(default)]
-    deps: Vec<Target>,
+    deps: Vec<Requirement>,
 
     #[builder(default)]
-    runtime_deps: Vec<Target>,
+    runtime_deps: Vec<Requirement>,
 
     #[builder(default)]
     config: Config,
@@ -25,26 +24,28 @@ impl Signature {
         Default::default()
     }
 
+    pub fn set_target(&mut self, target: String) {
+        self.target = target;
+    }
+
+    pub fn target(&self) -> &str {
+        self.target.as_ref()
+    }
+
     pub fn rule(&self) -> &str {
         self.rule.as_ref()
     }
 
-    pub fn deps(&self) -> &[Target] {
+    pub fn deps(&self) -> &[Requirement] {
         self.deps.as_ref()
     }
 
-    pub fn runtime_deps(&self) -> &[Target] {
+    pub fn runtime_deps(&self) -> &[Requirement] {
         self.runtime_deps.as_ref()
     }
 
     pub fn config(&self) -> &Config {
         &self.config
-    }
-}
-
-impl AsRef<RuleName> for Signature {
-    fn as_ref(&self) -> &RuleName {
-        &self.rule
     }
 }
 
@@ -55,12 +56,6 @@ impl std::fmt::Display for Signature {
 }
 #[derive(Error, Debug)]
 pub enum SignatureError {
-    #[error("Could not parse JSON into Signatures: {0:?}")]
-    ParseError(serde_json::Error),
-
-    #[error("Could not print Signatures into JSON: {0:#?}")]
-    PrintError(serde_json::Error),
-
     #[error("Could not open file at {file:?} due to {err:?}")]
     FileOpenError { file: PathBuf, err: std::io::Error },
 
@@ -71,5 +66,17 @@ pub enum SignatureError {
 impl From<derive_builder::UninitializedFieldError> for SignatureError {
     fn from(value: derive_builder::UninitializedFieldError) -> Self {
         SignatureError::BuilderError(value)
+    }
+}
+
+impl Default for Signature {
+    fn default() -> Self {
+        Self {
+            target: "".to_string(),
+            rule: "".to_string(),
+            deps: vec![],
+            runtime_deps: vec![],
+            config: Config::default(),
+        }
     }
 }
