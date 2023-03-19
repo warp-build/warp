@@ -112,7 +112,6 @@ impl ArchiveManager {
             let tarball_path = tarball_path.clone();
             let manifest = manifest.clone();
             tokio::task::spawn_blocking(move || {
-                std::env::set_current_dir(manifest.store_path()).unwrap();
                 let _ = std::fs::create_dir_all(tarball_path.parent().unwrap());
                 let tar_file = std::fs::File::create(tarball_path).unwrap();
                 let enc = GzEncoder::new(tar_file, Compression::default());
@@ -248,6 +247,7 @@ impl From<ArchiveBuilderError> for ArchiveManagerError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_fs::prelude::*;
 
     #[tokio::test]
     async fn downloads_file_to_archives_folder() {
@@ -292,5 +292,49 @@ mod tests {
             .parse()
             .unwrap();
         assert!(am.download(&url).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn compress_files_from_artifact_manifest() {
+        let warp_root = assert_fs::TempDir::new().unwrap();
+
+        let invocation_dir = assert_fs::TempDir::new().unwrap();
+
+        let config = Config::builder()
+            .invocation_dir(invocation_dir.path().to_path_buf())
+            .warp_root(warp_root.path().to_path_buf())
+            .build()
+            .unwrap();
+
+        let am = ArchiveManager::new(&config);
+
+        let manifest = invocation_dir.child("Manifest.json");
+
+        let expected = include_str!("./fixtures/Manifest.json").replace(
+            "{STORE_PATH}",
+            &config.artifact_store_root().to_str().unwrap(),
+        );
+
+        manifest.write_str(&expected).unwrap();
+
+        let artifact_manifest: Arc<ArtifactManifest> = ArtifactManifest::from_file(manifest.path())
+            .await
+            .unwrap()
+            .into();
+
+        let archive = am.compress(artifact_manifest.clone()).await.unwrap();
+
+        let final_path = archive.final_path().strip_prefix(&am.archive_root).unwrap();
+
+        let archive_url = am
+            .public_store_cdn_url
+            .join(&format!("{}.tar.gz", artifact_manifest.hash()))
+            .unwrap();
+
+        let tarball_path = am.archive_path(&archive_url);
+
+        let expected = tarball_path.strip_prefix(&am.archive_root).unwrap();
+
+        assert_eq!(final_path, expected);
     }
 }
