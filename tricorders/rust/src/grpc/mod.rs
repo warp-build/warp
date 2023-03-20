@@ -4,12 +4,11 @@ use crate::ast::GetAst;
 use crate::models::{Ast, AstError, Signature, Symbol};
 use crate::proto::build::warp::tricorder::GenerateSignatureSuccessResponse;
 use crate::proto::build::warp::tricorder::{
-    generate_signature_response::Response as SigResponse,
-    tricorder_service_server::TricorderService, EnsureReadyRequest, EnsureReadyResponse,
-    GenerateSignatureRequest, GenerateSignatureResponse, GetAstRequest, GetAstResponse,
-    PrepareDependencyRequest, PrepareDependencyResponse,
+    generate_signature_response, tricorder_service_server::TricorderService, EnsureReadyRequest,
+    EnsureReadyResponse, GenerateSignatureRequest, GenerateSignatureResponse, GetAstRequest,
+    GetAstResponse, PrepareDependencyRequest, PrepareDependencyResponse,
 };
-use crate::AnalysisError;
+use crate::GenerateSignatureError;
 use tonic::{Request, Response, Status};
 
 #[derive(Default)]
@@ -32,27 +31,31 @@ impl TricorderService for TricorderServiceImpl {
         let symbol: Symbol = request_data.clone().symbol.unwrap().into();
         let workspace_root = request_data.clone().workspace_root;
 
-        let response: Result<Vec<Signature>, AnalysisError> =
+        let response: Result<Vec<Signature>, GenerateSignatureError> =
             Analysis::generate_signature(workspace_root.clone(), file.clone(), symbol.clone())
                 .await;
 
         match response {
             Ok(signature) => Ok(Response::new(GenerateSignatureResponse {
-                response: Some(SigResponse::Ok(GenerateSignatureSuccessResponse {
-                    workspace_root,
-                    file,
-                    symbol: Some((&symbol).into()),
-                    signatures: signature.iter().map(|e| e.clone().into()).collect(),
-                })),
+                response: Some(generate_signature_response::Response::Ok(
+                    GenerateSignatureSuccessResponse {
+                        workspace_root,
+                        file,
+                        symbol: Some((&symbol).into()),
+                        signatures: signature.iter().map(|e| e.clone().into()).collect(),
+                    },
+                )),
             })),
             // TODO(@calin): create a proper way of dealing with missing dependencies.
             Err(_) => Ok(Response::new(GenerateSignatureResponse {
-                response: Some(SigResponse::Ok(GenerateSignatureSuccessResponse {
-                    workspace_root,
-                    file,
-                    symbol: Some((&symbol).into()),
-                    signatures: vec![],
-                })),
+                response: Some(generate_signature_response::Response::Ok(
+                    GenerateSignatureSuccessResponse {
+                        workspace_root,
+                        file,
+                        symbol: Some((&symbol).into()),
+                        signatures: vec![],
+                    },
+                )),
             })),
         }
     }

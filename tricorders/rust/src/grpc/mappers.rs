@@ -2,19 +2,15 @@ use std::collections::HashMap;
 
 use crate::models::{Ast, Config, Requirement, Signature, Symbol, SymbolScope, Value};
 use crate::proto::build::warp::{
-    requirement::Requirement as ProtoSpecificRequirement,
     symbol::Sym::{All, Named},
-    tricorder::{get_ast_response::Response as AstResponse, GetAstResponse, GetAstSuccessResponse},
-    DependencyRequirement, FileRequirement, Requirement as ProtoRequirement, Signature as ProtoSig,
-    Symbol as ProtoSymbol, SymbolRequirement, UrlRequirement,
+    tricorder::{get_ast_response, GetAstResponse, GetAstSuccessResponse},
+    DependencyRequirement, FileRequirement, SymbolRequirement, UrlRequirement,
 };
-use crate::proto::google::protobuf::{
-    value::Kind, ListValue, Struct as ProtoStruct, Value as ProtoValue,
-};
+use crate::proto::google::protobuf::{value::Kind, ListValue};
 use tonic::Response;
 
-impl From<ProtoSymbol> for Symbol {
-    fn from(sym: ProtoSymbol) -> Self {
+impl From<crate::proto::build::warp::Symbol> for Symbol {
+    fn from(sym: crate::proto::build::warp::Symbol) -> Self {
         match sym.sym.unwrap() {
             All(_) => Symbol::builder().build().unwrap(),
             Named(name) => Symbol::builder()
@@ -26,13 +22,13 @@ impl From<ProtoSymbol> for Symbol {
     }
 }
 
-impl From<&Symbol> for ProtoSymbol {
+impl From<&Symbol> for crate::proto::build::warp::Symbol {
     fn from(sym: &Symbol) -> Self {
         match sym.scope() {
-            SymbolScope::All => ProtoSymbol {
+            SymbolScope::All => crate::proto::build::warp::Symbol {
                 sym: Some(All(true)),
             },
-            SymbolScope::Named => ProtoSymbol {
+            SymbolScope::Named => crate::proto::build::warp::Symbol {
                 sym: Some(Named(sym.name())),
             },
         }
@@ -42,7 +38,7 @@ impl From<&Symbol> for ProtoSymbol {
 impl From<Ast> for Response<GetAstResponse> {
     fn from(ast: Ast) -> Self {
         Response::new(GetAstResponse {
-            response: Some(AstResponse::Ok(GetAstSuccessResponse {
+            response: Some(get_ast_response::Response::Ok(GetAstSuccessResponse {
                 file: ast.file().to_string(),
                 symbol: Some(ast.symbol().into()),
                 source: ast.source().to_string(),
@@ -52,9 +48,9 @@ impl From<Ast> for Response<GetAstResponse> {
     }
 }
 
-impl From<Signature> for ProtoSig {
+impl From<Signature> for crate::proto::build::warp::Signature {
     fn from(sig: Signature) -> Self {
-        ProtoSig {
+        crate::proto::build::warp::Signature {
             name: sig.target().to_string(),
             rule: sig.rule().to_string(),
             deps: sig.deps().iter().map(|e| e.clone().into()).collect(),
@@ -68,75 +64,80 @@ impl From<Signature> for ProtoSig {
     }
 }
 
-impl From<Requirement> for ProtoRequirement {
+impl From<Requirement> for crate::proto::build::warp::Requirement {
     fn from(req: Requirement) -> Self {
         match req {
-            Requirement::File { path } => ProtoRequirement {
-                requirement: Some(ProtoSpecificRequirement::File(FileRequirement {
-                    path: path.to_str().unwrap().to_string(),
-                })),
+            Requirement::File { path } => crate::proto::build::warp::Requirement {
+                requirement: Some(crate::proto::build::warp::requirement::Requirement::File(
+                    FileRequirement {
+                        path: path.to_str().unwrap().to_string(),
+                    },
+                )),
             },
-            Requirement::Symbol { raw, kind } => ProtoRequirement {
-                requirement: Some(ProtoSpecificRequirement::Symbol(SymbolRequirement {
-                    raw,
-                    kind,
-                })),
+            Requirement::Symbol { raw, kind } => crate::proto::build::warp::Requirement {
+                requirement: Some(crate::proto::build::warp::requirement::Requirement::Symbol(
+                    SymbolRequirement { raw, kind },
+                )),
             },
             Requirement::Url {
                 url,
-                tricorder_url,
+                tricorder_url: _,
                 subpath,
-            } => ProtoRequirement {
-                requirement: Some(ProtoSpecificRequirement::Url(UrlRequirement {
-                    url: url.to_string(),
-                    subpath: subpath.unwrap().to_str().unwrap().to_string(),
-                })),
+            } => crate::proto::build::warp::Requirement {
+                requirement: Some(crate::proto::build::warp::requirement::Requirement::Url(
+                    UrlRequirement {
+                        url: url.to_string(),
+                        subpath: subpath.unwrap().to_str().unwrap().to_string(),
+                    },
+                )),
             },
             Requirement::Dependency {
                 name,
                 version,
                 url,
                 tricorder,
-            } => ProtoRequirement {
-                requirement: Some(ProtoSpecificRequirement::Dependency(
-                    DependencyRequirement {
-                        name: name,
-                        version: version,
-                        url: url.to_string(),
-                        tricorder_url: tricorder.to_string(),
-                        archive_resolver: "".to_string(),
-                        signature_resolver: "".to_string(),
-                    },
-                )),
+            } => crate::proto::build::warp::Requirement {
+                requirement: Some(
+                    crate::proto::build::warp::requirement::Requirement::Dependency(
+                        DependencyRequirement {
+                            name: name,
+                            version: version,
+                            url: url.to_string(),
+                            tricorder_url: tricorder.to_string(),
+                            archive_resolver: "".to_string(),
+                            signature_resolver: "".to_string(),
+                        },
+                    ),
+                ),
             },
         }
     }
 }
 
-impl From<&Config> for ProtoStruct {
+impl From<&Config> for crate::proto::google::protobuf::Struct {
     fn from(config: &Config) -> Self {
         let mut configs = HashMap::new();
         for (key, value) in config.values() {
             configs.insert(key.to_string(), value.clone().into());
         }
 
-        ProtoStruct { fields: configs }
+        crate::proto::google::protobuf::Struct { fields: configs }
     }
 }
 
-impl From<Value> for ProtoValue {
+impl From<Value> for crate::proto::google::protobuf::Value {
     fn from(val: Value) -> Self {
         match val {
-            Value::String(string) => ProtoValue {
+            Value::String(string) => crate::proto::google::protobuf::Value {
                 kind: Some(Kind::StringValue(string)),
             },
-            Value::Target(target) => ProtoValue {
+            Value::Target(target) => crate::proto::google::protobuf::Value {
                 kind: Some(Kind::StringValue(target.to_string())),
             },
-            Value::File(file) => ProtoValue {
+            Value::File(file) => crate::proto::google::protobuf::Value {
                 kind: Some(Kind::StringValue(file.to_str().unwrap().to_string())),
             },
-            Value::List(parts) => ProtoValue {
+            Value::List(parts) => crate::proto::google::protobuf::Value {
                 kind: Some(Kind::ListValue(ListValue {
                     values: parts.iter().map(|e| e.clone().into()).collect(),
                 })),

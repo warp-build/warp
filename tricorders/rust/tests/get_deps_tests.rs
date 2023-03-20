@@ -1,4 +1,4 @@
-use tricorder::RsGenerateSignature;
+use tricorder::GenerateSignature;
 use tricorder::TreeSplitter;
 
 #[tokio::test]
@@ -11,6 +11,6 @@ async fn t002_get_mods() {
     insta::assert_display_snapshot!(format!("{:#?}", &crates));
     insta::assert_display_snapshot!(format!("{:#?}", &ast));
 
-    let signatures = RsGenerateSignature::generate_all(file_path, vec![]).await;
+    let signatures = GenerateSignature::all(file_path).await;
     insta::assert_display_snapshot!(format!("{:#?}", &signatures));
 }

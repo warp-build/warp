@@ -17,7 +17,7 @@ pub enum GenerateSignatureError {
 }
 
 impl GenerateSignature {
-    pub async fn all(file: &str) -> Vec<Signature> {
+    pub async fn all(file: &str) -> Result<Vec<Signature>, GenerateSignatureError> {
         // First we need to read the file contents
         let source = fs::read_to_string(&file)
             .await
@@ -34,12 +34,22 @@ impl GenerateSignature {
         let (mods, _crates) = TreeSplitter::get_deps_all(&source);
 
         let path = PathBuf::from(Path::new(file).parent().unwrap_or(Path::new(""))).join("");
-        let mod_files: Vec<String> = Self::find_mod_files(mods, path).unwrap();
+        let mod_files = Self::find_mod_files(mods, path);
+
+        if let Err(err) = mod_files {
+            return Err(err);
+        }
 
         let mut config = Config::default();
         config.insert(
             "srcs".to_string(),
-            crate::Value::List(mod_files.iter().map(|e| e.to_string().into()).collect()),
+            crate::Value::List(
+                mod_files
+                    .unwrap()
+                    .iter()
+                    .map(|e| e.to_string().into())
+                    .collect(),
+            ),
         );
 
         let signature = Signature::builder()
@@ -48,7 +58,7 @@ impl GenerateSignature {
             .config(config)
             .build();
 
-        vec![signature.unwrap()]
+        Ok(vec![signature.unwrap()])
     }
 
     pub fn find_mod_files(
