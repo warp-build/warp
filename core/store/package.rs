@@ -13,4 +13,8 @@ impl Package {
     pub fn builder() -> PackageBuilder {
         Default::default()
     }
+
+    pub fn manifest(&self) -> &PackageManifest {
+        &self.manifest
+    }
 }

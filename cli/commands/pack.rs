@@ -32,7 +32,7 @@ impl PackCommand {
 
         let packed_results = warp.pack(target).await?;
 
-        dbg!(packed_results);
+        //dbg!(packed_results);
 
         Ok(())
     }
