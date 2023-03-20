@@ -11,6 +11,8 @@ use crate::proto::build::warp::tricorder::{
 use crate::GenerateSignatureError;
 use tonic::{Request, Response, Status};
 
+use self::mappers::ast_to_success_response;
+
 #[derive(Default)]
 pub struct TricorderServiceImpl {}
 
@@ -70,10 +72,10 @@ impl TricorderService for TricorderServiceImpl {
         let response: Result<Ast, AstError> = GetAst::get_ast(file, symbol).await;
 
         match response {
-            Ok(ast) => Ok(ast.into()),
+            Ok(ast) => Ok(Response::new(ast_to_success_response(ast))),
             // TODO(@calin): create a proper Requirement internal model for missing deps
             // and return it properly here.
-            Err(_) => Ok(Ast::default().into()),
+            Err(_) => Ok(Response::new(ast_to_success_response(Ast::default()))),
         }
     }
 

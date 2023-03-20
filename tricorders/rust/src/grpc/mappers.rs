@@ -1,13 +1,13 @@
-use std::collections::HashMap;
-
 use crate::models::{Ast, Config, Requirement, Signature, Symbol, SymbolScope, Value};
+use crate::proto::build::warp::symbol::Sym::{All, Named};
+use crate::proto::build::warp::tricorder::{
+    get_ast_response, GetAstResponse, GetAstSuccessResponse,
+};
 use crate::proto::build::warp::{
-    symbol::Sym::{All, Named},
-    tricorder::{get_ast_response, GetAstResponse, GetAstSuccessResponse},
     DependencyRequirement, FileRequirement, SymbolRequirement, UrlRequirement,
 };
 use crate::proto::google::protobuf::{value::Kind, ListValue};
-use tonic::Response;
+use std::collections::HashMap;
 
 impl From<crate::proto::build::warp::Symbol> for Symbol {
     fn from(sym: crate::proto::build::warp::Symbol) -> Self {
@@ -35,16 +35,14 @@ impl From<&Symbol> for crate::proto::build::warp::Symbol {
     }
 }
 
-impl From<Ast> for Response<GetAstResponse> {
-    fn from(ast: Ast) -> Self {
-        Response::new(GetAstResponse {
-            response: Some(get_ast_response::Response::Ok(GetAstSuccessResponse {
-                file: ast.file().to_string(),
-                symbol: Some(ast.symbol().into()),
-                source: ast.source().to_string(),
-                ast: format!("{:#?}", ast.ast()),
-            })),
-        })
+pub fn ast_to_success_response(ast: Ast) -> GetAstResponse {
+    GetAstResponse {
+        response: Some(get_ast_response::Response::Ok(GetAstSuccessResponse {
+            file: ast.file().to_string(),
+            symbol: Some(ast.symbol().into()),
+            source: ast.source().to_string(),
+            ast: format!("{:#?}", ast.ast()),
+        })),
     }
 }
 
