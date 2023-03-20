@@ -20,6 +20,32 @@ File {
                 ),
             },
         ),
+        Use(
+            ItemUse {
+                attrs: [],
+                vis: Public(
+                    VisPublic {
+                        pub_token: Pub,
+                    },
+                ),
+                use_token: Use,
+                leading_colon: None,
+                tree: Path(
+                    UsePath {
+                        ident: Ident(
+                            utils,
+                        ),
+                        colon2_token: Colon2,
+                        tree: Glob(
+                            UseGlob {
+                                star_token: Star,
+                            },
+                        ),
+                    },
+                ),
+                semi_token: Semi,
+            },
+        ),
         Mod(
             ItemMod {
                 attrs: [],

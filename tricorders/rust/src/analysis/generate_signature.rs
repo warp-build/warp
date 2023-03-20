@@ -1,16 +1,14 @@
-use crate::proto::build::warp::Signature;
-use crate::proto::google::protobuf::{value::Kind, ListValue, Struct, Value};
+use crate::models::{Config, Signature};
 use crate::tree_splitter::TreeSplitter;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use thiserror::*;
 use tokio::fs;
 
 #[derive(Default)]
-pub struct RsGenerateSignature {}
+pub struct GenerateSignature {}
 
 #[derive(Error, Debug)]
-pub enum RsGenerateSignatureError {
+pub enum GenerateSignatureError {
     #[error("Could not load file at {file:?} due to {err:?}")]
     CouldNotReadFile { file: String, err: std::io::Error },
 
@@ -18,12 +16,12 @@ pub enum RsGenerateSignatureError {
     MissingDependency { dep: String },
 }
 
-impl RsGenerateSignature {
-    pub async fn generate_all(file: &str, _code_paths: Vec<PathBuf>) -> Vec<Signature> {
+impl GenerateSignature {
+    pub async fn all(file: &str) -> Result<Vec<Signature>, GenerateSignatureError> {
         // First we need to read the file contents
         let source = fs::read_to_string(&file)
             .await
-            .map_err(|err| RsGenerateSignatureError::CouldNotReadFile {
+            .map_err(|err| GenerateSignatureError::CouldNotReadFile {
                 file: file.to_string(),
                 err,
             })
@@ -36,36 +34,37 @@ impl RsGenerateSignature {
         let (mods, _crates) = TreeSplitter::get_deps_all(&source);
 
         let path = PathBuf::from(Path::new(file).parent().unwrap_or(Path::new(""))).join("");
-        let mod_files = Self::find_mod_files(mods, path).unwrap();
+        let mod_files = Self::find_mod_files(mods, path);
 
-        let signature = Signature {
-            name: file.to_string(),
-            deps: vec![],
-            rule: "rust_binary".to_string(),
-            runtime_deps: vec![],
-            config: Some(Struct {
-                fields: HashMap::from_iter(vec![(
-                    "srcs".to_string(),
-                    Value {
-                        kind: Some(Kind::ListValue(ListValue {
-                            values: mod_files
-                                .iter()
-                                .map(|s| Value {
-                                    kind: Some(Kind::StringValue(s.to_string())),
-                                })
-                                .collect(),
-                        })),
-                    },
-                )]),
-            }),
-        };
-        vec![signature]
+        if let Err(err) = mod_files {
+            return Err(err);
+        }
+
+        let mut config = Config::default();
+        config.insert(
+            "srcs".to_string(),
+            crate::Value::List(
+                mod_files
+                    .unwrap()
+                    .iter()
+                    .map(|e| e.to_string().into())
+                    .collect(),
+            ),
+        );
+
+        let signature = Signature::builder()
+            .target(file.to_string())
+            .rule("rust_binary".to_string())
+            .config(config)
+            .build();
+
+        Ok(vec![signature.unwrap()])
     }
 
     pub fn find_mod_files(
         mods: Vec<String>,
         path: PathBuf,
-    ) -> Result<Vec<String>, RsGenerateSignatureError> {
+    ) -> Result<Vec<String>, GenerateSignatureError> {
         let mut mod_files: Vec<String> = Vec::new();
         for m in mods.iter() {
             let path1 = path.join(format!("{}.rs", m));
@@ -75,7 +74,7 @@ impl RsGenerateSignature {
             } else if path2.exists() {
                 mod_files.push(path2.display().to_string())
             } else {
-                return Err(RsGenerateSignatureError::MissingDependency { dep: m.to_string() });
+                return Err(GenerateSignatureError::MissingDependency { dep: m.to_string() });
             }
         }
         Ok(mod_files)

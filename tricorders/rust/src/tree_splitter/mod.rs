@@ -1,6 +1,6 @@
-use crate::all_dependency::*;
-use crate::ast_filter::*;
-use crate::symbol_dependency::*;
+use crate::ast::*;
+use crate::dependency::*;
+use crate::models::Symbol;
 
 pub struct TreeSplitter {}
 
@@ -18,11 +18,11 @@ impl TreeSplitter {
         (mods, crates)
     }
 
-    pub fn tree_split(symbol: &str, sources: &str) -> (syn::File, String) {
+    pub fn tree_split(symbol: Symbol, sources: &str) -> (syn::File, String) {
         let ast = syn::parse_file(sources).unwrap();
-        let symbol_ast = Self::get_ast_named(symbol, ast.clone());
+        let symbol_ast = Self::get_ast_named(&symbol.name(), ast.clone());
         let mut deps = Self::get_interested_symbols(symbol_ast, ast.clone());
-        deps.push(symbol.to_string());
+        deps.push(symbol.name().to_string());
         let stripped_ast = Self::strip_ast(ast, deps);
         let formatted_ast = prettyplease::unparse(&stripped_ast);
         (stripped_ast, formatted_ast)

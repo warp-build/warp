@@ -8,14 +8,14 @@ fn main() {
     tonic_build::configure()
         .build_server(true)
         .include_file("_include.rs")
-        .out_dir("protos_gen/")
+        .out_dir("src/protos/")
         .compile_well_known_types(true)
         .compile(
             &[
-                "../protos/schemas/build/warp/common.proto",
-                "../protos/schemas/build/warp/tricorder.proto",
+                "../../schemas/build/warp/common.proto",
+                "../../schemas/build/warp/tricorder.proto",
             ],
-            &["../protos/"],
+            &["../../"],
         )
         .unwrap_or_else(|e| panic!("protobuf compile error: {}", e));
 }
