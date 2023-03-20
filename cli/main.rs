@@ -54,6 +54,7 @@ enum Command {
     Setup(SetupCommand),
     Test(TestCommand),
     Bootstrap(BootstrapCommand),
+    Pack(PackCommand),
 }
 
 impl Command {
@@ -61,6 +62,7 @@ impl Command {
         match self {
             Command::Bootstrap(x) => x.run().await,
             Command::Build(x) => x.run().await,
+            Command::Pack(x) => x.run().await,
             Command::Run(x) => x.run().await,
             Command::Setup(s) => s.run().await,
             Command::Test(x) => x.run().await,

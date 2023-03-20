@@ -7,7 +7,7 @@ use crate::model::{Goal, Target};
 use crate::planner::DefaultPlanner;
 use crate::resolver::{DefaultResolver, ResolverError, TargetRegistry};
 use crate::rules::JsRuleExecutor;
-use crate::store::DefaultStore;
+use crate::store::{DefaultStore, Package, Packer, PackerError};
 use crate::sync::Arc;
 use crate::tricorder::GrpcTricorder;
 use crate::worker::local::{LocalSharedContext, LocalWorker};
@@ -35,6 +35,7 @@ pub struct WarpDriveMarkII {
     worker_pool: WorkerPool<DefaultWorker>,
     shared_ctx: DefaultCtxt,
     config: Config,
+    packer: Packer,
 }
 
 impl WarpDriveMarkII {
@@ -59,7 +60,7 @@ impl WarpDriveMarkII {
             config.clone(),
             store.clone(),
             target_registry.clone(),
-            archive_manager,
+            archive_manager.clone(),
             workspace_manager.clone(),
             task_results.clone(),
             code_db.clone(),
@@ -68,7 +69,7 @@ impl WarpDriveMarkII {
         let shared_ctx = LocalSharedContext::new(
             event_channel.clone(),
             config.clone(),
-            target_registry,
+            target_registry.clone(),
             resolver,
             store,
             workspace_manager,
@@ -82,10 +83,17 @@ impl WarpDriveMarkII {
             shared_ctx.clone(),
         );
 
+        let packer = Packer::new(
+            archive_manager,
+            target_registry,
+            shared_ctx.task_results.clone(),
+        );
+
         Ok(Self {
             config,
             shared_ctx,
             worker_pool,
+            packer,
         })
     }
 
@@ -120,6 +128,14 @@ impl WarpDriveMarkII {
         Ok(results)
     }
 
+    /// Packs already built targets
+    ///
+    #[tracing::instrument(name = "WarpDriveMarkII::pack", skip(self))]
+    pub async fn pack(&mut self, target: Target) -> Result<Package, WarpDriveError> {
+        let result = self.packer.pack(target).await?;
+        Ok(result)
+    }
+
     fn go_to_workspace_root(&self) -> Result<(), WarpDriveError> {
         let current_workspace = self.shared_ctx.workspace_manager.current_workspace();
         let workspace_root = current_workspace.root();
@@ -150,6 +166,9 @@ pub enum WarpDriveError {
     #[error(transparent)]
     WorkspaceManagerError(WorkspaceManagerError),
 
+    #[error(transparent)]
+    PackerError(PackerError),
+
     #[error("Could not set the current directory to {root:?} due to {err:?}")]
     CouldNotSetCurrentDir {
         err: std::io::Error,
@@ -161,6 +180,12 @@ pub enum WarpDriveError {
 
     #[error(transparent)]
     CodeDatabaseError(CodeDatabaseError),
+}
+
+impl From<PackerError> for WarpDriveError {
+    fn from(err: PackerError) -> Self {
+        Self::PackerError(err)
+    }
 }
 
 impl From<WorkspaceManagerError> for WarpDriveError {

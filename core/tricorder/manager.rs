@@ -19,6 +19,7 @@ use url::Url;
 /// of processes that can be used to create new clients for existing tricorders whenever needed.
 ///
 pub struct TricorderManager<T: Tricorder, S: Store> {
+    config: Config,
     registry: TricorderRegistry,
     process_pool: ProcessPool<T>,
     artifact_store: Arc<S>,
@@ -36,7 +37,8 @@ where
 {
     pub fn new(config: Config, artifact_store: Arc<S>) -> Self {
         Self {
-            registry: TricorderRegistry::new(config),
+            registry: TricorderRegistry::new(config.clone()),
+            config,
             process_pool: ProcessPool::new(),
             artifact_store,
             tricorders: Default::default(),
@@ -84,11 +86,20 @@ where
                 artifact_manifest: artifact_manifest.clone(),
             })?;
 
-        let shell_env: HashMap<String, String> = artifact_manifest
+        let env_locale = self
+            .config
+            .env()
+            .get("LANG")
+            .cloned()
+            .unwrap_or("C.UTF-8".to_string());
+
+        let mut shell_env: HashMap<String, String> = artifact_manifest
             .shell_env()
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
+
+        shell_env.insert("LANG".to_string(), env_locale);
 
         let spec = ProcessSpec {
             bin: bin.to_path_buf(),

@@ -1,6 +1,31 @@
 defmodule Tricorder.Deps.Spec do
   defstruct [:name, :protocol, :host, :package, :version, :url, :ref, :opts]
 
+  def parse(name) do
+    hex_config =
+      :hex_core.default_config()
+      |> Map.merge(%{
+        http_user_agent_fragment: "(tools.warp.build/hexpm/resolver)",
+        http_adapter: {Tricorder.Deps.Hexpm.Resolver, %{}}
+      })
+
+    pkg_name = Atom.to_string(name)
+
+    {:ok, {_, _, resp}} = :hex_api_package.get(hex_config, pkg_name)
+    Logger.info("Found #{Enum.count(resp["releases"])} versions for #{pkg_name}")
+
+    host = "hex.pm" 
+
+    %__MODULE__{
+      name: pkg_name,
+      protocol: :https,
+      host: host,
+      package: pkg_name,
+      version: resp["latest_stable_version"],
+      url: "https://repo.#{host}/tarballs/#{pkg_name}-#{resp["latest_stable_version"]}.tar"
+    }
+  end
+
   def parse(name, {:hex, pkg_name, vsn, _hash, tools, opts, host, _hash2}),
     do: %__MODULE__{
       name: Atom.to_string(name),
@@ -58,6 +83,7 @@ defmodule Tricorder.Deps.Spec do
   defp clean_url(url) when is_binary(url), do: url
   defp clean_url(url) when is_list(url), do: :binary.list_to_bin(url)
 
+  defp clean_ref(sha) when is_list(sha), do: :binary.list_to_bin(sha)
   defp clean_ref(sha) when is_binary(sha), do: sha
   defp clean_ref({:ref, sha}) when is_list(sha), do: :binary.list_to_bin(sha)
   defp clean_ref({:tag, tag}) when is_list(tag), do: :binary.list_to_bin(tag)

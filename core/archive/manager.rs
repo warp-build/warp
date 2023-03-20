@@ -1,6 +1,8 @@
 use super::{Archive, ArchiveBuilderError};
-use crate::Config;
+use crate::sync::Arc;
+use crate::{store::ArtifactManifest, Config};
 use async_compression::futures::bufread::GzipDecoder;
+use flate2::{write::GzEncoder, Compression};
 use futures::{StreamExt, TryStreamExt};
 use sha2::{Digest, Sha256};
 use std::io::Read;
@@ -17,6 +19,7 @@ pub struct ArchiveManager {
     client: reqwest::Client,
     archive_root: PathBuf,
     force_redownload: bool,
+    public_store_cdn_url: Url,
 }
 
 impl ArchiveManager {
@@ -25,6 +28,7 @@ impl ArchiveManager {
             client: config.http_client().clone(),
             archive_root: config.archive_root().to_path_buf(),
             force_redownload: config.force_redownload(),
+            public_store_cdn_url: config.public_store_cdn_url().clone(),
         }
     }
 
@@ -86,6 +90,55 @@ impl ArchiveManager {
             .build()?;
 
         Ok(archive)
+    }
+
+    #[instrument(name = "ArchiveManager::compress", skip(self))]
+    pub async fn compress(
+        &self,
+        manifest: Arc<ArtifactManifest>,
+    ) -> Result<Archive, ArchiveManagerError> {
+        let archive_url = self
+            .public_store_cdn_url
+            .join(&format!("{}.tar.gz", manifest.hash()))
+            .unwrap();
+
+        if let Some(archive) = self.find(&archive_url).await? {
+            return Ok(archive);
+        }
+
+        let tarball_path = self.archive_path(&archive_url);
+
+        {
+            let tarball_path = tarball_path.clone();
+            let manifest = manifest.clone();
+            tokio::task::spawn_blocking(move || {
+                let _ = std::fs::create_dir_all(tarball_path.parent().unwrap());
+                let tar_file = std::fs::File::create(tarball_path).unwrap();
+                let enc = GzEncoder::new(tar_file, Compression::default());
+                let mut tar = tar::Builder::new(enc);
+                for out in manifest.outs() {
+                    let mut f = std::fs::File::open(manifest.store_path().join(out))?;
+                    if f.metadata().unwrap().is_dir() {
+                        tar.append_dir_all(out, manifest.store_path().join(out))?;
+                    } else {
+                        tar.append_file(out, &mut f)?;
+                    }
+                }
+
+                tar.finish()
+            })
+            .await
+            .unwrap()?
+        };
+
+        fs::write(tarball_path.with_extension("sha256"), manifest.hash()).await?;
+
+        Ok(Archive::builder()
+            .final_path(tarball_path)
+            .url(archive_url)
+            .hash(manifest.hash().to_string())
+            .build()
+            .unwrap())
     }
 
     #[instrument(name = "ArchiveManager::download", skip(self))]
@@ -194,6 +247,7 @@ impl From<ArchiveBuilderError> for ArchiveManagerError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use assert_fs::prelude::*;
 
     #[tokio::test]
     async fn downloads_file_to_archives_folder() {
@@ -238,5 +292,49 @@ mod tests {
             .parse()
             .unwrap();
         assert!(am.download(&url).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn compress_files_from_artifact_manifest() {
+        let warp_root = assert_fs::TempDir::new().unwrap();
+
+        let invocation_dir = assert_fs::TempDir::new().unwrap();
+
+        let config = Config::builder()
+            .invocation_dir(invocation_dir.path().to_path_buf())
+            .warp_root(warp_root.path().to_path_buf())
+            .build()
+            .unwrap();
+
+        let am = ArchiveManager::new(&config);
+
+        let manifest = invocation_dir.child("Manifest.json");
+
+        let expected = include_str!("./fixtures/Manifest.json").replace(
+            "{STORE_PATH}",
+            &config.artifact_store_root().to_str().unwrap(),
+        );
+
+        manifest.write_str(&expected).unwrap();
+
+        let artifact_manifest: Arc<ArtifactManifest> = ArtifactManifest::from_file(manifest.path())
+            .await
+            .unwrap()
+            .into();
+
+        let archive = am.compress(artifact_manifest.clone()).await.unwrap();
+
+        let final_path = archive.final_path().strip_prefix(&am.archive_root).unwrap();
+
+        let archive_url = am
+            .public_store_cdn_url
+            .join(&format!("{}.tar.gz", artifact_manifest.hash()))
+            .unwrap();
+
+        let tarball_path = am.archive_path(&archive_url);
+
+        let expected = tarball_path.strip_prefix(&am.archive_root).unwrap();
+
+        assert_eq!(final_path, expected);
     }
 }

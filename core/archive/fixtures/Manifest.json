@@ -4,15 +4,9 @@
   "rule_name": "https://rules.warp.build/toolchains/erlang",
   "hash": "c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706",
   "exec_env": {},
-  "store_path": "",
+  "store_path": "{STORE_PATH}/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706",
   "srcs": [],
-  "outs": [
-    "otp_src_24.3.4.6/dist/lib/erlang/lib/megaco-4.3/src/text/megaco_pretty_text_encoder.erl",
-    "otp_src_24.3.4.6/dist/lib/erlang/lib/snmp-5.12/src/agent/snmpa_notification_delivery_info_receiver.erl",
-    "otp_src_24.3.4.6/dist/lib/erlang/lib/erl_interface-5.2.2/src/decode/decode_list_header.c",
-    "otp_src_24.3.4.6/dist/lib/erlang/lib/wx-2.1.4/src/gen/wxFilePickerCtrl.erl",
-    "otp_src_24.3.4.6/dist/lib/erlang/lib/edoc-1.1/ebin/edoc.appup"
-  ],
+  "outs": [],
   "buildstamps": {
     "plan_started_at": "2022-11-03T14:11:29.541954+00:00",
     "plan_ended_at": "2022-11-03T14:11:29.544024+00:00",
@@ -31,9 +25,7 @@
   "deps": {},
   "runtime_deps": {},
   "transitive_deps": {},
-  "toolchains": {
-    "rules.warp.build/toolchains/openssl": "bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5"
-  },
+  "toolchains": {},
   "shell_env": {
     "ERL_INCLUDE_PATH": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/lib/erlang/usr/include",
     "ERL_LIB_PATH": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/lib/erlang/usr/lib",
