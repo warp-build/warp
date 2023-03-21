@@ -1,0 +1,9 @@
+{
+  "label": "Tricorders",
+  "position": 5,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "Tricorders are the tools Warp uses to understand different language ecosystems."
+  }
+}
