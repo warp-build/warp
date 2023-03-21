@@ -13,7 +13,7 @@ use std::collections::HashMap;
 impl From<crate::proto::build::warp::Symbol> for Symbol {
     fn from(sym: crate::proto::build::warp::Symbol) -> Self {
         match sym.sym.unwrap() {
-            All(_) => Symbol::builder().build().unwrap(),
+            All(_) => Symbol::builder().scope(SymbolScope::All).build().unwrap(),
             Named(name) => Symbol::builder()
                 .name(name)
                 .scope(SymbolScope::All)

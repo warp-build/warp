@@ -9,7 +9,7 @@ pub struct Analysis {}
 
 impl Analysis {
     pub async fn generate_signature(
-        _workspace_root: String,
+        workspace_root: String,
         file: String,
         symbol: Symbol,
     ) -> Result<Vec<Signature>, GenerateSignatureError> {
@@ -18,7 +18,7 @@ impl Analysis {
         match Path::new(&file).extension() {
             Some(ext) if ext == "rs" => match symbol.scope() {
                 crate::SymbolScope::All => {
-                    let sigs = GenerateSignature::all(&file).await;
+                    let sigs = GenerateSignature::all(workspace_root, file).await;
                     if let Err(err) = sigs {
                         return Err(err);
                     }

@@ -4,6 +4,8 @@ use thiserror::Error;
 #[builder(build_fn(error = "SymbolError"))]
 pub struct Symbol {
     scope: SymbolScope,
+
+    #[builder(default)]
     name: String,
 }
 

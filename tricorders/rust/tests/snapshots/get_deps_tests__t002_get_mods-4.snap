@@ -14,7 +14,10 @@ Ok(
                     "srcs": List(
                         [
                             String(
-                                "./tests/sources/utils.rs",
+                                "t002_get_mods.rs",
+                            ),
+                            String(
+                                "utils.rs",
                             ),
                         ],
                     ),

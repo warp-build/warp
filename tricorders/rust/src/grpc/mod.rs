@@ -30,7 +30,13 @@ impl TricorderService for TricorderServiceImpl {
     ) -> Result<Response<GenerateSignatureResponse>, Status> {
         let request_data = request.into_inner();
         let file = request_data.clone().file;
-        let symbol: Symbol = request_data.clone().symbol.unwrap().into();
+        let symbol: Symbol = request_data
+            .clone()
+            .symbol
+            .unwrap_or(crate::proto::build::warp::Symbol {
+                sym: Some(crate::proto::build::warp::symbol::Sym::All(true)),
+            })
+            .into();
         let workspace_root = request_data.clone().workspace_root;
 
         let response: Result<Vec<Signature>, GenerateSignatureError> =

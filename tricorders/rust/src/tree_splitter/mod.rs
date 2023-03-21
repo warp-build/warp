@@ -7,7 +7,6 @@ pub struct TreeSplitter {}
 impl TreeSplitter {
     pub fn get_deps_all(sources: &str) -> (Vec<String>, Vec<String>) {
         let ast = syn::parse_file(sources).unwrap();
-        println!("{:#?}", ast);
         let mut mods: Vec<String> = Vec::new();
         let mut crates: Vec<String> = Vec::new();
         let mut visitor = AllDependency {
