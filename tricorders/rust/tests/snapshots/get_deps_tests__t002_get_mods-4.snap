@@ -6,7 +6,7 @@ Ok(
     [
         Signature {
             target: "tests/sources/t002_get_mods.rs",
-            rule: "rust_binary",
+            rule: "rust_test",
             deps: [],
             runtime_deps: [],
             config: Config {

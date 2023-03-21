@@ -38,6 +38,13 @@ impl TreeSplitter {
         file_ast
     }
 
+    pub fn has_tests(src: &str) -> bool {
+        let ast = syn::parse_file(src).unwrap();
+        let mut visitor = TestVisitor { has_test: false };
+        syn::visit::visit_file(&mut visitor, &ast);
+        visitor.has_test
+    }
+
     pub fn get_interested_symbols(ast: syn::File, full_ast: syn::File) -> Vec<String> {
         let mut symbols = Vec::new();
         let mut symbols_str = Vec::new();

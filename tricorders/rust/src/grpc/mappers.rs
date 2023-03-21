@@ -10,6 +10,12 @@ use crate::proto::google::protobuf::value::Kind;
 use crate::proto::google::protobuf::ListValue;
 use std::collections::HashMap;
 
+impl From<crate::proto::build::warp::TestMatcher> for Vec<String> {
+    fn from(matcher: crate::proto::build::warp::TestMatcher) -> Self {
+        return matcher.raw;
+    }
+}
+
 impl From<crate::proto::build::warp::Symbol> for Symbol {
     fn from(sym: crate::proto::build::warp::Symbol) -> Self {
         match sym.sym.unwrap() {
