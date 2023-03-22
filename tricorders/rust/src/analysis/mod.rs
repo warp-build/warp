@@ -16,15 +16,15 @@ impl Analysis {
         println!("Analyzing: {:?}", file.clone());
 
         match Path::new(&file).extension() {
-            Some(ext) if ext == "rs" => match symbol.scope() {
-                crate::SymbolScope::All => {
+            Some(ext) if ext == "rs" => match symbol {
+                crate::Symbol::All => {
                     let sigs = GenerateSignature::all(workspace_root, file).await;
                     if let Err(err) = sigs {
                         return Err(err);
                     }
                     Ok(sigs.unwrap())
                 }
-                crate::SymbolScope::Named => Ok(vec![Signature::default()]), // TODO(@calin): GenerateSignature::named().await,
+                crate::Symbol::Named { name } => Ok(vec![Signature::default()]), // TODO(@calin): GenerateSignature::named().await,
             },
             _ => Ok(vec![Signature::default()]),
         }
