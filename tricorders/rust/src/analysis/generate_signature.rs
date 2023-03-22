@@ -29,7 +29,7 @@ impl GenerateSignature {
         let source = fs::read_to_string(&path)
             .await
             .map_err(|err| GenerateSignatureError::CouldNotReadFile {
-                file: file.clone(),
+                file: file.to_string(),
                 err,
             })
             .unwrap();
