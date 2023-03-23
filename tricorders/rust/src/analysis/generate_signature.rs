@@ -73,14 +73,14 @@ impl GenerateSignature {
         let mut mod_files: Vec<PathBuf> = Vec::new();
         for m in mods.iter() {
             let mod_dir = Path::new("mod");
-            let path1 = Path::new(m).with_extension("rs").to_path_buf();
+            let path1 = path.join(Path::new(m).with_extension("rs").to_path_buf());
             let path2 = path.join(mod_dir.join(m).with_extension("rs").to_path_buf());
             if let Ok(_) = fs::metadata(&path1).await {
-                mod_files.push(path1);
+                mod_files.push(path1.file_name().unwrap().into());
                 continue;
             }
             if let Ok(_) = fs::metadata(&path2).await {
-                mod_files.push(path2);
+                mod_files.push(path2.file_name().unwrap().into());
                 continue;
             }
             return Err(GenerateSignatureError::MissingDependency { dep: m.to_string() });
