@@ -1,3 +1,5 @@
+use crate::{CacheStatus, Goal, Target};
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ActionEvent {
     ActionPreparationStarted { target: String, action_count: u64 },
@@ -25,24 +27,16 @@ pub enum TricorderEvent {
     SignatureGenerationStarted { target: String },
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum TargetBuildKind {
-    #[default]
-    Fresh,
-    Cached,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum WorkerEvent {
     TargetBuildStarted {
-        target: String,
-        goal: String,
-        rule_mnemonic: String,
+        target: Target,
+        goal: Goal,
     },
     TargetBuildCompleted {
-        kind: TargetBuildKind,
-        target: String,
-        goal: String,
+        cache_status: CacheStatus,
+        target: Target,
+        goal: Goal,
     },
     BuildError {
         target: String,

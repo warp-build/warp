@@ -1,4 +1,6 @@
 mod commands;
+pub mod flags;
+mod reporter;
 
 use commands::*;
 use structopt::StructOpt;

@@ -7,6 +7,7 @@ use self::traced_action_runner::{ActionRunnerFlow, TracedActionRunner};
 use super::{ExecutionFlow, Executor, ExecutorError, ValidationStatus};
 use crate::model::{ConcreteTarget, ExecutableSpec};
 use crate::store::{ArtifactManifest, BuildStamps, Store};
+use crate::CacheStatus;
 use async_trait::async_trait;
 use futures::FutureExt;
 use fxhash::FxHashSet;
@@ -30,7 +31,7 @@ impl Executor for LocalExecutor {
     async fn execute(&mut self, spec: &ExecutableSpec) -> Result<ExecutionFlow, ExecutorError> {
         if let Some(manifest) = self.ctx.artifact_store.find(spec).await? {
             self.ctx.artifact_store.promote(&manifest).await?;
-            return Ok(ExecutionFlow::Completed(manifest));
+            return Ok(ExecutionFlow::Completed(manifest, CacheStatus::Cached));
         }
 
         self.do_execute(spec).await
@@ -151,7 +152,7 @@ impl LocalExecutor {
                 self.ctx.artifact_store.promote(&manifest).await?;
                 self.ctx.artifact_store.save(spec, &manifest).await?;
 
-                Ok(ExecutionFlow::Completed(manifest))
+                Ok(ExecutionFlow::Completed(manifest, CacheStatus::Fresh))
             }
             validation => Ok(ExecutionFlow::ValidationError(validation)),
         }

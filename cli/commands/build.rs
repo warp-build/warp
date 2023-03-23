@@ -1,4 +1,5 @@
 use super::*;
+use crate::{flags::Flags, reporter::StatusReporter};
 use structopt::StructOpt;
 use warp_core::{Goal, WarpDriveMarkII};
 
@@ -36,9 +37,19 @@ impl BuildCommand {
     }
 
     pub async fn run(self) -> Result<(), anyhow::Error> {
-        let mut warp = WarpDriveMarkII::new(self.flags.clone().into()).await?;
+        let config: warp_core::Config = self.flags.clone().into();
+        let goal = Goal::Build;
         let target = self.target.into();
-        let results = warp.execute(Goal::Build, &[target]).await?;
+        let targets = vec![target];
+
+        let reporter = StatusReporter::new(config.event_channel(), self.flags.clone(), goal);
+
+        let mut warp = WarpDriveMarkII::new(config).await?;
+
+        let (results, _) =
+            futures::future::join(warp.execute(goal, &targets), reporter.run(&targets)).await;
+
+        let results = results?;
 
         if self.flags.print_hashes {
             println!();

@@ -6,14 +6,14 @@ pub mod local;
 
 pub use error::*;
 
-use crate::model::{ExecutableSpec, TargetId};
+use crate::model::{CacheStatus, ExecutableSpec, TargetId};
 use crate::store::ArtifactManifest;
 use async_trait::async_trait;
 use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum ExecutionFlow {
-    Completed(ArtifactManifest),
+    Completed(ArtifactManifest, CacheStatus),
 
     ValidationError(ValidationStatus),
 

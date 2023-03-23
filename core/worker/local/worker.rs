@@ -1,3 +1,4 @@
+use crate::events::event::WorkerEvent;
 use crate::executor::{ExecutionFlow, Executor, ExecutorError};
 use crate::model::{ExecutableSpec, ExecutionEnvironment, TargetId};
 use crate::planner::{Planner, PlannerError, PlanningFlow};
@@ -162,12 +163,20 @@ where
     }
 
     pub async fn handle_task(&mut self, task: Task) -> Result<WorkerFlow, LocalWorkerError> {
+        let goal = task.goal;
         let target = self.ctx.target_registry.get_target(task.target_id);
+
+        self.ctx
+            .event_channel
+            .send(WorkerEvent::TargetBuildStarted {
+                target: (*target).clone(),
+                goal,
+            });
 
         let signature = match self
             .ctx
             .resolver
-            .resolve(task.goal, task.target_id, target)
+            .resolve(task.goal, task.target_id, target.clone())
             .await?
         {
             ResolutionFlow::Resolved { signature } => signature,
@@ -185,14 +194,23 @@ where
             _ => return Ok(WorkerFlow::Skipped(task)),
         };
 
-        let artifact_manifest = match self.executor.execute(&executable_spec).await? {
-            ExecutionFlow::Completed(manifest) => manifest,
-            ExecutionFlow::MissingDeps { deps } => return Ok(WorkerFlow::QueueDeps { deps }),
-            flow => {
-                dbg!(flow);
-                return Ok(WorkerFlow::Skipped(task));
-            }
-        };
+        let (artifact_manifest, cache_status) =
+            match self.executor.execute(&executable_spec).await? {
+                ExecutionFlow::Completed(manifest, status) => (manifest, status),
+                ExecutionFlow::MissingDeps { deps } => return Ok(WorkerFlow::QueueDeps { deps }),
+                flow => {
+                    dbg!(flow);
+                    return Ok(WorkerFlow::Skipped(task));
+                }
+            };
+
+        self.ctx
+            .event_channel
+            .send(WorkerEvent::TargetBuildCompleted {
+                target: (*target).clone(),
+                goal,
+                cache_status,
+            });
 
         Ok(WorkerFlow::Complete {
             task,

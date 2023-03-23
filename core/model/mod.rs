@@ -25,3 +25,10 @@ pub use signature::*;
 pub use source_set::*;
 pub use target::*;
 pub use target_id::*;
+
+#[derive(Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CacheStatus {
+    #[default]
+    Fresh,
+    Cached,
+}
