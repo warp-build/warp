@@ -39,12 +39,9 @@ impl GenerateSignature {
         // or external crates that the file needs. For imported mods, we need
         // to also figure out if they reside in <mod_name>.rs or <mod_name>/mod.rs
         let (mods, _crates) = TreeSplitter::get_deps_all(&source);
-
         let file_path = path.parent().unwrap();
-
         let mod_files: Vec<PathBuf> = Self::find_mod_files(mods, file_path).await?;
         mod_paths.extend(mod_files.iter().cloned());
-
         let mut config = Config::default();
         config.insert(
             "srcs".to_string(),
@@ -58,7 +55,7 @@ impl GenerateSignature {
 
         let signature = Signature::builder()
             .target(file)
-            .rule("rust_binary".to_string())
+            .rule("rust_test".to_string())
             .config(config)
             .build()
             .unwrap();
