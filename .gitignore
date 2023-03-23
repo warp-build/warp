@@ -5,6 +5,7 @@ node_modules
 target
 lib/bs
 deps
+dist/*.tar.gz
 _build
 _rebar_tmp
 *.gif
