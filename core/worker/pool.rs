@@ -1,5 +1,6 @@
 use super::*;
-use crate::events::{Event, EventChannel};
+use crate::events::event::WorkflowEvent;
+use crate::events::EventChannel;
 use crate::sync::Arc;
 use crate::Config;
 use std::marker::PhantomData;
@@ -22,8 +23,8 @@ pub struct WorkerPool<W: Worker> {
 }
 
 impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
-    #[instrument(name = "WorkerPool::from_shared_context", skip(ctx, event_channel))]
-    pub fn from_shared_context(event_channel: Arc<EventChannel>, cfg: Config, ctx: Ctx) -> Self {
+    #[instrument(name = "WorkerPool::from_shared_context", skip(ctx))]
+    pub fn from_shared_context(cfg: Config, ctx: Ctx) -> Self {
         let worker_pool = LocalPoolHandle::new({
             // NOTE(@ostera): we want to make sure you don't ask for more workers than the number
             // of CPUs available.
@@ -35,7 +36,7 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
 
         Self {
             worker_pool,
-            event_channel,
+            event_channel: cfg.event_channel(),
             ctx,
             _worker: PhantomData::default(),
         }
@@ -47,8 +48,7 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
     #[instrument(name = "WorkerPool::execute", skip(self))]
     pub async fn execute(&self, tasks: &[Task]) -> Result<Arc<TaskResults>, WorkerPoolError> {
         if tasks.is_empty() {
-            self.event_channel
-                .send(Event::BuildCompleted(std::time::Instant::now()));
+            self.event_channel.send(WorkflowEvent::build_completed());
             let empty_results = Arc::new(TaskResults::default());
             return Ok(empty_results);
         }
@@ -69,8 +69,7 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
         }
         main_result.unwrap()?;
 
-        self.event_channel
-            .send(Event::BuildCompleted(std::time::Instant::now()));
+        self.event_channel.send(WorkflowEvent::build_completed());
 
         Ok(self.ctx.results())
     }
@@ -232,7 +231,6 @@ mod tests {
     where
         W: Worker<Context = LocalSharedContext<NoopResolver, NoopStore>>,
     {
-        let ec = Arc::new(EventChannel::new());
         let config = Config::default();
 
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
@@ -240,7 +238,6 @@ mod tests {
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
-            ec.clone(),
             config.clone(),
             target_registry,
             NoopResolver,
@@ -249,7 +246,7 @@ mod tests {
             task_results,
             code_db,
         );
-        WorkerPool::from_shared_context(ec, config, ctx)
+        WorkerPool::from_shared_context(config, ctx)
     }
 
     #[tokio::test]
@@ -335,7 +332,6 @@ mod tests {
             }
         }
 
-        let ec = Arc::new(EventChannel::new());
         // Configure Warp to use our test workspace as the invocation dir.
         // In practice this may not hold, but in the test its easier to just go to the workspace
         // than to go somewhere _within it_.
@@ -344,7 +340,7 @@ mod tests {
             .max_local_workers(0)
             .build()
             .unwrap();
-        let pool: WorkerPool<FixtureWorker> = WorkerPool::from_shared_context(ec, config, ctx);
+        let pool: WorkerPool<FixtureWorker> = WorkerPool::from_shared_context(config, ctx);
         let results = pool
             .execute(&[Task::new(Goal::Build, target_id)])
             .await

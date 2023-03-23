@@ -1,14 +1,15 @@
 mod config_file;
 mod host_env;
+pub use config_file::*;
+use host_env::*;
 
 use super::*;
+use crate::events::EventChannel;
+use crate::sync::Arc;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Instant;
 use thiserror::*;
-
-pub use config_file::*;
-use host_env::*;
 use url::Url;
 
 pub const WARPFILE: &str = "Warpfile";
@@ -97,6 +98,11 @@ pub struct Config {
     /// NOTE(@ostera): this is safe to clone since it is really an [Arc] to a client pool.
     #[builder(default = "self.default_http_client()")]
     http_client: reqwest::Client,
+
+    /// The Event Channel be used across the application.
+    /// NOTE(@ostera): this is safe to clone since it is really an [Arc] to a client pool.
+    #[builder(default = "self.default_event_channel()")]
+    event_channel: Arc<EventChannel>,
 }
 
 impl Default for Config {
@@ -185,6 +191,10 @@ impl Config {
     pub fn force_redownload(&self) -> bool {
         self.force_redownload
     }
+
+    pub fn event_channel(&self) -> Arc<EventChannel> {
+        self.event_channel.clone()
+    }
 }
 
 impl ConfigBuilder {
@@ -248,6 +258,10 @@ impl ConfigBuilder {
 
     fn default_http_client(&self) -> reqwest::Client {
         reqwest::Client::new()
+    }
+
+    fn default_event_channel(&self) -> Arc<EventChannel> {
+        EventChannel::new().into()
     }
 
     fn default_env(&self) -> Result<HashMap<String, String>, ConfigError> {

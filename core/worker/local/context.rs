@@ -42,10 +42,16 @@ where
 {
     #[tracing::instrument(
         name = "SharedContext::new",
-        skip(event_channel, resolver, artifact_store)
+        skip(
+            target_registry,
+            resolver,
+            artifact_store,
+            workspace_manager,
+            task_results,
+            code_db
+        )
     )]
     pub fn new(
-        event_channel: Arc<EventChannel>,
         config: Config,
         target_registry: Arc<TargetRegistry>,
         resolver: R,
@@ -57,9 +63,9 @@ where
         let coordinator = Arc::new(Coordinator::new());
 
         let task_queue = Arc::new(TaskQueue::new(
+            &config,
             task_results.clone(),
             target_registry.clone(),
-            event_channel.clone(),
         ));
 
         let resolver = Arc::new(resolver);
@@ -69,7 +75,7 @@ where
         Self {
             artifact_store,
             coordinator,
-            event_channel,
+            event_channel: config.event_channel(),
             target_registry,
             resolver,
             task_queue,

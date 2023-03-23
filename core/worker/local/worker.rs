@@ -421,14 +421,12 @@ mod tests {
 
     #[tokio::test]
     async fn when_coordinator_marks_shutdown_the_worker_stops() {
-        let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
-            ec,
             config,
             target_registry,
             NoopResolver,
@@ -461,14 +459,12 @@ mod tests {
             }
         }
 
-        let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
-            ec,
             config,
             target_registry,
             ErrResolver,
@@ -542,14 +538,12 @@ mod tests {
             }
         }
 
-        let ec = Arc::new(EventChannel::new());
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
-            ec,
             config,
             target_registry,
             DummyResolver,

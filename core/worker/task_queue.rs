@@ -1,8 +1,10 @@
 use super::*;
-use crate::events::{Event, EventChannel};
+use crate::events::event::QueueEvent;
+use crate::events::EventChannel;
 use crate::model::TargetId;
 use crate::resolver::TargetRegistry;
 use crate::sync::{Arc, Mutex, RwLock};
+use crate::Config;
 use dashmap::{DashMap, DashSet};
 use fxhash::FxHashSet;
 use thiserror::*;
@@ -70,9 +72,9 @@ pub struct TaskQueue {
 impl TaskQueue {
     #[tracing::instrument(name = "TaskQueue::new", skip(target_registry))]
     pub fn new(
+        config: &Config,
         task_results: Arc<TaskResults>,
         target_registry: Arc<TargetRegistry>,
-        event_channel: Arc<EventChannel>,
     ) -> TaskQueue {
         TaskQueue {
             busy_targets: Arc::new(DashSet::new()),
@@ -84,7 +86,7 @@ impl TaskQueue {
             all_queued_targets: Arc::new(DashSet::default()),
             target_registry,
             _queue_lock: Arc::new(Mutex::new(())),
-            event_channel,
+            event_channel: config.event_channel(),
         }
     }
 
@@ -183,7 +185,7 @@ impl TaskQueue {
             || self.busy_targets.contains(&target)
             || self.in_queue_targets.contains(&target)
         {
-            self.event_channel.send(Event::QueuedSkipTarget {
+            self.event_channel.send(QueueEvent::TargetSkipped {
                 target: self.target_registry.get_target(target).to_string(),
             });
             return Ok(QueuedTask::Skipped);
@@ -192,10 +194,12 @@ impl TaskQueue {
         self.in_queue_targets.insert(target);
         self.inner_queue.push(task);
         self.all_queued_targets.insert(target);
-        self.event_channel.send(Event::QueuedTarget {
+
+        self.event_channel.send(QueueEvent::TargetQueued {
             target_id: target.to_string(),
             target: self.target_registry.get_target(target).to_string(),
         });
+
         Ok(QueuedTask::Queued)
     }
 

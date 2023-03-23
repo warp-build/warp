@@ -1,6 +1,7 @@
 use super::*;
 use crate::archive::ArchiveManager;
 use crate::code::{CodeDatabase, CodeDatabaseError};
+use crate::events::event::WorkflowEvent;
 use crate::events::EventChannel;
 use crate::executor::local::LocalExecutor;
 use crate::model::{Goal, Target};
@@ -41,8 +42,6 @@ pub struct WarpDriveMarkII {
 impl WarpDriveMarkII {
     #[tracing::instrument(name = "WarpDriveMarkII::new")]
     pub async fn new(config: Config) -> Result<Self, WarpDriveError> {
-        let event_channel = Arc::new(EventChannel::new());
-
         let workspace_manager = Arc::new(WorkspaceManager::new(config.clone()));
         workspace_manager.load_current_workspace(&config).await?;
 
@@ -67,7 +66,6 @@ impl WarpDriveMarkII {
         )?;
 
         let shared_ctx = LocalSharedContext::new(
-            event_channel.clone(),
             config.clone(),
             target_registry.clone(),
             resolver,
@@ -77,11 +75,7 @@ impl WarpDriveMarkII {
             code_db,
         );
 
-        let worker_pool = WorkerPool::from_shared_context(
-            event_channel.clone(),
-            config.clone(),
-            shared_ctx.clone(),
-        );
+        let worker_pool = WorkerPool::from_shared_context(config.clone(), shared_ctx.clone());
 
         let packer = Packer::new(
             archive_manager,
@@ -107,7 +101,7 @@ impl WarpDriveMarkII {
     ) -> Result<Arc<TaskResults>, WarpDriveError> {
         self.shared_ctx
             .event_channel
-            .send(events::Event::BuildStarted(self.config.created_at()));
+            .send(WorkflowEvent::BuildStarted(self.config.created_at()));
 
         self.go_to_workspace_root()?;
 
