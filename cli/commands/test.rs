@@ -16,11 +16,11 @@ pub struct TestCommand {
 A path to a directory with a warp file, followed by a colon
 and the name of the target to be tested.
 
-Example: ./tests/my_test:test_case_name
+Example: ./tests/my_test.ex:test_case_name
 
 Use @all to test the entire project.
 ",
-        default_value = "//..."
+        default_value = "@all"
     )]
     target: String,
 
@@ -32,7 +32,7 @@ impl TestCommand {
     pub async fn run(self) -> Result<(), anyhow::Error> {
         let mut warp = WarpDriveMarkII::new(self.flags.into()).await?;
         let target = self.target.into();
-        let _results = warp.execute(Goal::Build, &[target]).await?;
+        let _results = warp.execute(Goal::Test, &[target]).await?;
         Ok(())
     }
 }
