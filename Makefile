@@ -46,7 +46,11 @@ install.release:
 
 .PHONY: fmt
 fmt:
-	cargo fmt
+	cargo fmt -- \
+		--config unstable_features=true \
+		--config imports_granularity="Module" \
+		--config normalize_doc_attributes=true  \
+		--config space_after_colon=true 
 	deno fmt
 	mix format
 

@@ -1,4 +1,7 @@
 # Used by "mix format"
 [
-  inputs: ["**/{mix,.formatter}.exs", "**/*.{ex,exs}"]
+  inputs: [
+    "tricorders/beam/**/{mix,.formatter}.exs",
+    "tricorders/beam/*.{ex,exs}"
+  ]
 ]

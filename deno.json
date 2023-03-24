@@ -1,0 +1,11 @@
+{
+  "fmt": {
+    "files": {
+      "exclude": [
+        "./target/",
+        "./docs/node_modules/",
+        "./docs/build/"
+      ]
+    }
+  }
+}
