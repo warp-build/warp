@@ -58,6 +58,7 @@ install.release:
 
 .PHONY: fmt
 fmt:
+	cargo fix --allow-dirty --allow-staged
 	cargo fmt -- \
 		--config unstable_features=true \
 		--config imports_granularity="Module" \

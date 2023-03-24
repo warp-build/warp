@@ -1,6 +1,6 @@
 use super::package::Package;
 use super::{ArtifactManifest, PackageManifest};
-use crate::archive::{Archive, ArchiveManager, ArchiveManagerError};
+use crate::archive::{ArchiveManager, ArchiveManagerError};
 use crate::resolver::TargetRegistry;
 use crate::sync::Arc;
 use crate::worker::TaskResults;

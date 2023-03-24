@@ -1,4 +1,3 @@
-use super::*;
 use crate::flags::Flags;
 use structopt::StructOpt;
 use warp_core::{Goal, Target, WarpDriveMarkII};

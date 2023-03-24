@@ -307,7 +307,7 @@ impl From<TaskQueueError> for LocalWorkerError {
 mod tests {
     use super::*;
     use crate::code::CodeDatabase;
-    use crate::events::EventChannel;
+
     use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target, TargetId};
     use crate::planner::PlannerError;
     use crate::resolver::TargetRegistry;

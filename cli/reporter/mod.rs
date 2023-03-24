@@ -20,12 +20,12 @@ trait Reporter {
         }
     }
 
-    fn on_queue_event(&mut self, event: QueueEvent) {}
-    fn on_action_event(&mut self, event: ActionEvent) {}
-    fn on_archive_event(&mut self, event: ArchiveEvent) {}
-    fn on_tricorder_event(&mut self, event: TricorderEvent) {}
-    fn on_worker_event(&mut self, event: WorkerEvent) {}
-    fn on_workflow_event(&mut self, event: WorkflowEvent) {}
+    fn on_queue_event(&mut self, _event: QueueEvent) {}
+    fn on_action_event(&mut self, _event: ActionEvent) {}
+    fn on_archive_event(&mut self, _event: ArchiveEvent) {}
+    fn on_tricorder_event(&mut self, _event: TricorderEvent) {}
+    fn on_worker_event(&mut self, _event: WorkerEvent) {}
+    fn on_workflow_event(&mut self, _event: WorkflowEvent) {}
 }
 
 pub struct StatusReporter {
@@ -96,11 +96,11 @@ impl StatusReporter {
 impl Reporter for StatusReporter {
     fn on_worker_event(&mut self, event: WorkerEvent) {
         let green_bold = console::Style::new().green().bold();
-        let purple = console::Style::new().magenta().bright();
+        let _purple = console::Style::new().magenta().bright();
         let blue_dim = console::Style::new().blue();
-        let yellow = console::Style::new().yellow();
-        let red_bold = console::Style::new().red().bold();
-        let info = console::Style::new().on_blue().bright();
+        let _yellow = console::Style::new().yellow();
+        let _red_bold = console::Style::new().red().bold();
+        let _info = console::Style::new().on_blue().bright();
 
         match event {
             WorkerEvent::TargetBuildCompleted {
@@ -158,11 +158,11 @@ impl Reporter for StatusReporter {
 
     fn on_workflow_event(&mut self, event: WorkflowEvent) {
         let green_bold = console::Style::new().green().bold();
-        let purple = console::Style::new().magenta().bright();
-        let blue_dim = console::Style::new().blue();
-        let yellow = console::Style::new().yellow();
+        let _purple = console::Style::new().magenta().bright();
+        let _blue_dim = console::Style::new().blue();
+        let _yellow = console::Style::new().yellow();
         let red_bold = console::Style::new().red().bold();
-        let info = console::Style::new().on_blue().bright();
+        let _info = console::Style::new().on_blue().bright();
 
         match event {
             WorkflowEvent::BuildStarted(t0) => {

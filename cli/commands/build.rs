@@ -1,4 +1,3 @@
-use super::*;
 use crate::flags::Flags;
 use crate::reporter::StatusReporter;
 use structopt::StructOpt;

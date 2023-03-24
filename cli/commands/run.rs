@@ -1,4 +1,3 @@
-use super::*;
 use crate::flags::Flags;
 use anyhow::*;
 use structopt::StructOpt;
@@ -33,8 +32,7 @@ build their dependencies and exit.
 impl RunCommand {
     pub async fn run(self) -> Result<(), anyhow::Error> {
         let mut warp = WarpDriveMarkII::new(self.flags.into()).await?;
-        let target = self.target.into();
-        let _results = warp.execute(Goal::Build, &[target]).await?;
+        let _results = warp.execute(Goal::Build, &[self.target]).await?;
         Ok(())
     }
 }

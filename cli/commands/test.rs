@@ -1,4 +1,3 @@
-
 use crate::flags::Flags;
 use anyhow::*;
 use structopt::StructOpt;

@@ -1,4 +1,3 @@
-use super::*;
 use crate::flags::Flags;
 use structopt::StructOpt;
 use warp_core::{Goal, Target, WarpDriveMarkII};
@@ -31,7 +30,7 @@ impl PackCommand {
 
         let _results = warp.execute(Goal::Build, &[target.clone()]).await?;
 
-        let packed_results = warp.pack(target).await?;
+        let _packed_results = warp.pack(target).await?;
 
         Ok(())
     }

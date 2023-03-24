@@ -111,7 +111,6 @@ impl From<WorkflowEvent> for Event {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::events::EventChannel;
 
     impl quickcheck::Arbitrary for Event {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {

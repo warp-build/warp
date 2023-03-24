@@ -109,7 +109,7 @@ impl From<WorkerError> for WorkerPoolError {
 mod tests {
     use super::*;
     use crate::code::CodeDatabase;
-    use crate::events::EventChannel;
+
     use crate::model::{
         ConcreteTarget, ExecutableSpec, ExecutionEnvironment, Goal, Signature, Target, TargetId,
     };
