@@ -28,7 +28,7 @@ impl Task {
     pub fn test(target_id: TargetId) -> Self {
         Self {
             target_id,
-            goal: Goal::Test,
+            goal: Goal::Test { matcher_id: None },
         }
     }
 }

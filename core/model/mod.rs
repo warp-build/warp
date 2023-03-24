@@ -11,6 +11,8 @@ mod signature;
 mod source_set;
 mod target;
 mod target_id;
+mod test_matcher;
+mod test_matcher_id;
 
 pub use concrete_target::*;
 pub use dependencies::*;
@@ -25,6 +27,8 @@ pub use signature::*;
 pub use source_set::*;
 pub use target::*;
 pub use target_id::*;
+pub use test_matcher::*;
+pub use test_matcher_id::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CacheStatus {

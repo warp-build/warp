@@ -5,4 +5,4 @@
 pub(crate) use shuttle::{sync::*, thread};
 
 #[cfg(not(all(shuttle, test)))]
-pub(crate) use std::{sync::*, thread};
+pub(crate) use std::{sync::*};

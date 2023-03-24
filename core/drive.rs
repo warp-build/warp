@@ -2,9 +2,9 @@ use super::*;
 use crate::archive::ArchiveManager;
 use crate::code::{CodeDatabase, CodeDatabaseError};
 use crate::events::event::WorkflowEvent;
-use crate::events::EventChannel;
+
 use crate::executor::local::LocalExecutor;
-use crate::model::{Goal, Target};
+use crate::model::{Goal, Target, TestMatcher};
 use crate::planner::DefaultPlanner;
 use crate::resolver::{DefaultResolver, ResolverError, TargetRegistry};
 use crate::rules::JsRuleExecutor;
@@ -91,14 +91,36 @@ impl WarpDriveMarkII {
         })
     }
 
+    /// Test the `targets` according to the `spec`.
+    ///
+    #[tracing::instrument(name = "WarpDriveMarkII::run_test", skip(self))]
+    pub async fn run_test<S, T>(
+        &mut self,
+        spec: S,
+        targets: &[T],
+    ) -> Result<Arc<TaskResults>, WarpDriveError>
+    where
+        S: Into<TestMatcher> + std::fmt::Debug,
+        T: Into<Target> + Clone + std::fmt::Debug,
+    {
+        let matcher_id = self.shared_ctx.test_matcher_registry.register(spec);
+        let goal = Goal::Test {
+            matcher_id: Some(matcher_id),
+        };
+        self.execute(goal, targets).await
+    }
+
     /// Execute the `targets`.
     ///
     #[tracing::instrument(name = "WarpDriveMarkII::execute", skip(self))]
-    pub async fn execute(
+    pub async fn execute<T>(
         &mut self,
         goal: Goal,
-        targets: &[Target],
-    ) -> Result<Arc<TaskResults>, WarpDriveError> {
+        targets: &[T],
+    ) -> Result<Arc<TaskResults>, WarpDriveError>
+    where
+        T: Into<Target> + Clone + std::fmt::Debug,
+    {
         self.shared_ctx
             .event_channel
             .send(WorkflowEvent::BuildStarted(self.config.created_at()));

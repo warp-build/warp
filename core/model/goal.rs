@@ -1,4 +1,4 @@
-use super::RuleName;
+use super::{RuleName, TestMatcherId};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use thiserror::*;
@@ -16,7 +16,9 @@ pub enum Goal {
 
     Bootstrap,
 
-    Test,
+    Test {
+        matcher_id: Option<TestMatcherId>,
+    },
 
     Run,
 
@@ -35,7 +37,7 @@ impl Goal {
         T: AsRef<RuleName>,
     {
         match &self {
-            Goal::Test => t.as_ref().ends_with("_test"),
+            Goal::Test { .. } => t.as_ref().ends_with("_test"),
             Goal::Run => {
                 t.as_ref().ends_with("_script")
                     || t.as_ref().ends_with("_binary")
@@ -52,7 +54,7 @@ impl Goal {
     }
 
     pub fn is_runnable(&self) -> bool {
-        matches!(self, Goal::Test | Goal::Run)
+        matches!(self, Goal::Test { .. } | Goal::Run)
     }
 
     pub fn is_run(&self) -> bool {
@@ -64,7 +66,7 @@ impl Goal {
     }
 
     pub fn is_test(&self) -> bool {
-        matches!(self, Goal::Test)
+        matches!(self, Goal::Test { .. })
     }
 
     pub fn is_fetch(&self) -> bool {
@@ -78,7 +80,7 @@ impl FromStr for Goal {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "run" => Ok(Self::Run),
-            "test" => Ok(Self::Test),
+            "test" => Ok(Self::Test { matcher_id: None }),
             "build" => Ok(Self::Build),
             "get" => Ok(Self::Fetch),
             _ => Err(GoalError::InvalidGoal(s.into())),
@@ -90,7 +92,7 @@ impl ToString for Goal {
     fn to_string(&self) -> String {
         match self {
             Self::Run => "run",
-            Self::Test => "test",
+            Self::Test { .. } => "test",
             Self::Build => "build",
             Self::Fetch => "get",
             Self::Bootstrap => "bootstrap",
@@ -105,9 +107,14 @@ mod tests {
 
     impl quickcheck::Arbitrary for Goal {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
-            g.choose(&[Self::Build, Self::Test, Self::Run, Self::Fetch])
-                .unwrap()
-                .to_owned()
+            g.choose(&[
+                Self::Build,
+                Self::Test { matcher_id: None },
+                Self::Run,
+                Self::Fetch,
+            ])
+            .unwrap()
+            .to_owned()
         }
     }
 }

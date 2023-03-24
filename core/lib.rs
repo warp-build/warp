@@ -1,7 +1,5 @@
 //! # Warp Drive Mark II
 //!
-//! This crate implements the build system in [RFC001: A Build System from the Future](https://www.notion.so/warp-build/RFC001-A-Build-System-from-the-Future-6e1d61d44cc3435881887c7e7c899d07).
-//!
 //! The flow begins by creating a `Config` struct and using it to build a new `WarpDrive`
 //! struct. From there, `WarpDrive` will orchestrate a `SharedContext` and a `WorkerPool` to
 //! execute any number of `Target`s and return a reference to a collection of `TaskResults`.
@@ -10,22 +8,23 @@
 //! the results of the execution.
 //!
 
-pub mod archive;
+pub(crate) mod archive;
 pub mod code;
-pub mod config;
-pub mod drive;
+pub(crate) mod config;
+pub(crate) mod drive;
 pub mod events;
-pub mod executor;
-pub mod model;
-pub mod planner;
-pub mod resolver;
-pub mod rules;
-pub mod store;
-pub mod sync;
-pub mod tricorder;
-pub mod util;
-pub mod worker;
-pub mod workspace;
+pub(crate) mod executor;
+pub(crate) mod model;
+pub(crate) mod planner;
+pub(crate) mod resolver;
+pub(crate) mod rules;
+pub(crate) mod store;
+pub(crate) mod sync;
+pub(crate) mod testing;
+pub(crate) mod tricorder;
+pub(crate) mod util;
+pub(crate) mod worker;
+pub(crate) mod workspace;
 
 pub use config::*;
 pub use drive::*;

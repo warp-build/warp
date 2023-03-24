@@ -29,7 +29,12 @@ pub struct Flags {
     #[structopt(long = "use-db")]
     pub(crate) use_db: bool,
 
-    #[structopt(long = "force-redownload")]
+    #[structopt(
+        help = r"Avoid the downloading cache and redownload every external resource.
+NOTE: this can result in a fresh build.
+",
+        long = "force-redownload"
+    )]
     pub(crate) force_redownload: bool,
 }
 

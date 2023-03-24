@@ -1,24 +1,23 @@
 use serde::de::Visitor;
 use serde::{Deserialize, Serialize};
 
-/// A unique identifier for a target. It should only be constructed via `TargetRegistry::register`.
-///
+/// A unique identifier for a target matcher.
 #[derive(Copy, Default, Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
-pub struct TargetId(u128);
+pub struct TestMatcherId(u128);
 
-impl std::fmt::Display for TargetId {
+impl std::fmt::Display for TestMatcherId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
 }
 
-impl TargetId {
+impl TestMatcherId {
     pub(crate) fn next() -> Self {
         Self(uuid::Uuid::new_v4().to_u128_le())
     }
 }
 
-impl Serialize for TargetId {
+impl Serialize for TestMatcherId {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -27,16 +26,18 @@ impl Serialize for TargetId {
     }
 }
 
-struct TargetVisitor;
+struct TestMatcherVisitor;
 
-impl Visitor<'_> for TargetVisitor {
-    type Value = TargetId;
+impl Visitor<'_> for TestMatcherVisitor {
+    type Value = TestMatcherId;
 
     fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        Ok(TargetId(uuid::Uuid::parse_str(v).unwrap().to_u128_le()))
+        Ok(TestMatcherId(
+            uuid::Uuid::parse_str(v).unwrap().to_u128_le(),
+        ))
     }
 
     fn expecting(&self, _fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -44,12 +45,12 @@ impl Visitor<'_> for TargetVisitor {
     }
 }
 
-impl<'de> Deserialize<'de> for TargetId {
+impl<'de> Deserialize<'de> for TestMatcherId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_str(TargetVisitor)
+        deserializer.deserialize_str(TestMatcherVisitor)
     }
 }
 
@@ -57,9 +58,9 @@ impl<'de> Deserialize<'de> for TargetId {
 mod tests {
     use super::*;
 
-    impl quickcheck::Arbitrary for TargetId {
+    impl quickcheck::Arbitrary for TestMatcherId {
         fn arbitrary(_g: &mut quickcheck::Gen) -> Self {
-            TargetId::next()
+            TestMatcherId::next()
         }
     }
 }

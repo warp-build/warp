@@ -7,6 +7,7 @@ use crate::resolver::{Resolver, TargetRegistry};
 use crate::rules::RuleStore;
 use crate::store::{DefaultStore, Store};
 use crate::sync::Arc;
+use crate::testing::TestMatcherRegistry;
 use crate::worker::coordinator::Coordinator;
 use crate::worker::task_queue::TaskQueue;
 use crate::worker::{Context, TaskResults};
@@ -23,16 +24,17 @@ use crate::workspace::WorkspaceManager;
 ///
 #[derive(Debug, Clone)]
 pub struct LocalSharedContext<R: Resolver, S: Store> {
+    pub(crate) artifact_store: Arc<S>,
+    pub(crate) code_db: Arc<CodeDatabase>,
     pub(crate) coordinator: Arc<Coordinator>,
     pub(crate) event_channel: Arc<EventChannel>,
+    pub(crate) resolver: Arc<R>,
+    pub(crate) rule_store: Arc<RuleStore>,
     pub(crate) target_registry: Arc<TargetRegistry>,
     pub(crate) task_queue: Arc<TaskQueue>,
     pub(crate) task_results: Arc<TaskResults>,
+    pub(crate) test_matcher_registry: Arc<TestMatcherRegistry>,
     pub(crate) workspace_manager: Arc<WorkspaceManager>,
-    pub(crate) resolver: Arc<R>,
-    pub(crate) artifact_store: Arc<S>,
-    pub(crate) rule_store: Arc<RuleStore>,
-    pub(crate) code_db: Arc<CodeDatabase>,
 }
 
 impl<R, S> LocalSharedContext<R, S>
@@ -72,17 +74,20 @@ where
 
         let rule_store = Arc::new(RuleStore::new(&config));
 
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
+
         Self {
             artifact_store,
+            code_db,
             coordinator,
             event_channel: config.event_channel(),
-            target_registry,
             resolver,
+            rule_store,
+            target_registry,
             task_queue,
             task_results,
+            test_matcher_registry,
             workspace_manager,
-            rule_store,
-            code_db,
         }
     }
 }

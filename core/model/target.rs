@@ -37,6 +37,12 @@ impl From<&str> for Target {
     }
 }
 
+impl From<&Target> for Target {
+    fn from(value: &Target) -> Self {
+        value.to_owned()
+    }
+}
+
 impl From<PathBuf> for Target {
     fn from(value: PathBuf) -> Self {
         Self::Fs(value.into())

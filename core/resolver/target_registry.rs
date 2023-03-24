@@ -49,9 +49,13 @@ impl TargetRegistry {
     /// Get a handle for a collection of targets. Behaves like `TargetRegistry::register`.
     ///
     #[tracing::instrument(name = "TargetRegistry::register", skip(self))]
-    pub fn register_many_targets(&self, targets: &[Target]) -> Vec<TargetId> {
+    pub fn register_many_targets<T>(&self, targets: &[T]) -> Vec<TargetId>
+    where
+        T: Into<Target> + Clone + std::fmt::Debug,
+    {
         let mut ids = vec![];
         for target in targets {
+            let target: Target = target.clone().into();
             ids.push(self.register_target(target));
         }
         ids
