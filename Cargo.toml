@@ -83,7 +83,7 @@ structopt = "0.3"
 tar = "0.4"
 tempdir = "0.3"
 tempfile = "3.3"
-termcolor = { version = "1.1", override = true }
+termcolor = { version = "1.1" }
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 tokio-serde = "0.8"

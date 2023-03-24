@@ -11,3 +11,5 @@ _rebar_tmp
 *.gif
 release.tar.gz
 tricorders/beam/tricorder
+core/tests/test_tricorder/test-tricorder
+core/tests/test_tricorder/package.tar.gz

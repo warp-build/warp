@@ -11,6 +11,18 @@ clean:
 build:
 	cargo build
 
+build.mac.m1:
+	cargo build --target aarch64-apple-darwin
+
+build.mac.intel:
+	cargo build --target x86_64-apple-darwin
+
+build.linux.arm:
+	CC=aarch64-unknown-linux-gnu-gcc cargo build --target aarch64-unknown-linux-gnu
+
+build.linux.intel:
+	CC=x86_64-unknown-linux-gnu-gcc cargo build --target x86_64-unknown-linux-gnu
+
 .PHONY: build
 bench:
 	cargo criterion
@@ -77,9 +89,10 @@ test.beam:
 
 .PHONY: test.tricorder
 test.tricorder:
-	cd core/tests/test_tricorder/ \
-		&& cargo build \
-		&& tar czf package.tar.gz target/debug/tricorder Manifest.json
+	cargo build --package test-tricorder \
+		&& cp target/debug/test-tricorder ./core/tests/test_tricorder \
+		&& cd ./core/tests/test_tricorder \
+		&& tar czf package.tar.gz test-tricorder Manifest.json
 
 .PHONY: test.unit
 test.unit:

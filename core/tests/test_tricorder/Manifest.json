@@ -15,7 +15,7 @@
     "build_elapsed_time": 176804
   },
   "provides": {
-    "tricorder": "target/debug/tricorder"
+    "tricorder": "test-tricorder"
   },
   "deps": {},
   "runtime_deps": {},
