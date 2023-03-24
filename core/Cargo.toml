@@ -14,93 +14,85 @@ name = "source_hashing"
 harness = false
 
 [dependencies]
-
-anyhow = "1"
-aquamarine = "0.2"
-assert_cmd = { version = "2", features = ["color"] }
-assert_fs = { version = "1", features = ["color"] }
-assert_matches = "1"
-async-compression = { version = "0.3", features = [
-  "futures-io",
-  "tokio",
-  "stream",
-  "all-algorithms",
-] }
-async-stream = "0.3"
-# async-tar = "0.4.2"
-async-trait = "0.1"
-async_zip = "0.0.7"
-bincode = "1.3"
-chrono = "0.4"
-criterion = { version = "0.4.0", features = ["async_tokio"] }
-crossbeam = "0.8"
-daggy = "0.8"
-dashmap = "5.2"
-deno_console = "0.91"
-deno_core = "0.173"
-derive_builder = "0.11"
-dir-diff = "0.3"
-directories = "4.0"
-env_logger = "0.9"
-fixedbitset = "0.4"
-flate2 = "1.0"
-fs_extra = "1.2"
-futures = "0.3"
-fxhash = "0.2"
-glob = "0.3"
-globset = "0.4.9"
-guess_host_triple = "0.1"
-hyper = "0.14.24"
-ignore = "0.4"
-json_comments = "0.2"
-log = "0.4"
-mockito = "0.31"
-nix = "0.26"
-num_cpus = "1"
-once_cell = "1.14"
-opentelemetry = { version = "0.17", features = ["rt-tokio"] }
-opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio"] }
-petgraph = "0.6"
-predicates = "2.1.5"
-prost = "0.11"
-prost-types = "0.10"
-quickcheck = "1"
-quickcheck_macros = "1"
-rand = "0.8"
-regex = "1"
-reqwest = { version = "0.11", features = ["stream", "json", "gzip"] }
-rexpect = "0.5"
-rusqlite = { version = "0.28", features = ["bundled"] }
-rust-crypto = "0.2"
-seahash = "4.1.0"
-serde = { version = "1.0", features = ["rc"] }
-serde_derive = "1.0"
-serde_json = { version = "1.0", features = ["preserve_order"] }
-sha2 = "0.10"
-shuttle = "0.6.0"
-structopt = "0.3"
-tar = "0.4"
-tempdir = "0.3"
-tempfile = "3.3"
-termcolor = "1.1"
-thiserror = "1.0"
-tokio = { version = "1", features = ["full", "test-util"] }
-tokio-serde = "0.8"
-tokio-tar = "0.3"
-tokio-util = { version = "0.7", features = ["rt", "compat"] }
-tonic = "0.8"
-tracing = { version = "0.1", features = ["log"] }
-tracing-opentelemetry = "0.17"
-tracing-subscriber = "0.3"
-url = "2"
-uuid = { version = "1.1", features = ["v4", "fast-rng", "macro-diagnostics"] }
-v8 = "0.60"
-whoami = "1.2"
-openssl = { version = "0.10", features = ["vendored"] }
+anyhow = { workspace=true }
+aquamarine = { workspace=true }
+assert_cmd = { workspace = true, features = ["color"] }
+assert_fs = { workspace = true, features = ["color"] }
+assert_matches = { workspace=true }
+async-compression = { workspace = true, features = [ "futures-io", "tokio", "stream", "all-algorithms", ] }
+async-stream = { workspace=true }
+async-trait = { workspace=true }
+async_zip = { workspace=true }
+bincode = { workspace=true }
+chrono = { workspace=true }
+criterion = { workspace = true, features = ["async_tokio"] }
+crossbeam = { workspace=true }
+daggy = { workspace=true }
+dashmap = { workspace=true }
+deno_console = { workspace=true }
+deno_core = { workspace=true }
+derive_builder = { workspace=true }
+dir-diff = { workspace=true }
+directories = { workspace=true }
+env_logger = { workspace=true }
+fixedbitset = { workspace=true }
+flate2 = { workspace=true }
+fs_extra = { workspace=true }
+futures = { workspace=true }
+fxhash = { workspace=true }
+glob = { workspace=true }
+globset = { workspace=true }
+guess_host_triple = { workspace=true }
+hyper = { workspace=true }
+ignore = { workspace=true }
+json_comments = { workspace=true }
+log = { workspace=true }
+mockito = { workspace=true }
+nix = { workspace=true }
+num_cpus = { workspace=true }
+once_cell = { workspace=true }
+openssl = { workspace = true, features = ["vendored"] }
+opentelemetry = { workspace = true, features = ["rt-tokio"] }
+opentelemetry-jaeger = { workspace = true, features = ["rt-tokio"] }
+petgraph = { workspace=true }
+predicates = { workspace=true }
+prost = { workspace=true }
+prost-types = { workspace=true }
+quickcheck = { workspace=true }
+quickcheck_macros = { workspace=true }
+rand = { workspace=true }
+regex = { workspace=true }
+reqwest = { workspace = true, features = ["stream", "json", "gzip"] }
+rexpect = { workspace=true }
+rusqlite = { workspace = true, features = ["bundled"] }
+rust-crypto = { workspace=true }
+seahash = { workspace=true }
+serde = { workspace = true, features = ["rc"] }
+serde_derive = { workspace=true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+sha2 = { workspace=true }
+shuttle = { workspace=true }
+structopt = { workspace=true }
+tar = { workspace=true }
+tempdir = { workspace=true }
+tempfile = { workspace=true }
+termcolor = { workspace=true }
+thiserror = { workspace=true }
+tokio = { workspace = true, features = ["full", "test-util"] }
+tokio-serde = { workspace=true }
+tokio-tar = { workspace=true }
+tokio-util = { workspace = true, features = ["rt", "compat"] }
+tonic = { workspace=true }
+tracing = { workspace = true, features = ["log"] }
+tracing-opentelemetry = { workspace=true }
+tracing-subscriber = { workspace=true }
+url = { workspace=true }
+uuid = { workspace = true, features = ["v4", "fast-rng", "macro-diagnostics"] }
+v8 = { workspace=true }
+whoami = { workspace=true }
 
 [build-dependencies]
-
-anyhow = "1.0"
-deno_console = "0.91"
-deno_core = "0.173"
-tonic-build = "0.8"
+anyhow = { workspace=true }
+deno_console = { workspace=true }
+deno_core = { workspace=true }
+tonic-build = { workspace=true }
