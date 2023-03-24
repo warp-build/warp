@@ -8,6 +8,7 @@ use crate::code::CodeDatabase;
 use crate::model::{ConcreteTarget, Goal, RemoteTarget, Requirement, Signature, Target, TargetId};
 use crate::store::DefaultStore;
 use crate::sync::*;
+use crate::testing::TestMatcherRegistry;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
 use crate::worker::TaskResults;
 use crate::workspace::WorkspaceManager;
@@ -29,6 +30,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         config: Config,
         store: Arc<DefaultStore>,
         target_registry: Arc<TargetRegistry>,
+        test_matcher_registry: Arc<TestMatcherRegistry>,
         archive_manager: Arc<ArchiveManager>,
         workspace_manager: Arc<WorkspaceManager>,
         task_results: Arc<TaskResults>,
@@ -48,6 +50,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             workspace_manager.clone(),
             tricorder_manager,
             target_registry.clone(),
+            test_matcher_registry,
             task_results,
             code_db,
         ));
@@ -180,7 +183,7 @@ mod tests {
 
     use super::*;
     use crate::archive::{Archive, ArchiveManager};
-    use crate::model::{ExecutableSpec, Signature};
+    use crate::model::{ExecutableSpec, Signature, TestMatcher};
     use crate::store::ArtifactManifest;
     use crate::tricorder::{Connection, TricorderError};
     use crate::workspace::Workspace;
@@ -205,6 +208,7 @@ mod tests {
         let am = ArchiveManager::new(&config).into();
         let store = DefaultStore::new(config.clone(), am).into();
         let target_registry = Arc::new(TargetRegistry::new());
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
 
         #[derive(Debug, Clone)]
         pub struct UnreachableTricorder;
@@ -222,6 +226,7 @@ mod tests {
                 &mut self,
                 _: &ConcreteTarget,
                 _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: Option<Arc<TestMatcher>>,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
@@ -250,6 +255,7 @@ mod tests {
             config,
             store,
             target_registry.clone(),
+            test_matcher_registry,
             archive_manager.clone(),
             workspace_manager.into(),
             task_results,
@@ -292,6 +298,7 @@ mod tests {
         let am = ArchiveManager::new(&config).into();
         let store = DefaultStore::new(config.clone(), am).into();
         let target_registry = Arc::new(TargetRegistry::new());
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
 
         #[derive(Debug, Clone)]
         pub struct HappyPathTricorder;
@@ -309,6 +316,7 @@ mod tests {
                 &mut self,
                 concrete_target: &ConcreteTarget,
                 _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: Option<Arc<TestMatcher>>,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 Ok(SignatureGenerationFlow::GeneratedSignatures {
                     signatures: vec![Signature::builder()
@@ -342,6 +350,7 @@ mod tests {
             config,
             store,
             target_registry.clone(),
+            test_matcher_registry,
             archive_manager.clone(),
             workspace_manager.into(),
             task_results,

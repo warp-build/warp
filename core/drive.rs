@@ -10,6 +10,7 @@ use crate::resolver::{DefaultResolver, ResolverError, TargetRegistry};
 use crate::rules::JsRuleExecutor;
 use crate::store::{DefaultStore, Package, Packer, PackerError};
 use crate::sync::Arc;
+use crate::testing::TestMatcherRegistry;
 use crate::tricorder::GrpcTricorder;
 use crate::worker::local::{LocalSharedContext, LocalWorker};
 use crate::worker::{Task, TaskResults, WorkerPool, WorkerPoolError};
@@ -51,6 +52,8 @@ impl WarpDriveMarkII {
 
         let target_registry = Arc::new(TargetRegistry::new());
 
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
+
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
 
         let code_db = Arc::new(CodeDatabase::new(config.clone())?);
@@ -59,6 +62,7 @@ impl WarpDriveMarkII {
             config.clone(),
             store.clone(),
             target_registry.clone(),
+            test_matcher_registry.clone(),
             archive_manager.clone(),
             workspace_manager.clone(),
             task_results.clone(),
@@ -68,6 +72,7 @@ impl WarpDriveMarkII {
         let shared_ctx = LocalSharedContext::new(
             config.clone(),
             target_registry.clone(),
+            test_matcher_registry.clone(),
             resolver,
             store,
             workspace_manager,

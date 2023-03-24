@@ -56,6 +56,7 @@ where
     pub fn new(
         config: Config,
         target_registry: Arc<TargetRegistry>,
+        test_matcher_registry: Arc<TestMatcherRegistry>,
         resolver: R,
         artifact_store: Arc<S>,
         workspace_manager: Arc<WorkspaceManager>,
@@ -73,8 +74,6 @@ where
         let resolver = Arc::new(resolver);
 
         let rule_store = Arc::new(RuleStore::new(&config));
-
-        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
 
         Self {
             artifact_store,

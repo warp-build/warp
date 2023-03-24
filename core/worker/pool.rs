@@ -116,6 +116,7 @@ mod tests {
     use crate::planner::{Planner, PlannerError, PlanningFlow};
     use crate::resolver::{ResolutionFlow, Resolver, ResolverError, TargetRegistry};
     use crate::store::{ArtifactManifest, Store, StoreError};
+    use crate::testing::TestMatcherRegistry;
     use crate::worker::local::LocalSharedContext;
     use crate::workspace::WorkspaceManager;
     use crate::Config;
@@ -235,11 +236,13 @@ mod tests {
 
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let target_registry = Arc::new(TargetRegistry::new());
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             config.clone(),
             target_registry,
+            test_matcher_registry,
             NoopResolver,
             NoopStore.into(),
             workspace_manager,

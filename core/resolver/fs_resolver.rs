@@ -3,6 +3,7 @@ use crate::code::{CodeDatabase, SourceHasher};
 use crate::model::{ConcreteTarget, FsTarget, Goal, TargetId};
 use crate::store::DefaultStore;
 use crate::sync::*;
+use crate::testing::TestMatcherRegistry;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
 use crate::worker::TaskResults;
 use crate::workspace::WorkspaceManager;
@@ -22,11 +23,12 @@ use tracing::instrument;
 /// ```
 #[derive(Clone)]
 pub struct FsResolver<T: Tricorder> {
-    target_registry: Arc<TargetRegistry>,
-    workspace_manager: Arc<WorkspaceManager>,
-    tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
-    task_results: Arc<TaskResults>,
     code_db: Arc<CodeDatabase>,
+    target_registry: Arc<TargetRegistry>,
+    task_results: Arc<TaskResults>,
+    test_matcher_registry: Arc<TestMatcherRegistry>,
+    tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
+    workspace_manager: Arc<WorkspaceManager>,
 }
 
 impl<T: Tricorder + Clone + 'static> FsResolver<T> {
@@ -34,15 +36,17 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         workspace_manager: Arc<WorkspaceManager>,
         tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
         target_registry: Arc<TargetRegistry>,
+        test_matcher_registry: Arc<TestMatcherRegistry>,
         task_results: Arc<TaskResults>,
         code_db: Arc<CodeDatabase>,
     ) -> Self {
         Self {
-            workspace_manager,
-            tricorder_manager,
+            code_db,
             target_registry,
             task_results,
-            code_db,
+            test_matcher_registry,
+            tricorder_manager,
+            workspace_manager,
         }
     }
 
@@ -115,7 +119,12 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
 
         // 2. generate signature for this concrete target
         let deps = self.task_results.get_task_deps(target_id);
-        let sig = tricorder.generate_signature(&ct, &deps).await?;
+        let test_matcher = goal
+            .test_matcher_id()
+            .map(|id| self.test_matcher_registry.get_spec(id));
+        let sig = tricorder
+            .generate_signature(&ct, &deps, test_matcher)
+            .await?;
 
         // NB(@ostera): we'll just save the first signature here.
         if let SignatureGenerationFlow::GeneratedSignatures { signatures } = &sig {

@@ -2,7 +2,9 @@ use self::proto::build::warp::tricorder::generate_signature_response::Response;
 use self::proto::build::warp::tricorder::EnsureReadyRequest;
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
 use crate::archive::Archive;
-use crate::model::{rule, ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError};
+use crate::model::{
+    rule, ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, TestMatcher,
+};
 use crate::store::ArtifactManifest;
 use crate::sync::Arc;
 use crate::Target;
@@ -60,6 +62,7 @@ impl Tricorder for GrpcTricorder {
         &mut self,
         concrete_target: &ConcreteTarget,
         dependencies: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+        test_matcher: Option<Arc<TestMatcher>>,
     ) -> Result<SignatureGenerationFlow, TricorderError> {
         let request = proto::build::warp::tricorder::GenerateSignatureRequest {
             workspace_root: concrete_target
@@ -81,6 +84,9 @@ impl Tricorder for GrpcTricorder {
                     ..Default::default()
                 })
                 .collect(),
+            test_matcher: test_matcher.map(|matcher| proto::build::warp::TestMatcher {
+                raw: matcher.raw().to_vec(),
+            }),
         };
 
         let res = self

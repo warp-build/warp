@@ -72,6 +72,13 @@ impl Goal {
     pub fn is_fetch(&self) -> bool {
         matches!(self, Goal::Fetch)
     }
+
+    pub fn test_matcher_id(&self) -> Option<TestMatcherId> {
+        if let Goal::Test { matcher_id } = &self {
+            return *matcher_id;
+        }
+        None
+    }
 }
 
 impl FromStr for Goal {

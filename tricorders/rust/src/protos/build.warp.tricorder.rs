@@ -30,6 +30,8 @@ pub struct GenerateSignatureRequest {
     ///
     #[prost(message, repeated, tag = "4")]
     pub dependencies: ::prost::alloc::vec::Vec<super::Dependency>,
+    #[prost(message, optional, tag = "5")]
+    pub test_matcher: ::core::option::Option<super::TestMatcher>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

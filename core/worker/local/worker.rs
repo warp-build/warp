@@ -313,6 +313,7 @@ mod tests {
     use crate::resolver::TargetRegistry;
     use crate::store::{ArtifactManifest, Store, StoreError};
     use crate::sync::*;
+    use crate::testing::TestMatcherRegistry;
     use crate::worker::{Role, Task, TaskResults};
     use crate::workspace::WorkspaceManager;
     use crate::Config;
@@ -442,12 +443,14 @@ mod tests {
     async fn when_coordinator_marks_shutdown_the_worker_stops() {
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             config,
             target_registry,
+            test_matcher_registry,
             NoopResolver,
             NoopStore.into(),
             workspace_manager,
@@ -480,12 +483,14 @@ mod tests {
 
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             config,
             target_registry,
+            test_matcher_registry,
             ErrResolver,
             NoopStore.into(),
             workspace_manager,
@@ -559,12 +564,14 @@ mod tests {
 
         let config = Config::builder().build().unwrap();
         let target_registry = Arc::new(TargetRegistry::new());
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let task_results = Arc::new(TaskResults::new(target_registry.clone()));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             config,
             target_registry,
+            test_matcher_registry,
             DummyResolver,
             NoopStore.into(),
             workspace_manager,

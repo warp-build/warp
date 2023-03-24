@@ -99,3 +99,7 @@ message Dependency {
   // dependency created. All these paths are relative to the [store_path=7].
   repeated string outputs = 9;
 }
+
+message TestMatcher {
+  repeated string raw = 1;
+}
