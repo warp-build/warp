@@ -3,12 +3,10 @@ use anyhow::*;
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 use futures::StreamExt;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
-use tokio::io::AsyncReadExt;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DownloadAction {

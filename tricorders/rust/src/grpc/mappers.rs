@@ -6,7 +6,8 @@ use crate::proto::build::warp::tricorder::{
 use crate::proto::build::warp::{
     DependencyRequirement, FileRequirement, SymbolRequirement, UrlRequirement,
 };
-use crate::proto::google::protobuf::{value::Kind, ListValue};
+use crate::proto::google::protobuf::value::Kind;
+use crate::proto::google::protobuf::ListValue;
 use std::collections::HashMap;
 
 impl From<crate::proto::build::warp::Symbol> for Symbol {

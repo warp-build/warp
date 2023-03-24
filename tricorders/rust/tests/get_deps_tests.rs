@@ -1,5 +1,4 @@
-use tricorder::GenerateSignature;
-use tricorder::TreeSplitter;
+use tricorder::{GenerateSignature, TreeSplitter};
 
 #[tokio::test]
 async fn t002_get_mods() {

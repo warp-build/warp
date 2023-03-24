@@ -1,4 +1,5 @@
-use crate::{sync::*, Config};
+use crate::sync::*;
+use crate::Config;
 use fxhash::FxHashMap;
 use std::path::{Path, PathBuf};
 use thiserror::*;

@@ -1,5 +1,4 @@
-use deno_core::JsRuntime;
-use deno_core::RuntimeOptions;
+use deno_core::{JsRuntime, RuntimeOptions};
 
 use std::env;
 use std::path::PathBuf;

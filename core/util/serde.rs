@@ -1,8 +1,8 @@
 /// Serializing datetimes with Serde as ISO8601 strings.
 pub mod iso8601 {
-    use chrono::DateTime;
-    use chrono::Utc;
-    use serde::{de::Visitor, Deserializer, Serializer};
+    use chrono::{DateTime, Utc};
+    use serde::de::Visitor;
+    use serde::{Deserializer, Serializer};
 
     struct DateTimeVisitor;
     impl<'de> Visitor<'de> for DateTimeVisitor {
@@ -41,7 +41,8 @@ pub mod iso8601 {
 /// Serializing durations with Serde as milliseconds.
 pub mod duration {
     use chrono::Duration;
-    use serde::{de::Visitor, Deserializer, Serializer};
+    use serde::de::Visitor;
+    use serde::{Deserializer, Serializer};
 
     struct DurationVisitor;
     impl<'de> Visitor<'de> for DurationVisitor {

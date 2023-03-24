@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
-use super::MANIFEST_FILE;
 use super::{
     ArtifactId, ArtifactManifest, LocalStore, LocalStoreError, PackageManifest, PublicStore,
-    PublicStoreError, Store, StoreError,
+    PublicStoreError, Store, StoreError, MANIFEST_FILE,
 };
 use crate::archive::ArchiveManager;
 use crate::model::ExecutableSpec;

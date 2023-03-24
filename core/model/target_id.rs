@@ -1,4 +1,5 @@
-use serde::{de::Visitor, Deserialize, Serialize};
+use serde::de::Visitor;
+use serde::{Deserialize, Serialize};
 
 /// A unique identifier for a target. It can only be constructed via `TargetRegistry::register`.
 ///

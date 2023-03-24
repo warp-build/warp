@@ -1,12 +1,9 @@
-use crate::model::ExecutableSpec;
-use crate::model::Target;
-use crate::model::TargetId;
+use crate::model::{ExecutableSpec, Target, TargetId};
 use crate::resolver::TargetRegistry;
 use crate::store::ArtifactManifest;
 use crate::sync::Arc;
 use daggy::{Dag, NodeIndex};
-use dashmap::DashMap;
-use dashmap::DashSet;
+use dashmap::{DashMap, DashSet};
 use fxhash::*;
 use thiserror::*;
 use tracing::*;

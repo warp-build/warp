@@ -312,9 +312,10 @@ mod tests {
     use crate::planner::PlannerError;
     use crate::resolver::TargetRegistry;
     use crate::store::{ArtifactManifest, Store, StoreError};
+    use crate::sync::*;
     use crate::worker::{Role, Task, TaskResults};
     use crate::workspace::WorkspaceManager;
-    use crate::{sync::*, Config};
+    use crate::Config;
     use async_trait::async_trait;
     use quickcheck::Arbitrary;
     use std::path::PathBuf;

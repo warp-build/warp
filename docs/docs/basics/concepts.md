@@ -15,4 +15,3 @@ sidebar_position: 1
 1. Resolving
 2. Planning
 3. Executing
-

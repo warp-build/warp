@@ -7,10 +7,11 @@ use crate::archive::ArchiveManager;
 use crate::code::CodeDatabase;
 use crate::model::{ConcreteTarget, Goal, RemoteTarget, Requirement, Signature, Target, TargetId};
 use crate::store::DefaultStore;
+use crate::sync::*;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
 use crate::worker::TaskResults;
 use crate::workspace::WorkspaceManager;
-use crate::{sync::*, Config};
+use crate::Config;
 use async_trait::async_trait;
 use tracing::instrument;
 

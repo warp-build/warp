@@ -1,10 +1,8 @@
 use super::*;
 use crate::model::ConcreteTarget;
 use anyhow::*;
-use serde::Deserialize;
-use serde::Serialize;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

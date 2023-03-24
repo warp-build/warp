@@ -1,4 +1,5 @@
-use syn::{visit::Visit, ItemExternCrate, ItemMod};
+use syn::visit::Visit;
+use syn::{ItemExternCrate, ItemMod};
 
 pub struct AllDependency<'a> {
     pub mods: &'a mut Vec<String>,

@@ -1,6 +1,5 @@
 use sha2::{Digest, Sha256};
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use thiserror::*;
 
 /// A collection of well-known paths, local and global, that Warp uses.

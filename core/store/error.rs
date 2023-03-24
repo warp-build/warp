@@ -1,5 +1,4 @@
-use super::LocalStoreError;
-use super::PublicStoreError;
+use super::{LocalStoreError, PublicStoreError};
 use crate::archive::ArchiveManagerError;
 use crate::util::from_file::FromFileError;
 use thiserror::Error;

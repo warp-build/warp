@@ -1,11 +1,7 @@
 use super::*;
-use crate::Config;
-use crate::WarpConfigFile;
-use crate::WarpConfigFileError;
-use crate::WARPFILE;
+use crate::{Config, WarpConfigFile, WarpConfigFileError, WARPFILE};
 use futures::StreamExt;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use thiserror::*;
 use tokio::fs;
 use tracing::*;

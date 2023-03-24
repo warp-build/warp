@@ -1,11 +1,11 @@
 include!(concat!(env!("OUT_DIR"), "/_include.rs"));
 
-use build::warp::tricorder::generate_signature_response;
 use build::warp::tricorder::tricorder_service_server::{TricorderService, TricorderServiceServer};
-use build::warp::tricorder::*;
+use build::warp::tricorder::{generate_signature_response, *};
 use build::warp::Signature;
 use std::collections::HashMap;
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::transport::Server;
+use tonic::{Request, Response, Status};
 
 #[derive(Default)]
 struct TestTricorder;

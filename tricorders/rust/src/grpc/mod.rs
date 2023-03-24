@@ -2,11 +2,11 @@ mod mappers;
 use crate::analysis::Analysis;
 use crate::ast::GetAst;
 use crate::models::{Ast, AstError, Signature, Symbol};
-use crate::proto::build::warp::tricorder::GenerateSignatureSuccessResponse;
+use crate::proto::build::warp::tricorder::tricorder_service_server::TricorderService;
 use crate::proto::build::warp::tricorder::{
-    generate_signature_response, tricorder_service_server::TricorderService, EnsureReadyRequest,
-    EnsureReadyResponse, GenerateSignatureRequest, GenerateSignatureResponse, GetAstRequest,
-    GetAstResponse, PrepareDependencyRequest, PrepareDependencyResponse,
+    generate_signature_response, EnsureReadyRequest, EnsureReadyResponse, GenerateSignatureRequest,
+    GenerateSignatureResponse, GenerateSignatureSuccessResponse, GetAstRequest, GetAstResponse,
+    PrepareDependencyRequest, PrepareDependencyResponse,
 };
 use crate::GenerateSignatureError;
 use tonic::{Request, Response, Status};

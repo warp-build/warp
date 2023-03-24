@@ -1,5 +1,6 @@
+use syn::spanned::Spanned;
 use syn::visit::{self, Visit};
-use syn::{spanned::Spanned, Ident, Stmt};
+use syn::{Ident, Stmt};
 
 pub struct SymbolDependency<'a> {
     pub symbols: &'a mut Vec<Ident>,

@@ -1,8 +1,10 @@
 use super::{Archive, ArchiveBuilderError};
+use crate::store::ArtifactManifest;
 use crate::sync::Arc;
-use crate::{store::ArtifactManifest, Config};
+use crate::Config;
 use async_compression::futures::bufread::GzipDecoder;
-use flate2::{write::GzEncoder, Compression};
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use futures::{StreamExt, TryStreamExt};
 use sha2::{Digest, Sha256};
 use std::io::Read;

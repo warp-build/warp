@@ -1,5 +1,6 @@
 use super::*;
-use crate::{flags::Flags, reporter::StatusReporter};
+use crate::flags::Flags;
+use crate::reporter::StatusReporter;
 use structopt::StructOpt;
 use warp_core::{Goal, WarpDriveMarkII};
 
