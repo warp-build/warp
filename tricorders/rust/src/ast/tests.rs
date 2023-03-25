@@ -1,7 +1,5 @@
-use syn::{
-    visit::{self, Visit},
-    File, ItemFn, ItemMod,
-};
+use syn::visit::{self, Visit};
+use syn::{ItemFn, ItemMod};
 
 pub struct TestVisitor {
     pub has_test: bool,
