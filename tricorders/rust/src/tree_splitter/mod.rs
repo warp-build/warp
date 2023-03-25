@@ -7,7 +7,6 @@ pub struct TreeSplitter {}
 impl TreeSplitter {
     pub fn get_deps_all(sources: &str) -> (Vec<String>, Vec<String>) {
         let ast = syn::parse_file(sources).unwrap();
-        println!("{:#?}", ast);
         let mut mods: Vec<String> = Vec::new();
         let mut crates: Vec<String> = Vec::new();
         let mut visitor = AllDependency {
@@ -19,13 +18,18 @@ impl TreeSplitter {
     }
 
     pub fn tree_split(symbol: Symbol, sources: &str) -> (syn::File, String) {
-        let ast = syn::parse_file(sources).unwrap();
-        let symbol_ast = Self::get_ast_named(&symbol.name(), ast.clone());
-        let mut deps = Self::get_interested_symbols(symbol_ast, ast.clone());
-        deps.push(symbol.name().to_string());
-        let stripped_ast = Self::strip_ast(ast, deps);
-        let formatted_ast = prettyplease::unparse(&stripped_ast);
-        (stripped_ast, formatted_ast)
+        match symbol {
+            Symbol::Named { name } => {
+                let ast = syn::parse_file(sources).unwrap();
+                let symbol_ast = Self::get_ast_named(&name, ast.clone());
+                let mut deps = Self::get_interested_symbols(symbol_ast, ast.clone());
+                deps.push(name);
+                let stripped_ast = Self::strip_ast(ast, deps);
+                let formatted_ast = prettyplease::unparse(&stripped_ast);
+                (stripped_ast, formatted_ast)
+            }
+            _ => panic!("Expected Symbol::Named, but got something else."),
+        }
     }
 
     pub fn strip_ast(mut file_ast: syn::File, deps: Vec<String>) -> syn::File {

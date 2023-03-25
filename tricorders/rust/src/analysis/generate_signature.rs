@@ -17,9 +17,16 @@ pub enum GenerateSignatureError {
 }
 
 impl GenerateSignature {
-    pub async fn all(file: &str) -> Result<Vec<Signature>, GenerateSignatureError> {
+    pub async fn all(
+        workspace_root: String,
+        file: String,
+    ) -> Result<Vec<Signature>, GenerateSignatureError> {
+        let path = Path::new(&workspace_root).join(&file);
+
+        let file_name = path.file_name().unwrap().to_str().unwrap();
+        let mut mod_paths: Vec<PathBuf> = vec![PathBuf::from(file_name.to_string())];
         // First we need to read the file contents
-        let source = fs::read_to_string(&file)
+        let source = fs::read_to_string(&path)
             .await
             .map_err(|err| GenerateSignatureError::CouldNotReadFile {
                 file: file.to_string(),
@@ -33,49 +40,50 @@ impl GenerateSignature {
         // to also figure out if they reside in <mod_name>.rs or <mod_name>/mod.rs
         let (mods, _crates) = TreeSplitter::get_deps_all(&source);
 
-        let path = PathBuf::from(Path::new(file).parent().unwrap_or(Path::new(""))).join("");
-        let mod_files = Self::find_mod_files(mods, path);
+        let file_path = path.parent().unwrap();
 
-        if let Err(err) = mod_files {
-            return Err(err);
-        }
+        let mod_files: Vec<PathBuf> = Self::find_mod_files(mods, file_path).await?;
+        mod_paths.extend(mod_files.iter().cloned());
 
         let mut config = Config::default();
         config.insert(
             "srcs".to_string(),
             crate::Value::List(
-                mod_files
-                    .unwrap()
+                mod_paths
                     .iter()
-                    .map(|e| e.to_string().into())
+                    .map(|e| e.display().to_string().into())
                     .collect(),
             ),
         );
 
         let signature = Signature::builder()
-            .target(file.to_string())
+            .target(file)
             .rule("rust_binary".to_string())
             .config(config)
-            .build();
+            .build()
+            .unwrap();
 
-        Ok(vec![signature.unwrap()])
+        Ok(vec![signature])
     }
 
-    pub fn find_mod_files(
+    pub async fn find_mod_files(
         mods: Vec<String>,
-        path: PathBuf,
-    ) -> Result<Vec<String>, GenerateSignatureError> {
-        let mut mod_files: Vec<String> = Vec::new();
+        path: &Path,
+    ) -> Result<Vec<PathBuf>, GenerateSignatureError> {
+        let mut mod_files: Vec<PathBuf> = Vec::new();
         for m in mods.iter() {
-            let path1 = path.join(format!("{}.rs", m));
-            let path2 = path.join(format!("mod/{}.rs", m));
-            if path1.exists() {
-                mod_files.push(path1.display().to_string())
-            } else if path2.exists() {
-                mod_files.push(path2.display().to_string())
-            } else {
-                return Err(GenerateSignatureError::MissingDependency { dep: m.to_string() });
+            let mod_dir = Path::new("mod");
+            let path1 = path.join(Path::new(m).with_extension("rs").to_path_buf());
+            let path2 = path.join(mod_dir.join(m).with_extension("rs").to_path_buf());
+            if let Ok(_) = fs::metadata(&path1).await {
+                mod_files.push(path1.file_name().unwrap().into());
+                continue;
             }
+            if let Ok(_) = fs::metadata(&path2).await {
+                mod_files.push(path2.file_name().unwrap().into());
+                continue;
+            }
+            return Err(GenerateSignatureError::MissingDependency { dep: m.to_string() });
         }
         Ok(mod_files)
     }

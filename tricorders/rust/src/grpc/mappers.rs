@@ -1,4 +1,4 @@
-use crate::models::{Ast, Config, Requirement, Signature, Symbol, SymbolScope, Value};
+use crate::models::{Ast, Config, Requirement, Signature, Symbol, Value};
 use crate::proto::build::warp::symbol::Sym::{All, Named};
 use crate::proto::build::warp::tricorder::{
     get_ast_response, GetAstResponse, GetAstSuccessResponse,
@@ -13,24 +13,20 @@ use std::collections::HashMap;
 impl From<crate::proto::build::warp::Symbol> for Symbol {
     fn from(sym: crate::proto::build::warp::Symbol) -> Self {
         match sym.sym.unwrap() {
-            All(_) => Symbol::builder().build().unwrap(),
-            Named(name) => Symbol::builder()
-                .name(name)
-                .scope(SymbolScope::All)
-                .build()
-                .unwrap(),
+            All(_) => Symbol::All,
+            Named(name) => Symbol::Named { name },
         }
     }
 }
 
 impl From<&Symbol> for crate::proto::build::warp::Symbol {
     fn from(sym: &Symbol) -> Self {
-        match sym.scope() {
-            SymbolScope::All => crate::proto::build::warp::Symbol {
+        match sym {
+            Symbol::All => crate::proto::build::warp::Symbol {
                 sym: Some(All(true)),
             },
-            SymbolScope::Named => crate::proto::build::warp::Symbol {
-                sym: Some(Named(sym.name())),
+            Symbol::Named { name } => crate::proto::build::warp::Symbol {
+                sym: Some(Named(name.to_string())),
             },
         }
     }

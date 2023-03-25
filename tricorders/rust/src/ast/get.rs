@@ -1,4 +1,4 @@
-use crate::models::{Ast, Symbol, SymbolScope};
+use crate::models::{Ast, Symbol};
 use crate::tree_splitter::TreeSplitter;
 use crate::AstError;
 use std::path::Path;
@@ -23,9 +23,9 @@ impl GetAst {
         println!("Analyzing: {:?}", file);
 
         match Path::new(&file).extension() {
-            Some(ext) if ext == "rs" => match symbol.scope() {
-                SymbolScope::All => Self::do_get_all_ast(file).await,
-                SymbolScope::Named => Self::do_get_named_ast(file, symbol).await,
+            Some(ext) if ext == "rs" => match &symbol {
+                Symbol::All => Self::do_get_all_ast(file).await,
+                Symbol::Named { name: _ } => Self::do_get_named_ast(file, symbol).await,
             },
             _ => Ok(Ast::default()),
         }
