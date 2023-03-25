@@ -25,7 +25,7 @@ impl GetAst {
         match Path::new(&file).extension() {
             Some(ext) if ext == "rs" => match &symbol {
                 Symbol::All => Self::do_get_all_ast(file).await,
-                Symbol::Named { name } => Self::do_get_named_ast(file, symbol).await,
+                Symbol::Named { name: _ } => Self::do_get_named_ast(file, symbol).await,
             },
             _ => Ok(Ast::default()),
         }

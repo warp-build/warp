@@ -24,7 +24,7 @@ impl Analysis {
                     }
                     Ok(sigs.unwrap())
                 }
-                crate::Symbol::Named { name } => Ok(vec![Signature::default()]), // TODO(@calin): GenerateSignature::named().await,
+                crate::Symbol::Named { name: _ } => Ok(vec![Signature::default()]), // TODO(@calin): GenerateSignature::named().await,
             },
             _ => Ok(vec![Signature::default()]),
         }
