@@ -30,18 +30,14 @@ impl TricorderService for TricorderServiceImpl {
     ) -> Result<Response<GenerateSignatureResponse>, Status> {
         let request_data = request.into_inner();
         let file = request_data.clone().file;
-        let symbol: Symbol = request_data
-            .symbol
-            .clone()
-            .unwrap_or(crate::proto::build::warp::Symbol {
-                sym: Some(crate::proto::build::warp::symbol::Sym::All(true)),
-            })
-            .into();
-        let workspace_root = request_data.clone().workspace_root;
+        let test_matcher: Vec<String> = match request_data.test_matcher {
+            Some(matches) => matches.into(),
+            None => Vec::new(),
+        };
+        let workspace_root = request_data.workspace_root;
 
         let response: Result<Vec<Signature>, GenerateSignatureError> =
-            Analysis::generate_signature(workspace_root.clone(), file.clone(), symbol.clone())
-                .await;
+            Analysis::generate_signature(workspace_root.clone(), file.clone(), test_matcher).await;
 
         match response {
             Ok(signature) => Ok(Response::new(GenerateSignatureResponse {
@@ -49,7 +45,7 @@ impl TricorderService for TricorderServiceImpl {
                     GenerateSignatureSuccessResponse {
                         workspace_root,
                         file,
-                        symbol: Some((&symbol).into()),
+                        symbol: None,
                         signatures: signature.iter().map(|e| e.clone().into()).collect(),
                     },
                 )),
@@ -60,7 +56,7 @@ impl TricorderService for TricorderServiceImpl {
                     GenerateSignatureSuccessResponse {
                         workspace_root,
                         file,
-                        symbol: Some((&symbol).into()),
+                        symbol: None,
                         signatures: vec![],
                     },
                 )),
