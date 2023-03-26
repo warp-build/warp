@@ -20,6 +20,7 @@ impl BootstrapCommand {
         let targets: Vec<Target> = vec![
             "./tricorders/beam/mix.exs".into(),
             "./tricorders/rust/Cargo.toml".into(),
+            "./tricorders/rescript/Cargo.toml".into(),
         ];
 
         let results = warp.execute(Goal::Bootstrap, &targets).await?;

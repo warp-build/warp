@@ -7,9 +7,11 @@ let trace = () => {};
 let _FFI_CALL_COUNT = 0;
 const ffi = (name, args) => {
   trace(
-    `FFI Call #${_FFI_CALL_COUNT++} ${name} with arguments: ${
-      JSON.stringify(args, null, 2)
-    }\n`,
+    `FFI Call #${_FFI_CALL_COUNT++} ${name} with arguments: ${JSON.stringify(
+      args,
+      null,
+      2
+    )}\n`
   );
   return Deno.core.ops[name].call({}, args);
 };
@@ -70,24 +72,23 @@ Warp.Signatures.compute = (inputSignature) => {
   const rule = Warp.Rules.getByName(signature.rule);
 
   const ruleConfig = Object.fromEntries(
-    Object.entries(rule.cfg)
-      .map(([k, type]) => {
-        const value = signature.cfg[k] === undefined
-          ? rule.defaults[k]
-          : signature.cfg[k];
-        if (value === undefined) {
-          panic(
-            `Expected signature  ${signature.target}  to have config key '${k}' (of type ${type}) but it was not present in your Build.toml, and it doesn't have a default value.`,
-          );
-        }
-        return [k, value];
-      }),
+    Object.entries(rule.cfg).map(([k, type]) => {
+      const value =
+        signature.cfg[k] === undefined ? rule.defaults[k] : signature.cfg[k];
+      if (value === undefined) {
+        panic(
+          `Expected signature  ${signature.target}  to have config key '${k}' (of type ${type}) but it was not present in your Build.toml, and it doesn't have a default value.`
+        );
+      }
+      return [k, value];
+    })
   );
   const config = JSON.parse(JSON.stringify(ruleConfig));
   trace(`with config: ${JSON.stringify(config, null, 2)}`);
 
   config.target = target;
   config.cwd = () => Target.dir(target);
+  config.store_path = () => "{{NODE_STORE_PATH}}";
 
   let _provides = null;
   let _env = null;
@@ -203,14 +204,14 @@ const check_config = (cfg) => {
       if (Array.isArray(t)) {
         if (t.length == 0) {
           panic(
-            `Cfg map for rule ${name} found an empty list. Did you mean to use   [target()]   ?`,
+            `Cfg map for rule ${name} found an empty list. Did you mean to use   [target()]   ?`
           );
         }
         return [k, `list_of_${t[0]}`];
       } else {
         return [k, t];
       }
-    }),
+    })
   );
 };
 
@@ -234,7 +235,7 @@ Warp.Rule = (spec) => {
   if (!impl) panic(`Rule ${name} must have an implementation.`);
   if (typeof impl !== "function") {
     panic(
-      `Rule ${name} implementation should be a function, instead found: ${typeof impl}`,
+      `Rule ${name} implementation should be a function, instead found: ${typeof impl}`
     );
   }
 
@@ -242,7 +243,7 @@ Warp.Rule = (spec) => {
   if (!cfg) panic(`Rule ${name} must define a config map with   cfg   `);
   if (Object.entries(cfg).length == 0) {
     panic(
-      `Config map for rule ${name} is empty! Try adding a   name: target()   key?`,
+      `Config map for rule ${name} is empty! Try adding a   name: target()   key?`
     );
   }
   spec.cfg = check_config(spec.cfg);
@@ -285,7 +286,7 @@ Warp.Toolchain = (spec) => {
   if (!impl) panic(`Rule ${name} must have an implementation.`);
   if (typeof impl !== "function") {
     panic(
-      `Rule ${name} implementation should be a function, instead found: ${typeof impl}`,
+      `Rule ${name} implementation should be a function, instead found: ${typeof impl}`
     );
   }
 
@@ -293,7 +294,7 @@ Warp.Toolchain = (spec) => {
   if (!cfg) panic(`Rule ${name} must define a config map with   cfg   `);
   if (Object.entries(cfg).length == 0) {
     panic(
-      `Config map for rule ${name} is empty! Try adding a   name: target()   key?`,
+      `Config map for rule ${name} is empty! Try adding a   name: target()   key?`
     );
   }
   spec.cfg = check_config(spec.cfg);

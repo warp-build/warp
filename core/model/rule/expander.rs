@@ -77,8 +77,8 @@ impl Expander {
 
     #[instrument(name = "Expander::expand_glob", skip(self))]
     pub fn expand_glob(&self, root: &Path, cfg_path: &Path) -> Result<Value, ExpanderError> {
-        let path = root.join(cfg_path).to_string_lossy().to_string();
-        if path.contains('*') {
+        if cfg_path.to_string_lossy().to_string().contains('*') {
+            let path = root.join(cfg_path).to_string_lossy().to_string();
             let entries = glob::glob(&path).map_err(|err| ExpanderError::InvalidGlobPattern {
                 path: path.to_string(),
                 err,
@@ -87,11 +87,12 @@ impl Expander {
             let mut files = vec![];
             for entry in entries {
                 let entry = entry.map_err(ExpanderError::GlobError)?;
+                let entry = entry.strip_prefix(root).unwrap().to_path_buf();
                 files.push(Value::File(entry));
             }
             Ok(Value::List(files))
         } else {
-            Ok(Value::File(PathBuf::from(path)))
+            Ok(Value::File(PathBuf::from(cfg_path)))
         }
     }
 

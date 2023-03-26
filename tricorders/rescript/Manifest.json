@@ -1,0 +1,25 @@
+{
+  "version": "V0",
+  "target": "https://store.warp.build/tricorder/test",
+  "rule_name": "",
+  "hash": "a-hash",
+  "store_path": "",
+  "srcs": [],
+  "outs": [],
+  "buildstamps": {
+    "plan_started_at": "2022-11-03T14:11:29.541954+00:00",
+    "plan_ended_at": "2022-11-03T14:11:29.544024+00:00",
+    "plan_elapsed_time": 2,
+    "build_started_at": "2022-11-03T14:11:29.544178+00:00",
+    "build_completed_at": "2022-11-03T14:14:26.349068+00:00",
+    "build_elapsed_time": 176804
+  },
+  "provides": {
+    "tricorder": "test-tricorder"
+  },
+  "deps": {},
+  "runtime_deps": {},
+  "transitive_deps": {},
+  "toolchains": {},
+  "shell_env": {}
+}

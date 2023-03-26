@@ -21,6 +21,12 @@ impl TricorderRegistry {
         let default_host = config.public_store_metadata_url().to_string();
         let data = [
             (
+                format!("{default_host}tricorder/rescript/manifest.json")
+                    .parse::<Url>()
+                    .unwrap(),
+                vec!["res", "resi"],
+            ),
+            (
                 format!("{default_host}tricorder/test/manifest.json")
                     .parse::<Url>()
                     .unwrap(),

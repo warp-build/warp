@@ -4,8 +4,9 @@ members = [
   "core",
   "tests/test_tricorder",
   "tricorders/rust",
+  "tricorders/rescript",
 ]
-resolver="2"
+resolver = "2"
 
 [profile.release]
 opt-level = 3
@@ -17,7 +18,12 @@ aquamarine = "0.2"
 assert_cmd = { version = "2", features = ["color"] }
 assert_fs = { version = "1", features = ["color"] }
 assert_matches = "1"
-async-compression = { version = "0.3", features = [ "futures-io", "tokio", "stream", "all-algorithms", ] }
+async-compression = { version = "0.3", features = [
+  "futures-io",
+  "tokio",
+  "stream",
+  "all-algorithms",
+] }
 async-stream = "0.3"
 async-trait = "0.1"
 async_zip = "0.0.7"
@@ -61,7 +67,7 @@ num_cpus = "1"
 once_cell = "1.14"
 openssl = { version = "0.10", features = ["vendored"] }
 opentelemetry = { version = "0.17", features = ["rt-tokio"] }
-opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio"]  }
+opentelemetry-jaeger = { version = "0.16", features = ["rt-tokio"] }
 petgraph = "0.6"
 predicates = "2.1.5"
 prost = "0.11"
