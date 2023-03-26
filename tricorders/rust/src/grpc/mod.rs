@@ -1,7 +1,7 @@
 mod mappers;
 use crate::analysis::Analysis;
-use crate::ast::GetAst;
-use crate::models::{Ast, AstError, Signature, Symbol};
+use crate::ast::{GetAst, GetAstError};
+use crate::models::{Ast, Signature, Symbol};
 use crate::proto::build::warp::tricorder::tricorder_service_server::TricorderService;
 use crate::proto::build::warp::tricorder::{
     generate_signature_response, EnsureReadyRequest, EnsureReadyResponse, GenerateSignatureRequest,
@@ -75,7 +75,7 @@ impl TricorderService for TricorderServiceImpl {
         let request_data = request.into_inner();
         let file = request_data.clone().file;
         let symbol: Symbol = request_data.clone().symbol.unwrap().into();
-        let response: Result<Ast, AstError> = GetAst::get_ast(file, symbol).await;
+        let response: Result<Ast, GetAstError> = GetAst::get_ast(file, symbol).await;
 
         match response {
             Ok(ast) => Ok(Response::new(ast_to_success_response(ast))),

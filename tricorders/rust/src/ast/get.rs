@@ -1,6 +1,5 @@
 use crate::models::{Ast, Symbol};
 use crate::tree_splitter::TreeSplitter;
-use crate::AstError;
 use std::path::Path;
 pub(crate) use thiserror::*;
 use tokio::fs;
@@ -16,22 +15,29 @@ pub enum GetAstError {
 
     #[error("Could not parse file {file:?} due to {err:?}")]
     CouldNotParseFile { file: String, err: syn::Error },
+
+    #[error(transparent)]
+    BuilderError(derive_builder::UninitializedFieldError),
+
+    #[error("Unsupported file {file:?}")]
+    UnsupportedFile { file: String },
 }
 
 impl GetAst {
-    pub async fn get_ast(file: String, symbol: Symbol) -> Result<Ast, AstError> {
+    pub async fn get_ast(file: String, symbol: Symbol) -> Result<Ast, GetAstError> {
         println!("Analyzing: {:?}", file);
 
-        match Path::new(&file).extension() {
-            Some(ext) if ext == "rs" => match &symbol {
-                Symbol::All => Self::do_get_all_ast(file).await,
-                Symbol::Named { name: _ } => Self::do_get_named_ast(file, symbol).await,
-            },
-            _ => Ok(Ast::default()),
+        if !Self::is_supported_file(&file) {
+            return Err(GetAstError::UnsupportedFile { file });
+        }
+
+        match &symbol {
+            Symbol::All => Self::do_get_all_ast(file).await,
+            Symbol::Named { name: _ } => Self::do_get_named_ast(file, symbol).await,
         }
     }
 
-    async fn do_get_all_ast(file: String) -> Result<Ast, AstError> {
+    async fn do_get_all_ast(file: String) -> Result<Ast, GetAstError> {
         let source = fs::read_to_string(&file)
             .await
             .map_err(|err| GetAstError::CouldNotReadFile {
@@ -50,7 +56,7 @@ impl GetAst {
         Ok(Ast::builder().ast(ast).source(src).file(file).build()?)
     }
 
-    async fn do_get_named_ast(file: String, symbol: Symbol) -> Result<Ast, AstError> {
+    async fn do_get_named_ast(file: String, symbol: Symbol) -> Result<Ast, GetAstError> {
         let source = fs::read_to_string(&file)
             .await
             .map_err(|err| GetAstError::CouldNotReadFile {
@@ -67,5 +73,12 @@ impl GetAst {
             .file(file)
             .symbol(symbol)
             .build()?)
+    }
+
+    pub fn is_supported_file(file: &str) -> bool {
+        match Path::new(&file).extension() {
+            Some(ext) => ext == "rs",
+            _ => false,
+        }
     }
 }

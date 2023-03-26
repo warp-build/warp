@@ -1,7 +1,7 @@
 mod filter;
 mod get;
-mod tests;
+mod testing;
 
 pub use filter::*;
 pub use get::*;
-pub use tests::*;
+pub use testing::*;

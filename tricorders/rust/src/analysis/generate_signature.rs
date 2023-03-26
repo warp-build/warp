@@ -14,6 +14,9 @@ pub enum GenerateSignatureError {
 
     #[error("Missing dep {dep:?}")]
     MissingDependency { dep: String },
+
+    #[error("Unsupported file {file:?}")]
+    UnsupportedFile { file: String },
 }
 
 impl GenerateSignature {
