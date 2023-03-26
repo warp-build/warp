@@ -4,13 +4,13 @@ export const JS_EXT = ".js";
 export const MERLIN = ".merlin";
 export const RESI_EXT = ".resi";
 export const RES_EXT = ".res";
+export const AST_EXT = ".ast";
 
 const impl = (ctx) => {
   const { version, sha1 } = ctx.cfg();
   const { host } = ctx.env();
 
-  const url =
-    `https://github.com/rescript-lang/rescript-compiler/archive/refs/tags/${version}.tar.gz`;
+  const url = `https://github.com/rescript-lang/rescript-compiler/archive/refs/tags/${version}.tar.gz`;
 
   const output = "rescript.tar.gz";
 
