@@ -479,7 +479,7 @@ mod tests {
                 for (goal, target) in &gts {
                     let target_id = q.target_registry.register_target(target);
                     let unreg_task = UnregisteredTask::builder()
-                        .goal(goal)
+                        .goal(*goal)
                         .target_id(target_id)
                         .build()
                         .unwrap();
@@ -489,7 +489,7 @@ mod tests {
                 assert!(!q.is_empty());
 
                 // Consume the queue from different threads and collect the results
-                let consumed: Arc<RwLock<HashMap<usize, HashSet<TaskId>>>> =
+                let consumed: Arc<RwLock<HashMap<usize, HashSet<Task>>>> =
                     Arc::new(RwLock::new(HashMap::default()));
                 let mut handles = vec![];
                 for id in 0..4 {
@@ -501,7 +501,7 @@ mod tests {
                             tasks.push(task);
                             q.ack(task);
                         }
-                        let tasks: HashSet<TaskId> = tasks.into_iter().collect();
+                        let tasks: HashSet<Task> = tasks.into_iter().collect();
                         (*consumed.write().unwrap()).insert(id, tasks);
                     });
                     handles.push(handle);

@@ -14,7 +14,7 @@ tracing-subscriber = { workspace = true }
 prost = { workspace = true }
 
 [[bin]]
-name = "tricorder"
+name = "test-tricorder"
 path = "src/main.rs"
 
 [build-dependencies]

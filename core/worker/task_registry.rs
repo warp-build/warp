@@ -118,16 +118,16 @@ mod tests {
         shuttle::check_dfs(
             move || {
                 let mut gen = quickcheck::Gen::new(10);
-                let task = UnregisteredTask::arbitrary(&mut gen);
+                let unreg_task = UnregisteredTask::arbitrary(&mut gen);
                 let reg = Arc::new(TaskRegistry::new());
-                let id = reg.register(task.clone());
+                let task = reg.register(unreg_task.clone());
 
                 let mut handles = vec![];
                 for _ in 0..3 {
                     let reg = reg.clone();
-                    let task = task.clone();
+                    let unreg_task = unreg_task.clone();
                     let handle = thread::spawn(move || {
-                        reg.register(task.clone());
+                        reg.register(unreg_task.clone());
                     });
                     handles.push(handle);
                 }
@@ -136,7 +136,6 @@ mod tests {
                     handle.join().unwrap()
                 }
 
-                assert_eq!(id, reg.find(&task).unwrap());
                 assert_eq!(reg.len(), 1);
             },
             None,

@@ -55,7 +55,9 @@ async fn can_be_called_with_no_targets() {
 
     let mut drive = WarpDriveMarkII::new(config).await.unwrap();
 
-    let results = drive.execute(Goal::Build, &["@all"]).await.unwrap();
+    let targets: Vec<String> = vec![];
+
+    let results = drive.execute(Goal::Build, &targets).await.unwrap();
 
     assert_eq!(results.len(), 0);
 }
