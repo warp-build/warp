@@ -7,7 +7,7 @@ const impl = (ctx) => {
   const cwd = Target.path(target);
 
   ctx.action().runShell({
-    script: `rustc src/main.rs`,
+    script: `rustc ${name}`,
   });
 
   const run = `main`;
