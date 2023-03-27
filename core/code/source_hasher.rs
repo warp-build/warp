@@ -1,7 +1,7 @@
 use sha2::{Digest, Sha256};
 use std::fs::File;
 use std::io::{BufReader, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use thiserror::*;
 
 pub struct SourceHasher;
@@ -11,7 +11,10 @@ impl SourceHasher {
     where
         P: AsRef<Path>,
     {
-        let f = File::open(file.as_ref())?;
+        let f = File::open(file.as_ref()).map_err(|err| SourceHasherError::CouldNotOpenSource {
+            file: file.as_ref().to_path_buf(),
+            err,
+        })?;
         let mut s = Sha256::new();
         let mut buffer = [0; 2048];
         let mut reader = BufReader::new(f);
@@ -27,12 +30,6 @@ impl SourceHasher {
 
 #[derive(Error, Debug)]
 pub enum SourceHasherError {
-    #[error("Source hasher could not open source file due to {err:?}")]
-    CouldNotOpenSource { err: std::io::Error },
-}
-
-impl From<std::io::Error> for SourceHasherError {
-    fn from(err: std::io::Error) -> Self {
-        SourceHasherError::CouldNotOpenSource { err }
-    }
+    #[error("Source hasher could not open source file at {file:?} due to {err:?}")]
+    CouldNotOpenSource { file: PathBuf, err: std::io::Error },
 }

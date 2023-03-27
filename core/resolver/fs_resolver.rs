@@ -81,7 +81,7 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             .test_matcher_id()
             .map(|id| self.test_matcher_registry.get_spec(id));
 
-        let source_hash = SourceHasher::hash(&final_path).await?;
+        let source_hash = SourceHasher::hash(&target.path()).await?;
 
         let ct = ConcreteTarget::builder()
             .goal(task.goal())

@@ -56,7 +56,6 @@ async fn can_be_called_with_no_targets() {
     let mut drive = WarpDriveMarkII::new(config).await.unwrap();
 
     let targets: Vec<String> = vec![];
-
     let results = drive.execute(Goal::Build, &targets).await.unwrap();
 
     assert_eq!(results.len(), 0);
@@ -165,12 +164,12 @@ async fn executes_target() {
 async fn packs_target() {
     let warp_root = assert_fs::TempDir::new().unwrap();
     // NOTE(@ostera): this line is useful for debugging the output directory when something goes wrong.
-    let warp_root = warp_root.into_persistent();
+    // let warp_root = warp_root.into_persistent();
     dbg!(&warp_root.path());
 
     let curr_workspace = assert_fs::TempDir::new().unwrap();
     // NOTE(@ostera): this line is useful for debugging the output directory when something goes wrong.
-    let curr_workspace = curr_workspace.into_persistent();
+    // let curr_workspace = curr_workspace.into_persistent();
     dbg!(&curr_workspace.path());
 
     let warpfile = curr_workspace.child(WARPFILE);
