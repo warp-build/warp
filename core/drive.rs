@@ -161,8 +161,6 @@ impl WarpDriveMarkII {
             .map(|unreg_task| self.shared_ctx.task_registry.register(unreg_task))
             .collect();
 
-        dbg!(&tasks);
-
         let results = self.worker_pool.execute(&tasks).await?;
 
         self.return_to_invocation_dir()?;
