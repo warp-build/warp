@@ -1,4 +1,6 @@
 defmodule Tricorder.Analysis.Erlang.Cerl do
+  require Logger
+
   @default_compile_opts [
     :no_copt,
     :return_errors,
@@ -12,7 +14,7 @@ defmodule Tricorder.Analysis.Erlang.Cerl do
 
   def compile(file, include_paths, code_paths) do
     for code_path <- code_paths do
-      code_path |> :binary.bin_to_list() |> :code.add_path()
+      true = code_path |> :binary.bin_to_list() |> :code.add_path()
     end
 
     compile_opts =
@@ -20,6 +22,8 @@ defmodule Tricorder.Analysis.Erlang.Cerl do
         for path <- include_paths, do: {:i, path}
 
     file = :binary.bin_to_list(file)
+
+    Logger.info("Compiling #{file} with opts #{inspect(compile_opts)} and paths #{inspect(code_paths)}")
 
     with {:ok, mod, core} <- :compile.noenv_file(file, compile_opts) do
       tree = :cerl.from_records(core)
