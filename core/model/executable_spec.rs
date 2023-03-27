@@ -171,7 +171,7 @@ impl ExecutableSpecBuilder {
             .chain(spec.deps().toolchains().iter())
             .map(|d| {
                 task_results
-                    .get_task_result(*d)
+                    .get_task_result(d)
                     .unwrap()
                     .artifact_manifest
                     .hash()

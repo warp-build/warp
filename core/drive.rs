@@ -2,21 +2,20 @@ use super::*;
 use crate::archive::ArchiveManager;
 use crate::code::{CodeDatabase, CodeDatabaseError};
 use crate::events::event::WorkflowEvent;
-
 use crate::executor::local::LocalExecutor;
-use crate::model::{Goal, Target, TestMatcher};
+use crate::model::{Goal, Target, Task, TestMatcher, UnregisteredTask};
 use crate::planner::DefaultPlanner;
-use crate::resolver::{DefaultResolver, ResolverError, TargetRegistry};
+use crate::resolver::{DefaultResolver, ResolverError, SignatureRegistry, TargetRegistry};
 use crate::rules::JsRuleExecutor;
 use crate::store::{DefaultStore, Package, Packer, PackerError};
 use crate::sync::Arc;
 use crate::testing::TestMatcherRegistry;
 use crate::tricorder::GrpcTricorder;
 use crate::worker::local::{LocalSharedContext, LocalWorker};
-use crate::worker::{Task, TaskResults, WorkerPool, WorkerPoolError};
+use crate::worker::{TaskRegistry, TaskResults, WorkerPool, WorkerPoolError};
 use crate::workspace::{WorkspaceManager, WorkspaceManagerError};
 use thiserror::*;
-use tracing::*;
+use tracing::{instrument, *};
 
 type MainResolver = DefaultResolver<GrpcTricorder>;
 type MainPlanner = DefaultPlanner<JsRuleExecutor>;
@@ -41,7 +40,7 @@ pub struct WarpDriveMarkII {
 }
 
 impl WarpDriveMarkII {
-    #[tracing::instrument(name = "WarpDriveMarkII::new")]
+    #[instrument(name = "WarpDriveMarkII::new")]
     pub async fn new(config: Config) -> Result<Self, WarpDriveError> {
         let workspace_manager = Arc::new(WorkspaceManager::new(config.clone()));
         workspace_manager.load_current_workspace(&config).await?;
@@ -50,11 +49,17 @@ impl WarpDriveMarkII {
         let store: Arc<DefaultStore> =
             DefaultStore::new(config.clone(), archive_manager.clone()).into();
 
+        let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
+        let signature_registry = Arc::new(SignatureRegistry::new());
 
         let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
 
-        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let task_results = Arc::new(TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        ));
 
         let code_db = Arc::new(CodeDatabase::new(config.clone())?);
 
@@ -62,6 +67,7 @@ impl WarpDriveMarkII {
             config.clone(),
             store.clone(),
             target_registry.clone(),
+            signature_registry.clone(),
             test_matcher_registry.clone(),
             archive_manager.clone(),
             workspace_manager.clone(),
@@ -71,7 +77,9 @@ impl WarpDriveMarkII {
 
         let shared_ctx = LocalSharedContext::new(
             config.clone(),
+            task_registry,
             target_registry.clone(),
+            signature_registry.clone(),
             test_matcher_registry.clone(),
             resolver,
             store,
@@ -98,26 +106,30 @@ impl WarpDriveMarkII {
 
     /// Test the `targets` according to the `spec`.
     ///
-    #[tracing::instrument(name = "WarpDriveMarkII::run_test", skip(self))]
-    pub async fn run_test<S, T>(
+    #[instrument(name = "WarpDriveMarkII::run_test", skip(self))]
+    pub async fn run_test<M, T>(
         &mut self,
-        spec: S,
+        matcher: M,
         targets: &[T],
     ) -> Result<Arc<TaskResults>, WarpDriveError>
     where
-        S: Into<TestMatcher> + std::fmt::Debug,
+        M: Into<TestMatcher> + std::fmt::Debug,
         T: Into<Target> + Clone + std::fmt::Debug,
     {
-        let matcher_id = self.shared_ctx.test_matcher_registry.register(spec);
-        let goal = Goal::Test {
-            matcher_id: Some(matcher_id),
+        let matcher: TestMatcher = matcher.into();
+        let matcher_id = if matcher.is_all() {
+            None
+        } else {
+            Some(self.shared_ctx.test_matcher_registry.register(matcher))
         };
+
+        let goal = Goal::Test { matcher_id };
         self.execute(goal, targets).await
     }
 
     /// Execute the `targets`.
     ///
-    #[tracing::instrument(name = "WarpDriveMarkII::execute", skip(self))]
+    #[instrument(name = "WarpDriveMarkII::execute", skip(self))]
     pub async fn execute<T>(
         &mut self,
         goal: Goal,
@@ -139,8 +151,17 @@ impl WarpDriveMarkII {
 
         let tasks: Vec<Task> = target_ids
             .into_iter()
-            .map(|target_id| Task::new(goal, target_id))
+            .map(|target_id| {
+                UnregisteredTask::builder()
+                    .goal(goal)
+                    .target_id(target_id)
+                    .build()
+                    .unwrap()
+            })
+            .map(|unreg_task| self.shared_ctx.task_registry.register(unreg_task))
             .collect();
+
+        dbg!(&tasks);
 
         let results = self.worker_pool.execute(&tasks).await?;
 
@@ -151,7 +172,7 @@ impl WarpDriveMarkII {
 
     /// Packs already built targets
     ///
-    #[tracing::instrument(name = "WarpDriveMarkII::pack", skip(self))]
+    #[instrument(name = "WarpDriveMarkII::pack", skip(self))]
     pub async fn pack(&mut self, target: Target) -> Result<Package, WarpDriveError> {
         let result = self.packer.pack(target).await?;
         Ok(result)

@@ -1,6 +1,7 @@
 use super::{DefaultPlannerContext, Dependencies, Planner, PlannerError, PlanningFlow};
-use crate::model::{ExecutableSpec, ExecutionEnvironment, Goal, Signature, TargetId};
+use crate::model::{ExecutableSpec, ExecutionEnvironment, Signature, Task, UnregisteredTask};
 use crate::rules::RuleExecutor;
+use crate::Goal;
 use async_trait::async_trait;
 use tracing::instrument;
 
@@ -27,50 +28,23 @@ where
     #[instrument(name = "DefaultPlanner::plan", skip(self, env))]
     async fn plan(
         &mut self,
-        goal: Goal,
-        sig: Signature,
+        task: Task,
+        sig: &Signature,
         env: ExecutionEnvironment,
     ) -> Result<PlanningFlow, PlannerError> {
         let planning_start_time = chrono::Utc::now();
 
-        /*
-        if let Some(mut spec) = self.ctx.code_db.get_executable_spec(&sig).unwrap() {
-            spec.set_target(sig.target().clone());
-            spec.set_signature(sig);
-
-            let deps = spec.deps().rehydrate();
-
-            return Ok(PlanningFlow::Planned { spec });
-        }
-        */
-
-        let target_id = sig.target().target_id();
-
-        // TODO(@ostera): these can also be toolchains, so we should split 'em up
-        let _prior_deps: Vec<TargetId> = self
-            .ctx
-            .task_results
-            .get_task_deps(target_id)
-            .into_iter()
-            .map(|(spec, _manifest)| spec.target().target_id())
-            .collect();
-
-        let deps = self.ctx.target_registry.register_many_targets(sig.deps());
-        let compile_deps = match self._deps(target_id, &deps, DepKind::Compile) {
+        let compile_deps = match self._deps(task, sig.deps(), DepKind::Compile) {
             DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
             DepFinderFlow::AllDepsFound(deps) => deps, //vec![deps, prior_deps].concat(),
         };
 
-        let runtime_deps = self
-            .ctx
-            .target_registry
-            .register_many_targets(sig.runtime_deps());
-        let runtime_deps = match self._deps(target_id, &runtime_deps, DepKind::Runtime) {
+        let runtime_deps = match self._deps(task, sig.runtime_deps(), DepKind::Runtime) {
             DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
             DepFinderFlow::AllDepsFound(deps) => deps,
         };
 
-        let transitive_deps = match self._deps(target_id, &compile_deps, DepKind::Transitive) {
+        let transitive_deps = match self._deps(task, &compile_deps, DepKind::Transitive) {
             DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
             DepFinderFlow::AllDepsFound(deps) => deps,
         };
@@ -82,14 +56,24 @@ where
             .runtime_deps(runtime_deps)
             .build()?;
 
-        let plan = self.rule_executor.execute(&env, &sig, &deps).await?;
+        let plan = self.rule_executor.execute(&env, sig, &deps).await?;
 
-        let toolchains = self
+        let toolchains: Vec<Task> = self
             .ctx
             .target_registry
-            .register_many_targets(&plan.toolchains);
+            .register_many_targets(&plan.toolchains)
+            .into_iter()
+            .map(|id| {
+                UnregisteredTask::builder()
+                    .goal(Goal::Build)
+                    .target_id(id)
+                    .build()
+                    .unwrap()
+            })
+            .map(|unreg_task| self.ctx.task_registry.register(unreg_task))
+            .collect();
 
-        match self._deps(sig.target().target_id(), &toolchains, DepKind::Toolchain) {
+        match self._deps(task, &toolchains, DepKind::Toolchain) {
             DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
             DepFinderFlow::AllDepsFound(toolchains) => deps.set_toolchains(toolchains),
         };
@@ -97,7 +81,7 @@ where
         let planning_end_time = chrono::Utc::now();
 
         let spec = ExecutableSpec::builder()
-            .goal(goal)
+            .goal(task.goal())
             .target(sig.target().clone())
             .signature(sig.clone())
             .exec_env(env)
@@ -118,12 +102,12 @@ where
 }
 
 impl<RE: RuleExecutor> DefaultPlanner<RE> {
-    fn _deps(&self, target: TargetId, deps: &[TargetId], kind: DepKind) -> DepFinderFlow {
-        let mut collected_deps: Vec<TargetId> = vec![];
-        let mut missing_deps: Vec<TargetId> = vec![];
+    fn _deps(&self, task: Task, deps: &[Task], kind: DepKind) -> DepFinderFlow {
+        let mut collected_deps: Vec<Task> = vec![];
+        let mut missing_deps: Vec<Task> = vec![];
 
-        let mut pending: Vec<TargetId> = deps.to_vec();
-        let mut visited: Vec<TargetId> = vec![target];
+        let mut pending: Vec<Task> = deps.to_vec();
+        let mut visited: Vec<Task> = vec![task];
 
         while let Some(dep) = pending.pop() {
             if visited.contains(&dep) {
@@ -131,9 +115,9 @@ impl<RE: RuleExecutor> DefaultPlanner<RE> {
             }
             visited.push(dep);
 
-            if self.ctx.task_results.is_target_built(dep) {
+            if self.ctx.task_results.is_task_completed(dep) {
                 collected_deps.push(dep);
-                if let Some(task_result) = self.ctx.task_results.get_task_result(dep) {
+                if let Some(task_result) = self.ctx.task_results.get_task_result(&dep) {
                     let deps = task_result.executable_spec.deps();
                     pending.extend(match kind {
                         DepKind::Compile => deps.compile_deps(),
@@ -163,19 +147,19 @@ enum DepKind {
 }
 
 enum DepFinderFlow {
-    AllDepsFound(Vec<TargetId>),
-    MissingDeps(Vec<TargetId>),
+    AllDepsFound(Vec<Task>),
+    MissingDeps(Vec<Task>),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::ConcreteTarget;
-    use crate::resolver::TargetRegistry;
+    use crate::resolver::{SignatureRegistry, TargetRegistry};
     use crate::rules::{ExecutionResult, RuleExecutorError, RuleStore};
     use crate::store::ArtifactManifest;
     use crate::sync::Arc;
-    use crate::worker::TaskResults;
+    use crate::worker::{TaskRegistry, TaskResults};
     use crate::{Config, Goal};
 
     struct NoopRuleExecutor;
@@ -201,9 +185,22 @@ mod tests {
     async fn plans_a_signature_for_execution() {
         let config = Config::builder().build().unwrap();
         let rule_store = RuleStore::new(&config).into();
+        let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
-        let task_results = TaskResults::new(target_registry.clone()).into();
-        let ctx = DefaultPlannerContext::new(target_registry, task_results, rule_store);
+        let signature_registry = Arc::new(SignatureRegistry::new());
+        let task_results = TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        )
+        .into();
+        let ctx = DefaultPlannerContext::new(
+            task_registry.clone(),
+            target_registry,
+            signature_registry,
+            task_results,
+            rule_store,
+        );
 
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
@@ -211,15 +208,23 @@ mod tests {
         let target = ConcreteTarget::new(goal, target_id, target, "".into(), ".".into());
 
         let sig = Signature::builder()
-            .rule("test_rule".into())
+            .name("test_signature")
+            .rule("test_rule")
             .target(target)
             .build()
             .unwrap();
 
         let env = ExecutionEnvironment::default();
 
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = task_registry.register(unreg_task);
+
         let mut p: DefaultPlanner<NoopRuleExecutor> = DefaultPlanner::new(ctx).unwrap();
-        let flow = p.plan(goal, sig.clone(), env).await.unwrap();
+        let flow = p.plan(task, &sig, env).await.unwrap();
 
         assert_matches!(flow, PlanningFlow::Planned { spec } if spec.target() == sig.target());
     }
@@ -228,9 +233,22 @@ mod tests {
     async fn finds_built_dependencies() {
         let config = Config::builder().build().unwrap();
         let rule_store = RuleStore::new(&config).into();
+        let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
-        let task_results = TaskResults::new(target_registry.clone()).into();
-        let ctx = DefaultPlannerContext::new(target_registry, task_results, rule_store);
+        let signature_registry = Arc::new(SignatureRegistry::new());
+        let task_results = TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        )
+        .into();
+        let ctx = DefaultPlannerContext::new(
+            task_registry.clone(),
+            target_registry,
+            signature_registry,
+            task_results,
+            rule_store,
+        );
 
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
@@ -244,12 +262,13 @@ mod tests {
 
         let env = ExecutionEnvironment::default();
         let dep_spec = ExecutableSpec::builder()
-            .goal(goal)
+            .goal(Goal::Build)
             .target(dep_target.clone())
             .signature(
                 Signature::builder()
+                    .name("test_signature")
                     .target(dep_target.clone())
-                    .rule("test_rule".into())
+                    .rule("test_rule")
                     .build()
                     .unwrap(),
             )
@@ -257,22 +276,37 @@ mod tests {
             .hash_and_build(&ctx.task_results)
             .unwrap();
         let dep_manifest = ArtifactManifest::default();
+        let unreg_task = UnregisteredTask::builder()
+            .goal(Goal::Build)
+            .target_id(dep_target_id)
+            .build()
+            .unwrap();
+        let dep_task = task_registry.register(unreg_task);
+
         ctx.task_results
-            .add_task_result(dep_target_id, dep_spec, dep_manifest);
+            .add_task_result(dep_task, dep_spec, dep_manifest);
 
         let sig = Signature::builder()
-            .rule("test_rule".into())
+            .name("test_signature")
+            .rule("test_rule")
             .target(target.clone())
-            .deps(vec![(*dep_target.original_target()).clone()])
+            .deps(vec![dep_task])
             .build()
             .unwrap();
 
+        let unreg_task = UnregisteredTask::builder()
+            .goal(Goal::Build)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = task_registry.register(unreg_task);
+
         let mut p: DefaultPlanner<NoopRuleExecutor> = DefaultPlanner::new(ctx).unwrap();
-        let flow = p.plan(goal, sig.clone(), env).await.unwrap();
+        let flow = p.plan(task, &sig, env).await.unwrap();
 
         assert_matches!(flow, PlanningFlow::Planned { spec } => {
             assert_eq!(*spec.target(), target);
-            assert_eq!(*spec.deps().compile_deps().get(0).unwrap(), dep_target_id);
+            assert_eq!(spec.deps().compile_deps().get(0).unwrap().target_id(), dep_target_id);
         });
     }
 
@@ -280,28 +314,64 @@ mod tests {
     async fn when_missing_dependencies_we_abort() {
         let config = Config::builder().build().unwrap();
         let rule_store = RuleStore::new(&config).into();
+        let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
-        let task_results = TaskResults::new(target_registry.clone()).into();
-        let ctx = DefaultPlannerContext::new(target_registry, task_results, rule_store);
+        let signature_registry = Arc::new(SignatureRegistry::new());
+        let task_results = TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        )
+        .into();
+        let ctx = DefaultPlannerContext::new(
+            task_registry,
+            target_registry,
+            signature_registry,
+            task_results,
+            rule_store,
+        );
 
         let goal = Goal::Build;
         let target = Arc::new("./my/file.ex".into());
         let target_id = ctx.target_registry.register_target(&target);
         let target = ConcreteTarget::new(goal, target_id, target, "".into(), ".".into());
 
-        let sig = Signature::builder()
-            .rule("test_rule".into())
-            .target(target)
-            .deps(vec!["./my/dep.ex".into()])
+        let dep_target = Arc::new("./my/dep.ex".into());
+        let dep_target_id = ctx.target_registry.register_target(&dep_target);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(Goal::Build)
+            .target_id(dep_target_id)
             .build()
             .unwrap();
+        let dep_task = ctx.task_registry.register(unreg_task);
+        dbg!(&dep_task);
+
+        let sig = Signature::builder()
+            .name("test_signature")
+            .rule("test_rule")
+            .target(target)
+            .deps(vec![dep_task])
+            .build()
+            .unwrap();
+
+        let sig_id = ctx.signature_registry.register(sig.clone());
+
+        let unreg_task = UnregisteredTask::builder()
+            .goal(Goal::Build)
+            .target_id(target_id)
+            .signature_id(sig_id)
+            .build()
+            .unwrap();
+        let task = ctx.task_registry.register(unreg_task);
+        dbg!(&task);
 
         let env = ExecutionEnvironment::default();
 
         let mut p: DefaultPlanner<NoopRuleExecutor> = DefaultPlanner::new(ctx).unwrap();
-        let flow = p.plan(goal, sig.clone(), env).await.unwrap();
+        let flow = p.plan(task, &sig, env).await.unwrap();
 
         assert_matches!(flow, PlanningFlow::MissingDeps { deps } => {
+            dbg!(&deps);
             assert!(!deps.is_empty());
         });
     }

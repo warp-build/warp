@@ -1,14 +1,14 @@
-use super::TargetId;
+use super::Task;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Builder, Debug, Default, Clone, Serialize, Deserialize)]
 #[builder(build_fn(error = "DependenciesError"))]
 pub struct Dependencies {
-    toolchains: Vec<TargetId>,
-    compile_deps: Vec<TargetId>,
-    transitive_deps: Vec<TargetId>,
-    runtime_deps: Vec<TargetId>,
+    toolchains: Vec<Task>,
+    compile_deps: Vec<Task>,
+    transitive_deps: Vec<Task>,
+    runtime_deps: Vec<Task>,
 }
 
 impl Dependencies {
@@ -16,23 +16,23 @@ impl Dependencies {
         Default::default()
     }
 
-    pub fn toolchains(&self) -> &[TargetId] {
+    pub fn toolchains(&self) -> &[Task] {
         self.toolchains.as_ref()
     }
 
-    pub fn compile_deps(&self) -> &[TargetId] {
+    pub fn compile_deps(&self) -> &[Task] {
         self.compile_deps.as_ref()
     }
 
-    pub fn transitive_deps(&self) -> &[TargetId] {
+    pub fn transitive_deps(&self) -> &[Task] {
         self.transitive_deps.as_ref()
     }
 
-    pub fn runtime_deps(&self) -> &[TargetId] {
+    pub fn runtime_deps(&self) -> &[Task] {
         self.runtime_deps.as_ref()
     }
 
-    pub fn set_toolchains(&mut self, toolchains: Vec<TargetId>) {
+    pub fn set_toolchains(&mut self, toolchains: Vec<Task>) {
         self.toolchains = toolchains;
     }
 }

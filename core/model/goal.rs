@@ -79,6 +79,13 @@ impl Goal {
         }
         None
     }
+
+    pub fn from_rule_name(rule: &str) -> Goal {
+        if rule.ends_with("_test") {
+            return Goal::Test { matcher_id: None };
+        }
+        Goal::Build
+    }
 }
 
 impl FromStr for Goal {

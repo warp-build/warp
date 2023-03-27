@@ -1,12 +1,11 @@
 use super::{ResolverError, TargetRegistry};
 use crate::archive::ArchiveManager;
 use crate::code::CodeDatabase;
-use crate::model::{ConcreteTarget, RemoteTarget, TargetId};
+use crate::model::{ConcreteTarget, RemoteTarget, Task};
 use crate::store::DefaultStore;
 use crate::sync::Arc;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
 use crate::workspace::WorkspaceManager;
-use crate::Goal;
 use tracing::instrument;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
@@ -60,8 +59,7 @@ impl<T: Tricorder + Clone + 'static> NetResolver<T> {
     #[instrument(name = "NetResolver::resolve", skip(self))]
     pub async fn resolve(
         &self,
-        goal: Goal,
-        target_id: TargetId,
+        task: Task,
         target: &RemoteTarget,
     ) -> Result<SignatureGenerationFlow, ResolverError> {
         let workspace_id = self
@@ -70,9 +68,9 @@ impl<T: Tricorder + Clone + 'static> NetResolver<T> {
         let workspace = self.workspace_manager.get_workspace(workspace_id);
 
         let ct = ConcreteTarget::builder()
-            .goal(goal)
-            .target_id(target_id)
-            .target(self.target_registry.get_target(target_id))
+            .goal(task.goal())
+            .target_id(task.target_id())
+            .target(self.target_registry.get_target(task.target_id()))
             .path(target.subpath().unwrap())
             .workspace_root(workspace.root())
             .build()
@@ -80,7 +78,7 @@ impl<T: Tricorder + Clone + 'static> NetResolver<T> {
 
         let ct = self
             .target_registry
-            .associate_concrete_target(target_id, ct);
+            .associate_concrete_target(task.target_id(), ct);
 
         let archive = if let Some(mut archive) = self.archive_manager.find(&target.url()).await? {
             archive.set_final_path(workspace.root().to_path_buf());
@@ -94,10 +92,13 @@ impl<T: Tricorder + Clone + 'static> NetResolver<T> {
 
         if let Some(mut signature) = self.code_db.get_signature(&ct, archive.hash())? {
             let mut ct = signature.target().clone();
-            ct.set_target(self.target_registry.get_target(target_id), target_id);
+            ct.set_target(
+                self.target_registry.get_target(task.target_id()),
+                task.target_id(),
+            );
             let ct = self
                 .target_registry
-                .associate_concrete_target(target_id, ct);
+                .associate_concrete_target(task.target_id(), ct);
             signature.set_target((*ct).clone());
             return Ok(SignatureGenerationFlow::GeneratedSignatures {
                 signatures: vec![signature],
@@ -111,7 +112,7 @@ impl<T: Tricorder + Clone + 'static> NetResolver<T> {
         {
             tricorder
         } else {
-            return Ok(SignatureGenerationFlow::IgnoredTarget(target_id));
+            return Ok(SignatureGenerationFlow::IgnoredTarget(task.target_id()));
         };
 
         let sig = tricorder.ready_dependency(&ct, &archive).await?;

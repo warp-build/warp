@@ -15,9 +15,17 @@ pub enum ArchiveEvent {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum QueueEvent {
-    TargetQueued { target_id: String, target: String },
-    TargetSkipped { target: String },
-    TargetsQueued { target_count: u64 },
+    TaskQueued {
+        target: String,
+        signature: Option<String>,
+    },
+    TaskSkipped {
+        target: String,
+        signature: Option<String>,
+    },
+    TargetsQueued {
+        target_count: u64,
+    },
     QueueingWorkspace,
 }
 
@@ -30,13 +38,13 @@ pub enum TricorderEvent {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum WorkerEvent {
     TargetBuildStarted {
-        target: Target,
         goal: Goal,
+        target: Target,
     },
     TargetBuildCompleted {
-        cache_status: CacheStatus,
-        target: Target,
         goal: Goal,
+        target: Target,
+        cache_status: CacheStatus,
     },
     BuildError {
         target: String,

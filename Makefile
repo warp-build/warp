@@ -91,8 +91,8 @@ test.beam:
 .PHONY: test.tricorder
 test.tricorder:
 	cargo build --package test-tricorder \
-		&& cp target/debug/test-tricorder ./tests/test_tricorder \
-		&& cd ./tests/test_tricorder \
+		&& cp target/debug/test-tricorder ./core/tests/test_tricorder \
+		&& cd ./core/tests/test_tricorder \
 		&& tar czf package.tar.gz test-tricorder Manifest.json
 
 .PHONY: test.unit

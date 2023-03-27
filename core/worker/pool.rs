@@ -65,9 +65,9 @@ impl<Ctx: Context + 'static, W: Worker<Context = Ctx>> WorkerPool<W> {
             futures::future::join(main_worker, futures::future::join_all(worker_tasks)).await;
 
         for task_result in helper_results {
-            task_result.unwrap()?;
+            task_result??;
         }
-        main_result.unwrap()?;
+        main_result??;
 
         self.event_channel.send(WorkflowEvent::build_completed());
 
@@ -109,12 +109,14 @@ impl From<WorkerError> for WorkerPoolError {
 mod tests {
     use super::*;
     use crate::code::CodeDatabase;
-
     use crate::model::{
         ConcreteTarget, ExecutableSpec, ExecutionEnvironment, Goal, Signature, Target, TargetId,
+        UnregisteredTask,
     };
     use crate::planner::{Planner, PlannerError, PlanningFlow};
-    use crate::resolver::{ResolutionFlow, Resolver, ResolverError, TargetRegistry};
+    use crate::resolver::{
+        ResolutionFlow, Resolver, ResolverError, SignatureRegistry, TargetRegistry,
+    };
     use crate::store::{ArtifactManifest, Store, StoreError};
     use crate::testing::TestMatcherRegistry;
     use crate::worker::local::LocalSharedContext;
@@ -183,8 +185,7 @@ mod tests {
     impl Resolver for NoopResolver {
         async fn resolve(
             &self,
-            _goal: Goal,
-            _target_id: TargetId,
+            _task: Task,
             _target: Arc<Target>,
         ) -> Result<ResolutionFlow, ResolverError> {
             Ok(ResolutionFlow::IncompatibleTarget)
@@ -206,8 +207,8 @@ mod tests {
 
         async fn plan(
             &mut self,
-            _goal: Goal,
-            _sig: Signature,
+            _task: Task,
+            _sig: &Signature,
             _env: ExecutionEnvironment,
         ) -> Result<PlanningFlow, PlannerError> {
             Ok(PlanningFlow::MissingDeps { deps: vec![] })
@@ -235,13 +236,21 @@ mod tests {
         let config = Config::default();
 
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
+        let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
+        let signature_registry = Arc::new(SignatureRegistry::new());
         let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
-        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let task_results = Arc::new(TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        ));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             config.clone(),
+            task_registry,
             target_registry,
+            signature_registry,
             test_matcher_registry,
             NoopResolver,
             NoopStore.into(),
@@ -269,7 +278,9 @@ mod tests {
         input_file.touch().unwrap();
 
         // Make our new file our target
+        let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
+        let signature_registry = Arc::new(SignatureRegistry::new());
         let target: Target = input_file.path().into();
         let target_id = target_registry.register_target(&target);
 
@@ -278,6 +289,7 @@ mod tests {
             goal: Goal,
             target_id: TargetId,
             target: ConcreteTarget,
+            task_registry: Arc<TaskRegistry>,
             task_results: Arc<TaskResults>,
             env: ExecutionEnvironment,
         }
@@ -296,7 +308,12 @@ mod tests {
                 "".into(),
                 "".into(),
             ),
-            task_results: Arc::new(TaskResults::new(target_registry.clone())),
+            task_registry: task_registry.clone(),
+            task_results: Arc::new(TaskResults::new(
+                task_registry.clone(),
+                target_registry.clone(),
+                signature_registry,
+            )),
             env: Default::default(),
         };
 
@@ -319,8 +336,9 @@ mod tests {
                     .target(self.ctx.target.clone())
                     .signature(
                         Signature::builder()
+                            .name("test_signature")
                             .target(self.ctx.target.clone())
-                            .rule("test_rule".into())
+                            .rule("test_rule")
                             .build()
                             .unwrap(),
                     )
@@ -328,9 +346,14 @@ mod tests {
                     .hash_and_build(&*self.ctx.task_results)
                     .unwrap();
 
-                self.ctx
-                    .task_results
-                    .add_task_result(self.ctx.target_id, spec, manifest);
+                let unreg_task = UnregisteredTask::builder()
+                    .goal(self.ctx.goal)
+                    .target_id(self.ctx.target_id)
+                    .build()
+                    .unwrap();
+                let task = self.ctx.task_registry.register(unreg_task);
+
+                self.ctx.task_results.add_task_result(task, spec, manifest);
                 Ok(())
             }
         }
@@ -344,10 +367,13 @@ mod tests {
             .build()
             .unwrap();
         let pool: WorkerPool<FixtureWorker> = WorkerPool::from_shared_context(config, ctx);
-        let results = pool
-            .execute(&[Task::new(Goal::Build, target_id)])
-            .await
+        let unreg_task = UnregisteredTask::builder()
+            .goal(Goal::Build)
+            .target_id(target_id)
+            .build()
             .unwrap();
+        let task = task_registry.register(unreg_task);
+        let results = pool.execute(&[task]).await.unwrap();
         assert_eq!(results.len(), 1);
     }
 }

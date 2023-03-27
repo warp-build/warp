@@ -3,14 +3,14 @@ use crate::config::Config;
 use crate::events::EventChannel;
 use crate::executor::local::LocalExecutorContext;
 use crate::planner::DefaultPlannerContext;
-use crate::resolver::{Resolver, TargetRegistry};
+use crate::resolver::{Resolver, SignatureRegistry, TargetRegistry};
 use crate::rules::RuleStore;
 use crate::store::{DefaultStore, Store};
 use crate::sync::Arc;
 use crate::testing::TestMatcherRegistry;
 use crate::worker::coordinator::Coordinator;
 use crate::worker::task_queue::TaskQueue;
-use crate::worker::{Context, TaskResults};
+use crate::worker::{Context, TaskRegistry, TaskResults};
 use crate::workspace::WorkspaceManager;
 
 /// A shared execution context for workers. This includes all of subsystems that need to be
@@ -30,7 +30,9 @@ pub struct LocalSharedContext<R: Resolver, S: Store> {
     pub(crate) event_channel: Arc<EventChannel>,
     pub(crate) resolver: Arc<R>,
     pub(crate) rule_store: Arc<RuleStore>,
+    pub(crate) task_registry: Arc<TaskRegistry>,
     pub(crate) target_registry: Arc<TargetRegistry>,
+    pub(crate) signature_registry: Arc<SignatureRegistry>,
     pub(crate) task_queue: Arc<TaskQueue>,
     pub(crate) task_results: Arc<TaskResults>,
     pub(crate) test_matcher_registry: Arc<TestMatcherRegistry>,
@@ -55,7 +57,9 @@ where
     )]
     pub fn new(
         config: Config,
+        task_registry: Arc<TaskRegistry>,
         target_registry: Arc<TargetRegistry>,
+        signature_registry: Arc<SignatureRegistry>,
         test_matcher_registry: Arc<TestMatcherRegistry>,
         resolver: R,
         artifact_store: Arc<S>,
@@ -68,7 +72,9 @@ where
         let task_queue = Arc::new(TaskQueue::new(
             &config,
             task_results.clone(),
+            task_registry.clone(),
             target_registry.clone(),
+            signature_registry.clone(),
         ));
 
         let resolver = Arc::new(resolver);
@@ -82,8 +88,10 @@ where
             event_channel: config.event_channel(),
             resolver,
             rule_store,
+            signature_registry,
             target_registry,
             task_queue,
+            task_registry,
             task_results,
             test_matcher_registry,
             workspace_manager,
@@ -109,7 +117,13 @@ impl<R: Resolver> From<LocalSharedContext<R, DefaultStore>> for LocalExecutorCon
 
 impl<R: Resolver> From<LocalSharedContext<R, DefaultStore>> for DefaultPlannerContext {
     fn from(ctx: LocalSharedContext<R, DefaultStore>) -> Self {
-        Self::new(ctx.target_registry, ctx.task_results, ctx.rule_store)
+        Self::new(
+            ctx.task_registry,
+            ctx.target_registry,
+            ctx.signature_registry,
+            ctx.task_results,
+            ctx.rule_store,
+        )
     }
 }
 

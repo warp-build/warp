@@ -4,7 +4,7 @@ mod reporter;
 
 use commands::*;
 use structopt::StructOpt;
-use tracing::{error, log};
+use tracing::log;
 
 #[derive(StructOpt, Debug, Clone)]
 #[structopt(
@@ -34,18 +34,11 @@ impl Warp {
             .try_init()
             .unwrap();
 
-        let result = self
-            .cmd
+        self.cmd
             .take()
             .unwrap_or_else(|| Command::Build(BuildCommand::all()))
             .run()
-            .await;
-
-        if let Err(ref err) = result {
-            error!("{:?}", &err);
-        };
-
-        result
+            .await
     }
 }
 
@@ -74,5 +67,5 @@ impl Command {
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), anyhow::Error> {
-    Warp::from_args().run().await.map(|_| ())
+    Warp::from_args().run().await
 }

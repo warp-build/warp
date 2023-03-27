@@ -6,7 +6,7 @@ pub mod local;
 
 pub use error::*;
 
-use crate::model::{CacheStatus, ExecutableSpec, TargetId};
+use crate::model::{CacheStatus, ExecutableSpec, Task};
 use crate::store::ArtifactManifest;
 use async_trait::async_trait;
 use std::path::PathBuf;
@@ -17,7 +17,7 @@ pub enum ExecutionFlow {
 
     ValidationError(ValidationStatus),
 
-    MissingDeps { deps: Vec<TargetId> },
+    MissingDeps { deps: Vec<Task> },
 }
 
 #[derive(Debug)]

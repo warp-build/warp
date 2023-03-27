@@ -1,32 +1,22 @@
 use super::*;
 use crate::events::event::QueueEvent;
 use crate::events::EventChannel;
-use crate::model::TargetId;
-use crate::resolver::TargetRegistry;
+use crate::model::TaskId;
+use crate::resolver::{SignatureRegistry, TargetRegistry};
 use crate::sync::{Arc, Mutex, RwLock};
 use crate::Config;
 use dashmap::{DashMap, DashSet};
 use fxhash::FxHashSet;
 use thiserror::*;
-use tracing::*;
+use tracing::{instrument, *};
 
 #[derive(Error, Debug)]
 pub enum TaskQueueError {
     #[error("Cannot queue the @all target")]
-    CannotQueueTargetAll,
+    CannotQueueTaskAll,
 
     #[error(transparent)]
     DependencyCycle(TaskResultError),
-    /*
-    #[error(transparent)]
-    WorkspaceScannerError(WorkspaceScannerError),
-
-    #[error(transparent)]
-    FileScannerError(FileScannerError),
-
-    #[error(transparent)]
-    BuildfileError(anyhow::Error),
-    */
 }
 
 #[derive(Debug, Clone)]
@@ -39,28 +29,32 @@ pub enum QueuedTask {
 ///
 #[derive(Default, Debug)]
 pub struct TaskQueue {
-    /// Targets currently being built.
-    busy_targets: Arc<DashSet<TargetId>>,
+    /// Tasks currently being built.
+    busy_tasks: Arc<DashSet<TaskId>>,
 
-    /// Targets currently being built.
-    in_queue_targets: Arc<DashSet<TargetId>>,
+    /// Tasks currently being built.
+    in_queue_tasks: Arc<DashSet<TaskId>>,
 
     /// The queue from which workers pull work.
-    inner_queue: Arc<crossbeam::deque::Injector<Task>>,
+    inner_queue: Arc<crossbeam::deque::Injector<TaskId>>,
 
     /// A backup queue used for set-aside targets.
-    wait_queue: Arc<RwLock<FxHashSet<Task>>>,
+    wait_queue: Arc<RwLock<FxHashSet<TaskId>>>,
 
     /// The list of dependencies needed for a target to be pushed out of the wait queue.
-    wait_queue_deps: Arc<DashMap<Task, DashSet<TargetId>>>,
+    wait_queue_deps: Arc<DashMap<TaskId, DashSet<TaskId>>>,
 
-    /// Targets already built.
+    /// Tasks already built.
     task_results: Arc<TaskResults>,
 
+    /// Tasks already built.
+    task_registry: Arc<TaskRegistry>,
+
     /// The targets that have been successfully queued.
-    all_queued_targets: Arc<DashSet<TargetId>>,
+    all_queued_tasks: Arc<DashSet<TaskId>>,
 
     target_registry: Arc<TargetRegistry>,
+    signature_registry: Arc<SignatureRegistry>,
 
     event_channel: Arc<EventChannel>,
 
@@ -70,149 +64,183 @@ pub struct TaskQueue {
 }
 
 impl TaskQueue {
-    #[tracing::instrument(name = "TaskQueue::new", skip(target_registry))]
+    #[instrument(name = "TaskQueue::new", skip(target_registry))]
     pub fn new(
         config: &Config,
         task_results: Arc<TaskResults>,
+        task_registry: Arc<TaskRegistry>,
         target_registry: Arc<TargetRegistry>,
+        signature_registry: Arc<SignatureRegistry>,
     ) -> TaskQueue {
         TaskQueue {
-            busy_targets: Arc::new(DashSet::new()),
-            in_queue_targets: Arc::new(DashSet::new()),
+            busy_tasks: Arc::new(DashSet::new()),
+            in_queue_tasks: Arc::new(DashSet::new()),
             inner_queue: Arc::new(crossbeam::deque::Injector::new()),
             wait_queue: Arc::new(RwLock::new(FxHashSet::default())),
             wait_queue_deps: Arc::new(DashMap::new()),
             task_results,
-            all_queued_targets: Arc::new(DashSet::default()),
+            all_queued_tasks: Arc::new(DashSet::default()),
+            task_registry,
             target_registry,
+            signature_registry,
             _queue_lock: Arc::new(Mutex::new(())),
             event_channel: config.event_channel(),
         }
     }
 
-    #[tracing::instrument(name = "TaskQueue::next", skip(self))]
+    #[instrument(name = "TaskQueue::next", skip(self))]
     pub fn next(&self) -> Option<Task> {
         let _lock = self._queue_lock.lock().unwrap();
         loop {
-            let task = if let crossbeam::deque::Steal::Success(task) = self.inner_queue.steal() {
-                task
-            } else if let Ok(mut wait_queue) = self.wait_queue.write() {
-                debug!("Inspecting wait_queue");
-                let mut task: Option<Task> = None;
+            let (task_id, task) =
+                if let crossbeam::deque::Steal::Success(task_id) = self.inner_queue.steal() {
+                    debug!("Stole an id from the queue: {:#?}", task_id);
+                    (task_id, self.task_registry.get(task_id))
+                } else if let Ok(mut wait_queue) = self.wait_queue.write() {
+                    debug!("Inspecting wait_queue");
+                    let mut task_id: Option<TaskId> = None;
 
-                'wait_queue: for t in &*wait_queue {
-                    debug!(
-                        "Found task {:?}",
-                        self.target_registry.get_target(t.target_id).to_string()
-                    );
-                    if let Some(deps) = self.wait_queue_deps.get(t) {
-                        for dep in (*deps).iter() {
-                            debug!("-> {:?}", self.target_registry.get_target(*dep).to_string());
-                            if !self.task_results.is_target_built(*dep) {
-                                debug!("not built! skipping");
-                                continue 'wait_queue;
+                    'wait_queue: for t in &*wait_queue {
+                        debug!(
+                            "Found task {} {:#?}",
+                            {
+                                let task = self.task_registry.get(*t);
+                                self.target_registry
+                                    .get_target(task.target_id())
+                                    .to_string()
+                            },
+                            *t
+                        );
+                        if let Some(deps) = self.wait_queue_deps.get(t) {
+                            for dep in (*deps).iter() {
+                                let dep = self.task_registry.get(*dep);
+                                debug!(
+                                    "-> {:?} {:#?}",
+                                    self.target_registry.get_target(dep.target_id()).to_string(),
+                                    dep.id()
+                                );
+                                if !self.task_results.is_task_completed(dep) {
+                                    debug!("missing dependency! skipping");
+                                    continue 'wait_queue;
+                                }
                             }
+                            task_id = Some(*t);
+                        } else {
+                            task_id = Some(*t);
                         }
-                        task = Some(*t);
-                    } else {
-                        task = Some(*t);
                     }
-                }
 
-                let task = task?;
-                debug!(
-                    "pulling {}",
-                    self.target_registry.get_target(task.target_id).to_string()
-                );
-                wait_queue.remove(&task);
-                task
-            } else {
-                return None;
-            };
+                    let task_id = task_id?;
+                    let task = self.task_registry.get(task_id);
+                    debug!(
+                        "pulling {}",
+                        self.target_registry
+                            .get_target(task.target_id())
+                            .to_string()
+                    );
+                    wait_queue.remove(&task_id);
+                    (task_id, task)
+                } else {
+                    return None;
+                };
 
             // If the target is already computed or being computed, we can skip it
             // and try to fetch the next one immediately.
             //
             // When the queue empties up, this will return a None, but otherwise
             // we'll go through a bunch of duplicates, discarding them.
-            if self.busy_targets.contains(&task.target_id)
-                || self.task_results.is_target_built(task.target_id)
-            {
+            if self.busy_tasks.contains(&task_id) || self.task_results.is_task_completed(task) {
                 continue;
             }
 
             // But if it is yet to be built, we mark it as busy
-            self.busy_targets.insert(task.target_id);
-            self.in_queue_targets.remove(&task.target_id);
+            self.busy_tasks.insert(task_id);
+            self.in_queue_tasks.remove(&task_id);
             return Some(task);
         }
     }
 
-    #[tracing::instrument(name = "TaskQueue::ack", skip(self))]
+    #[instrument(name = "TaskQueue::ack", skip(self))]
     pub fn ack(&self, task: Task) {
-        self.busy_targets.remove(&task.target_id);
+        self.busy_tasks.remove(task.id());
     }
 
-    #[tracing::instrument(name = "TaskQueue::nack", skip(self))]
+    #[instrument(name = "TaskQueue::nack", skip(self))]
     pub fn nack(&self, task: Task) {
-        self.busy_targets.remove(&task.target_id);
-        self.wait_queue.write().unwrap().insert(task);
+        self.busy_tasks.remove(task.id());
+        self.wait_queue.write().unwrap().insert(*task.id());
     }
 
-    #[tracing::instrument(name = "TaskQueue::nack", skip(self))]
+    #[instrument(name = "TaskQueue::skip", skip(self))]
     pub fn skip(&self, task: Task) {
-        self.task_results.remove_expected_target(task.target_id);
-        self.busy_targets.remove(&task.target_id);
+        self.task_results.remove_expected_task(task);
+        self.busy_tasks.remove(task.id());
     }
 
-    #[tracing::instrument(name = "TaskQueue::is_target_busy", skip(self))]
-    pub fn is_target_busy(&self, target: TargetId) -> bool {
-        self.busy_targets.contains(&target)
+    #[instrument(name = "TaskQueue::swap", skip(self))]
+    pub fn swap(&self, old: Task, new: Task) {
+        self.task_registry.update(*old.id(), new);
+        self.nack(old);
     }
 
-    #[tracing::instrument(name = "TaskQueue::is_queue_empty", skip(self))]
+    #[instrument(name = "TaskQueue::is_target_busy", skip(self))]
+    pub fn is_task_busy(&self, task: Task) -> bool {
+        self.busy_tasks.contains(task.id())
+    }
+
+    #[instrument(name = "TaskQueue::is_queue_empty", skip(self))]
     pub fn is_empty(&self) -> bool {
         self.inner_queue.is_empty()
     }
 
-    #[tracing::instrument(name = "TaskQueue::queue", skip(self))]
+    #[instrument(name = "TaskQueue::queue", skip(self))]
     pub fn queue(&self, task: Task) -> Result<QueuedTask, TaskQueueError> {
-        let target = task.target_id;
+        let target = task.target_id();
         if self.target_registry.get_target(target).is_all() {
-            return Err(TaskQueueError::CannotQueueTargetAll);
+            return Err(TaskQueueError::CannotQueueTaskAll);
         }
-        if self.task_results.is_target_built(target)
-            || self.busy_targets.contains(&target)
-            || self.in_queue_targets.contains(&target)
+
+        if self.task_results.is_task_completed(task)
+            || self.busy_tasks.contains(task.id())
+            || self.in_queue_tasks.contains(task.id())
         {
-            self.event_channel.send(QueueEvent::TargetSkipped {
+            self.event_channel.send(QueueEvent::TaskSkipped {
                 target: self.target_registry.get_target(target).to_string(),
+                signature: task
+                    .signature_id()
+                    .map(|sig_id| self.signature_registry.get(sig_id).to_string()),
             });
             return Ok(QueuedTask::Skipped);
         }
-        self.task_results.add_expected_target(target);
-        self.in_queue_targets.insert(target);
-        self.inner_queue.push(task);
-        self.all_queued_targets.insert(target);
 
-        self.event_channel.send(QueueEvent::TargetQueued {
-            target_id: target.to_string(),
+        self.task_results.add_expected_task(task);
+        self.in_queue_tasks.insert(*task.id());
+        self.inner_queue.push(*task.id());
+        self.all_queued_tasks.insert(*task.id());
+
+        self.event_channel.send(QueueEvent::TaskQueued {
             target: self.target_registry.get_target(target).to_string(),
+            signature: task.signature_id().map(|sig_id| {
+                let sig = self.signature_registry.get(sig_id);
+                sig.name().to_string()
+            }),
         });
 
         Ok(QueuedTask::Queued)
     }
 
-    pub fn queue_deps(&self, task: Task, deps: &[TargetId]) -> Result<(), TaskQueueError> {
+    pub fn queue_deps(&self, task: Task, deps: &[Task]) -> Result<(), TaskQueueError> {
+        let dep_ids: Vec<TaskId> = deps.iter().copied().map(|task| *task.id()).collect();
+
         self.task_results
-            .add_dependencies(task.target_id, deps)
+            .add_dependencies(*task.id(), &dep_ids)
             .map_err(TaskQueueError::DependencyCycle)?;
 
         self.wait_queue_deps
-            .insert(task, deps.iter().copied().collect());
+            .insert(*task.id(), dep_ids.iter().copied().collect());
 
         for dep in deps {
-            self.queue(Task::build(*dep))?;
+            self.queue(*dep)?;
         }
 
         Ok(())
@@ -222,7 +250,7 @@ impl TaskQueue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target};
+    use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target, UnregisteredTask};
     use crate::store::ArtifactManifest;
 
     #[test]
@@ -236,7 +264,12 @@ mod tests {
     fn queues_with_tasks_are_not_empty(goal: Goal, target: Target) {
         let q = TaskQueue::default();
         let target_id = q.target_registry.register_target(target);
-        let task = Task::new(goal, target_id);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = q.task_registry.register(unreg_task);
         assert!(q.queue(task).is_ok());
         assert!(!q.is_empty());
     }
@@ -245,7 +278,12 @@ mod tests {
     fn consuming_from_the_queue_removes_the_task(goal: Goal, target: Target) {
         let q = TaskQueue::default();
         let target_id = q.target_registry.register_target(target);
-        let task = Task::new(goal, target_id);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = q.task_registry.register(unreg_task);
         assert!(q.queue(task).is_ok());
         assert!(q.next().is_some());
         assert!(q.is_empty());
@@ -256,7 +294,12 @@ mod tests {
     fn queue_preserves_task_integrity(goal: Goal, target: Target) {
         let q = TaskQueue::default();
         let target_id = q.target_registry.register_target(target);
-        let task = Task::new(goal, target_id);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = q.task_registry.register(unreg_task);
         assert!(q.queue(task).is_ok());
         assert_eq!(q.next().unwrap(), task);
     }
@@ -268,7 +311,12 @@ mod tests {
         let mut tasks = vec![];
         for (goal, target) in &gts {
             let target_id = q.target_registry.register_target(target);
-            let task = Task::new(*goal, target_id);
+            let unreg_task = UnregisteredTask::builder()
+                .goal(*goal)
+                .target_id(target_id)
+                .build()
+                .unwrap();
+            let task = q.task_registry.register(unreg_task);
             if let QueuedTask::Queued = q.queue(task).unwrap() {
                 tasks.push(task);
             }
@@ -292,7 +340,12 @@ mod tests {
     fn queuing_a_registered_target_makes_the_queue_nonempty(goal: Goal, target: Target) {
         let q = TaskQueue::default();
         let target_id = q.target_registry.register_target(target);
-        let task = Task::new(goal, target_id);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = q.task_registry.register(unreg_task);
         assert!(q.queue(task).is_ok());
         assert!(q.next().is_some());
     }
@@ -301,7 +354,12 @@ mod tests {
     fn contiguous_duplicates_are_discarded(goal: Goal, target: Target) {
         let q = TaskQueue::default();
         let target_id = q.target_registry.register_target(target);
-        let task = Task::new(goal, target_id);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = q.task_registry.register(unreg_task);
 
         assert!(q.queue(task).is_ok());
         assert!(q.queue(task).is_ok());
@@ -315,7 +373,12 @@ mod tests {
     fn nack_returns_task_to_queue(goal: Goal, target: Target) {
         let q = TaskQueue::default();
         let target_id = q.target_registry.register_target(target);
-        let task = Task::new(goal, target_id);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = q.task_registry.register(unreg_task);
 
         assert!(q.queue(task).is_ok());
         let q_task = q.next().unwrap();
@@ -331,25 +394,30 @@ mod tests {
     fn completed_tasks_are_skipped_when_queueing(goal: Goal, target: Target) {
         let q = TaskQueue::default();
         let target_id = q.target_registry.register_target(&target);
-        let task = Task::new(goal, target_id);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = q.task_registry.register(unreg_task);
 
         let manifest = ArtifactManifest::default();
-        let target =
-            ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into(), "".into());
+        let target = ConcreteTarget::new(goal, target_id, target.into(), "".into(), "".into());
         let spec = ExecutableSpec::builder()
             .goal(goal)
             .target(target.clone())
             .signature(
                 Signature::builder()
+                    .name("test_signature")
                     .target(target)
-                    .rule("test_rule".into())
+                    .rule("test_rule")
                     .build()
                     .unwrap(),
             )
             .exec_env(Default::default())
             .hash_and_build(&q.task_results)
             .unwrap();
-        q.task_results.add_task_result(target_id, spec, manifest);
+        q.task_results.add_task_result(task, spec, manifest);
 
         assert_matches!(q.queue(task), Ok(QueuedTask::Skipped));
     }
@@ -358,27 +426,32 @@ mod tests {
     fn completed_tasks_are_skipped_when_consuming(goal: Goal, target: Target) {
         let q = TaskQueue::default();
         let target_id = q.target_registry.register_target(&target);
-        let task = Task::new(goal, target_id);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = q.task_registry.register(unreg_task);
 
         assert_matches!(q.queue(task), Ok(QueuedTask::Queued));
 
         let manifest = ArtifactManifest::default();
-        let target =
-            ConcreteTarget::new(Goal::Build, target_id, target.into(), "".into(), "".into());
+        let target = ConcreteTarget::new(goal, target_id, target.into(), "".into(), "".into());
         let spec = ExecutableSpec::builder()
             .goal(goal)
             .target(target.clone())
             .signature(
                 Signature::builder()
+                    .name("test_signature")
                     .target(target)
-                    .rule("test_rule".into())
+                    .rule("test_rule")
                     .build()
                     .unwrap(),
             )
             .exec_env(Default::default())
             .hash_and_build(&q.task_results)
             .unwrap();
-        q.task_results.add_task_result(target_id, spec, manifest);
+        q.task_results.add_task_result(task, spec, manifest);
 
         assert!(q.next().is_none());
     }
@@ -390,7 +463,6 @@ mod tests {
         use crate::sync::*;
         use quickcheck::*;
         use std::collections::{HashMap, HashSet};
-        use std::time::Duration;
 
         const TASK_COUNT: usize = 50;
         const ITER: usize = 1_000;
@@ -406,13 +478,18 @@ mod tests {
                 let q = Arc::new(TaskQueue::default());
                 for (goal, target) in &gts {
                     let target_id = q.target_registry.register_target(target);
-                    let task = Task::new(*goal, target_id);
+                    let unreg_task = UnregisteredTask::builder()
+                        .goal(goal)
+                        .target_id(target_id)
+                        .build()
+                        .unwrap();
+                    let task = q.task_registry.register(unreg_task);
                     q.queue(task).unwrap();
                 }
                 assert!(!q.is_empty());
 
                 // Consume the queue from different threads and collect the results
-                let consumed: Arc<RwLock<HashMap<usize, HashSet<Task>>>> =
+                let consumed: Arc<RwLock<HashMap<usize, HashSet<TaskId>>>> =
                     Arc::new(RwLock::new(HashMap::default()));
                 let mut handles = vec![];
                 for id in 0..4 {
@@ -424,7 +501,7 @@ mod tests {
                             tasks.push(task);
                             q.ack(task);
                         }
-                        let tasks: HashSet<Task> = tasks.into_iter().collect();
+                        let tasks: HashSet<TaskId> = tasks.into_iter().collect();
                         (*consumed.write().unwrap()).insert(id, tasks);
                     });
                     handles.push(handle);

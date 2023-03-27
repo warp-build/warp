@@ -172,7 +172,7 @@ impl From<StoreError> for TricorderManagerError {
 mod tests {
     use super::*;
     use crate::archive::{Archive, ArchiveManager};
-    use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Target, TestMatcher};
+    use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Target, Task, TestMatcher};
     use crate::resolver::TargetRegistry;
     use crate::store::DefaultStore;
     use crate::tricorder::{Connection, SignatureGenerationFlow};
@@ -243,7 +243,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
-                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
                 _: Option<Arc<TestMatcher>>,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
@@ -327,7 +327,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
-                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
                 _: Option<Arc<TestMatcher>>,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
@@ -419,7 +419,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
-                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
                 _: Option<Arc<TestMatcher>>,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
@@ -511,7 +511,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
-                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
                 _: Option<Arc<TestMatcher>>,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();

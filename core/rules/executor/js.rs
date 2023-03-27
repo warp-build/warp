@@ -280,10 +280,10 @@ mod tests {
     use super::*;
     use crate::model::rule::{self, Value};
     use crate::model::ConcreteTarget;
-    use crate::resolver::TargetRegistry;
+    use crate::resolver::{SignatureRegistry, TargetRegistry};
     use crate::rules::RuleStore;
     use crate::sync::Arc;
-    use crate::worker::TaskResults;
+    use crate::worker::{TaskRegistry, TaskResults};
     use crate::{Config, Goal};
     use assert_fs::prelude::*;
     use url::Url;
@@ -324,8 +324,15 @@ mod tests {
             .unwrap();
 
         let rule_store = RuleStore::new(&config).into();
+        let task_registry: Arc<TaskRegistry> = TaskRegistry::default().into();
         let target_registry: Arc<TargetRegistry> = TargetRegistry::default().into();
-        let task_results = TaskResults::new(target_registry.clone()).into();
+        let signature_registry: Arc<SignatureRegistry> = SignatureRegistry::default().into();
+        let task_results = TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        )
+        .into();
         let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
 
         // 3. Create our planning inputs
@@ -344,7 +351,8 @@ mod tests {
 
         let env = Default::default();
         let sig = Signature::builder()
-            .rule("test_rule".into())
+            .name("test_signature")
+            .rule("test_rule")
             .target(c_target)
             .config(config)
             .build()
@@ -402,8 +410,15 @@ mod tests {
             .unwrap();
 
         let rule_store = RuleStore::new(&config).into();
+        let task_registry: Arc<TaskRegistry> = TaskRegistry::default().into();
         let target_registry: Arc<TargetRegistry> = TargetRegistry::default().into();
-        let task_results = TaskResults::new(target_registry.clone()).into();
+        let signature_registry: Arc<SignatureRegistry> = SignatureRegistry::default().into();
+        let task_results = TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        )
+        .into();
         let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
 
         // 3. Create our planning inputs
@@ -418,7 +433,8 @@ mod tests {
 
         let env = Default::default();
         let sig = Signature::builder()
-            .rule("test_rule".into())
+            .name("test_signature")
+            .rule("test_rule")
             .target(c_target)
             .config(config)
             .build()
@@ -475,8 +491,15 @@ mod tests {
             .unwrap();
 
         let rule_store = RuleStore::new(&config).into();
+        let task_registry: Arc<TaskRegistry> = TaskRegistry::default().into();
         let target_registry: Arc<TargetRegistry> = TargetRegistry::default().into();
-        let task_results = TaskResults::new(target_registry.clone()).into();
+        let signature_registry: Arc<SignatureRegistry> = SignatureRegistry::default().into();
+        let task_results = TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        )
+        .into();
         let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
 
         // 3. Create our planning inputs
@@ -491,7 +514,8 @@ mod tests {
 
         let env = Default::default();
         let sig = Signature::builder()
-            .rule("test_rule".into())
+            .name("test_signature")
+            .rule("test_rule")
             .target(c_target)
             .config(config)
             .build()
@@ -559,8 +583,15 @@ mod tests {
             .unwrap();
 
         let rule_store = RuleStore::new(&config).into();
+        let task_registry: Arc<TaskRegistry> = TaskRegistry::default().into();
         let target_registry: Arc<TargetRegistry> = TargetRegistry::default().into();
-        let task_results = TaskResults::new(target_registry.clone()).into();
+        let signature_registry: Arc<SignatureRegistry> = SignatureRegistry::default().into();
+        let task_results = TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        )
+        .into();
         let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
 
         // 3. Create our planning inputs
@@ -579,7 +610,8 @@ mod tests {
 
         let env = Default::default();
         let sig = Signature::builder()
-            .rule("rule_with_dep".into())
+            .name("test_signature")
+            .rule("rule_with_dep")
             .target(c_target)
             .config(config)
             .build()
@@ -650,7 +682,14 @@ mod tests {
 
         let rule_store = RuleStore::new(&config).into();
         let target_registry: Arc<TargetRegistry> = TargetRegistry::default().into();
-        let task_results = TaskResults::new(target_registry.clone()).into();
+        let task_registry: Arc<TaskRegistry> = TaskRegistry::default().into();
+        let signature_registry: Arc<SignatureRegistry> = SignatureRegistry::default().into();
+        let task_results = TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        )
+        .into();
         let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
 
         // 3. Create our planning inputs
@@ -669,7 +708,8 @@ mod tests {
 
         let env = Default::default();
         let sig = Signature::builder()
-            .rule("rule_with_dep".into())
+            .name("test_signature")
+            .rule("rule_with_dep")
             .target(c_target)
             .config(config)
             .build()

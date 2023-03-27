@@ -8,7 +8,8 @@ pub use registry::*;
 
 use crate::archive::Archive;
 use crate::model::{
-    ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, TargetId, TestMatcher,
+    ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, TargetId, Task,
+    TestMatcher,
 };
 use crate::store::ArtifactManifest;
 use crate::sync::*;
@@ -36,7 +37,7 @@ pub trait Tricorder: Send + Sync + Debug {
     async fn generate_signature(
         &mut self,
         concrete_target: &ConcreteTarget,
-        dependencies: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+        dependencies: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
         test_matcher: Option<Arc<TestMatcher>>,
     ) -> Result<SignatureGenerationFlow, TricorderError>;
 

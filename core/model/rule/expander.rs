@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use super::{Config, Rule, Type, Value};
 use crate::model::{Signature, TargetError};
@@ -77,12 +77,19 @@ impl Expander {
 
     #[instrument(name = "Expander::expand_glob", skip(self))]
     pub fn expand_glob(&self, root: &Path, cfg_path: &Path) -> Result<Value, ExpanderError> {
-        let path = root.join(cfg_path).to_string_lossy().to_string();
-        if path.contains('*') {
-            let entries = glob::glob(&path).map_err(|err| ExpanderError::InvalidGlobPattern {
-                path: path.to_string(),
-                err,
-            })?;
+        let path = if cfg_path.starts_with(root) {
+            cfg_path.to_path_buf()
+        } else {
+            root.join(cfg_path)
+        };
+
+        let path_str = path.to_string_lossy();
+        if path_str.contains('*') {
+            let entries =
+                glob::glob(&path_str).map_err(|err| ExpanderError::InvalidGlobPattern {
+                    path: path_str.to_string(),
+                    err,
+                })?;
 
             let mut files = vec![];
             for entry in entries {
@@ -91,7 +98,7 @@ impl Expander {
             }
             Ok(Value::List(files))
         } else {
-            Ok(Value::File(PathBuf::from(path)))
+            Ok(Value::File(path))
         }
     }
 

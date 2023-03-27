@@ -64,6 +64,7 @@ message GenerateSignatureRequest {
   repeated Dependency dependencies = 4;
 
   TestMatcher test_matcher = 5;
+  Goal goal = 6;
 }
 
 message GenerateSignatureResponse {

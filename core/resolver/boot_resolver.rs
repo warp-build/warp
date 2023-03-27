@@ -76,6 +76,7 @@ impl BootstrapResolver {
 
     fn cargo_binary(&self, concrete_target: ConcreteTarget) -> Signature {
         Signature::builder()
+            .name("bootstrap")
             .rule("cargo_binary".to_string())
             .config({
                 let mut config = rule::Config::default();
@@ -90,6 +91,7 @@ impl BootstrapResolver {
 
     fn mix_escript(&self, concrete_target: ConcreteTarget) -> Signature {
         Signature::builder()
+            .name("bootstrap")
             .rule("mix_escript".to_string())
             .config({
                 let mut config = rule::Config::default();

@@ -9,7 +9,7 @@ pub use default_planner_context::*;
 
 use crate::model::{
     Dependencies, DependenciesError, ExecutableSpec, ExecutableSpecError, ExecutionEnvironment,
-    Goal, Signature, TargetId,
+    Signature, Task,
 };
 use crate::rules::RuleExecutorError;
 use thiserror::*;
@@ -17,7 +17,7 @@ use thiserror::*;
 #[derive(Debug)]
 pub enum PlanningFlow {
     Planned { spec: ExecutableSpec },
-    MissingDeps { deps: Vec<TargetId> },
+    MissingDeps { deps: Vec<Task> },
     FoundAllDeps { deps: Dependencies },
 }
 
@@ -31,8 +31,8 @@ pub trait Planner {
 
     async fn plan(
         &mut self,
-        goal: Goal,
-        sig: Signature,
+        task: Task,
+        sig: &Signature,
         env: ExecutionEnvironment,
     ) -> Result<PlanningFlow, PlannerError>;
 }

@@ -1,0 +1,22 @@
+[package]
+name = "test-tricorder"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tonic = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true, features = ["log"] }
+tracing-opentelemetry = { workspace = true }
+tracing-subscriber = { workspace = true }
+prost = { workspace = true }
+
+[[bin]]
+name = "tricorder"
+path = "src/main.rs"
+
+[build-dependencies]
+tonic-build = { workspace = true }
+cc={ workspace = true }

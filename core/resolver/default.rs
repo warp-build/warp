@@ -2,10 +2,14 @@ use std::path::PathBuf;
 
 use super::boot_resolver::BootstrapResolver;
 use super::net_resolver::NetResolver;
-use super::{FsResolver, ResolutionFlow, Resolver, ResolverError, TargetRegistry};
+use super::{
+    FsResolver, ResolutionFlow, Resolver, ResolverError, SignatureRegistry, TargetRegistry,
+};
 use crate::archive::ArchiveManager;
 use crate::code::CodeDatabase;
-use crate::model::{ConcreteTarget, Goal, RemoteTarget, Requirement, Signature, Target, TargetId};
+use crate::model::{
+    ConcreteTarget, Goal, RemoteTarget, Requirement, Signature, Target, TargetId, Task,
+};
 use crate::store::DefaultStore;
 use crate::sync::*;
 use crate::testing::TestMatcherRegistry;
@@ -23,6 +27,7 @@ pub struct DefaultResolver<T: Tricorder + Clone> {
     fs_resolver: Arc<FsResolver<T>>,
     net_resolver: Arc<NetResolver<T>>,
     target_registry: Arc<TargetRegistry>,
+    signature_registry: Arc<SignatureRegistry>,
 }
 
 impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
@@ -30,6 +35,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         config: Config,
         store: Arc<DefaultStore>,
         target_registry: Arc<TargetRegistry>,
+        signature_registry: Arc<SignatureRegistry>,
         test_matcher_registry: Arc<TestMatcherRegistry>,
         archive_manager: Arc<ArchiveManager>,
         workspace_manager: Arc<WorkspaceManager>,
@@ -65,6 +71,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             net_resolver,
             boot_resolver,
             target_registry,
+            signature_registry,
             config,
         })
     }
@@ -75,8 +82,7 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
     #[instrument(name = "DefaultResolver::resolve", skip(self))]
     async fn resolve(
         &self,
-        goal: Goal,
-        target_id: TargetId,
+        task: Task,
         target: Arc<Target>,
     ) -> Result<ResolutionFlow, ResolverError> {
         let sig_flow = match &*target {
@@ -85,22 +91,24 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
             // NB: when our target is remote and we're building a rule, we will whip up a signature
             // on the spot to make sure the rule is instantiatable as a signature.
             Target::Remote(_t) if target.is_rule_target(&self.config) => {
-                let sig = target.to_rule_signature(target_id, target.clone());
+                let sig = target.to_rule_signature(task.target_id(), target.clone());
                 Ok(SignatureGenerationFlow::GeneratedSignatures {
                     signatures: vec![sig],
                 })
             }
 
-            Target::Remote(t) => self.net_resolver.resolve(goal, target_id, t).await,
+            Target::Remote(t) => self.net_resolver.resolve(task, t).await,
 
             // NB: when we are bootstrapping, local targets may need a little help to get their
             // signatures generated (for example, if we are building a tricorder but we need the
             // tricorder to build itself).
-            Target::Fs(t) if goal.is_bootstrap() => {
-                self.boot_resolver.resolve(goal, target_id, t).await
+            Target::Fs(t) if task.goal().is_bootstrap() => {
+                self.boot_resolver
+                    .resolve(task.goal(), task.target_id(), t)
+                    .await
             }
 
-            Target::Fs(t) => self.fs_resolver.resolve(goal, target_id, t).await,
+            Target::Fs(t) => self.fs_resolver.resolve(task, t).await,
         }?;
 
         // TODO(@ostera): at this stage, we want to use the concrete target and the tricorder to
@@ -115,8 +123,8 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
             SignatureGenerationFlow::GeneratedSignatures { signatures }
                 if !signatures.is_empty() =>
             {
-                let signature = signatures.into_iter().next().unwrap();
-                Ok(ResolutionFlow::Resolved { signature })
+                let signature_ids = self.signature_registry.register_many(signatures);
+                Ok(ResolutionFlow::Resolved { signature_ids })
             }
             SignatureGenerationFlow::MissingRequirements { requirements } => {
                 let mut deps = vec![];
@@ -139,7 +147,12 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
                         Requirement::Dependency { url, .. } => url.into(),
                     };
                     let target_id = self.target_registry.register_target(target);
-                    deps.push(target_id)
+                    let task = Task::builder()
+                        .goal(Goal::Build)
+                        .target_id(target_id)
+                        .build()
+                        .unwrap();
+                    deps.push(task)
                 }
                 Ok(ResolutionFlow::MissingDeps { deps })
             }
@@ -159,6 +172,7 @@ impl Target {
             PathBuf::new(),
         );
         Signature::builder()
+            .name(rule.clone())
             .target(target)
             .rule(rule)
             .build()
@@ -183,9 +197,10 @@ mod tests {
 
     use super::*;
     use crate::archive::{Archive, ArchiveManager};
-    use crate::model::{ExecutableSpec, Signature, TestMatcher};
+    use crate::model::{ExecutableSpec, Signature, TestMatcher, UnregisteredTask};
     use crate::store::ArtifactManifest;
     use crate::tricorder::{Connection, TricorderError};
+    use crate::worker::TaskRegistry;
     use crate::workspace::Workspace;
     use assert_fs::prelude::*;
     use async_trait::async_trait;
@@ -208,6 +223,8 @@ mod tests {
         let am = ArchiveManager::new(&config).into();
         let store = DefaultStore::new(config.clone(), am).into();
         let target_registry = Arc::new(TargetRegistry::new());
+        let task_registry = Arc::new(TaskRegistry::new());
+        let signature_registry = Arc::new(SignatureRegistry::new());
         let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
 
         #[derive(Debug, Clone)]
@@ -225,7 +242,7 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
-                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
                 _: Option<Arc<TestMatcher>>,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
@@ -248,13 +265,18 @@ mod tests {
         workspace_manager.set_current_workspace(wid);
 
         let archive_manager = Arc::new(ArchiveManager::new(&config));
-        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let task_results = Arc::new(TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        ));
 
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let r: DefaultResolver<UnreachableTricorder> = DefaultResolver::new(
             config,
             store,
             target_registry.clone(),
+            signature_registry,
             test_matcher_registry,
             archive_manager.clone(),
             workspace_manager.into(),
@@ -265,7 +287,13 @@ mod tests {
 
         let target: Target = "bad/file/path.ex".into();
         let target_id = target_registry.register_target(&target);
-        let result = r.resolve(Goal::Build, target_id, target.into()).await;
+        let unreg_task = UnregisteredTask::builder()
+            .goal(Goal::Build)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = task_registry.register(unreg_task);
+        let result = r.resolve(task, target.into()).await;
 
         assert_matches!(
             result.unwrap_err(),
@@ -297,7 +325,9 @@ mod tests {
 
         let am = ArchiveManager::new(&config).into();
         let store = DefaultStore::new(config.clone(), am).into();
+        let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
+        let signature_registry = Arc::new(SignatureRegistry::new());
         let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
 
         #[derive(Debug, Clone)]
@@ -315,11 +345,12 @@ mod tests {
             async fn generate_signature(
                 &mut self,
                 concrete_target: &ConcreteTarget,
-                _: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
                 _: Option<Arc<TestMatcher>>,
             ) -> Result<SignatureGenerationFlow, TricorderError> {
                 Ok(SignatureGenerationFlow::GeneratedSignatures {
                     signatures: vec![Signature::builder()
+                        .name("test_signature")
                         .target((*concrete_target).clone())
                         .rule("test_rule".to_string())
                         .build()
@@ -342,7 +373,11 @@ mod tests {
             .unwrap();
 
         let archive_manager = Arc::new(ArchiveManager::new(&config));
-        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let task_results = Arc::new(TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        ));
 
         workspace_manager.set_current_workspace(wid);
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
@@ -350,6 +385,7 @@ mod tests {
             config,
             store,
             target_registry.clone(),
+            signature_registry.clone(),
             test_matcher_registry,
             archive_manager.clone(),
             workspace_manager.into(),
@@ -384,14 +420,23 @@ mod tests {
 
         let target: Target = curr_workspace.path().join("good_file.ex").into();
         let target_id = target_registry.register_target(&target);
-        let resolution = r
-            .resolve(Goal::Build, target_id, target.into())
-            .await
+
+        let unreg_task = UnregisteredTask::builder()
+            .goal(Goal::Build)
+            .target_id(target_id)
+            .build()
             .unwrap();
+        let task = task_registry.register(unreg_task);
+
+        let resolution = r.resolve(task, target.into()).await.unwrap();
 
         assert_matches!(
             resolution,
-            ResolutionFlow::Resolved { signature } if signature.target().path().file_name().unwrap().to_str().unwrap() == "good_file.ex" && signature.rule() == "test_rule"
+            ResolutionFlow::Resolved { signature_ids } => {
+                let signature = signature_registry.get(*signature_ids.iter().next().unwrap());
+                assert_eq!(signature.target().path().file_name().unwrap().to_str().unwrap(), "good_file.ex");
+                assert_eq!(signature.rule(), "test_rule");
+            }
         );
     }
 }

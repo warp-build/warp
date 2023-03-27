@@ -1,6 +1,6 @@
 use super::{ResolverError, TargetRegistry};
 use crate::code::{CodeDatabase, SourceHasher};
-use crate::model::{ConcreteTarget, FsTarget, Goal, TargetId};
+use crate::model::{ConcreteTarget, FsTarget, Task};
 use crate::store::DefaultStore;
 use crate::sync::*;
 use crate::testing::TestMatcherRegistry;
@@ -53,8 +53,7 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
     #[instrument(name = "FsResolver::resolve", skip(self))]
     pub async fn resolve(
         &self,
-        goal: Goal,
-        target_id: TargetId,
+        task: Task,
         target: &FsTarget,
     ) -> Result<SignatureGenerationFlow, ResolverError> {
         // NB: early return in case we can't find the file, since FsTarget's are supposed to exist
@@ -76,11 +75,18 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             target.path().to_path_buf()
         };
 
+        // goal -- test { matcher_id }
+        let test_matcher = task
+            .goal()
+            .test_matcher_id()
+            .map(|id| self.test_matcher_registry.get_spec(id));
+
         let source_hash = SourceHasher::hash(&final_path).await?;
+
         let ct = ConcreteTarget::builder()
-            .goal(goal)
-            .target_id(target_id)
-            .target(self.target_registry.get_target(target_id))
+            .goal(task.goal())
+            .target_id(task.target_id())
+            .target(self.target_registry.get_target(task.target_id()))
             .path(final_path)
             .workspace_root(workspace.root())
             .build()
@@ -88,14 +94,17 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
 
         let ct = self
             .target_registry
-            .associate_concrete_target(target_id, ct);
+            .associate_concrete_target(task.target_id(), ct);
 
         if let Some(mut signature) = self.code_db.get_signature(&ct, &source_hash)? {
             let mut ct = signature.target().clone();
-            ct.set_target(self.target_registry.get_target(target_id), target_id);
+            ct.set_target(
+                self.target_registry.get_target(task.target_id()),
+                task.target_id(),
+            );
             let ct = self
                 .target_registry
-                .associate_concrete_target(target_id, ct);
+                .associate_concrete_target(task.target_id(), ct);
             signature.set_target((*ct).clone());
             return Ok(SignatureGenerationFlow::GeneratedSignatures {
                 signatures: vec![signature],
@@ -109,7 +118,7 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         {
             tricorder
         } else {
-            return Ok(SignatureGenerationFlow::IgnoredTarget(target_id));
+            return Ok(SignatureGenerationFlow::IgnoredTarget(task.target_id()));
         };
 
         // TODO(@ostera): at this stage, we want to use the concrete target and the tricorder to
@@ -118,10 +127,7 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         // get_ast
 
         // 2. generate signature for this concrete target
-        let deps = self.task_results.get_task_deps(target_id);
-        let test_matcher = goal
-            .test_matcher_id()
-            .map(|id| self.test_matcher_registry.get_spec(id));
+        let deps = self.task_results.get_task_deps(task);
         let sig = tricorder
             .generate_signature(&ct, &deps, test_matcher)
             .await?;

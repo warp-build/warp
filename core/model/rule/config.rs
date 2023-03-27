@@ -41,6 +41,17 @@ impl From<&str> for Value {
     }
 }
 
+impl ToString for Value {
+    fn to_string(&self) -> String {
+        match self {
+            Value::String(s) => s.to_string(),
+            Value::File(f) => f.to_string_lossy().to_string(),
+            Value::Target(t) => t.to_string(),
+            Value::List(_l) => unimplemented!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Spec {
     _inner: FxHashMap<String, Type>,

@@ -1,5 +1,5 @@
 use super::rule::Config;
-use super::{ConcreteTarget, RuleName, Target};
+use super::{ConcreteTarget, RuleName, Task};
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use std::path::PathBuf;
@@ -8,15 +8,19 @@ use thiserror::*;
 #[derive(Builder, Debug, Clone, Serialize, Deserialize, Hash)]
 #[builder(build_fn(error = "SignatureError"))]
 pub struct Signature {
+    #[builder(setter(into))]
+    name: String,
+
     target: ConcreteTarget,
 
+    #[builder(setter(into))]
     rule: RuleName,
 
-    #[builder(default)]
-    deps: Vec<Target>,
+    #[builder(default, setter(into))]
+    deps: Vec<Task>,
 
-    #[builder(default)]
-    runtime_deps: Vec<Target>,
+    #[builder(default, setter(into))]
+    runtime_deps: Vec<Task>,
 
     #[builder(default)]
     config: Config,
@@ -39,16 +43,20 @@ impl Signature {
         self.rule.as_ref()
     }
 
-    pub fn deps(&self) -> &[Target] {
+    pub fn deps(&self) -> &[Task] {
         self.deps.as_ref()
     }
 
-    pub fn runtime_deps(&self) -> &[Target] {
+    pub fn runtime_deps(&self) -> &[Task] {
         self.runtime_deps.as_ref()
     }
 
     pub fn config(&self) -> &Config {
         &self.config
+    }
+
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
     }
 }
 
@@ -60,7 +68,7 @@ impl AsRef<RuleName> for Signature {
 
 impl std::fmt::Display for Signature {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(fmt, "{}(\"{}\")", self.rule, self.target.to_string())
+        write!(fmt, "{}({})", self.rule, self.target.to_string())
     }
 }
 #[derive(Error, Debug)]

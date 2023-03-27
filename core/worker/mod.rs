@@ -4,15 +4,16 @@ mod coordinator;
 mod error;
 pub mod local;
 mod pool;
-mod task;
 mod task_queue;
+mod task_registry;
 mod task_results;
 
 pub use error::*;
 pub use pool::*;
-pub use task::*;
+pub use task_registry::*;
 pub use task_results::*;
 
+use crate::model::Task;
 use crate::sync::*;
 use async_trait::async_trait;
 use std::fmt::Debug;

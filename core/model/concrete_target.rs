@@ -8,7 +8,7 @@ static CURRENT_DIR: &str = ".";
 
 /// A ConcreteTarget is a target that has gone through the first phase of resolution.
 ///
-#[derive(Builder, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Builder, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConcreteTarget {
     goal: Goal,
 
@@ -105,6 +105,10 @@ impl ConcreteTarget {
 
     pub fn workspace_root(&self) -> &PathBuf {
         &self.workspace_root
+    }
+
+    pub fn goal(&self) -> Goal {
+        self.goal
     }
 }
 

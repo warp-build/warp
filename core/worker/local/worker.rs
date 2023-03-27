@@ -1,6 +1,6 @@
 use crate::events::event::WorkerEvent;
 use crate::executor::{ExecutionFlow, Executor, ExecutorError};
-use crate::model::{ExecutableSpec, ExecutionEnvironment, TargetId};
+use crate::model::{ExecutableSpec, ExecutionEnvironment, SignatureId, UnregisteredTask};
 use crate::planner::{Planner, PlannerError, PlanningFlow};
 use crate::resolver::{ResolutionFlow, Resolver, ResolverError};
 use crate::store::{ArtifactManifest, Store};
@@ -63,7 +63,14 @@ pub enum WorkerFlow {
     Skipped(Task),
 
     /// Used to requeue the current task after queueing all dependencies.
-    QueueDeps { deps: Vec<TargetId> },
+    QueueDeps { deps: Vec<Task> },
+
+    /// Replace the current task with new tasks that will build these signatures instead.
+    ///
+    /// This happens when the current task does not have a signature associated to it, and through
+    /// the Resolution phase we find that there are many signatures to be built.
+    ///
+    SwapWithSignatures { signature_ids: Vec<SignatureId> },
 }
 
 #[async_trait(?Send)]
@@ -93,9 +100,9 @@ where
 
     async fn run(&mut self) -> Result<(), WorkerError> {
         for task in self.role.tasks() {
-            let target = self.ctx.target_registry.get_target(task.target_id);
+            let target = self.ctx.target_registry.get_target(task.target_id());
             if target.is_all() {
-                self.queue_all(task.goal).await?;
+                self.queue_all(task.goal()).await?;
                 break;
             }
             let _ = self.ctx.task_queue.queue(*task)?;
@@ -135,25 +142,53 @@ where
             None => return Ok(()),
         };
 
+        debug!("Handling task {:#?}", task);
+
         match self.handle_task(task).await? {
             WorkerFlow::Complete {
                 task,
                 executable_spec,
                 artifact_manifest,
             } => {
-                self.ctx.task_results.add_task_result(
-                    task.target_id,
-                    executable_spec,
-                    artifact_manifest,
-                );
+                debug!("Completed");
+                self.ctx
+                    .task_results
+                    .add_task_result(task, executable_spec, artifact_manifest);
                 self.ctx.task_queue.ack(task);
             }
+            WorkerFlow::SwapWithSignatures { signature_ids } => {
+                debug!("SwapWithSignatures: {}", signature_ids.len());
+                let first_sig_id = signature_ids.first().unwrap();
+                let first_task = UnregisteredTask::builder()
+                    .goal(task.goal())
+                    .target_id(task.target_id())
+                    .signature_id(*first_sig_id)
+                    .build()
+                    .unwrap();
+
+                let first_task = self.ctx.task_registry.register(first_task);
+
+                self.ctx.task_queue.swap(task, first_task);
+
+                for sig_id in signature_ids.iter().skip(1) {
+                    let sig = self.ctx.signature_registry.get(*sig_id);
+                    let task = UnregisteredTask::builder()
+                        .goal(Goal::from_rule_name(sig.rule()))
+                        .target_id(task.target_id())
+                        .signature_id(*sig_id)
+                        .build()
+                        .unwrap();
+                    let task = self.ctx.task_registry.register(task);
+                    let _ = self.ctx.task_queue.queue(task)?;
+                }
+            }
+
             WorkerFlow::Skipped(task) => {
-                debug!("Skipped task {}", task.target_id);
+                debug!("Skipped task {:#?}", task);
                 self.ctx.task_queue.skip(task);
             }
             WorkerFlow::QueueDeps { deps } => {
-                debug!("QueueDeps: {} deps", deps.len());
+                debug!("QueueDeps: {} deps: {:#?}", deps.len(), &deps);
                 self.ctx.task_queue.queue_deps(task, &deps)?;
                 self.ctx.task_queue.nack(task);
             }
@@ -163,8 +198,8 @@ where
     }
 
     pub async fn handle_task(&mut self, task: Task) -> Result<WorkerFlow, LocalWorkerError> {
-        let goal = task.goal;
-        let target = self.ctx.target_registry.get_target(task.target_id);
+        let goal = task.goal();
+        let target = self.ctx.target_registry.get_target(task.target_id());
 
         self.ctx
             .event_channel
@@ -173,20 +208,26 @@ where
                 goal,
             });
 
-        let signature = match self
+        if task.signature_id().is_none() {
+            return Ok(
+                match self.ctx.resolver.resolve(task, target.clone()).await? {
+                    ResolutionFlow::MissingDeps { deps } => WorkerFlow::QueueDeps { deps },
+                    ResolutionFlow::Resolved { signature_ids } => {
+                        WorkerFlow::SwapWithSignatures { signature_ids }
+                    }
+                    _ => WorkerFlow::Skipped(task),
+                },
+            );
+        }
+
+        let signature = self
             .ctx
-            .resolver
-            .resolve(task.goal, task.target_id, target.clone())
-            .await?
-        {
-            ResolutionFlow::Resolved { signature } => signature,
-            ResolutionFlow::MissingDeps { deps } => return Ok(WorkerFlow::QueueDeps { deps }),
-            _ => return Ok(WorkerFlow::Skipped(task)),
-        };
+            .signature_registry
+            .get(task.signature_id().unwrap());
 
         let executable_spec = match self
             .planner
-            .plan(task.goal, signature, self.env.clone())
+            .plan(task, &signature, self.env.clone())
             .await?
         {
             PlanningFlow::Planned { spec } => spec,
@@ -256,7 +297,12 @@ where
                 let target: Target = path.into();
                 let target_id = self.ctx.target_registry.register_target(target);
 
-                self.ctx.task_queue.queue(Task { target_id, goal }).unwrap();
+                let task = Task::builder()
+                    .target_id(target_id)
+                    .goal(goal)
+                    .build()
+                    .unwrap();
+                self.ctx.task_queue.queue(task).unwrap();
             }
         }
 
@@ -308,13 +354,13 @@ mod tests {
     use super::*;
     use crate::code::CodeDatabase;
 
-    use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target, TargetId};
+    use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target};
     use crate::planner::PlannerError;
-    use crate::resolver::TargetRegistry;
+    use crate::resolver::{SignatureRegistry, TargetRegistry};
     use crate::store::{ArtifactManifest, Store, StoreError};
     use crate::sync::*;
     use crate::testing::TestMatcherRegistry;
-    use crate::worker::{Role, Task, TaskResults};
+    use crate::worker::{Role, Task, TaskRegistry, TaskResults};
     use crate::workspace::WorkspaceManager;
     use crate::Config;
     use async_trait::async_trait;
@@ -416,8 +462,8 @@ mod tests {
 
         async fn plan(
             &mut self,
-            _goal: Goal,
-            _sig: Signature,
+            _task: Task,
+            _sig: &Signature,
             _env: ExecutionEnvironment,
         ) -> Result<PlanningFlow, PlannerError> {
             Ok(PlanningFlow::MissingDeps { deps: vec![] })
@@ -431,8 +477,7 @@ mod tests {
     impl Resolver for NoopResolver {
         async fn resolve(
             &self,
-            _goal: Goal,
-            _target_id: TargetId,
+            _task: Task,
             _target: Arc<Target>,
         ) -> Result<ResolutionFlow, ResolverError> {
             Ok(ResolutionFlow::IncompatibleTarget)
@@ -442,14 +487,22 @@ mod tests {
     #[tokio::test]
     async fn when_coordinator_marks_shutdown_the_worker_stops() {
         let config = Config::builder().build().unwrap();
+        let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
+        let signature_registry = Arc::new(SignatureRegistry::new());
         let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
-        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let task_results = Arc::new(TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        ));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             config,
+            task_registry,
             target_registry,
+            signature_registry,
             test_matcher_registry,
             NoopResolver,
             NoopStore.into(),
@@ -473,8 +526,7 @@ mod tests {
         impl Resolver for ErrResolver {
             async fn resolve(
                 &self,
-                _goal: Goal,
-                _target_id: TargetId,
+                _task: Task,
                 _target: Arc<Target>,
             ) -> Result<ResolutionFlow, ResolverError> {
                 Err(ResolverError::Unknown("test error".to_string()))
@@ -482,14 +534,22 @@ mod tests {
         }
 
         let config = Config::builder().build().unwrap();
+        let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
+        let signature_registry = Arc::new(SignatureRegistry::new());
         let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
-        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let task_results = Arc::new(TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        ));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             config,
+            task_registry.clone(),
             target_registry,
+            signature_registry,
             test_matcher_registry,
             ErrResolver,
             NoopStore.into(),
@@ -502,7 +562,12 @@ mod tests {
         let target: Target = Arbitrary::arbitrary(&mut gen);
         let goal: Goal = Arbitrary::arbitrary(&mut gen);
         let target_id = ctx.target_registry.register_target(target);
-        let task = Task::new(goal, target_id);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = task_registry.register(unreg_task);
         ctx.task_queue.queue(task).unwrap();
         assert!(!ctx.task_queue.is_empty());
 
@@ -533,8 +598,8 @@ mod tests {
 
             async fn plan(
                 &mut self,
-                _goal: Goal,
-                _sig: Signature,
+                _task: Task,
+                _sig: &Signature,
                 _env: ExecutionEnvironment,
             ) -> Result<PlanningFlow, PlannerError> {
                 Err(PlannerError::Unknown)
@@ -542,37 +607,55 @@ mod tests {
         }
 
         #[derive(Clone)]
-        struct DummyResolver;
+        struct DummyResolver {
+            signature_registry: Arc<SignatureRegistry>,
+        }
 
         #[async_trait]
         impl Resolver for DummyResolver {
             async fn resolve(
                 &self,
-                goal: Goal,
-                target_id: TargetId,
+                task: Task,
                 target: Arc<Target>,
             ) -> Result<ResolutionFlow, ResolverError> {
-                let target = ConcreteTarget::new(goal, target_id, target, "".into(), "".into());
-                let signature = Signature::builder()
-                    .rule("dummy_rule".into())
-                    .target(target)
-                    .build()
-                    .unwrap();
-                Ok(ResolutionFlow::Resolved { signature })
+                let target = ConcreteTarget::new(
+                    task.goal(),
+                    task.target_id(),
+                    target,
+                    "".into(),
+                    "".into(),
+                );
+                let signature_ids = vec![self.signature_registry.register(
+                    Signature::builder()
+                        .name("test_signature")
+                        .rule("dummy_rule")
+                        .target(target)
+                        .build()
+                        .unwrap(),
+                )];
+                Ok(ResolutionFlow::Resolved { signature_ids })
             }
         }
 
         let config = Config::builder().build().unwrap();
+        let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
+        let signature_registry = Arc::new(SignatureRegistry::new());
         let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
-        let task_results = Arc::new(TaskResults::new(target_registry.clone()));
+        let task_results = Arc::new(TaskResults::new(
+            task_registry.clone(),
+            target_registry.clone(),
+            signature_registry.clone(),
+        ));
         let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
         let ctx = LocalSharedContext::new(
             config,
+            task_registry.clone(),
             target_registry,
+            signature_registry.clone(),
             test_matcher_registry,
-            DummyResolver,
+            DummyResolver { signature_registry },
             NoopStore.into(),
             workspace_manager,
             task_results,
@@ -583,7 +666,12 @@ mod tests {
         let target: Target = Arbitrary::arbitrary(&mut gen);
         let goal: Goal = Arbitrary::arbitrary(&mut gen);
         let target_id = ctx.target_registry.register_target(target);
-        let task = Task::new(goal, target_id);
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = task_registry.register(unreg_task);
         ctx.task_queue.queue(task).unwrap();
         assert!(!ctx.task_queue.is_empty());
 

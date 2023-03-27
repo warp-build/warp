@@ -3,6 +3,13 @@ package build.warp;
 
 import "google/protobuf/struct.proto";
 
+enum Goal {
+  GOAL_UNKNOWN = 0;
+  GOAL_BUILD = 1;
+  GOAL_TEST = 2;
+  GOAL_RUN = 3;
+}
+
 enum Status {
   STATUS_UNKNOWN = 0;
   STATUS_OK = 1;

@@ -2,6 +2,7 @@ mod context;
 pub mod traced_action_runner;
 
 pub use context::*;
+use tracing::instrument;
 
 use self::traced_action_runner::{ActionRunnerFlow, TracedActionRunner};
 use super::{ExecutionFlow, Executor, ExecutorError, ValidationStatus};
@@ -27,7 +28,7 @@ impl Executor for LocalExecutor {
         Ok(Self { ctx })
     }
 
-    #[tracing::instrument(name = "LocalExecutor::execute", skip(self, spec))]
+    #[instrument(name = "LocalExecutor::execute", skip(self, spec))]
     async fn execute(&mut self, spec: &ExecutableSpec) -> Result<ExecutionFlow, ExecutorError> {
         if let Some(manifest) = self.ctx.artifact_store.find(spec).await? {
             self.ctx.artifact_store.promote(&manifest).await?;
@@ -80,7 +81,7 @@ impl LocalExecutor {
                         let manifest = self
                             .ctx
                             .task_results
-                            .get_task_result(*dep)
+                            .get_task_result(dep)
                             .unwrap()
                             .artifact_manifest;
                         (manifest.target().to_string(), manifest.hash().to_string())
@@ -95,7 +96,7 @@ impl LocalExecutor {
                         let manifest = self
                             .ctx
                             .task_results
-                            .get_task_result(*dep)
+                            .get_task_result(dep)
                             .unwrap()
                             .artifact_manifest;
                         (manifest.target().to_string(), manifest.hash().to_string())
@@ -110,7 +111,7 @@ impl LocalExecutor {
                         let manifest = self
                             .ctx
                             .task_results
-                            .get_task_result(*dep)
+                            .get_task_result(dep)
                             .unwrap()
                             .artifact_manifest;
                         (manifest.target().to_string(), manifest.hash().to_string())
@@ -125,7 +126,7 @@ impl LocalExecutor {
                         let manifest = self
                             .ctx
                             .task_results
-                            .get_task_result(*dep)
+                            .get_task_result(dep)
                             .unwrap()
                             .artifact_manifest;
                         (manifest.target().to_string(), manifest.hash().to_string())
@@ -163,7 +164,7 @@ impl LocalExecutor {
         for toolchain in spec.deps().toolchains().iter().map(|l| {
             self.ctx
                 .task_results
-                .get_task_result(*l)
+                .get_task_result(l)
                 .unwrap()
                 .artifact_manifest
         }) {
@@ -173,7 +174,7 @@ impl LocalExecutor {
         for dep in spec.deps().compile_deps().iter().map(|l| {
             self.ctx
                 .task_results
-                .get_task_result(*l)
+                .get_task_result(l)
                 .unwrap()
                 .artifact_manifest
         }) {
@@ -183,7 +184,7 @@ impl LocalExecutor {
         for dep in spec.deps().transitive_deps().iter().map(|l| {
             self.ctx
                 .task_results
-                .get_task_result(*l)
+                .get_task_result(l)
                 .unwrap()
                 .artifact_manifest
         }) {
@@ -208,7 +209,7 @@ impl LocalExecutor {
             .map(|l| {
                 self.ctx
                     .task_results
-                    .get_task_result(*l)
+                    .get_task_result(l)
                     .unwrap()
                     .artifact_manifest
             })
@@ -247,7 +248,7 @@ impl LocalExecutor {
             .map(|d| {
                 self.ctx
                     .task_results
-                    .get_task_result(*d)
+                    .get_task_result(d)
                     .unwrap()
                     .artifact_manifest
             })
@@ -302,7 +303,7 @@ spec = {:#?}
             .map(|l| {
                 self.ctx
                     .task_results
-                    .get_task_result(*l)
+                    .get_task_result(l)
                     .unwrap()
                     .artifact_manifest
             })
@@ -397,7 +398,7 @@ spec = {:#?}
         }
     }
 
-    #[tracing::instrument(name = "LocalExecutor::copy_file", skip(self))]
+    #[instrument(name = "LocalExecutor::copy_file", skip(self))]
     async fn copy_file(
         &self,
         target: &ConcreteTarget,

@@ -1,15 +1,30 @@
-#[derive(Debug, Clone)]
-pub struct TestMatcher(Vec<String>);
+#[derive(Default, Debug, Clone)]
+pub enum TestMatcher {
+    #[default]
+    All,
+    Patterns(Vec<String>),
+}
 
 impl TestMatcher {
+    pub fn is_all(&self) -> bool {
+        matches!(&self, Self::All)
+    }
+
     pub fn raw(&self) -> &[String] {
-        &self.0
+        match self {
+            TestMatcher::All => &[],
+            TestMatcher::Patterns(pat) => &pat,
+        }
     }
 }
 
 impl From<Vec<String>> for TestMatcher {
     fn from(value: Vec<String>) -> Self {
-        Self(value)
+        if value.is_empty() {
+            Self::All
+        } else {
+            Self::Patterns(value)
+        }
     }
 }
 

@@ -94,6 +94,28 @@ impl StatusReporter {
 }
 
 impl Reporter for StatusReporter {
+    fn on_queue_event(&mut self, event: QueueEvent) {
+        match event {
+            QueueEvent::TaskQueued {
+                target, signature, ..
+            } => {
+                let line = format!(
+                    "{:>12} {} {}",
+                    "QUEUED",
+                    target.to_string(),
+                    if let Some(sig) = signature {
+                        sig
+                    } else {
+                        "".to_string()
+                    }
+                );
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
+            _ => (),
+        }
+    }
+
     fn on_worker_event(&mut self, event: WorkerEvent) {
         let green_bold = console::Style::new().green().bold();
         let _purple = console::Style::new().magenta().bright();

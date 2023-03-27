@@ -1,6 +1,7 @@
 use super::package::Package;
 use super::{ArtifactManifest, PackageManifest};
 use crate::archive::{ArchiveManager, ArchiveManagerError};
+
 use crate::resolver::TargetRegistry;
 use crate::sync::Arc;
 use crate::worker::TaskResults;
@@ -28,7 +29,8 @@ impl Packer {
 
     pub async fn pack(&self, target: Target) -> Result<Package, PackerError> {
         let target_id = self.target_registry.find_target(&target).unwrap();
-        let task_result = self.task_results.get_task_result(target_id).unwrap();
+        let task = self.task_results.find_task_by_target_id(target_id).unwrap();
+        let task_result = self.task_results.get_task_result(&task).unwrap();
         let manifest = task_result.artifact_manifest;
 
         let included_deps: Vec<String> = manifest

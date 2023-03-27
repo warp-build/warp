@@ -3,11 +3,11 @@ use self::proto::build::warp::tricorder::EnsureReadyRequest;
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
 use crate::archive::Archive;
 use crate::model::{
-    rule, ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, TestMatcher,
+    rule, ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, Task, TestMatcher,
 };
 use crate::store::ArtifactManifest;
 use crate::sync::Arc;
-use crate::Target;
+use crate::Goal;
 use async_trait::async_trait;
 use std::path::PathBuf;
 use tracing::instrument;
@@ -61,9 +61,10 @@ impl Tricorder for GrpcTricorder {
     async fn generate_signature(
         &mut self,
         concrete_target: &ConcreteTarget,
-        dependencies: &[(Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+        dependencies: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
         test_matcher: Option<Arc<TestMatcher>>,
     ) -> Result<SignatureGenerationFlow, TricorderError> {
+        let goal: proto::build::warp::Goal = concrete_target.goal().into();
         let request = proto::build::warp::tricorder::GenerateSignatureRequest {
             workspace_root: concrete_target
                 .workspace_root()
@@ -73,7 +74,7 @@ impl Tricorder for GrpcTricorder {
             symbol: None,
             dependencies: dependencies
                 .iter()
-                .map(|(spec, manifest)| proto::build::warp::Dependency {
+                .map(|(_task, spec, manifest)| proto::build::warp::Dependency {
                     store_path: manifest.store_path().to_string_lossy().to_string(),
                     name: spec.signature().target().name().to_string(),
                     outputs: manifest
@@ -87,6 +88,7 @@ impl Tricorder for GrpcTricorder {
             test_matcher: test_matcher.map(|matcher| proto::build::warp::TestMatcher {
                 raw: matcher.raw().to_vec(),
             }),
+            goal: goal.into(),
         };
 
         let res = self
@@ -99,17 +101,21 @@ impl Tricorder for GrpcTricorder {
 
         match res {
             Response::Ok(res) => {
-                let deps: Vec<Target> = dependencies
+                let deps: Vec<Task> = dependencies
                     .iter()
-                    .map(|(spec, _manifest)| (*spec.target().original_target()).clone())
+                    .map(|(task, _spec, _manifest)| *task)
                     .collect();
 
                 let mut signatures = vec![];
                 for mut proto_sig in res.signatures.into_iter() {
                     let mut config: rule::Config = proto_sig.config.take().unwrap().into();
-                    config.insert("name".to_string(), rule::Value::String(proto_sig.name));
+                    config.insert(
+                        "name".to_string(),
+                        rule::Value::String(proto_sig.name.clone()),
+                    );
 
                     let sig = Signature::builder()
+                        .name(proto_sig.name)
                         .rule(proto_sig.rule)
                         .target(concrete_target.clone())
                         .config(config)
@@ -176,9 +182,13 @@ impl Tricorder for GrpcTricorder {
         let mut signatures = vec![];
         for mut proto_sig in res.signatures.into_iter() {
             let mut config: rule::Config = proto_sig.config.take().unwrap().into();
-            config.insert("name".to_string(), rule::Value::String(proto_sig.name));
+            config.insert(
+                "name".to_string(),
+                rule::Value::String(proto_sig.name.clone()),
+            );
 
             let sig = Signature::builder()
+                .name(proto_sig.name)
                 .rule(proto_sig.rule)
                 .target(concrete_target.clone())
                 .config(config)
@@ -233,5 +243,17 @@ impl From<proto::google::protobuf::ListValue> for rule::Value {
             items.push(item.into());
         }
         Self::List(items)
+    }
+}
+
+impl From<Goal> for proto::build::warp::Goal {
+    fn from(value: Goal) -> Self {
+        match value {
+            Goal::Bootstrap => Self::Unknown,
+            Goal::Build => Self::Build,
+            Goal::Fetch => Self::Unknown,
+            Goal::Run => Self::Run,
+            Goal::Test { .. } => Self::Test,
+        }
     }
 }

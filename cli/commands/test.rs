@@ -1,4 +1,5 @@
 use crate::flags::Flags;
+use crate::reporter::StatusReporter;
 use anyhow::*;
 use structopt::StructOpt;
 use warp_core::*;
@@ -47,8 +48,42 @@ Leave empty to test everything in the target.
 
 impl TestCommand {
     pub async fn run(self) -> Result<(), anyhow::Error> {
-        let mut warp = WarpDriveMarkII::new(self.flags.into()).await?;
-        let _results = warp.run_test(self.matcher, &[self.target]).await?;
+        let config: warp_core::Config = self.flags.clone().into();
+        let goal = Goal::Build;
+        let target = self.target.into();
+        let targets = vec![target];
+
+        let reporter = StatusReporter::new(config.event_channel(), self.flags.clone(), goal);
+
+        let mut warp = WarpDriveMarkII::new(config).await?;
+
+        let (results, _) = futures::future::join(
+            warp.run_test(self.matcher, &targets),
+            reporter.run(&targets),
+        )
+        .await;
+
+        let results = results?;
+
+        if self.flags.print_hashes {
+            println!();
+            println!("Targets:");
+            let mut results = results.get_results();
+            results.sort_by(|a, b| {
+                a.artifact_manifest
+                    .buildstamps()
+                    .build_started_at
+                    .cmp(&b.artifact_manifest.buildstamps().build_started_at)
+            });
+
+            for result in results {
+                let hash = result.artifact_manifest.hash();
+                let target = result.artifact_manifest.target();
+                println!("  {hash} => {target}");
+            }
+            println!();
+        }
+
         Ok(())
     }
 }

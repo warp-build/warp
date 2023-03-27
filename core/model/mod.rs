@@ -8,9 +8,12 @@ mod requirement;
 pub mod rule;
 mod run_script;
 mod signature;
+mod signature_id;
 mod source_set;
 mod target;
 mod target_id;
+mod task;
+mod task_id;
 mod test_matcher;
 mod test_matcher_id;
 
@@ -24,9 +27,12 @@ pub use requirement::*;
 pub use rule::{Pinned, Portability, Rule, RuleKind, RuleName};
 pub use run_script::*;
 pub use signature::*;
+pub use signature_id::*;
 pub use source_set::*;
 pub use target::*;
 pub use target_id::*;
+pub use task::*;
+pub use task_id::*;
 pub use test_matcher::*;
 pub use test_matcher_id::*;
 
