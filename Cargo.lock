@@ -3800,9 +3800,11 @@ name = "tricorder"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "assert_fs",
  "derive_builder",
  "fxhash",
  "insta",
+ "predicates 2.1.5",
  "prettyplease",
  "prost 0.11.8",
  "prost-types 0.10.1",
