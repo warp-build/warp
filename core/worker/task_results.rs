@@ -86,14 +86,6 @@ impl TaskResults {
         if self.ready_marker.is_empty() {
             return false;
         }
-
-        dbg!(&self
-            .results
-            .iter()
-            .map(|e| *e.key())
-            .collect::<Vec<TaskId>>());
-        dbg!(&self.missing_tasks);
-
         self.missing_tasks.is_empty()
     }
 
