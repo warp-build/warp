@@ -5,7 +5,10 @@
         "target/",
         "core/target/",
         "docs/node_modules/",
-        "docs/build/"
+        "docs/build/",
+        "tricorders/beam/_build/",
+        "tricorders/beam/deps/",
+        "tricorders/rust/target/"
       ]
     }
   }
