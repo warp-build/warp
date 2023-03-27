@@ -76,8 +76,8 @@ defmodule Build.Warp.Tricorder.GetAstSuccessResponse do
     }
   end
 
-  field(:file, 1, type: :string)
-  field(:symbol, 2, type: Build.Warp.Symbol)
-  field(:source, 3, type: :string)
-  field(:ast, 4, type: :string)
+  field :file, 1, type: :string
+  field :symbol, 2, type: Build.Warp.Symbol
+  field :source, 3, type: :string
+  field :ast, 4, type: :string
 end

@@ -51,25 +51,19 @@ defmodule Build.Warp.Tricorder.TricorderService.Service do
     }
   end
 
-  rpc(
-    :EnsureReady,
-    Build.Warp.Tricorder.EnsureReadyRequest,
-    Build.Warp.Tricorder.EnsureReadyResponse
-  )
+  rpc :EnsureReady,
+      Build.Warp.Tricorder.EnsureReadyRequest,
+      Build.Warp.Tricorder.EnsureReadyResponse
 
-  rpc(
-    :GenerateSignature,
-    Build.Warp.Tricorder.GenerateSignatureRequest,
-    Build.Warp.Tricorder.GenerateSignatureResponse
-  )
+  rpc :GenerateSignature,
+      Build.Warp.Tricorder.GenerateSignatureRequest,
+      Build.Warp.Tricorder.GenerateSignatureResponse
 
-  rpc(:GetAst, Build.Warp.Tricorder.GetAstRequest, Build.Warp.Tricorder.GetAstResponse)
+  rpc :GetAst, Build.Warp.Tricorder.GetAstRequest, Build.Warp.Tricorder.GetAstResponse
 
-  rpc(
-    :PrepareDependency,
-    Build.Warp.Tricorder.PrepareDependencyRequest,
-    Build.Warp.Tricorder.PrepareDependencyResponse
-  )
+  rpc :PrepareDependency,
+      Build.Warp.Tricorder.PrepareDependencyRequest,
+      Build.Warp.Tricorder.PrepareDependencyResponse
 end
 
 defmodule Build.Warp.Tricorder.TricorderService.Stub do

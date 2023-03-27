@@ -90,9 +90,9 @@ defmodule Build.Warp.Signature do
     }
   end
 
-  field(:name, 1, type: :string)
-  field(:rule, 2, type: :string)
-  field(:deps, 3, repeated: true, type: Build.Warp.Requirement)
-  field(:runtime_deps, 4, repeated: true, type: Build.Warp.Requirement, json_name: "runtimeDeps")
-  field(:config, 5, type: Google.Protobuf.Struct)
+  field :name, 1, type: :string
+  field :rule, 2, type: :string
+  field :deps, 3, repeated: true, type: Build.Warp.Requirement
+  field :runtime_deps, 4, repeated: true, type: Build.Warp.Requirement, json_name: "runtimeDeps"
+  field :config, 5, type: Google.Protobuf.Struct
 end

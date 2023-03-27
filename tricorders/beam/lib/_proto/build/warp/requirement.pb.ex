@@ -82,10 +82,10 @@ defmodule Build.Warp.Requirement do
     }
   end
 
-  oneof(:requirement, 0)
+  oneof :requirement, 0
 
-  field(:file, 1, type: Build.Warp.FileRequirement, oneof: 0)
-  field(:symbol, 2, type: Build.Warp.SymbolRequirement, oneof: 0)
-  field(:url, 3, type: Build.Warp.UrlRequirement, oneof: 0)
-  field(:dependency, 4, type: Build.Warp.DependencyRequirement, oneof: 0)
+  field :file, 1, type: Build.Warp.FileRequirement, oneof: 0
+  field :symbol, 2, type: Build.Warp.SymbolRequirement, oneof: 0
+  field :url, 3, type: Build.Warp.UrlRequirement, oneof: 0
+  field :dependency, 4, type: Build.Warp.DependencyRequirement, oneof: 0
 end

@@ -25,6 +25,12 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
 
     Logger.info("Generating signature with paths: #{inspect(paths)}")
 
+    test_matcher =
+      case req.test_matcher do
+        %{raw: raw} when raw != nil -> {:match, raw}
+        _ -> :all
+      end
+
     cond do
       Path.basename(req.file) in ["mix.exs"] ->
         {:ok, analysis} = Analysis.Mix.analyze(req.file, paths)
@@ -35,7 +41,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
         {:ok, analysis_to_resp(req, analysis)}
 
       Path.extname(req.file) in [".erl", ".hrl"] ->
-        {:ok, analysis} = Analysis.Erlang.analyze(req.file, paths)
+        {:ok, analysis} = Analysis.Erlang.analyze(req.file, test_matcher, paths)
         {:ok, analysis_to_resp(req, analysis)}
 
       Path.extname(req.file) in [".ex", ".exs"] ->

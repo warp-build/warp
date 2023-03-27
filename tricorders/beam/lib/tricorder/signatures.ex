@@ -52,7 +52,7 @@ defmodule Tricorder.Signatures do
 
   def erlang_test(file, case_name, modules, includes) do
     %{
-      name: "#{file}:#{case_name}",
+      name: case_name,
       rule: "erlang_test",
       test: file,
       modules: modules,

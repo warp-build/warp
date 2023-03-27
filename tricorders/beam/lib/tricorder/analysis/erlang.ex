@@ -4,16 +4,16 @@ defmodule Tricorder.Analysis.Erlang do
 
   require Erlang.Cerl
 
-  def analyze(file, %{include_paths: include_paths, code_paths: code_paths}) do
+  def analyze(file, test_matcher, %{include_paths: include_paths, code_paths: code_paths}) do
     with {:ok, ast} <- Erlang.Ast.parse(file, include_paths),
-         {:ok, result} <- analyze_source(file, include_paths, code_paths, ast) do
+         {:ok, result} <- analyze_source(file, test_matcher, include_paths, code_paths, ast) do
       {:ok, result}
     else
       diag = {:missing_dependencies, _} -> {:ok, diag}
     end
   end
 
-  def analyze_source(file, include_paths, code_paths, ast) do
+  def analyze_source(file, test_matcher, include_paths, code_paths, ast) do
     analysis = Erlang.Ast.scan(ast)
 
     case Path.extname(file) do
@@ -21,7 +21,7 @@ defmodule Tricorder.Analysis.Erlang do
         analyze_hrl(ast, file, analysis)
 
       ".erl" ->
-        analyze_erl(file, include_paths, code_paths, ast, analysis)
+        analyze_erl(file, test_matcher, include_paths, code_paths, ast, analysis)
     end
   end
 
@@ -30,7 +30,7 @@ defmodule Tricorder.Analysis.Erlang do
     {:ok, {:completed, signatures}}
   end
 
-  def analyze_erl(file, include_paths, code_paths, ast, src_analysis) do
+  def analyze_erl(file, test_matcher, include_paths, code_paths, ast, src_analysis) do
     with {:ok, _, _} <- Erlang.Cerl.compile(file, include_paths, code_paths) do
       modules =
         (src_analysis.remote_functions ++
@@ -42,25 +42,9 @@ defmodule Tricorder.Analysis.Erlang do
 
       signatures =
         [Signatures.erlang_library(file, modules, includes)] ++
-          ct_suites(file, modules, includes, src_analysis)
+          Erlang.CommonTest.suites(file, test_matcher, modules, includes, src_analysis)
 
       {:ok, {:completed, signatures}}
-    end
-  end
-
-  def ct_suites(file, modules, includes, src_analysis) do
-    if String.ends_with?(file, "_SUITE.erl") do
-      {:ok, mod} = :compile.noenv_file(:binary.bin_to_list(file), @default_compile_opts)
-      cases = mod.all()
-      :code.delete(mod)
-      :code.purge(mod)
-      false = :code.is_loaded(mod)
-
-      for case_name <- cases do
-        Signatures.erlang_test(file, case_name, modules, includes)
-      end
-    else
-      []
     end
   end
 end

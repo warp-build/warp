@@ -65,6 +65,34 @@ defmodule Build.Warp.Tricorder.GenerateSignatureRequest do
           proto3_optional: nil,
           type: :TYPE_MESSAGE,
           type_name: ".build.warp.Dependency"
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          __unknown_fields__: [],
+          default_value: nil,
+          extendee: nil,
+          json_name: "testMatcher",
+          label: :LABEL_OPTIONAL,
+          name: "test_matcher",
+          number: 5,
+          oneof_index: nil,
+          options: nil,
+          proto3_optional: nil,
+          type: :TYPE_MESSAGE,
+          type_name: ".build.warp.TestMatcher"
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          __unknown_fields__: [],
+          default_value: nil,
+          extendee: nil,
+          json_name: "goal",
+          label: :LABEL_OPTIONAL,
+          name: "goal",
+          number: 6,
+          oneof_index: nil,
+          options: nil,
+          proto3_optional: nil,
+          type: :TYPE_ENUM,
+          type_name: ".build.warp.Goal"
         }
       ],
       name: "GenerateSignatureRequest",
@@ -76,8 +104,10 @@ defmodule Build.Warp.Tricorder.GenerateSignatureRequest do
     }
   end
 
-  field(:workspace_root, 1, type: :string, json_name: "workspaceRoot")
-  field(:file, 2, type: :string)
-  field(:symbol, 3, type: Build.Warp.Symbol)
-  field(:dependencies, 4, repeated: true, type: Build.Warp.Dependency)
+  field :workspace_root, 1, type: :string, json_name: "workspaceRoot"
+  field :file, 2, type: :string
+  field :symbol, 3, type: Build.Warp.Symbol
+  field :dependencies, 4, repeated: true, type: Build.Warp.Dependency
+  field :test_matcher, 5, type: Build.Warp.TestMatcher, json_name: "testMatcher"
+  field :goal, 6, type: Build.Warp.Goal, enum: true
 end

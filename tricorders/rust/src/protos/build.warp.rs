@@ -144,6 +144,38 @@ pub struct TestMatcher {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
+pub enum Goal {
+    Unknown = 0,
+    Build = 1,
+    Test = 2,
+    Run = 3,
+}
+impl Goal {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Goal::Unknown => "GOAL_UNKNOWN",
+            Goal::Build => "GOAL_BUILD",
+            Goal::Test => "GOAL_TEST",
+            Goal::Run => "GOAL_RUN",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "GOAL_UNKNOWN" => Some(Self::Unknown),
+            "GOAL_BUILD" => Some(Self::Build),
+            "GOAL_TEST" => Some(Self::Test),
+            "GOAL_RUN" => Some(Self::Run),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
 pub enum Status {
     Unknown = 0,
     Ok = 1,

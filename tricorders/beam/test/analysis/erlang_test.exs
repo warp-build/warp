@@ -3,7 +3,7 @@ defmodule Tricorder.Analysis.ErlangTest do
 
   test "detects missing includes" do
     assert {:ok, {:missing_dependencies, %{includes: ["missing_header.hrl"]}}} =
-             Tricorder.Analysis.Erlang.analyze("./test/fixtures/missing_includes.erl", %{
+             Tricorder.Analysis.Erlang.analyze("./test/fixtures/missing_includes.erl", :all, %{
                include_paths: [],
                code_paths: []
              })
@@ -11,10 +11,14 @@ defmodule Tricorder.Analysis.ErlangTest do
 
   test "detects needing parse transforms" do
     assert {:ok, {:missing_dependencies, %{modules: [:missing_transform]}}} =
-             Tricorder.Analysis.Erlang.analyze("./test/fixtures/missing_parse_transforms.erl", %{
-               include_paths: [],
-               code_paths: []
-             })
+             Tricorder.Analysis.Erlang.analyze(
+               "./test/fixtures/missing_parse_transforms.erl",
+               :all,
+               %{
+                 include_paths: [],
+                 code_paths: []
+               }
+             )
   end
 
   test "detects direct module depedencies" do
@@ -29,7 +33,7 @@ defmodule Tricorder.Analysis.ErlangTest do
                  srcs: ["direct_deps.erl"]
                }
              ]}} =
-             Tricorder.Analysis.Erlang.analyze("./test/fixtures/direct_deps.erl", %{
+             Tricorder.Analysis.Erlang.analyze("./test/fixtures/direct_deps.erl", :all, %{
                include_paths: [],
                code_paths: []
              })
@@ -51,7 +55,7 @@ defmodule Tricorder.Analysis.ErlangTest do
                ]
              }
            } =
-             Tricorder.Analysis.Erlang.analyze("./test/fixtures/direct_type_deps.erl", %{
+             Tricorder.Analysis.Erlang.analyze("./test/fixtures/direct_type_deps.erl", :all, %{
                include_paths: [],
                code_paths: []
              })
@@ -73,7 +77,7 @@ defmodule Tricorder.Analysis.ErlangTest do
                ]
              }
            } =
-             Tricorder.Analysis.Erlang.analyze("./test/fixtures/imported_deps.erl", %{
+             Tricorder.Analysis.Erlang.analyze("./test/fixtures/imported_deps.erl", :all, %{
                include_paths: [],
                code_paths: []
              })
@@ -95,7 +99,7 @@ defmodule Tricorder.Analysis.ErlangTest do
                ]
              }
            } =
-             Tricorder.Analysis.Erlang.analyze("./test/fixtures/found_includes.erl", %{
+             Tricorder.Analysis.Erlang.analyze("./test/fixtures/found_includes.erl", :all, %{
                include_paths: [],
                code_paths: []
              })
@@ -128,7 +132,7 @@ defmodule Tricorder.Analysis.ErlangTest do
                  srcs: ["prop_verl.erl"]
                }
              ]}} =
-             Tricorder.Analysis.Erlang.analyze("./test/fixtures/prop_verl.erl", %{
+             Tricorder.Analysis.Erlang.analyze("./test/fixtures/prop_verl.erl", :all, %{
                include_paths: [],
                code_paths: ["./test/fixtures"]
              })

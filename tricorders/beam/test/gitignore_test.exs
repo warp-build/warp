@@ -12,6 +12,8 @@ defmodule GitignoreTest do
 
     assert [
              "test/fixtures/.gitignore",
+             "test/fixtures/ct_suite_with_groups_SUITE.erl",
+             "test/fixtures/ct_suite_without_groups_SUITE.erl",
              "test/fixtures/direct_deps.erl",
              "test/fixtures/direct_type_deps.erl",
              "test/fixtures/found_header.hrl",

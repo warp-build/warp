@@ -34,5 +34,5 @@ defmodule Build.Warp.Tricorder.PrepareDependencyResponse do
     }
   end
 
-  field(:signatures, 2, repeated: true, type: Build.Warp.Signature)
+  field :signatures, 2, repeated: true, type: Build.Warp.Signature
 end

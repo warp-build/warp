@@ -14,7 +14,7 @@ defmodule Tricorder.Deps.Spec do
     {:ok, {_, _, resp}} = :hex_api_package.get(hex_config, pkg_name)
     Logger.info("Found #{Enum.count(resp["releases"])} versions for #{pkg_name}")
 
-    host = "hex.pm" 
+    host = "hex.pm"
 
     %__MODULE__{
       name: pkg_name,
