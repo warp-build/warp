@@ -2,6 +2,7 @@ use super::{
     Connection, Tricorder, TricorderError, TricorderRegistry, TricorderRegistryError,
     DEFAULT_TRICODER_BINARY_NAME,
 };
+use crate::events::event::TricorderEvent;
 use crate::store::{ArtifactManifest, Store, StoreError};
 use crate::sync::*;
 use crate::util::port_finder::PortFinder;
@@ -65,9 +66,13 @@ where
     ) -> Result<Option<impl Tricorder>, TricorderManagerError> {
         let _lock = self._lock.lock().await;
 
+        let ec = self.config.event_channel();
         if let Some(entry) = self.tricorders.get(tricorder_url) {
             let (_pid, conn) = &*entry;
             let tricorder = T::connect(conn.clone()).await?;
+            ec.send(TricorderEvent::TricorderConnectionEstablished {
+                tricorder_url: tricorder_url.clone(),
+            });
             return Ok(Some(tricorder));
         }
 
@@ -110,6 +115,10 @@ where
         };
         let pid = self.process_pool.spawn(spec).await?;
 
+        ec.send(TricorderEvent::TricorderServiceStarted {
+            tricorder_url: tricorder_url.clone(),
+        });
+
         // 4. connect to it
         let conn = Connection {
             tricorder_url: tricorder_url.clone(),
@@ -117,10 +126,22 @@ where
         };
         let mut tricorder = T::connect(conn.clone()).await?;
 
+        ec.send(TricorderEvent::TricorderConnectionEstablished {
+            tricorder_url: tricorder_url.clone(),
+        });
+
+        ec.send(TricorderEvent::TricorderReadyingStarted {
+            tricorder_url: tricorder_url.clone(),
+        });
+
         // 5. ready it
         tricorder.ensure_ready().await?;
 
         self.tricorders.insert(tricorder_url.clone(), (pid, conn));
+
+        ec.send(TricorderEvent::TricorderReadyingCompleted {
+            tricorder_url: tricorder_url.clone(),
+        });
 
         Ok(Some(tricorder))
     }

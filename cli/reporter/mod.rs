@@ -163,7 +163,6 @@ impl Reporter for StatusReporter {
 
     fn on_worker_event(&mut self, event: WorkerEvent) {
         let green_bold = console::Style::new().green().bold();
-        let _purple = console::Style::new().magenta().bright();
         let blue_dim = console::Style::new().blue();
         let _yellow = console::Style::new().yellow();
         let _red_bold = console::Style::new().red().bold();
@@ -304,6 +303,49 @@ impl Reporter for StatusReporter {
                 self.pb.println(line);
                 self.should_stop = true;
             }
+        }
+    }
+
+    fn on_tricorder_event(&mut self, event: TricorderEvent) {
+        let purple = console::Style::new().magenta().bright();
+        match event {
+            TricorderEvent::TricorderServiceStarted { tricorder_url } => {
+                let line = format!(
+                    "{:>12} {}",
+                    purple.apply_to("Started"),
+                    tricorder_url.to_string()
+                );
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
+            TricorderEvent::TricorderReadyingStarted { tricorder_url } => {
+                let line = format!(
+                    "{:>12} {}",
+                    purple.apply_to("Readying"),
+                    tricorder_url.to_string()
+                );
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
+            TricorderEvent::TricorderReadyingCompleted { tricorder_url } => {
+                let line = format!(
+                    "{:>12} {}",
+                    purple.apply_to("Ready"),
+                    tricorder_url.to_string()
+                );
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
+            TricorderEvent::TricorderConnectionEstablished { tricorder_url } => {
+                let line = format!(
+                    "{:>12} {}",
+                    purple.apply_to("Connected"),
+                    tricorder_url.to_string()
+                );
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
+            TricorderEvent::SignatureGenerationStarted { target: _ } => (),
         }
     }
 }

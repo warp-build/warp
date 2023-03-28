@@ -64,8 +64,11 @@ pub enum QueueEvent {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TricorderEvent {
-    TricorderServiceStarted { target: String },
     SignatureGenerationStarted { target: String },
+    TricorderReadyingStarted { tricorder_url: Url },
+    TricorderReadyingCompleted { tricorder_url: Url },
+    TricorderConnectionEstablished { tricorder_url: Url },
+    TricorderServiceStarted { tricorder_url: Url },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
