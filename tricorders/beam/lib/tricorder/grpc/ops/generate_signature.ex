@@ -8,6 +8,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     Logger.info("Analyzing: #{req.file}")
 
     with {:ok, response} <- do_generate_signature(req) do
+      Logger.info("Response: #{inspect(response)}")
       Build.Warp.Tricorder.GenerateSignatureResponse.new(response: response)
     else
       err -> Logger.error("#{err}")
@@ -163,8 +164,11 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     |> Enum.map(fn dep ->
       dep = Atom.to_string(dep)
 
+      glob = Path.wildcard("./**/#{dep}.erl")
+      Logger.info("Found module #{dep} in #{glob}")
+
       req =
-        case Path.wildcard("./**/#{dep}.erl") do
+        case glob do
           [file | _] -> {:file, Build.Warp.FileRequirement.new(path: file)}
           _ -> {:symbol, Build.Warp.SymbolRequirement.new(raw: dep, kind: "module")}
         end

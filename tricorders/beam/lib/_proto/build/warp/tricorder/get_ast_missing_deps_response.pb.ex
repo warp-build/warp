@@ -28,24 +28,24 @@ defmodule Build.Warp.Tricorder.GetAstMissingDepsResponse do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "symbol",
-          label: :LABEL_OPTIONAL,
-          name: "symbol",
-          number: 2,
+          json_name: "dependencies",
+          label: :LABEL_REPEATED,
+          name: "dependencies",
+          number: 4,
           oneof_index: nil,
           options: nil,
           proto3_optional: nil,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.Symbol"
+          type_name: ".build.warp.Dependency"
         },
         %Google.Protobuf.FieldDescriptorProto{
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "dependencies",
+          json_name: "requirements",
           label: :LABEL_REPEATED,
-          name: "dependencies",
-          number: 3,
+          name: "requirements",
+          number: 5,
           oneof_index: nil,
           options: nil,
           proto3_optional: nil,
@@ -63,6 +63,6 @@ defmodule Build.Warp.Tricorder.GetAstMissingDepsResponse do
   end
 
   field :file, 1, type: :string
-  field :symbol, 2, type: Build.Warp.Symbol
-  field :dependencies, 3, repeated: true, type: Build.Warp.Requirement
+  field :dependencies, 4, repeated: true, type: Build.Warp.Dependency
+  field :requirements, 5, repeated: true, type: Build.Warp.Requirement
 end

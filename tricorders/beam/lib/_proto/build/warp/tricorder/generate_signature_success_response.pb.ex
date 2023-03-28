@@ -42,20 +42,6 @@ defmodule Build.Warp.Tricorder.GenerateSignatureSuccessResponse do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "symbol",
-          label: :LABEL_OPTIONAL,
-          name: "symbol",
-          number: 3,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
-          type: :TYPE_MESSAGE,
-          type_name: ".build.warp.Symbol"
-        },
-        %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
           json_name: "signatures",
           label: :LABEL_REPEATED,
           name: "signatures",
@@ -78,6 +64,5 @@ defmodule Build.Warp.Tricorder.GenerateSignatureSuccessResponse do
 
   field :workspace_root, 1, type: :string, json_name: "workspaceRoot"
   field :file, 2, type: :string
-  field :symbol, 3, type: Build.Warp.Symbol
   field :signatures, 4, repeated: true, type: Build.Warp.Signature
 end

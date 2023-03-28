@@ -81,6 +81,10 @@ pub struct GetAstRequest {
     pub dependencies: ::prost::alloc::vec::Vec<super::Dependency>,
     #[prost(message, optional, tag = "4")]
     pub test_matcher: ::core::option::Option<super::TestMatcher>,
+    /// The root of the workspace that the Tricorder will be analyzing.
+    ///
+    #[prost(string, tag = "5")]
+    pub workspace_root: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -104,8 +108,11 @@ pub mod get_ast_response {
 pub struct GetAstMissingDepsResponse {
     #[prost(string, tag = "1")]
     pub file: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "3")]
-    pub dependencies: ::prost::alloc::vec::Vec<super::Requirement>,
+    /// repeated Requirement dependencies = 3;
+    #[prost(message, repeated, tag = "4")]
+    pub dependencies: ::prost::alloc::vec::Vec<super::Dependency>,
+    #[prost(message, repeated, tag = "5")]
+    pub requirements: ::prost::alloc::vec::Vec<super::Requirement>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

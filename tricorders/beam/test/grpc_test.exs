@@ -236,7 +236,6 @@ defmodule Tricorder.Grpc.ServerTest do
                         ]
                       }
                     ],
-                    symbol: nil,
                     workspace_root: ""
                   }}
              }

@@ -23,7 +23,9 @@ defmodule Tricorder.Analysis.Erlang.Cerl do
 
     file = :binary.bin_to_list(file)
 
-    Logger.info("Compiling #{file} with opts #{inspect(compile_opts)} and paths #{inspect(code_paths)}")
+    Logger.info(
+      "Compiling #{file} with opts #{inspect(compile_opts)} and paths #{inspect(code_paths)}"
+    )
 
     with {:ok, mod, core} <- :compile.noenv_file(file, compile_opts) do
       tree = :cerl.from_records(core)

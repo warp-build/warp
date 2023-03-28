@@ -1,9 +1,9 @@
 fn kartoffel() -> bool {
-	true
+    true
 }
 
 fn potato() -> bool {
-	false
+    false
 }
 
 fn salad() -> bool {
@@ -11,6 +11,6 @@ fn salad() -> bool {
 }
 
 fn main() -> () {
-	println!("Hello World!");
-	salad();
+    println!("Hello World!");
+    salad();
 }

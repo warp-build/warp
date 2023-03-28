@@ -28,20 +28,6 @@ defmodule Build.Warp.Tricorder.GetAstSuccessResponse do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "symbol",
-          label: :LABEL_OPTIONAL,
-          name: "symbol",
-          number: 2,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
-          type: :TYPE_MESSAGE,
-          type_name: ".build.warp.Symbol"
-        },
-        %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
           json_name: "source",
           label: :LABEL_OPTIONAL,
           name: "source",
@@ -77,7 +63,6 @@ defmodule Build.Warp.Tricorder.GetAstSuccessResponse do
   end
 
   field :file, 1, type: :string
-  field :symbol, 2, type: Build.Warp.Symbol
   field :source, 3, type: :string
   field :ast, 4, type: :string
 end

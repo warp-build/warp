@@ -24,7 +24,7 @@ defmodule Tricorder.Analysis.Erlang.CommonTest do
       :code.purge(mod)
       false = :code.is_loaded(mod)
 
-      Logger.info("Found #{signatures |> Enum.count} tests")
+      Logger.info("Found #{signatures |> Enum.count()} tests")
       IO.inspect(signatures)
 
       signatures

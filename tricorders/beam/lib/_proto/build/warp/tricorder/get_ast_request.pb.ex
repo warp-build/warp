@@ -28,20 +28,6 @@ defmodule Build.Warp.Tricorder.GetAstRequest do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "symbol",
-          label: :LABEL_OPTIONAL,
-          name: "symbol",
-          number: 2,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
-          type: :TYPE_MESSAGE,
-          type_name: ".build.warp.Symbol"
-        },
-        %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
           json_name: "dependencies",
           label: :LABEL_REPEATED,
           name: "dependencies",
@@ -51,6 +37,34 @@ defmodule Build.Warp.Tricorder.GetAstRequest do
           proto3_optional: nil,
           type: :TYPE_MESSAGE,
           type_name: ".build.warp.Dependency"
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          __unknown_fields__: [],
+          default_value: nil,
+          extendee: nil,
+          json_name: "testMatcher",
+          label: :LABEL_OPTIONAL,
+          name: "test_matcher",
+          number: 4,
+          oneof_index: nil,
+          options: nil,
+          proto3_optional: nil,
+          type: :TYPE_MESSAGE,
+          type_name: ".build.warp.TestMatcher"
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          __unknown_fields__: [],
+          default_value: nil,
+          extendee: nil,
+          json_name: "workspaceRoot",
+          label: :LABEL_OPTIONAL,
+          name: "workspace_root",
+          number: 5,
+          oneof_index: nil,
+          options: nil,
+          proto3_optional: nil,
+          type: :TYPE_STRING,
+          type_name: nil
         }
       ],
       name: "GetAstRequest",
@@ -63,6 +77,7 @@ defmodule Build.Warp.Tricorder.GetAstRequest do
   end
 
   field :file, 1, type: :string
-  field :symbol, 2, type: Build.Warp.Symbol
   field :dependencies, 3, repeated: true, type: Build.Warp.Dependency
+  field :test_matcher, 4, type: Build.Warp.TestMatcher, json_name: "testMatcher"
+  field :workspace_root, 5, type: :string, json_name: "workspaceRoot"
 end

@@ -42,20 +42,6 @@ defmodule Build.Warp.Tricorder.GenerateSignatureMissingDepsResponse do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "symbol",
-          label: :LABEL_OPTIONAL,
-          name: "symbol",
-          number: 3,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
-          type: :TYPE_MESSAGE,
-          type_name: ".build.warp.Symbol"
-        },
-        %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
           json_name: "dependencies",
           label: :LABEL_REPEATED,
           name: "dependencies",
@@ -92,7 +78,6 @@ defmodule Build.Warp.Tricorder.GenerateSignatureMissingDepsResponse do
 
   field :workspace_root, 1, type: :string, json_name: "workspaceRoot"
   field :file, 2, type: :string
-  field :symbol, 3, type: Build.Warp.Symbol
   field :dependencies, 4, repeated: true, type: Build.Warp.Dependency
   field :requirements, 5, repeated: true, type: Build.Warp.Requirement
 end

@@ -3,6 +3,7 @@
 struct Point {
     x: f64,
     y: f64,
+    // more stuff
 }
 
 impl Point {

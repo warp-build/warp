@@ -66,9 +66,16 @@ impl TricorderService for TricorderServiceImpl {
         &self,
         request: Request<GetAstRequest>,
     ) -> Result<Response<GetAstResponse>, Status> {
-        let request_data = request.into_inner();
-        let file = request_data.clone().file;
-        let response: Result<Ast, GetAstError> = GetAst::get_ast(file, Symbol::All).await;
+        let request = request.into_inner();
+
+        let sym = match request.test_matcher {
+            Some(test_matcher) if !test_matcher.raw.is_empty() => Symbol::Named {
+                name: test_matcher.raw[0].to_string(),
+            },
+            _ => Symbol::All,
+        };
+
+        let response: Result<Ast, GetAstError> = GetAst::get_ast(request.file, sym).await;
 
         match response {
             Ok(ast) => Ok(Response::new(ast_to_success_response(ast))),
