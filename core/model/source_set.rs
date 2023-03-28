@@ -9,6 +9,17 @@ pub struct SourceSet {
 
 impl SourceSet {
     pub fn new(_inner: FxHashSet<PathBuf>) -> Self {
+        let _inner = _inner
+            .into_iter()
+            .map(|path| {
+                if path.starts_with("./") {
+                    path.strip_prefix("./").unwrap().to_path_buf()
+                } else {
+                    path
+                }
+            })
+            .collect();
+
         Self { _inner }
     }
 
@@ -23,6 +34,6 @@ impl SourceSet {
 
 impl From<FxHashSet<PathBuf>> for SourceSet {
     fn from(_inner: FxHashSet<PathBuf>) -> Self {
-        Self { _inner }
+        Self::new(_inner)
     }
 }

@@ -133,12 +133,18 @@ impl LocalExecutor {
                     })
                     .collect();
 
+                let mut srcs: Vec<PathBuf> = spec.srcs().files().iter().cloned().collect();
+                srcs.sort();
+
+                let mut outs: Vec<PathBuf> = spec.outs().files().iter().cloned().collect();
+                outs.sort();
+
                 let manifest = ArtifactManifest::build_v0()
                     .target(spec.target().to_string())
                     .rule_name(spec.signature().rule().to_string())
                     .hash(spec.hash().to_string())
-                    .srcs(spec.srcs().files().iter().cloned().collect())
-                    .outs(spec.outs().files().iter().cloned().collect())
+                    .srcs(srcs)
+                    .outs(outs)
                     .deps(deps)
                     .runtime_deps(runtime_deps)
                     .transitive_deps(transitive_deps)

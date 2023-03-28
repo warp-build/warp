@@ -191,13 +191,16 @@ impl ExecutableSpecBuilder {
         seeds.sort_unstable();
 
         for seed in seeds {
+            dbg!(&seed);
             s.update(seed.as_bytes());
         }
 
         let target = self.target.as_ref().unwrap();
         let root = target.workspace_root();
 
-        for src in spec.srcs().files() {
+        let mut srcs = spec.srcs().files().iter().collect::<Vec<&PathBuf>>();
+        srcs.sort();
+        for src in srcs {
             let src = root.join(src);
             let f = File::open(&src).unwrap_or_else(|_| panic!("Unable to open: {:?}", &src));
             let mut buffer = [0; 2048];
