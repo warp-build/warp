@@ -81,7 +81,7 @@ setup.local: setup
 	cargo install hyperfine cargo-strip cargo-insta mdbook flamegraph miri cargo-asm cargo-criterion
 
 .PHONY: test
-test: test.tricorder test.unit test.conc test.beam
+test: test.tricorder test.unit test.conc test.beam bootstrap
 
 .PHONY: test.beam
 test.beam:
@@ -103,6 +103,11 @@ test.unit:
 .PHONY: test.conc
 test.conc:
 	RUSTFLAGS="--cfg shuttle" cargo test conc_ --release
+
+bootstrap: install
+	warp bootstrap --print-hashes
+	warp build ./tricorders/beam/mix.exs
+	warp build ./tricorders/rust/Cargo.toml
 
 .PHONY: cov
 cov:
