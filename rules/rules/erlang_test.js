@@ -80,7 +80,7 @@ ct_run \
   ${cases.length > 0 ? `-case ${cases.join(" ")}` : ""} \
   ${includePaths.join(" ")} \
   -erl_args \
-    -sname ${sname}-$(uuidgen) \
+    -sname test-$(uuidgen) \
     ${extraLibPaths.join(" ")}
 
   `,
