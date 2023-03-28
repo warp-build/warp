@@ -93,6 +93,10 @@ message GetAstRequest {
   string file = 1;
   repeated Dependency dependencies = 3;
   TestMatcher test_matcher = 4;
+
+  // The root of the workspace that the Tricorder will be analyzing.
+  //
+  string workspace_root = 5;
 }
 
 message GetAstResponse {
@@ -104,7 +108,9 @@ message GetAstResponse {
 
 message GetAstMissingDepsResponse {
   string file = 1;
-  repeated Requirement dependencies = 3;
+  // repeated Requirement dependencies = 3;
+  repeated Dependency dependencies = 4;
+  repeated Requirement requirements = 5;
 }
 
 message GetAstSuccessResponse {

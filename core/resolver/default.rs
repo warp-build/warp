@@ -248,6 +248,15 @@ mod tests {
                 unreachable!();
             }
 
+            async fn get_ast(
+                &mut self,
+                _: &ConcreteTarget,
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &TestMatcher,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!();
+            }
+
             async fn ready_dependency(
                 &mut self,
                 _concrete_target: &ConcreteTarget,
@@ -340,6 +349,15 @@ mod tests {
 
             async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
                 Ok(())
+            }
+
+            async fn get_ast(
+                &mut self,
+                _: &ConcreteTarget,
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &TestMatcher,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!();
             }
 
             async fn generate_signature(

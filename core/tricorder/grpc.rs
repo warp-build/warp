@@ -2,6 +2,7 @@ use self::proto::build::warp::tricorder::generate_signature_response::Response;
 use self::proto::build::warp::tricorder::EnsureReadyRequest;
 use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
 use crate::archive::Archive;
+use crate::code::SourceHasher;
 use crate::model::{
     rule, ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, Task, TestMatcher,
 };
@@ -52,6 +53,90 @@ impl Tricorder for GrpcTricorder {
         let req = EnsureReadyRequest::default();
         let _ = self.client.ensure_ready(req).await?;
         Ok(())
+    }
+
+    #[instrument(name = "GrpcTricorder::get_ast", skip(self, concrete_target))]
+    async fn get_ast(
+        &mut self,
+        concrete_target: &ConcreteTarget,
+        dependencies: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+        test_matcher: &TestMatcher,
+    ) -> Result<SignatureGenerationFlow, TricorderError> {
+        let request = proto::build::warp::tricorder::GetAstRequest {
+            workspace_root: concrete_target
+                .workspace_root()
+                .to_string_lossy()
+                .to_string(),
+            file: concrete_target.path().to_string_lossy().to_string(),
+            dependencies: dependencies
+                .iter()
+                .map(|(_task, spec, manifest)| proto::build::warp::Dependency {
+                    store_path: manifest.store_path().to_string_lossy().to_string(),
+                    name: spec.signature().target().name().to_string(),
+                    outputs: manifest
+                        .outs()
+                        .iter()
+                        .map(|path| path.to_string_lossy().to_string())
+                        .collect(),
+                    ..Default::default()
+                })
+                .collect(),
+            test_matcher: Some(proto::build::warp::TestMatcher {
+                raw: test_matcher.raw().to_vec(),
+            }),
+        };
+
+        let res = self
+            .client
+            .get_ast(request)
+            .await?
+            .into_inner()
+            .response
+            .unwrap();
+
+        match res {
+            proto::build::warp::tricorder::get_ast_response::Response::Ok(res) => {
+                let ast_hash = SourceHasher::hash_str(res.ast);
+                Ok(SignatureGenerationFlow::ExtractedAst { ast_hash })
+            }
+            proto::build::warp::tricorder::get_ast_response::Response::MissingDeps(res) => {
+                let mut requirements = vec![];
+
+                for req in res.requirements {
+                    let req = match req.requirement.unwrap() {
+                        proto::build::warp::requirement::Requirement::File(file) => {
+                            Requirement::File {
+                                path: file.path.into(),
+                            }
+                        }
+                        proto::build::warp::requirement::Requirement::Symbol(sym) => {
+                            Requirement::Symbol {
+                                raw: sym.raw,
+                                kind: sym.kind,
+                            }
+                        }
+                        proto::build::warp::requirement::Requirement::Url(url) => {
+                            Requirement::Url {
+                                url: url.url.parse::<Url>().unwrap(),
+                                tricorder_url: self.conn.tricorder_url.clone(),
+                                subpath: Some(PathBuf::from(url.subpath)),
+                            }
+                        }
+                        proto::build::warp::requirement::Requirement::Dependency(dep) => {
+                            Requirement::Dependency {
+                                name: dep.name,
+                                version: dep.version,
+                                url: dep.url.parse::<Url>().unwrap(),
+                                tricorder: dep.tricorder_url.parse::<Url>().unwrap(),
+                            }
+                        }
+                    };
+                    requirements.push(req)
+                }
+
+                Ok(SignatureGenerationFlow::MissingRequirements { requirements })
+            }
+        }
     }
 
     #[instrument(

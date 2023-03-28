@@ -46,6 +46,13 @@ pub trait Tricorder: Send + Sync + Debug {
         concrete_target: &ConcreteTarget,
         archive: &Archive,
     ) -> Result<SignatureGenerationFlow, TricorderError>;
+
+    async fn get_ast(
+        &mut self,
+        concrete_target: &ConcreteTarget,
+        dependencies: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+        test_matcher: &TestMatcher,
+    ) -> Result<SignatureGenerationFlow, TricorderError>;
 }
 
 #[derive(Error, Debug)]
@@ -63,6 +70,7 @@ pub enum TricorderError {
 #[derive(Debug)]
 pub enum SignatureGenerationFlow {
     GeneratedSignatures { signatures: Vec<Signature> },
+    ExtractedAst { ast_hash: String },
     MissingRequirements { requirements: Vec<Requirement> },
     IgnoredTarget(TargetId),
 }

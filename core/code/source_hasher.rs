@@ -26,6 +26,15 @@ impl SourceHasher {
         }
         Ok(format!("{:x}", s.finalize()))
     }
+
+    pub fn hash_str<S>(str: S) -> String
+    where
+        S: AsRef<str>,
+    {
+        let mut s = Sha256::new();
+        s.update(&str.as_ref());
+        format!("{:x}", s.finalize())
+    }
 }
 
 #[derive(Error, Debug)]

@@ -75,13 +75,12 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             target.path().to_path_buf()
         };
 
-        // goal -- test { matcher_id }
+        let deps = self.task_results.get_task_deps(task);
+
         let test_matcher = task
             .goal()
             .test_matcher_id()
             .map(|id| self.test_matcher_registry.get_spec(id));
-
-        let source_hash = SourceHasher::hash(&target.path()).await?;
 
         let ct = ConcreteTarget::builder()
             .goal(task.goal())
@@ -96,20 +95,26 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             .target_registry
             .associate_concrete_target(task.target_id(), ct);
 
-        if let Some(mut signature) = self.code_db.get_signature(&ct, &source_hash)? {
-            let mut ct = signature.target().clone();
-            ct.set_target(
-                self.target_registry.get_target(task.target_id()),
-                task.target_id(),
-            );
-            let ct = self
-                .target_registry
-                .associate_concrete_target(task.target_id(), ct);
-            signature.set_target((*ct).clone());
-            return Ok(SignatureGenerationFlow::GeneratedSignatures {
-                signatures: vec![signature],
-            });
+        let whole_source_hash = SourceHasher::hash(&target.path()).await?;
+        dbg!(&whole_source_hash);
+
+        /*
+        if let Some(mut signatures) = self.code_db.get_signatures(&ct, &whole_source_hash)? {
+            for signature in signatures.iter_mut() {
+                let mut ct = signature.target().clone();
+                ct.set_target(
+                    self.target_registry.get_target(task.target_id()),
+                    task.target_id(),
+                );
+                let ct = self
+                    .target_registry
+                    .associate_concrete_target(task.target_id(), ct);
+                signature.set_target((*ct).clone());
+            }
+
+            return Ok(SignatureGenerationFlow::GeneratedSignatures { signatures });
         }
+        */
 
         let mut tricorder = if let Some(tricorder) = self
             .tricorder_manager
@@ -121,21 +126,45 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             return Ok(SignatureGenerationFlow::IgnoredTarget(task.target_id()));
         };
 
-        // TODO(@ostera): at this stage, we want to use the concrete target and the tricorder to
-        // call the CodeManager and ask it to tree-split, so we can avoid regenerating signatures
-        // if parts of the file we don't care about haven't changed.
-        // get_ast
+        let _final_hash = if let Some(test_matcher) = &test_matcher {
+            let subtree_hash = match tricorder.get_ast(&ct, &deps, &test_matcher).await? {
+                SignatureGenerationFlow::ExtractedAst { ast_hash } => ast_hash,
+                flow @ SignatureGenerationFlow::MissingRequirements { .. } => return Ok(flow),
+                _ => unreachable!(),
+            };
+
+            /*
+            if let Some(mut signatures) = self.code_db.get_signatures(&ct, &subtree_hash)? {
+                for signature in signatures.iter_mut() {
+                    let mut ct = signature.target().clone();
+                    ct.set_target(
+                        self.target_registry.get_target(task.target_id()),
+                        task.target_id(),
+                    );
+                    let ct = self
+                        .target_registry
+                        .associate_concrete_target(task.target_id(), ct);
+                    signature.set_target((*ct).clone());
+                }
+
+                return Ok(SignatureGenerationFlow::GeneratedSignatures { signatures });
+            }
+            */
+
+            subtree_hash
+        } else {
+            whole_source_hash
+        };
 
         // 2. generate signature for this concrete target
-        let deps = self.task_results.get_task_deps(task);
         let sig = tricorder
             .generate_signature(&ct, &deps, test_matcher)
             .await?;
 
-        // NB(@ostera): we'll just save the first signature here.
-        if let SignatureGenerationFlow::GeneratedSignatures { signatures } = &sig {
-            let sig = signatures.iter().next().unwrap();
-            self.code_db.save_signature(&ct, &source_hash, sig)?;
+        dbg!(&sig);
+
+        if let SignatureGenerationFlow::GeneratedSignatures { signatures: _ } = &sig {
+            // self.code_db.save_signatures(&ct, &final_hash, signatures)?;
         }
 
         Ok(sig)

@@ -261,6 +261,15 @@ mod tests {
                 Ok(())
             }
 
+            async fn get_ast(
+                &mut self,
+                _: &ConcreteTarget,
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &TestMatcher,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!();
+            }
+
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
@@ -342,6 +351,15 @@ mod tests {
             }
 
             async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
+                unreachable!();
+            }
+
+            async fn get_ast(
+                &mut self,
+                _: &ConcreteTarget,
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &TestMatcher,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
                 unreachable!();
             }
 
@@ -437,6 +455,15 @@ mod tests {
                 unreachable!()
             }
 
+            async fn get_ast(
+                &mut self,
+                _: &ConcreteTarget,
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &TestMatcher,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!();
+            }
+
             async fn generate_signature(
                 &mut self,
                 _: &ConcreteTarget,
@@ -527,6 +554,15 @@ mod tests {
 
             async fn ensure_ready(&mut self) -> Result<(), TricorderError> {
                 Err(TricorderError::Unknown)
+            }
+
+            async fn get_ast(
+                &mut self,
+                _: &ConcreteTarget,
+                _: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
+                _: &TestMatcher,
+            ) -> Result<SignatureGenerationFlow, TricorderError> {
+                unreachable!();
             }
 
             async fn generate_signature(
