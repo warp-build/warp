@@ -3,12 +3,12 @@ import RustToolchain, {
 } from "https://rules.warp.build/toolchains/rust.js";
 
 const impl = (ctx) => {
-  const { name, test } = ctx.cfg();
+  const { name, tests } = ctx.cfg();
 
   ctx.action().runShell({
     script: `
-rustc --test ${file} -o test &&
-./test ${test}
+rustc --test ${name} -o test && \
+./test  ${tests.length > 0 ? `${tests.join(" ")}` : ""} \
 `,
   });
 
@@ -21,11 +21,11 @@ export default Warp.Rule({
   impl,
   cfg: {
     name: target(),
-    test: string(),
+    tests: [string()],
     srcs: [file()],
   },
   defaults: {
-    test: "",
+    tests: [],
   },
   toolchains: [RustToolchain],
 });
