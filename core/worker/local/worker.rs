@@ -297,11 +297,14 @@ where
                 let target: Target = path.into();
                 let target_id = self.ctx.target_registry.register_target(target);
 
-                let task = Task::builder()
+                let unreg_task = UnregisteredTask::builder()
                     .target_id(target_id)
                     .goal(goal)
                     .build()
                     .unwrap();
+
+                let task = self.ctx.task_registry.register(unreg_task);
+
                 self.ctx.task_queue.queue(task).unwrap();
             }
         }

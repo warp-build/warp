@@ -4429,7 +4429,7 @@ dependencies = [
 
 [[package]]
 name = "tricorder"
-version = "0.1.1"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "assert_fs",
@@ -4642,7 +4642,7 @@ dependencies = [
 
 [[package]]
 name = "warp-build"
-version = "0.0.73"
+version = "0.0.72"
 dependencies = [
  "anyhow",
  "assert_cmd",
