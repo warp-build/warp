@@ -8,5 +8,5 @@ rm -rf ${WARP_HOME_RULES}
 mkdir -p ${WARP_HOME_RULES}
 cd ${WARP_HOME_RULES}
 
-ln -sf ${LOCAL_RULES}/rules .
-ln -sf ${LOCAL_RULES}/toolchains .
+ln -sf ${LOCAL_RULES}/rules/rules .
+ln -sf ${LOCAL_RULES}/rules/toolchains .
