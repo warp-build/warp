@@ -38,7 +38,7 @@ impl<P> ProcessPool<P> {
             ),
         );
 
-        if !std::env::var("WARP_TRICORDER_LOGS")
+        if std::env::var("WARP_TRICORDER_LOGS")
             .unwrap_or_default()
             .is_empty()
         {

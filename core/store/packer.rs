@@ -1,14 +1,17 @@
 use super::package::Package;
-use super::{ArtifactManifest, PackageManifest};
-use crate::archive::{ArchiveManager, ArchiveManagerError};
+use super::PackageManifest;
+use crate::archive::{Archive, ArchiveManager, ArchiveManagerError};
 
+use crate::events::event::PackerEvent;
+use crate::events::EventChannel;
 use crate::resolver::TargetRegistry;
 use crate::sync::Arc;
-use crate::worker::TaskResults;
+use crate::worker::{TaskResult, TaskResults};
 use crate::Target;
 use thiserror::Error;
 
 pub struct Packer {
+    event_channel: Arc<EventChannel>,
     archive_manager: Arc<ArchiveManager>,
     task_results: Arc<TaskResults>,
     target_registry: Arc<TargetRegistry>,
@@ -19,15 +22,21 @@ impl Packer {
         archive_manager: Arc<ArchiveManager>,
         target_registry: Arc<TargetRegistry>,
         task_results: Arc<TaskResults>,
+        event_channel: Arc<EventChannel>,
     ) -> Self {
         Self {
             archive_manager,
+            event_channel,
             task_results,
             target_registry,
         }
     }
 
     pub async fn pack(&self, target: Target) -> Result<Package, PackerError> {
+        self.event_channel.send(PackerEvent::PackagingStarted {
+            target: target.clone(),
+        });
+
         let target_id = self.target_registry.find_target(&target).unwrap();
         let task = self.task_results.find_task_by_target_id(target_id).unwrap();
         let task_result = self.task_results.get_task_result(&task).unwrap();
@@ -42,17 +51,13 @@ impl Packer {
             .cloned()
             .collect();
 
-        let deps: Vec<Arc<ArtifactManifest>> = self
+        let deps: Vec<TaskResult> = self
             .task_results
             .get_results()
-            .iter()
-            .filter_map(|result| {
+            .into_iter()
+            .filter(|result| {
                 let dep_hash = result.artifact_manifest.hash();
-                if included_deps.contains(&dep_hash.to_string()) {
-                    Some(result.artifact_manifest.clone())
-                } else {
-                    None
-                }
+                included_deps.contains(&dep_hash.to_string())
             })
             .collect();
 
@@ -63,13 +68,24 @@ impl Packer {
         {
             let mut compress_results = vec![];
             for dep in deps {
-                compress_results.push(self.archive_manager.compress(dep));
+                let target = (*dep.executable_spec.target().original_target()).clone();
+                compress_results.push(async {
+                    self.event_channel.send(PackerEvent::PackagingStarted {
+                        target: target.clone(),
+                    });
+                    let archive = self.archive_manager.compress(dep.artifact_manifest).await?;
+                    self.event_channel
+                        .send(PackerEvent::PackagingCompleted { target });
+                    Ok(archive)
+                });
             }
 
-            let compress_results = futures::future::join_all(compress_results).await;
+            let compress_results: Vec<Result<Archive, ArchiveManagerError>> =
+                futures::future::join_all(compress_results).await;
 
             for result in compress_results {
-                dep_archives.push(result?);
+                let archive = result?;
+                dep_archives.push(archive);
             }
         }
 
@@ -79,6 +95,10 @@ impl Packer {
             .deps(dep_archives)
             .build()
             .unwrap();
+
+        self.event_channel.send(PackerEvent::PackagingCompleted {
+            target: target.clone(),
+        });
 
         Ok(pkg)
     }

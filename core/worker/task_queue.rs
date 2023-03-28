@@ -219,7 +219,7 @@ impl TaskQueue {
         self.all_queued_tasks.insert(*task.id());
 
         self.event_channel.send(QueueEvent::TaskQueued {
-            target: self.target_registry.get_target(target).to_string(),
+            target: (*self.target_registry.get_target(target)).clone(),
             signature: task.signature_id().map(|sig_id| {
                 let sig = self.signature_registry.get(sig_id);
                 sig.name().to_string()

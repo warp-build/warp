@@ -1,5 +1,7 @@
 use crate::flags::Flags;
+use crate::reporter::StatusReporter;
 use structopt::StructOpt;
+use warp_core::events::event::WorkflowEvent;
 use warp_core::{Goal, Target, WarpDriveMarkII};
 
 #[derive(StructOpt, Debug, Clone)]
@@ -24,13 +26,28 @@ Example: ./my/library
 
 impl PackCommand {
     pub async fn run(self) -> Result<(), anyhow::Error> {
-        let mut warp = WarpDriveMarkII::new(self.flags.into()).await?;
-
+        let config: warp_core::Config = self.flags.clone().into();
+        let goal = Goal::Build;
         let target: Target = self.target.into();
+        let targets = vec![target.clone()];
 
-        let _results = warp.execute(Goal::Build, &[target.clone()]).await?;
+        let reporter = StatusReporter::new(config.event_channel(), self.flags.clone(), goal);
 
-        let _packed_results = warp.pack(target).await?;
+        let ec = config.event_channel();
+        let mut warp = WarpDriveMarkII::new(config).await?;
+
+        let (results, _) = futures::future::join(
+            async {
+                let _ = warp.execute(goal, &targets).await?;
+                let result = warp.pack(target).await;
+                ec.send(WorkflowEvent::Shutdown);
+                result
+            },
+            reporter.run(&targets),
+        )
+        .await;
+
+        let _results = results?;
 
         Ok(())
     }

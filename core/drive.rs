@@ -94,6 +94,7 @@ impl WarpDriveMarkII {
             archive_manager,
             target_registry,
             shared_ctx.task_results.clone(),
+            shared_ctx.event_channel.clone(),
         );
 
         Ok(Self {

@@ -1,4 +1,6 @@
 use super::{Archive, ArchiveBuilderError};
+use crate::events::event::ArchiveEvent;
+use crate::events::EventChannel;
 use crate::store::ArtifactManifest;
 use crate::sync::Arc;
 use crate::Config;
@@ -22,12 +24,14 @@ pub struct ArchiveManager {
     archive_root: PathBuf,
     force_redownload: bool,
     public_store_cdn_url: Url,
+    event_channel: Arc<EventChannel>,
 }
 
 impl ArchiveManager {
     pub fn new(config: &Config) -> Self {
         Self {
             client: config.http_client().clone(),
+            event_channel: config.event_channel(),
             archive_root: config.archive_root().to_path_buf(),
             force_redownload: config.force_redownload(),
             public_store_cdn_url: config.public_store_cdn_url().clone(),
@@ -37,12 +41,17 @@ impl ArchiveManager {
     #[instrument(name = "ArchiveManager::find", skip(self))]
     pub async fn find(&self, url: &Url) -> Result<Option<Archive>, ArchiveManagerError> {
         let path = self.archive_path(url);
+        let sha256 = path.with_extension("sha256");
 
         if fs::File::open(&path).await.is_err() {
             return Ok(None);
         };
 
-        let mut hash_file = fs::File::open(path.with_extension("sha256")).await.unwrap();
+        if fs::File::open(&sha256).await.is_err() {
+            return Ok(None);
+        };
+
+        let mut hash_file = fs::File::open(&sha256).await.unwrap();
         let mut hash = String::new();
         hash_file.read_to_string(&mut hash).await.unwrap();
 
@@ -105,12 +114,24 @@ impl ArchiveManager {
             .unwrap();
 
         if let Some(archive) = self.find(&archive_url).await? {
+            self.event_channel.send(ArchiveEvent::CompressionCached {
+                target: manifest.target().to_string(),
+                sha256: manifest.hash().to_string(),
+                total_files: manifest.outs().len(),
+            });
             return Ok(archive);
         }
+
+        self.event_channel.send(ArchiveEvent::CompressionStarted {
+            target: manifest.target().to_string(),
+            sha256: manifest.hash().to_string(),
+            total_files: manifest.outs().len(),
+        });
 
         let tarball_path = self.archive_path(&archive_url);
 
         {
+            let ec = self.event_channel.clone();
             let tarball_path = tarball_path.clone();
             let manifest = manifest.clone();
             tokio::task::spawn_blocking(move || {
@@ -118,13 +139,20 @@ impl ArchiveManager {
                 let tar_file = std::fs::File::create(tarball_path).unwrap();
                 let enc = GzEncoder::new(tar_file, Compression::default());
                 let mut tar = tar::Builder::new(enc);
-                for out in manifest.outs() {
+                let total_files = manifest.outs().len();
+                let target = manifest.target().to_string();
+                for (current, out) in manifest.outs().iter().enumerate() {
                     let mut f = std::fs::File::open(manifest.store_path().join(out))?;
                     if f.metadata().unwrap().is_dir() {
                         tar.append_dir_all(out, manifest.store_path().join(out))?;
                     } else {
                         tar.append_file(out, &mut f)?;
                     }
+                    ec.send(ArchiveEvent::CompressionProgress {
+                        target: target.clone(),
+                        current,
+                        total_files,
+                    });
                 }
 
                 tar.finish()
@@ -134,6 +162,12 @@ impl ArchiveManager {
         };
 
         fs::write(tarball_path.with_extension("sha256"), manifest.hash()).await?;
+
+        self.event_channel.send(ArchiveEvent::CompressionCompleted {
+            target: manifest.target().to_string(),
+            sha256: manifest.hash().to_string(),
+            total_files: manifest.outs().len(),
+        });
 
         Ok(Archive::builder()
             .final_path(tarball_path)

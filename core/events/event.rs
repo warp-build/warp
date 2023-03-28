@@ -1,6 +1,12 @@
 use crate::{CacheStatus, Goal, Target};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PackerEvent {
+    PackagingStarted { target: Target },
+    PackagingCompleted { target: Target },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ActionEvent {
     ActionPreparationStarted { target: String, action_count: u64 },
     ActionExecutionStarted { target: String, action: String },
@@ -8,15 +14,38 @@ pub enum ActionEvent {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ArchiveEvent {
-    ArchiveDownloading { target: String, url: String },
+    ArchiveDownloading {
+        target: String,
+        url: String,
+    },
     ArchiveUnpacking(String),
     ArchiveVerifying(String),
+    CompressionStarted {
+        target: String,
+        sha256: String,
+        total_files: usize,
+    },
+    CompressionProgress {
+        target: String,
+        current: usize,
+        total_files: usize,
+    },
+    CompressionCompleted {
+        target: String,
+        sha256: String,
+        total_files: usize,
+    },
+    CompressionCached {
+        target: String,
+        sha256: String,
+        total_files: usize,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum QueueEvent {
     TaskQueued {
-        target: String,
+        target: Target,
         signature: Option<String>,
     },
     TaskSkipped {
@@ -56,6 +85,7 @@ pub enum WorkerEvent {
 pub enum WorkflowEvent {
     BuildStarted(std::time::Instant),
     BuildCompleted(std::time::Instant),
+    Shutdown,
 }
 
 impl WorkflowEvent {
@@ -78,6 +108,13 @@ pub enum Event {
     TricorderEvent(TricorderEvent),
     WorkerEvent(WorkerEvent),
     WorkflowEvent(WorkflowEvent),
+    PackerEvent(PackerEvent),
+}
+
+impl From<PackerEvent> for Event {
+    fn from(value: PackerEvent) -> Self {
+        Event::PackerEvent(value)
+    }
 }
 
 impl From<ActionEvent> for Event {

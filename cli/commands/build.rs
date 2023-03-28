@@ -1,6 +1,7 @@
 use crate::flags::Flags;
 use crate::reporter::StatusReporter;
 use structopt::StructOpt;
+use warp_core::events::event::WorkflowEvent;
 use warp_core::{Goal, WarpDriveMarkII};
 
 #[derive(StructOpt, Debug, Clone)]
@@ -44,10 +45,18 @@ impl BuildCommand {
 
         let reporter = StatusReporter::new(config.event_channel(), self.flags.clone(), goal);
 
+        let ec = config.event_channel();
         let mut warp = WarpDriveMarkII::new(config).await?;
 
-        let (results, _) =
-            futures::future::join(warp.execute(goal, &targets), reporter.run(&targets)).await;
+        let (results, _) = futures::future::join(
+            async {
+                let results = warp.execute(goal, &targets).await;
+                ec.send(WorkflowEvent::Shutdown);
+                results
+            },
+            reporter.run(&targets),
+        )
+        .await;
 
         let results = results?;
 

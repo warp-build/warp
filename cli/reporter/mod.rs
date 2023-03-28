@@ -10,9 +10,10 @@ use warp_core::{CacheStatus, Goal, Target};
 trait Reporter {
     fn handle_event(&mut self, event: Event) {
         match event {
-            Event::Noop => (),
             Event::ActionEvent(e) => self.on_action_event(e),
             Event::ArchiveEvent(e) => self.on_archive_event(e),
+            Event::Noop => (),
+            Event::PackerEvent(e) => self.on_packer_event(e),
             Event::QueueEvent(e) => self.on_queue_event(e),
             Event::TricorderEvent(e) => self.on_tricorder_event(e),
             Event::WorkerEvent(e) => self.on_worker_event(e),
@@ -20,9 +21,10 @@ trait Reporter {
         }
     }
 
-    fn on_queue_event(&mut self, _event: QueueEvent) {}
     fn on_action_event(&mut self, _event: ActionEvent) {}
     fn on_archive_event(&mut self, _event: ArchiveEvent) {}
+    fn on_packer_event(&mut self, _event: PackerEvent) {}
+    fn on_queue_event(&mut self, _event: QueueEvent) {}
     fn on_tricorder_event(&mut self, _event: TricorderEvent) {}
     fn on_worker_event(&mut self, _event: WorkerEvent) {}
     fn on_workflow_event(&mut self, _event: WorkflowEvent) {}
@@ -31,6 +33,7 @@ trait Reporter {
 pub struct StatusReporter {
     should_stop: bool,
     build_started: std::time::Instant,
+    build_completed: std::time::Instant,
     event_consumer: EventConsumer,
     event_channel: Arc<EventChannel>,
     flags: Flags,
@@ -59,6 +62,7 @@ impl StatusReporter {
         StatusReporter {
             targets: vec![],
             build_started: std::time::Instant::now(),
+            build_completed: std::time::Instant::now(),
             event_consumer: event_channel.consumer(),
             event_channel,
             flags,
@@ -94,23 +98,33 @@ impl StatusReporter {
 }
 
 impl Reporter for StatusReporter {
-    fn on_queue_event(&mut self, event: QueueEvent) {
+    fn on_packer_event(&mut self, event: PackerEvent) {
+        let yellow = console::Style::new().yellow();
         match event {
-            QueueEvent::TaskQueued {
-                target, signature, ..
-            } => {
-                let line = format!(
-                    "{:>12} {} {}",
-                    "QUEUED",
-                    target.to_string(),
-                    if let Some(sig) = signature {
-                        sig
-                    } else {
-                        "".to_string()
-                    }
-                );
+            PackerEvent::PackagingStarted { target } => {
+                self.pb.set_prefix("Packing");
+                self.current_targets.insert(target);
+                self.pb.set_message(format!(
+                    " {}",
+                    self.current_targets
+                        .iter()
+                        .map(|t| t.to_string())
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                ));
+            }
+            PackerEvent::PackagingCompleted { target } => {
+                let line = format!("{:>12} {}", yellow.apply_to("Packed"), target.to_string());
                 self.pb.println(line);
                 self.pb.inc(1);
+            }
+        }
+    }
+
+    fn on_queue_event(&mut self, event: QueueEvent) {
+        match event {
+            QueueEvent::TaskQueued { target, .. } => {
+                self.target_count.insert(target);
             }
             _ => (),
         }
@@ -191,6 +205,12 @@ impl Reporter for StatusReporter {
                 self.build_started = t0;
             }
             WorkflowEvent::BuildCompleted(t1) if self.event_consumer.is_empty() => {
+                self.build_completed = t1;
+            }
+            WorkflowEvent::BuildCompleted(_) => self.event_channel.send(event),
+
+            WorkflowEvent::Shutdown => {
+                let t1 = std::time::Instant::now();
                 self.pb.set_message("");
                 let line = if self.targets.is_empty() {
                     format!(
@@ -253,7 +273,6 @@ impl Reporter for StatusReporter {
                 self.pb.println(line);
                 self.should_stop = true;
             }
-            WorkflowEvent::BuildCompleted(_) => self.event_channel.send(event),
         }
     }
 }
