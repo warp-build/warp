@@ -126,12 +126,6 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         };
 
         let _final_hash = if let Some(test_matcher) = &test_matcher {
-            let subtree_hash = match tricorder.get_ast(&ct, &deps, &test_matcher).await? {
-                SignatureGenerationFlow::ExtractedAst { ast_hash } => ast_hash,
-                flow @ SignatureGenerationFlow::MissingRequirements { .. } => return Ok(flow),
-                _ => unreachable!(),
-            };
-
             /*
             if let Some(mut signatures) = self.code_db.get_signatures(&ct, &subtree_hash)? {
                 for signature in signatures.iter_mut() {
@@ -150,7 +144,11 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             }
             */
 
-            subtree_hash
+            match tricorder.get_ast(&ct, &deps, test_matcher).await? {
+                SignatureGenerationFlow::ExtractedAst { ast_hash } => ast_hash,
+                flow @ SignatureGenerationFlow::MissingRequirements { .. } => return Ok(flow),
+                _ => unreachable!(),
+            }
         } else {
             whole_source_hash
         };

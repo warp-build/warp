@@ -343,7 +343,7 @@ mod tests {
                             .unwrap(),
                     )
                     .exec_env(self.ctx.env.clone())
-                    .hash_and_build(&*self.ctx.task_results)
+                    .hash_and_build(&self.ctx.task_results)
                     .unwrap();
 
                 let unreg_task = UnregisteredTask::builder()

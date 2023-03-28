@@ -175,7 +175,7 @@ impl TaskResults {
             .map(|deps| {
                 (*deps)
                     .iter()
-                    .flat_map(|dep| self.results.get(&dep).map(|r| (*r).clone()))
+                    .flat_map(|dep| self.results.get(dep).map(|r| (*r).clone()))
                     .map(|result| {
                         (
                             result.task,

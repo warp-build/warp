@@ -451,7 +451,7 @@ mod tests {
         assert_matches!(
             resolution,
             ResolutionFlow::Resolved { signature_ids } => {
-                let signature = signature_registry.get(*signature_ids.iter().next().unwrap());
+                let signature = signature_registry.get(*signature_ids.first().unwrap());
                 assert_eq!(signature.target().path().file_name().unwrap().to_str().unwrap(), "good_file.ex");
                 assert_eq!(signature.rule(), "test_rule");
             }

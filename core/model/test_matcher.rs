@@ -13,7 +13,7 @@ impl TestMatcher {
     pub fn raw(&self) -> &[String] {
         match self {
             TestMatcher::All => &[],
-            TestMatcher::Patterns(pat) => &pat,
+            TestMatcher::Patterns(pat) => pat,
         }
     }
 }

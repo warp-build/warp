@@ -167,7 +167,7 @@ mod tests {
         let task_a = reg.register(unreg_task_a);
         let task_b = reg.register(unreg_task_b);
         assert_eq!(reg.get(*task_a.id()), task_a);
-        let task_b = reg.update(*task_a.id(), task_b.clone());
+        let task_b = reg.update(*task_a.id(), task_b);
         assert_eq!(reg.get(*task_a.id()), task_b);
         assert_eq!(reg.get(*task_b.id()), task_b);
     }
@@ -176,7 +176,7 @@ mod tests {
     fn registering_many_tasks_skips_duplicates(unreg_task: UnregisteredTask) {
         let reg = TaskRegistry::new();
         // NOTE(@ostera): we are registering the same task twice
-        let unreg_tasks = &[unreg_task.clone(), unreg_task];
+        let unreg_tasks = &[unreg_task, unreg_task];
         let tasks = reg.register_many(unreg_tasks);
         assert!(tasks.len() <= unreg_tasks.len());
         assert_eq!(tasks[0].id(), tasks[1].id());

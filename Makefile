@@ -58,6 +58,7 @@ install.release:
 
 .PHONY: fmt
 fmt:
+	cargo clippy --fix --allow-dirty --allow-staged
 	cargo fix --allow-dirty --allow-staged
 	cargo fmt -- \
 		--config unstable_features=true \

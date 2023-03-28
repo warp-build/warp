@@ -83,12 +83,7 @@ impl TricorderService for TestTricorder {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dbg!(&std::env::args());
-    let port: i32 = std::env::args()
-        .into_iter()
-        .nth(2)
-        .unwrap()
-        .parse()
-        .unwrap();
+    let port: i32 = std::env::args().nth(2).unwrap().parse().unwrap();
 
     let addr = format!("0.0.0.0:{}", port).parse().unwrap();
     println!("Started gRPC server on 0.0.0.0:{}", port);

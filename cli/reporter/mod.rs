@@ -115,16 +115,12 @@ impl Reporter for StatusReporter {
                 self.pb.set_prefix("Uploading");
             }
             PackerEvent::UploadCompleted { url } => {
-                let line = format!("{:>12} {}", yellow.apply_to("Uploaded"), url.to_string());
+                let line = format!("{:>12} {}", yellow.apply_to("Uploaded"), url);
                 self.pb.println(line);
                 self.pb.inc(1);
             }
             PackerEvent::UploadSkipped { url } => {
-                let line = format!(
-                    "{:>12} {} (SKIP)",
-                    yellow.apply_to("Uploaded"),
-                    url.to_string()
-                );
+                let line = format!("{:>12} {} (SKIP)", yellow.apply_to("Uploaded"), url);
                 self.pb.println(line);
                 self.pb.inc(1);
             }
@@ -310,38 +306,22 @@ impl Reporter for StatusReporter {
         let purple = console::Style::new().magenta().bright();
         match event {
             TricorderEvent::TricorderServiceStarted { tricorder_url } => {
-                let line = format!(
-                    "{:>12} {}",
-                    purple.apply_to("Started"),
-                    tricorder_url.to_string()
-                );
+                let line = format!("{:>12} {}", purple.apply_to("Started"), tricorder_url);
                 self.pb.println(line);
                 self.pb.inc(1);
             }
             TricorderEvent::TricorderReadyingStarted { tricorder_url } => {
-                let line = format!(
-                    "{:>12} {}",
-                    purple.apply_to("Readying"),
-                    tricorder_url.to_string()
-                );
+                let line = format!("{:>12} {}", purple.apply_to("Readying"), tricorder_url);
                 self.pb.println(line);
                 self.pb.inc(1);
             }
             TricorderEvent::TricorderReadyingCompleted { tricorder_url } => {
-                let line = format!(
-                    "{:>12} {}",
-                    purple.apply_to("Ready"),
-                    tricorder_url.to_string()
-                );
+                let line = format!("{:>12} {}", purple.apply_to("Ready"), tricorder_url);
                 self.pb.println(line);
                 self.pb.inc(1);
             }
             TricorderEvent::TricorderConnectionEstablished { tricorder_url } => {
-                let line = format!(
-                    "{:>12} {}",
-                    purple.apply_to("Connected"),
-                    tricorder_url.to_string()
-                );
+                let line = format!("{:>12} {}", purple.apply_to("Connected"), tricorder_url);
                 self.pb.println(line);
                 self.pb.inc(1);
             }

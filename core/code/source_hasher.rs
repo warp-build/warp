@@ -32,7 +32,7 @@ impl SourceHasher {
         S: AsRef<str>,
     {
         let mut s = Sha256::new();
-        s.update(&str.as_ref());
+        s.update(str.as_ref());
         format!("{:x}", s.finalize())
     }
 }

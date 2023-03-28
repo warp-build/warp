@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 impl From<crate::proto::build::warp::TestMatcher> for Vec<String> {
     fn from(matcher: crate::proto::build::warp::TestMatcher) -> Self {
-        return matcher.raw;
+        matcher.raw
     }
 }
 

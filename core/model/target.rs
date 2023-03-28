@@ -315,9 +315,7 @@ mod tests {
             Self {
                 url: format!(
                     "https://{}",
-                    std::path::PathBuf::arbitrary(g)
-                        .to_string_lossy()
-                        .to_string()
+                    std::path::PathBuf::arbitrary(g).to_string_lossy()
                 ),
                 tricorder_url: None,
                 subpath: None,

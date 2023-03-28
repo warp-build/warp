@@ -158,7 +158,7 @@ impl ExecutableSpecBuilder {
 
         let actions: Vec<String> = spec.actions().iter().map(|a| format!("{:?}", a)).collect();
 
-        let mut srcs: Vec<PathBuf> = spec.srcs().files().iter().cloned().collect();
+        let mut srcs: Vec<PathBuf> = spec.srcs().files().to_vec();
 
         srcs.dedup_by(|a, b| a == b);
         srcs.sort();
