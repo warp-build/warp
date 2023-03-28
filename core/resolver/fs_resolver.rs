@@ -96,7 +96,6 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             .associate_concrete_target(task.target_id(), ct);
 
         let whole_source_hash = SourceHasher::hash(&target.path()).await?;
-        dbg!(&whole_source_hash);
 
         /*
         if let Some(mut signatures) = self.code_db.get_signatures(&ct, &whole_source_hash)? {
@@ -160,8 +159,6 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         let sig = tricorder
             .generate_signature(&ct, &deps, test_matcher)
             .await?;
-
-        dbg!(&sig);
 
         if let SignatureGenerationFlow::GeneratedSignatures { signatures: _ } = &sig {
             // self.code_db.save_signatures(&ct, &final_hash, signatures)?;
