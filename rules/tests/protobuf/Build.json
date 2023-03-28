@@ -1,0 +1,9 @@
+{
+  "signatures": [
+    {
+      "name": "lib",
+      "rule": "elixir_proto_library",
+      "protos": ["test.proto"]
+    }
+  ]
+}

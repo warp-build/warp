@@ -1,0 +1,5 @@
+#!/bin/bash
+
+cp /warp/rules/https/rules.warp.build/rules/* ./rules/
+cp /warp/rules/https/rules.warp.build/toolchains/* ./toolchains/
+rm -f ./**/*.*.js
