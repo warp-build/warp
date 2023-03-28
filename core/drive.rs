@@ -172,9 +172,14 @@ impl WarpDriveMarkII {
     /// Packs already built targets
     ///
     #[instrument(name = "WarpDriveMarkII::pack", skip(self))]
-    pub async fn pack(&mut self, target: Target) -> Result<Package, WarpDriveError> {
-        let result = self.packer.pack(target).await?;
-        Ok(result)
+    pub async fn pack(&mut self, target: Target, upload: bool) -> Result<Package, WarpDriveError> {
+        let package = self.packer.pack(target).await?;
+
+        if upload {
+            self.packer.upload_to_public_store(&package).await?;
+        }
+
+        Ok(package)
     }
 
     fn go_to_workspace_root(&self) -> Result<(), WarpDriveError> {

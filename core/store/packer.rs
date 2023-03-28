@@ -62,6 +62,10 @@ impl Packer {
             .collect();
 
         let main_archive = self.archive_manager.compress(manifest.clone()).await?;
+        self.event_channel.send(PackerEvent::PackagingCompleted {
+            target: target.clone(),
+        });
+
         let manifest = PackageManifest::from_artifact_manifest(manifest);
         let mut dep_archives = vec![];
 
@@ -76,6 +80,7 @@ impl Packer {
                     let archive = self.archive_manager.compress(dep.artifact_manifest).await?;
                     self.event_channel
                         .send(PackerEvent::PackagingCompleted { target });
+
                     Ok(archive)
                 });
             }
@@ -96,11 +101,61 @@ impl Packer {
             .build()
             .unwrap();
 
-        self.event_channel.send(PackerEvent::PackagingCompleted {
-            target: target.clone(),
-        });
-
         Ok(pkg)
+    }
+
+    pub async fn upload_to_public_store(&self, package: &Package) -> Result<(), PackerError> {
+        let config = aws_config::load_from_env().await;
+        let client = aws_sdk_s3::Client::new(&config);
+
+        let mut calls = vec![];
+
+        let mut archives = package.deps().to_vec();
+        archives.push(package.main().clone());
+
+        for archive in archives {
+            let ec = self.event_channel.clone();
+            let client = client.clone();
+            let url = archive.url().to_owned();
+            let bucket = "arn:aws:s3:eu-north-1:160208198511:accesspoint/local";
+            calls.push(async move {
+                let key = url.path_segments().unwrap().next().unwrap();
+
+                let result = client.head_object().bucket(bucket).key(key).send().await;
+
+                if result.is_ok() {
+                    ec.send(PackerEvent::UploadSkipped { url });
+                    return Ok(());
+                }
+
+                ec.send(PackerEvent::UploadStarted { url: url.clone() });
+
+                let body = aws_sdk_s3::types::ByteStream::from_path(archive.final_path())
+                    .await
+                    .unwrap();
+
+                let _result = client
+                    .put_object()
+                    .bucket(bucket)
+                    .key(key)
+                    .acl(aws_sdk_s3::model::ObjectCannedAcl::PublicRead)
+                    .body(body)
+                    .send()
+                    .await?;
+
+                ec.send(PackerEvent::UploadCompleted { url });
+
+                Ok(())
+            });
+        }
+
+        let calls: Vec<Result<(), PackerError>> = futures::future::join_all(calls).await;
+
+        for call in calls {
+            call?;
+        }
+
+        Ok(())
     }
 }
 
@@ -108,10 +163,28 @@ impl Packer {
 pub enum PackerError {
     #[error(transparent)]
     CompressError(ArchiveManagerError),
+
+    #[error(transparent)]
+    UploadError(aws_sdk_s3::types::SdkError<aws_sdk_s3::error::PutObjectError>),
+
+    #[error(transparent)]
+    StoreCheckError(aws_sdk_s3::types::SdkError<aws_sdk_s3::error::HeadObjectError>),
 }
 
 impl From<ArchiveManagerError> for PackerError {
     fn from(value: ArchiveManagerError) -> Self {
         PackerError::CompressError(value)
+    }
+}
+
+impl From<aws_sdk_s3::types::SdkError<aws_sdk_s3::error::PutObjectError>> for PackerError {
+    fn from(value: aws_sdk_s3::types::SdkError<aws_sdk_s3::error::PutObjectError>) -> Self {
+        PackerError::UploadError(value)
+    }
+}
+
+impl From<aws_sdk_s3::types::SdkError<aws_sdk_s3::error::HeadObjectError>> for PackerError {
+    fn from(value: aws_sdk_s3::types::SdkError<aws_sdk_s3::error::HeadObjectError>) -> Self {
+        PackerError::StoreCheckError(value)
     }
 }

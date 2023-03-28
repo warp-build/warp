@@ -17,4 +17,12 @@ impl Package {
     pub fn manifest(&self) -> &PackageManifest {
         &self.manifest
     }
+
+    pub fn main(&self) -> &Archive {
+        &self.main
+    }
+
+    pub fn deps(&self) -> &[Archive] {
+        self.deps.as_ref()
+    }
 }

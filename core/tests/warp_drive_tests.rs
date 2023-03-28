@@ -248,7 +248,7 @@ async fn packs_target() {
     rule_store_mock.assert();
 
     let manifest = results.get(0).unwrap().artifact_manifest.clone();
-    let pack_results = drive.pack(target).await.unwrap();
+    let pack_results = drive.pack(target, /* upload */ false).await.unwrap();
 
     let pkgs = pack_results
         .manifest()

@@ -20,6 +20,9 @@ Example: ./my/library
 ")]
     target: String,
 
+    #[structopt(help = r"Upload to public store", long = "upload")]
+    upload: bool,
+
     #[structopt(flatten)]
     flags: Flags,
 }
@@ -39,7 +42,7 @@ impl PackCommand {
         let (results, _) = futures::future::join(
             async {
                 let _ = warp.execute(goal, &targets).await?;
-                let result = warp.pack(target).await;
+                let result = warp.pack(target, self.upload).await;
                 ec.send(WorkflowEvent::Shutdown);
                 result
             },

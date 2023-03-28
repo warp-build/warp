@@ -23,7 +23,7 @@ use async_trait::async_trait;
 use std::path::PathBuf;
 use url::Url;
 
-const MANIFEST_FILE: &str = "Manifest.json";
+pub const MANIFEST_FILE: &str = "Manifest.json";
 
 /// The Store trait represents an abstract artifact store that works with [ExecutableSpec]s and
 /// [ArtifactManifests] to assist the build process.

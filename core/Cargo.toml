@@ -23,6 +23,8 @@ async-compression = { workspace = true, features = [ "futures-io", "tokio", "str
 async-stream = { workspace=true }
 async-trait = { workspace=true }
 async_zip = { workspace=true }
+aws-config = { workspace=true }
+aws-sdk-s3 = { workspace=true }
 bincode = { workspace=true }
 chrono = { workspace=true }
 criterion = { workspace = true, features = ["async_tokio"] }

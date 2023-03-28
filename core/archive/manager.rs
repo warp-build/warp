@@ -1,7 +1,7 @@
 use super::{Archive, ArchiveBuilderError};
 use crate::events::event::ArchiveEvent;
 use crate::events::EventChannel;
-use crate::store::ArtifactManifest;
+use crate::store::{ArtifactManifest, MANIFEST_FILE};
 use crate::sync::Arc;
 use crate::Config;
 use async_compression::futures::bufread::GzipDecoder;
@@ -141,12 +141,17 @@ impl ArchiveManager {
                 let mut tar = tar::Builder::new(enc);
                 let total_files = manifest.outs().len();
                 let target = manifest.target().to_string();
+
+                let mut f = std::fs::File::open(manifest.store_path().join(MANIFEST_FILE))?;
+                tar.append_file(Path::new(manifest.hash()).join(MANIFEST_FILE), &mut f)?;
+
                 for (current, out) in manifest.outs().iter().enumerate() {
                     let mut f = std::fs::File::open(manifest.store_path().join(out))?;
+                    let prefixed_out = Path::new(manifest.hash()).join(out);
                     if f.metadata().unwrap().is_dir() {
-                        tar.append_dir_all(out, manifest.store_path().join(out))?;
+                        tar.append_dir_all(&prefixed_out, manifest.store_path().join(&out))?;
                     } else {
-                        tar.append_file(out, &mut f)?;
+                        tar.append_file(&prefixed_out, &mut f)?;
                     }
                     ec.send(ArchiveEvent::CompressionProgress {
                         target: target.clone(),

@@ -1,9 +1,13 @@
 use crate::{CacheStatus, Goal, Target};
+use url::Url;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PackerEvent {
     PackagingStarted { target: Target },
     PackagingCompleted { target: Target },
+    UploadStarted { url: Url },
+    UploadCompleted { url: Url },
+    UploadSkipped { url: Url },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

@@ -55,7 +55,7 @@ impl StatusReporter {
             .template("{prefix:>12.cyan.bold} [{bar:25}] {pos}/{len} {wide_msg}")
             .progress_chars("=> ");
 
-        let pb = ProgressBar::new(100);
+        let pb = ProgressBar::new(0);
         pb.set_style(style);
         pb.set_prefix("Building");
 
@@ -84,7 +84,6 @@ impl StatusReporter {
             self.event_consumer.fetch();
             if let Some(event) = self.event_consumer.pop() {
                 debug!("{:#?}", event);
-                self.pb.set_length(self.queued_labels.len() as u64);
                 self.handle_event(event)
             }
             if self.should_stop {
@@ -98,10 +97,39 @@ impl StatusReporter {
 }
 
 impl Reporter for StatusReporter {
+    fn on_archive_event(&mut self, event: ArchiveEvent) {
+        match event {
+            ArchiveEvent::CompressionStarted { total_files, .. } => {
+                self.pb.set_length(self.pb.length() + (total_files as u64));
+            }
+            ArchiveEvent::CompressionProgress { .. } => self.pb.inc(1),
+            _ => (),
+        }
+    }
+
     fn on_packer_event(&mut self, event: PackerEvent) {
         let yellow = console::Style::new().yellow();
         match event {
+            PackerEvent::UploadStarted { url: _ } => {
+                self.pb.set_length(self.pb.length() + 1);
+                self.pb.set_prefix("Uploading");
+            }
+            PackerEvent::UploadCompleted { url } => {
+                let line = format!("{:>12} {}", yellow.apply_to("Uploaded"), url.to_string());
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
+            PackerEvent::UploadSkipped { url } => {
+                let line = format!(
+                    "{:>12} {} (SKIP)",
+                    yellow.apply_to("Uploaded"),
+                    url.to_string()
+                );
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
             PackerEvent::PackagingStarted { target } => {
+                self.pb.set_length(self.pb.length() + 1);
                 self.pb.set_prefix("Packing");
                 self.current_targets.insert(target);
                 self.pb.set_message(format!(
@@ -114,6 +142,7 @@ impl Reporter for StatusReporter {
                 ));
             }
             PackerEvent::PackagingCompleted { target } => {
+                self.current_targets.remove(&target);
                 let line = format!("{:>12} {}", yellow.apply_to("Packed"), target.to_string());
                 self.pb.println(line);
                 self.pb.inc(1);
@@ -124,7 +153,9 @@ impl Reporter for StatusReporter {
     fn on_queue_event(&mut self, event: QueueEvent) {
         match event {
             QueueEvent::TaskQueued { target, .. } => {
-                self.target_count.insert(target);
+                if self.target_count.insert(target) {
+                    self.pb.set_length(self.pb.length() + 1);
+                }
             }
             _ => (),
         }
