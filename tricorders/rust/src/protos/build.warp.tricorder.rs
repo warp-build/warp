@@ -16,15 +16,6 @@ pub struct GenerateSignatureRequest {
     ///
     #[prost(string, tag = "2")]
     pub file: ::prost::alloc::string::String,
-    /// The symbol that the generated signature should include.
-    ///
-    /// This symbol is a string that matches a value that is semantically
-    /// meaningful in the context of the tricorder's language. For example, in the
-    /// Erlang tricorder we expect a symbol to be "module", "function", "macro",
-    /// or "type".
-    ///
-    #[prost(message, optional, tag = "3")]
-    pub symbol: ::core::option::Option<super::Symbol>,
     /// A list of dependencies known to be required to generate a signature for
     /// this file.
     ///
@@ -61,9 +52,6 @@ pub struct GenerateSignatureSuccessResponse {
     /// The file that the signatures correspod to.
     #[prost(string, tag = "2")]
     pub file: ::prost::alloc::string::String,
-    /// The symbol within that file that the signatures correspond to.
-    #[prost(message, optional, tag = "3")]
-    pub symbol: ::core::option::Option<super::Symbol>,
     /// A non-empty collection of signatures for this file.
     #[prost(message, repeated, tag = "4")]
     pub signatures: ::prost::alloc::vec::Vec<super::Signature>,
@@ -75,8 +63,6 @@ pub struct GenerateSignatureMissingDepsResponse {
     pub workspace_root: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub file: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "3")]
-    pub symbol: ::core::option::Option<super::Symbol>,
     /// The dependencies that were provided for signature generation.
     #[prost(message, repeated, tag = "4")]
     pub dependencies: ::prost::alloc::vec::Vec<super::Dependency>,
@@ -91,10 +77,10 @@ pub struct GenerateSignatureMissingDepsResponse {
 pub struct GetAstRequest {
     #[prost(string, tag = "1")]
     pub file: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "2")]
-    pub symbol: ::core::option::Option<super::Symbol>,
     #[prost(message, repeated, tag = "3")]
     pub dependencies: ::prost::alloc::vec::Vec<super::Dependency>,
+    #[prost(message, optional, tag = "4")]
+    pub test_matcher: ::core::option::Option<super::TestMatcher>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -118,8 +104,6 @@ pub mod get_ast_response {
 pub struct GetAstMissingDepsResponse {
     #[prost(string, tag = "1")]
     pub file: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "2")]
-    pub symbol: ::core::option::Option<super::Symbol>,
     #[prost(message, repeated, tag = "3")]
     pub dependencies: ::prost::alloc::vec::Vec<super::Requirement>,
 }
@@ -128,8 +112,6 @@ pub struct GetAstMissingDepsResponse {
 pub struct GetAstSuccessResponse {
     #[prost(string, tag = "1")]
     pub file: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "2")]
-    pub symbol: ::core::option::Option<super::Symbol>,
     #[prost(string, tag = "3")]
     pub source: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]

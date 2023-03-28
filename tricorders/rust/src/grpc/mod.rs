@@ -45,7 +45,6 @@ impl TricorderService for TricorderServiceImpl {
                     GenerateSignatureSuccessResponse {
                         workspace_root,
                         file,
-                        symbol: None,
                         signatures: signature.iter().map(|e| e.clone().into()).collect(),
                     },
                 )),
@@ -56,7 +55,6 @@ impl TricorderService for TricorderServiceImpl {
                     GenerateSignatureSuccessResponse {
                         workspace_root,
                         file,
-                        symbol: None,
                         signatures: vec![],
                     },
                 )),
@@ -70,8 +68,7 @@ impl TricorderService for TricorderServiceImpl {
     ) -> Result<Response<GetAstResponse>, Status> {
         let request_data = request.into_inner();
         let file = request_data.clone().file;
-        let symbol: Symbol = request_data.clone().symbol.unwrap().into();
-        let response: Result<Ast, GetAstError> = GetAst::get_ast(file, symbol).await;
+        let response: Result<Ast, GetAstError> = GetAst::get_ast(file, Symbol::All).await;
 
         match response {
             Ok(ast) => Ok(Response::new(ast_to_success_response(ast))),

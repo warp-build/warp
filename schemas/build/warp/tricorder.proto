@@ -49,15 +49,6 @@ message GenerateSignatureRequest {
   //
   string file = 2;
 
-  // The symbol that the generated signature should include.
-  //
-  // This symbol is a string that matches a value that is semantically
-  // meaningful in the context of the tricorder's language. For example, in the
-  // Erlang tricorder we expect a symbol to be "module", "function", "macro",
-  // or "type".
-  //
-  Symbol symbol = 3;
-
   // A list of dependencies known to be required to generate a signature for
   // this file.
   //
@@ -81,9 +72,6 @@ message GenerateSignatureSuccessResponse {
   // The file that the signatures correspod to.
   string file = 2;
 
-  // The symbol within that file that the signatures correspond to.
-  Symbol symbol = 3;
-
   // A non-empty collection of signatures for this file.
   repeated Signature signatures = 4;
 }
@@ -91,7 +79,6 @@ message GenerateSignatureSuccessResponse {
 message GenerateSignatureMissingDepsResponse {
   string workspace_root = 1;
   string file = 2;
-  Symbol symbol = 3;
 
   // The dependencies that were provided for signature generation.
   repeated Dependency dependencies = 4;
@@ -104,8 +91,8 @@ message GenerateSignatureMissingDepsResponse {
 
 message GetAstRequest {
   string file = 1;
-  Symbol symbol = 2;
   repeated Dependency dependencies = 3;
+  TestMatcher test_matcher = 4;
 }
 
 message GetAstResponse {
@@ -117,13 +104,11 @@ message GetAstResponse {
 
 message GetAstMissingDepsResponse {
   string file = 1;
-  Symbol symbol = 2;
   repeated Requirement dependencies = 3;
 }
 
 message GetAstSuccessResponse {
   string file = 1;
-  Symbol symbol = 2;
   string source = 3;
   string ast = 4;
 }

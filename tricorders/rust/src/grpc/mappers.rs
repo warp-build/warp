@@ -42,7 +42,6 @@ pub fn ast_to_success_response(ast: Ast) -> GetAstResponse {
     GetAstResponse {
         response: Some(get_ast_response::Response::Ok(GetAstSuccessResponse {
             file: ast.file().to_string(),
-            symbol: Some(ast.symbol().into()),
             source: ast.source().to_string(),
             ast: format!("{:#?}", ast.ast()),
         })),

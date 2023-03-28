@@ -38,7 +38,6 @@ impl TricorderService for TestTricorder {
                 GenerateSignatureSuccessResponse {
                     workspace_root: req.workspace_root,
                     file: req.file.clone(),
-                    symbol: req.symbol,
                     signatures: vec![Signature {
                         rule: "test_rule".to_string(),
                         name: req.file.clone(),

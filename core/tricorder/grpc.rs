@@ -71,7 +71,6 @@ impl Tricorder for GrpcTricorder {
                 .to_string_lossy()
                 .to_string(),
             file: concrete_target.path().to_string_lossy().to_string(),
-            symbol: None,
             dependencies: dependencies
                 .iter()
                 .map(|(_task, spec, manifest)| proto::build::warp::Dependency {
