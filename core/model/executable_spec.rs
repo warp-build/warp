@@ -1,6 +1,6 @@
 use super::{
     ConcreteTarget, Dependencies, ExecutionEnvironment, Goal, Portability, ProvidedFiles,
-    Signature, SourceSet,
+    Signature, SourceKind, SourceSet,
 };
 use crate::executor::actions::Action;
 use crate::store::ArtifactId;
@@ -179,10 +179,11 @@ impl ExecutableSpecBuilder {
             })
             .collect();
 
+        let outs = spec.outs().files();
         let mut seeds: Vec<&str> = deps
             .iter()
             .map(|d| d.as_str())
-            .chain(spec.outs().files().iter().map(|o| o.to_str().unwrap()))
+            .chain(outs.iter().map(|o| o.to_str().unwrap()))
             .chain(actions.iter().map(|a| a.as_str()))
             .chain(srcs.iter().map(|s| s.to_str().unwrap()))
             .collect();
@@ -197,18 +198,26 @@ impl ExecutableSpecBuilder {
         let target = self.target.as_ref().unwrap();
         let root = target.workspace_root();
 
-        let mut srcs = spec.srcs().files().iter().collect::<Vec<&PathBuf>>();
+        let mut srcs = spec.srcs().sources().iter().collect::<Vec<&SourceKind>>();
         srcs.sort();
         for src in srcs {
-            let src = root.join(src);
-            let f = File::open(&src).unwrap_or_else(|_| panic!("Unable to open: {:?}", &src));
-            let mut buffer = [0; 2048];
-            let mut reader = BufReader::new(f);
-            while let Ok(len) = reader.read(&mut buffer) {
-                if len == 0 {
-                    break;
+            match src {
+                SourceKind::Chunk(_, chunk) => {
+                    s.update(chunk);
                 }
-                s.update(&buffer[..len]);
+                SourceKind::File(src) => {
+                    let src = root.join(src);
+                    let f =
+                        File::open(&src).unwrap_or_else(|_| panic!("Unable to open: {:?}", &src));
+                    let mut buffer = [0; 2048];
+                    let mut reader = BufReader::new(f);
+                    while let Ok(len) = reader.read(&mut buffer) {
+                        if len == 0 {
+                            break;
+                        }
+                        s.update(&buffer[..len]);
+                    }
+                }
             }
         }
 

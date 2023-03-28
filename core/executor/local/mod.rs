@@ -133,10 +133,10 @@ impl LocalExecutor {
                     })
                     .collect();
 
-                let mut srcs: Vec<PathBuf> = spec.srcs().files().iter().cloned().collect();
+                let mut srcs: Vec<PathBuf> = spec.srcs().files();
                 srcs.sort();
 
-                let mut outs: Vec<PathBuf> = spec.outs().files().iter().cloned().collect();
+                let mut outs: Vec<PathBuf> = spec.outs().files();
                 outs.sort();
 
                 let manifest = ArtifactManifest::build_v0()
@@ -272,7 +272,7 @@ impl LocalExecutor {
         }
 
         // Copy sources
-        for src in spec.srcs().files() {
+        for src in spec.srcs().files().iter() {
             let dst = store_path.join(src);
             let src = spec.target().workspace_root().join(src);
             if src.eq(&dst) {
@@ -300,7 +300,7 @@ spec = {:#?}
         store_path: &PathBuf,
         spec: &ExecutableSpec,
     ) -> Result<ValidationStatus, ExecutorError> {
-        let node_inputs: &FxHashSet<PathBuf> = spec.srcs().files();
+        let node_inputs: FxHashSet<PathBuf> = spec.srcs().files().into_iter().collect();
 
         let deps_inputs: FxHashSet<PathBuf> = spec
             .deps()
@@ -333,7 +333,7 @@ spec = {:#?}
         // level C-style libraries (think OpenSSL).
         //
         let mut expected_outputs: FxHashSet<PathBuf> = FxHashSet::default();
-        for out in spec.outs().files() {
+        for out in spec.outs().files().iter() {
             let abs_out = store_path.join(out);
             if abs_out.is_dir() {
                 for path in scan_files(&abs_out).await {

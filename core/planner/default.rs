@@ -1,8 +1,11 @@
 use super::{DefaultPlannerContext, Dependencies, Planner, PlannerError, PlanningFlow};
-use crate::model::{ExecutableSpec, ExecutionEnvironment, Signature, Task, UnregisteredTask};
+use crate::model::{
+    ExecutableSpec, ExecutionEnvironment, Signature, SourceKind, Task, UnregisteredTask,
+};
 use crate::rules::RuleExecutor;
 use crate::Goal;
 use async_trait::async_trait;
+use fxhash::FxHashSet;
 use tracing::instrument;
 
 pub struct DefaultPlanner<RE: RuleExecutor> {
@@ -80,6 +83,10 @@ where
 
         let planning_end_time = chrono::Utc::now();
 
+        let srcs: FxHashSet<SourceKind> = plan.srcs.into_iter().map(SourceKind::File).collect();
+
+        let outs: FxHashSet<SourceKind> = plan.outs.into_iter().map(SourceKind::File).collect();
+
         let spec = ExecutableSpec::builder()
             .goal(task.goal())
             .target(sig.target().clone())
@@ -88,8 +95,8 @@ where
             .shell_env(plan.shell_env.into_iter().collect())
             .planning_start_time(planning_start_time)
             .planning_end_time(planning_end_time)
-            .srcs(plan.srcs.into())
-            .outs(plan.outs.into())
+            .srcs(srcs.into())
+            .outs(outs.into())
             .provides(plan.provides.into())
             .actions(plan.actions)
             .deps(deps)
