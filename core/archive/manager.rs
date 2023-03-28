@@ -134,6 +134,7 @@ impl ArchiveManager {
             let ec = self.event_channel.clone();
             let tarball_path = tarball_path.clone();
             let manifest = manifest.clone();
+            let manifest_path = manifest.store_path().join(MANIFEST_FILE);
             tokio::task::spawn_blocking(move || {
                 let _ = std::fs::create_dir_all(tarball_path.parent().unwrap());
                 let tar_file = std::fs::File::create(tarball_path).unwrap();
@@ -142,7 +143,7 @@ impl ArchiveManager {
                 let total_files = manifest.outs().len();
                 let target = manifest.target().to_string();
 
-                let mut f = std::fs::File::open(manifest.store_path().join(MANIFEST_FILE))?;
+                let mut f = std::fs::File::open(manifest_path)?;
                 tar.append_file(Path::new(manifest.hash()).join(MANIFEST_FILE), &mut f)?;
 
                 for (current, out) in manifest.outs().iter().enumerate() {
@@ -338,8 +339,12 @@ mod tests {
     #[tokio::test]
     async fn compress_files_from_artifact_manifest() {
         let warp_root = assert_fs::TempDir::new().unwrap();
+        // let warp_root = warp_root.into_persistent();
+        dbg!(&warp_root);
 
         let invocation_dir = assert_fs::TempDir::new().unwrap();
+        // let invocation_dir = invocation_dir.into_persistent();
+        dbg!(&invocation_dir);
 
         let config = Config::builder()
             .invocation_dir(invocation_dir.path().to_path_buf())
@@ -347,21 +352,24 @@ mod tests {
             .build()
             .unwrap();
 
-        let am = ArchiveManager::new(&config);
+        let store_entry = warp_root.child("store/a-hash");
+        store_entry.child("output_file").touch().unwrap();
 
-        let manifest = invocation_dir.child("Manifest.json");
-
+        let manifest = store_entry.child("Manifest.json");
         let expected = include_str!("./fixtures/Manifest.json").replace(
             "{STORE_PATH}",
-            &config.artifact_store_root().to_str().unwrap(),
+            config.artifact_store_root().to_str().unwrap(),
         );
-
         manifest.write_str(&expected).unwrap();
 
         let artifact_manifest: Arc<ArtifactManifest> = ArtifactManifest::from_file(manifest.path())
             .await
             .unwrap()
             .into();
+
+        dbg!(&artifact_manifest);
+
+        let am = ArchiveManager::new(&config);
 
         let archive = am.compress(artifact_manifest.clone()).await.unwrap();
 

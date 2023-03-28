@@ -2,11 +2,11 @@
   "version": "V0",
   "target": "https://rules.warp.build/toolchains/erlang",
   "rule_name": "https://rules.warp.build/toolchains/erlang",
-  "hash": "c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706",
+  "hash": "a-hash",
   "exec_env": {},
-  "store_path": "{STORE_PATH}/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706",
+  "store_path": "{STORE_PATH}/a-hash",
   "srcs": [],
-  "outs": [],
+  "outs": ["output_file"],
   "buildstamps": {
     "plan_started_at": "2022-11-03T14:11:29.541954+00:00",
     "plan_ended_at": "2022-11-03T14:11:29.544024+00:00",
@@ -15,24 +15,10 @@
     "build_completed_at": "2022-11-03T14:14:26.349068+00:00",
     "build_elapsed_time": 176804
   },
-  "provides": {
-    "ct_run": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin/ct_run",
-    "dialyzer": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin/dialyzer",
-    "erl": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin/erl",
-    "erlc": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin/erlc",
-    "escript": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin/escript"
-  },
+  "provides": {},
   "deps": {},
   "runtime_deps": {},
   "transitive_deps": {},
   "toolchains": {},
-  "shell_env": {
-    "ERL_INCLUDE_PATH": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/lib/erlang/usr/include",
-    "ERL_LIB_PATH": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/lib/erlang/usr/lib",
-    "ERL_ROOT": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin",
-    "OpenSSL_HOME": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5-openssl/openssl-OpenSSL_1_1_1q/dist",
-    "OpenSSL_INCLUDE": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5-openssl/openssl-OpenSSL_1_1_1q/dist/include",
-    "OpenSSL_LIB": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5-openssl/openssl-OpenSSL_1_1_1q/dist/lib",
-    "PATH": "/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/c6afac199fb1656cb6f5bb831292f75ed0170d64af98289097788f6fce491706-erlang/otp_src_24.3.4.6/dist/bin:/warp/store/a5a0a73fa3e042d58d4be03ced846ef75199cb331649221291b539cf82f16e57-rules.warp.build/bebc63f081ec456f0d82be999f07cfe371198d5ed5e87dc13a0fbee3a86845e5-openssl/openssl-OpenSSL_1_1_1q/dist/bin"
-  }
+  "shell_env": {}
 }
