@@ -1,7 +1,7 @@
 defmodule Tricorder.CLI do
   require Logger
 
-  def main(["start", port, workspace_root]) do
+  def main(["start", port, workspace_root | _]) do
     Logger.info("Starting Tricorder application on port #{port}")
 
     Application.put_env(:tricorder, :start_server, true)
