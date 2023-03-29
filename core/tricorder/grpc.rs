@@ -61,7 +61,7 @@ impl GrpcTricorder {
 
 #[async_trait]
 impl Tricorder for GrpcTricorder {
-    #[instrument(name = "GrpcTricorder::connect")]
+    #[instrument(name = "GrpcTricorder::connect", skip(ctx))]
     async fn connect(conn: Connection, ctx: TricorderContext) -> Result<Self, TricorderError> {
         let conn_str = format!("http://0.0.0.0:{}", conn.port);
         let client = loop {
