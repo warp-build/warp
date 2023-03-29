@@ -52,6 +52,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             config.clone(),
             store,
             tricorder_context,
+            workspace_manager.clone(),
         ));
 
         let net_resolver = Arc::new(NetResolver::new(

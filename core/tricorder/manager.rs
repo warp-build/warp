@@ -7,6 +7,7 @@ use crate::store::{ArtifactManifest, Store, StoreError};
 use crate::sync::*;
 use crate::util::port_finder::PortFinder;
 use crate::util::process_pool::{ProcessId, ProcessPool, ProcessPoolError, ProcessSpec};
+use crate::workspace::WorkspaceManager;
 use crate::Config;
 use dashmap::DashMap;
 use std::collections::HashMap;
@@ -26,6 +27,7 @@ pub struct TricorderManager<T: Tricorder, S: Store> {
     process_pool: ProcessPool<T>,
     registry: TricorderRegistry,
     tricorders: DashMap<Url, (ProcessId<T>, Connection)>,
+    workspace_manager: Arc<WorkspaceManager>,
 
     // NOTE(@ostera): only used to serialize the calls to `next` and prevent fetching the same
     // target twice.
@@ -37,7 +39,12 @@ where
     T: Tricorder + 'static,
     S: Store,
 {
-    pub fn new(config: Config, artifact_store: Arc<S>, ctx: TricorderContext) -> Self {
+    pub fn new(
+        config: Config,
+        artifact_store: Arc<S>,
+        ctx: TricorderContext,
+        workspace_manager: Arc<WorkspaceManager>,
+    ) -> Self {
         Self {
             _lock: Arc::new(tokio::sync::Mutex::new(())),
             artifact_store,
@@ -46,6 +53,7 @@ where
             registry: TricorderRegistry::new(config.clone()),
             config,
             tricorders: Default::default(),
+            workspace_manager,
         }
     }
 
@@ -108,9 +116,16 @@ where
 
         shell_env.insert("LANG".to_string(), env_locale);
 
+        let workspace_root = self
+            .workspace_manager
+            .current_workspace()
+            .root()
+            .to_string_lossy()
+            .to_string();
+
         let spec = ProcessSpec {
             bin: bin.to_path_buf(),
-            args: vec!["start".to_string(), port.to_string()],
+            args: vec!["start".to_string(), port.to_string(), workspace_root],
             env: shell_env,
             current_dir: Some(self.config.invocation_dir().to_path_buf()),
             _process_type: PhantomData,

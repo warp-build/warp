@@ -31,6 +31,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
         %{raw: raw} when raw != nil -> {:match, raw}
         _ -> :all
       end
+	Logger.info("Using test_matcher: #{inspect(test_matcher)}")
 
     cond do
       Path.basename(req.file) in ["mix.exs"] ->
