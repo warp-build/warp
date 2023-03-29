@@ -114,9 +114,15 @@ message GetAstMissingDepsResponse {
 }
 
 message GetAstSuccessResponse {
-  string file = 1;
-  string source = 3;
-  string ast = 4;
+  repeated AstSubtree subtrees = 5;
+}
+
+message AstSubtree {
+  string workspace_root = 1;
+  string file = 2;
+  string signature_name = 3;
+  string source_chunk = 4;
+  string ast = 5;
 }
 
 

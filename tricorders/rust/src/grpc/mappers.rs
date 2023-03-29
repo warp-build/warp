@@ -1,4 +1,5 @@
 use crate::models::{Ast, Config, Requirement, Signature, Symbol, Value};
+use crate::proto;
 use crate::proto::build::warp::symbol::Sym::{All, Named};
 use crate::proto::build::warp::tricorder::{
     get_ast_response, GetAstResponse, GetAstSuccessResponse,
@@ -41,9 +42,13 @@ impl From<&Symbol> for crate::proto::build::warp::Symbol {
 pub fn ast_to_success_response(ast: Ast) -> GetAstResponse {
     GetAstResponse {
         response: Some(get_ast_response::Response::Ok(GetAstSuccessResponse {
-            file: ast.file().to_string(),
-            source: ast.source().to_string(),
-            ast: format!("{:#?}", ast.ast()),
+            subtrees: vec![proto::build::warp::tricorder::AstSubtree {
+                workspace_root: "".to_string(),
+                file: ast.file().to_string(),
+                source_chunk: ast.source().to_string(),
+                ast: format!("{:#?}", ast.ast()),
+                signature_name: "".to_string(),
+            }],
         })),
     }
 }

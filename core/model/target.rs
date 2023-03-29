@@ -1,4 +1,3 @@
-use super::TargetId;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::*;
@@ -93,7 +92,6 @@ impl std::str::FromStr for Target {
 
         Ok(Self::Fs(FsTarget {
             path: PathBuf::from(s), // TODO(@ostera): split by : to get the symbol name
-            deps: vec![],
         }))
     }
 }
@@ -106,14 +104,6 @@ impl Target {
                 alias
             }) if alias == ALIAS_ALL
         )
-    }
-
-    pub fn deps(&self) -> &[TargetId] {
-        match self {
-            Target::Alias(_) => &[],
-            Target::Remote(_) => &[],
-            Target::Fs(f) => f.deps(),
-        }
     }
 
     pub fn url(&self) -> Option<Url> {
@@ -212,17 +202,11 @@ impl From<url::Url> for RemoteTarget {
 #[derive(Builder, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct FsTarget {
     path: PathBuf,
-    #[serde(skip)]
-    deps: Vec<TargetId>,
 }
 
 impl FsTarget {
     pub fn path(&self) -> &PathBuf {
         &self.path
-    }
-
-    pub fn deps(&self) -> &[TargetId] {
-        &self.deps
     }
 }
 
@@ -230,7 +214,6 @@ impl Default for FsTarget {
     fn default() -> Self {
         Self {
             path: PathBuf::from("."),
-            deps: Default::default(),
         }
     }
 }
@@ -243,19 +226,13 @@ impl ToString for FsTarget {
 
 impl From<&str> for FsTarget {
     fn from(value: &str) -> Self {
-        Self {
-            path: value.into(),
-            deps: Default::default(),
-        }
+        Self { path: value.into() }
     }
 }
 
 impl From<PathBuf> for FsTarget {
     fn from(value: PathBuf) -> Self {
-        Self {
-            path: value,
-            deps: Default::default(),
-        }
+        Self { path: value }
     }
 }
 
@@ -263,7 +240,6 @@ impl From<&Path> for FsTarget {
     fn from(value: &Path) -> Self {
         Self {
             path: value.to_path_buf(),
-            deps: Default::default(),
         }
     }
 }
@@ -297,7 +273,6 @@ mod tests {
         fn arbitrary(g: &mut quickcheck::Gen) -> Self {
             Self {
                 path: std::path::PathBuf::arbitrary(g),
-                deps: Default::default(),
             }
         }
     }

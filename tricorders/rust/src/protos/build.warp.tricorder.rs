@@ -117,11 +117,21 @@ pub struct GetAstMissingDepsResponse {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetAstSuccessResponse {
+    #[prost(message, repeated, tag = "5")]
+    pub subtrees: ::prost::alloc::vec::Vec<AstSubtree>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AstSubtree {
     #[prost(string, tag = "1")]
+    pub workspace_root: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
     pub file: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub source: ::prost::alloc::string::String,
+    pub signature_name: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
+    pub source_chunk: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
     pub ast: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

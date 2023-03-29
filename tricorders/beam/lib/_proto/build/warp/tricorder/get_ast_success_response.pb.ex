@@ -14,43 +14,15 @@ defmodule Build.Warp.Tricorder.GetAstSuccessResponse do
           __unknown_fields__: [],
           default_value: nil,
           extendee: nil,
-          json_name: "file",
-          label: :LABEL_OPTIONAL,
-          name: "file",
-          number: 1,
+          json_name: "subtrees",
+          label: :LABEL_REPEATED,
+          name: "subtrees",
+          number: 5,
           oneof_index: nil,
           options: nil,
           proto3_optional: nil,
-          type: :TYPE_STRING,
-          type_name: nil
-        },
-        %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "source",
-          label: :LABEL_OPTIONAL,
-          name: "source",
-          number: 3,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
-          type: :TYPE_STRING,
-          type_name: nil
-        },
-        %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "ast",
-          label: :LABEL_OPTIONAL,
-          name: "ast",
-          number: 4,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
-          type: :TYPE_STRING,
-          type_name: nil
+          type: :TYPE_MESSAGE,
+          type_name: ".build.warp.tricorder.AstSubtree"
         }
       ],
       name: "GetAstSuccessResponse",
@@ -62,7 +34,5 @@ defmodule Build.Warp.Tricorder.GetAstSuccessResponse do
     }
   end
 
-  field(:file, 1, type: :string)
-  field(:source, 3, type: :string)
-  field(:ast, 4, type: :string)
+  field(:subtrees, 5, repeated: true, type: Build.Warp.Tricorder.AstSubtree)
 end

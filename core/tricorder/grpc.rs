@@ -1,6 +1,8 @@
 use self::proto::build::warp::tricorder::generate_signature_response::Response;
 use self::proto::build::warp::tricorder::EnsureReadyRequest;
-use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderContext, TricorderError};
+use super::{
+    Connection, SignatureGenerationFlow, Subtree, Tricorder, TricorderContext, TricorderError,
+};
 use crate::archive::Archive;
 use crate::code::SourceHasher;
 use crate::model::{
@@ -126,8 +128,16 @@ impl Tricorder for GrpcTricorder {
 
         match res {
             proto::build::warp::tricorder::get_ast_response::Response::Ok(res) => {
-                let ast_hash = SourceHasher::hash_str(res.ast);
-                Ok(SignatureGenerationFlow::ExtractedAst { ast_hash })
+                let subtrees = res
+                    .subtrees
+                    .into_iter()
+                    .map(|msg| Subtree {
+                        source_chunk: msg.source_chunk,
+                        ast_hash: SourceHasher::hash_str(msg.ast),
+                        signature_name: msg.signature_name,
+                    })
+                    .collect();
+                Ok(SignatureGenerationFlow::ExtractedAst { subtrees })
             }
             proto::build::warp::tricorder::get_ast_response::Response::MissingDeps(res) => {
                 let mut requirements = vec![];

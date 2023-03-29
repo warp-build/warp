@@ -70,9 +70,30 @@ pub enum TricorderError {
 }
 
 #[derive(Debug)]
+pub struct Subtree {
+    source_chunk: String,
+    ast_hash: String,
+    signature_name: String,
+}
+
+impl Subtree {
+    pub fn source_chunk(&self) -> &str {
+        self.source_chunk.as_ref()
+    }
+
+    pub fn ast_hash(&self) -> &str {
+        self.ast_hash.as_ref()
+    }
+
+    pub fn signature_name(&self) -> &str {
+        self.signature_name.as_ref()
+    }
+}
+
+#[derive(Debug)]
 pub enum SignatureGenerationFlow {
     GeneratedSignatures { signatures: Vec<Signature> },
-    ExtractedAst { ast_hash: String },
+    ExtractedAst { subtrees: Vec<Subtree> },
     MissingRequirements { requirements: Vec<Requirement> },
     IgnoredTarget(TargetId),
 }

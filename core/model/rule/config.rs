@@ -26,7 +26,7 @@ impl std::hash::Hash for Type {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum Value {
     String(String),
     File(PathBuf),
@@ -84,7 +84,7 @@ impl Spec {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Eq, PartialEq)]
 pub struct Config {
     _inner: FxHashMap<String, Value>,
 }
@@ -151,4 +151,25 @@ pub enum ConfigError {
 
     #[error("Value {value:?} is not of a supported type.")]
     UnsupportedValueType { value: serde_json::Value },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::Arbitrary;
+
+    impl Arbitrary for Config {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            Self::new(Arbitrary::arbitrary(g))
+        }
+    }
+    impl Arbitrary for Value {
+        fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+            let string = Self::String(Arbitrary::arbitrary(g));
+            let file = Self::File(Arbitrary::arbitrary(g));
+            let target = Self::Target(Arbitrary::arbitrary(g));
+            let list = Self::List(Arbitrary::arbitrary(g));
+            g.choose(&[string, file, target, list]).unwrap().clone()
+        }
+    }
 }

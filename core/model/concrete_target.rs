@@ -24,9 +24,6 @@ pub struct ConcreteTarget {
 
     #[builder(setter(into))]
     workspace_root: PathBuf,
-
-    #[builder(default, setter(into))]
-    deps: Vec<TargetId>,
 }
 
 impl std::hash::Hash for ConcreteTarget {
@@ -35,7 +32,6 @@ impl std::hash::Hash for ConcreteTarget {
         self.original_target.hash(state);
         self.path.hash(state);
         self.workspace_root.hash(state);
-        self.deps.hash(state);
     }
 }
 
@@ -52,7 +48,6 @@ impl ConcreteTarget {
         workspace_root: PathBuf,
     ) -> Self {
         Self {
-            deps: original_target.deps().to_vec(),
             original_target,
             target_id,
             path,

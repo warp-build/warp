@@ -4,10 +4,11 @@ use crate::model::{ConcreteTarget, FsTarget, Task};
 use crate::store::DefaultStore;
 use crate::sync::*;
 use crate::testing::TestMatcherRegistry;
-use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
+use crate::tricorder::{SignatureGenerationFlow, Subtree, Tricorder, TricorderManager};
 use crate::worker::TaskResults;
 use crate::workspace::WorkspaceManager;
-use tracing::instrument;
+use fxhash::FxHashMap;
+use tracing::{debug, instrument};
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
 /// File System Resolver for Local Targets.
@@ -80,7 +81,7 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
         let test_matcher = task
             .goal()
             .test_matcher_id()
-            .map(|id| self.test_matcher_registry.get_spec(id));
+            .map(|id| self.test_matcher_registry.get(id));
 
         let ct = ConcreteTarget::builder()
             .goal(task.goal())
@@ -97,23 +98,9 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
 
         let whole_source_hash = SourceHasher::hash(&target.path()).await?;
 
-        /*
-        if let Some(mut signatures) = self.code_db.get_signatures(&ct, &whole_source_hash)? {
-            for signature in signatures.iter_mut() {
-                let mut ct = signature.target().clone();
-                ct.set_target(
-                    self.target_registry.get_target(task.target_id()),
-                    task.target_id(),
-                );
-                let ct = self
-                    .target_registry
-                    .associate_concrete_target(task.target_id(), ct);
-                signature.set_target((*ct).clone());
-            }
-
+        if let Some(signatures) = self.code_db.get_signatures(&ct, &whole_source_hash)? {
             return Ok(SignatureGenerationFlow::GeneratedSignatures { signatures });
         }
-        */
 
         let mut tricorder = if let Some(tricorder) = self
             .tricorder_manager
@@ -125,32 +112,28 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             return Ok(SignatureGenerationFlow::IgnoredTarget(task.target_id()));
         };
 
-        let _final_hash = if let Some(test_matcher) = &test_matcher {
-            /*
-            if let Some(mut signatures) = self.code_db.get_signatures(&ct, &subtree_hash)? {
-                for signature in signatures.iter_mut() {
-                    let mut ct = signature.target().clone();
-                    ct.set_target(
-                        self.target_registry.get_target(task.target_id()),
-                        task.target_id(),
-                    );
-                    let ct = self
-                        .target_registry
-                        .associate_concrete_target(task.target_id(), ct);
-                    signature.set_target((*ct).clone());
-                }
-
-                return Ok(SignatureGenerationFlow::GeneratedSignatures { signatures });
-            }
-            */
-
-            match tricorder.get_ast(&ct, &deps, test_matcher).await? {
-                SignatureGenerationFlow::ExtractedAst { ast_hash } => ast_hash,
+        let save_strategy = if let Some(test_matcher) = &test_matcher {
+            let subtrees = match tricorder.get_ast(&ct, &deps, test_matcher).await? {
+                SignatureGenerationFlow::ExtractedAst { subtrees } => subtrees,
                 flow @ SignatureGenerationFlow::MissingRequirements { .. } => return Ok(flow),
                 _ => unreachable!(),
+            };
+
+            let mut signatures = vec![];
+            for subtree in &subtrees {
+                if let Some(saved_sigs) = self.code_db.get_signatures(&ct, subtree.ast_hash())? {
+                    signatures.push(saved_sigs);
+                }
             }
+
+            if signatures.len() == subtrees.len() {
+                let signatures = signatures.concat();
+                return Ok(SignatureGenerationFlow::GeneratedSignatures { signatures });
+            }
+
+            SignatureSaveStrategy::Subtrees(subtrees)
         } else {
-            whole_source_hash
+            SignatureSaveStrategy::WholeSource(whole_source_hash)
         };
 
         // 2. generate signature for this concrete target
@@ -158,10 +141,36 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             .generate_signature(&ct, &deps, test_matcher)
             .await?;
 
-        if let SignatureGenerationFlow::GeneratedSignatures { signatures: _ } = &sig {
-            // self.code_db.save_signatures(&ct, &final_hash, signatures)?;
+        if let SignatureGenerationFlow::GeneratedSignatures { signatures } = &sig {
+            match save_strategy {
+                SignatureSaveStrategy::WholeSource(whole_source_hash) => {
+                    debug!("Saving signatures for the whole source hash {whole_source_hash}");
+                    self.code_db
+                        .save_signatures(&ct, &whole_source_hash, signatures)?
+                }
+
+                SignatureSaveStrategy::Subtrees(subtree_pairs) => {
+                    let sig_map: FxHashMap<String, usize> = signatures
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, sig)| (sig.name().to_string(), idx))
+                        .collect();
+
+                    for subtree in subtree_pairs {
+                        let idx = sig_map.get(subtree.signature_name()).unwrap();
+                        let sig = signatures[*idx].clone();
+                        self.code_db
+                            .save_signatures(&ct, subtree.ast_hash(), &[sig])?;
+                    }
+                }
+            }
         }
 
         Ok(sig)
     }
+}
+
+enum SignatureSaveStrategy {
+    Subtrees(Vec<Subtree>),
+    WholeSource(String),
 }

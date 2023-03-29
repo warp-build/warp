@@ -5,7 +5,7 @@ use std::hash::Hash;
 use std::path::PathBuf;
 use thiserror::*;
 
-#[derive(Builder, Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Builder, Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[builder(build_fn(error = "SignatureError"))]
 pub struct Signature {
     #[builder(setter(into))]
@@ -68,7 +68,13 @@ impl AsRef<RuleName> for Signature {
 
 impl std::fmt::Display for Signature {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(fmt, "{}({})", self.rule, self.target.to_string())
+        write!(
+            fmt,
+            "{}({}, {})",
+            self.rule,
+            self.target.to_string(),
+            self.name
+        )
     }
 }
 #[derive(Error, Debug)]

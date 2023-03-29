@@ -297,7 +297,16 @@ mod tests {
             signature_registry.clone(),
         ));
 
-        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
+        let code_db = Arc::new(
+            CodeDatabase::new(
+                config.clone(),
+                test_matcher_registry.clone(),
+                target_registry.clone(),
+                task_registry.clone(),
+            )
+            .unwrap(),
+        );
+
         let r: DefaultResolver<UnreachableTricorder> = DefaultResolver::new(
             config,
             store,
@@ -419,7 +428,15 @@ mod tests {
         ));
 
         workspace_manager.set_current_workspace(wid);
-        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
+        let code_db = Arc::new(
+            CodeDatabase::new(
+                config.clone(),
+                test_matcher_registry.clone(),
+                target_registry.clone(),
+                task_registry.clone(),
+            )
+            .unwrap(),
+        );
         let r: DefaultResolver<HappyPathTricorder> = DefaultResolver::new(
             config,
             store,

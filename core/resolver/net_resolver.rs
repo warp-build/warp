@@ -90,19 +90,19 @@ impl<T: Tricorder + Clone + 'static> NetResolver<T> {
                 .await?
         };
 
-        if let Some(mut signature) = self.code_db.get_signature(&ct, archive.hash())? {
-            let mut ct = signature.target().clone();
-            ct.set_target(
-                self.target_registry.get_target(task.target_id()),
-                task.target_id(),
-            );
-            let ct = self
-                .target_registry
-                .associate_concrete_target(task.target_id(), ct);
-            signature.set_target((*ct).clone());
-            return Ok(SignatureGenerationFlow::GeneratedSignatures {
-                signatures: vec![signature],
-            });
+        if let Some(mut signatures) = self.code_db.get_signatures(&ct, archive.hash())? {
+            for signature in signatures.iter_mut() {
+                let mut ct = signature.target().clone();
+                ct.set_target(
+                    self.target_registry.get_target(task.target_id()),
+                    task.target_id(),
+                );
+                let ct = self
+                    .target_registry
+                    .associate_concrete_target(task.target_id(), ct);
+                signature.set_target((*ct).clone());
+            }
+            return Ok(SignatureGenerationFlow::GeneratedSignatures { signatures });
         }
 
         let mut tricorder = if let Some(tricorder) = self

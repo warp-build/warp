@@ -1,8 +1,12 @@
+mod model;
 mod source_hasher;
 pub use source_hasher::*;
 
 use crate::model::{ConcreteTarget, ExecutableSpec, Signature};
+use crate::resolver::TargetRegistry;
 use crate::sync::{Arc, Mutex};
+use crate::testing::TestMatcherRegistry;
+use crate::worker::TaskRegistry;
 use crate::Config;
 use seahash::SeaHasher;
 use std::hash::{Hash, Hasher};
@@ -15,10 +19,18 @@ const CODE_DATABASE_NAME: &str = "code.db";
 pub struct CodeDatabase {
     config: Config,
     sql: Arc<Mutex<rusqlite::Connection>>,
+    test_matcher_registry: Arc<TestMatcherRegistry>,
+    target_registry: Arc<TargetRegistry>,
+    task_registry: Arc<TaskRegistry>,
 }
 
 impl CodeDatabase {
-    pub fn new(config: Config) -> Result<Self, CodeDatabaseError> {
+    pub fn new(
+        config: Config,
+        test_matcher_registry: Arc<TestMatcherRegistry>,
+        target_registry: Arc<TargetRegistry>,
+        task_registry: Arc<TaskRegistry>,
+    ) -> Result<Self, CodeDatabaseError> {
         let sql = rusqlite::Connection::open(config.warp_root().join(CODE_DATABASE_NAME))?;
 
         sql.execute(
@@ -26,7 +38,7 @@ impl CodeDatabase {
             CREATE TABLE IF NOT EXISTS signatures (
                 target TEXT,
                 source_hash TEXT,
-                signature TEXT
+                signatures TEXT
             );
         ",
             (),
@@ -44,7 +56,13 @@ impl CodeDatabase {
         )?;
 
         let sql = Arc::new(Mutex::new(sql));
-        Ok(Self { config, sql })
+        Ok(Self {
+            config,
+            sql,
+            target_registry,
+            task_registry,
+            test_matcher_registry,
+        })
     }
 
     #[instrument(name = "CodeDatabase::get_executable_spec", skip(self))]
@@ -113,12 +131,12 @@ impl CodeDatabase {
         Ok(())
     }
 
-    #[instrument(name = "CodeDatabase::get_signature", skip(self))]
-    pub fn get_signature(
+    #[instrument(name = "CodeDatabase::get_signatures", skip(self))]
+    pub fn get_signatures(
         &self,
         concrete_target: &ConcreteTarget,
         source_hash: &str,
-    ) -> Result<Option<Signature>, CodeDatabaseError> {
+    ) -> Result<Option<Vec<Signature>>, CodeDatabaseError> {
         if !self.config.enable_code_database() {
             return Ok(None);
         }
@@ -126,7 +144,7 @@ impl CodeDatabase {
         let sql = self.sql.lock().unwrap();
 
         let mut query = sql.prepare(
-            r#" SELECT signature FROM signatures
+            r#" SELECT signatures FROM signatures
                 WHERE target = ?1 AND source_hash = ?2
             "#,
         )?;
@@ -134,38 +152,61 @@ impl CodeDatabase {
         let mut rows = query.query_map(
             rusqlite::params![concrete_target.original_target().to_string(), source_hash],
             |row| {
-                let sig_json: String = row.get(0).unwrap();
-                let sig: Signature = serde_json::from_str(&sig_json).unwrap();
-                Ok(sig)
+                let model_json: String = row.get(0).unwrap();
+                let models: Vec<model::SignatureModel> = serde_json::from_str(&model_json).unwrap();
+
+                let mut sigs = vec![];
+                for model in models {
+                    sigs.push(model.to_signature(
+                        &self.test_matcher_registry,
+                        &self.target_registry,
+                        &self.task_registry,
+                    ));
+                }
+
+                Ok(sigs)
             },
         )?;
 
-        let result = rows.next().map(|row| row.unwrap());
+        if let Some(row) = rows.next() {
+            return Ok(Some(row.unwrap()));
+        }
 
-        Ok(result)
+        Ok(None)
     }
 
-    #[instrument(name = "CodeDatabase::save_signature", skip(self))]
-    pub fn save_signature(
+    #[instrument(name = "CodeDatabase::save_signatures", skip(self))]
+    pub fn save_signatures(
         &self,
         concrete_target: &ConcreteTarget,
         source_hash: &str,
-        sig: &Signature,
+        sigs: &[Signature],
     ) -> Result<(), CodeDatabaseError> {
         if !self.config.enable_code_database() {
             return Ok(());
         }
 
+        let mut sig_models = vec![];
+        for sig in sigs {
+            let model = model::SignatureModel::from_signature(
+                sig,
+                &self.test_matcher_registry,
+                &self.target_registry,
+            );
+            sig_models.push(model);
+        }
+
         let sql = self.sql.lock().unwrap();
+
         sql.execute(
             r#" INSERT
-                    INTO signatures (target, source_hash, signature)
+                    INTO signatures (target, source_hash, signatures)
                     VALUES (?1, ?2, ?3)
                 "#,
             (
                 concrete_target.original_target().to_string(),
                 source_hash,
-                serde_json::to_string(sig).unwrap(),
+                serde_json::to_string(&sig_models).unwrap(),
             ),
         )?;
         Ok(())

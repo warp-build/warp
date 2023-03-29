@@ -28,7 +28,7 @@ impl TestMatcherRegistry {
     }
 
     #[tracing::instrument(name = "TargetRegistry::get", skip(self))]
-    pub fn get_spec(&self, id: TestMatcherId) -> Arc<TestMatcher> {
+    pub fn get(&self, id: TestMatcherId) -> Arc<TestMatcher> {
         (*self.specs.get(&id).unwrap()).clone()
     }
 

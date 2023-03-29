@@ -245,7 +245,15 @@ mod tests {
             target_registry.clone(),
             signature_registry.clone(),
         ));
-        let code_db = Arc::new(CodeDatabase::new(config.clone()).unwrap());
+        let code_db = Arc::new(
+            CodeDatabase::new(
+                config.clone(),
+                test_matcher_registry.clone(),
+                target_registry.clone(),
+                task_registry.clone(),
+            )
+            .unwrap(),
+        );
         let ctx = LocalSharedContext::new(
             config.clone(),
             task_registry,
