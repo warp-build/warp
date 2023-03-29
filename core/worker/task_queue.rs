@@ -101,13 +101,16 @@ impl TaskQueue {
                     let mut task_id: Option<TaskId> = None;
 
                     'wait_queue: for t in &*wait_queue {
+                        let task = self.task_registry.get(*t);
                         debug!(
-                            "Found task {} {:#?}",
-                            {
-                                let task = self.task_registry.get(*t);
-                                self.target_registry
-                                    .get_target(task.target_id())
-                                    .to_string()
+                            "Found task {} {} {:?}",
+                            self.target_registry
+                                .get_target(task.target_id())
+                                .to_string(),
+                            if let Some(sig_id) = task.signature_id() {
+                                self.signature_registry.get(sig_id).name().to_string()
+                            } else {
+                                "".to_string()
                             },
                             *t
                         );
@@ -115,7 +118,7 @@ impl TaskQueue {
                             for dep in (*deps).iter() {
                                 let dep = self.task_registry.get(*dep);
                                 debug!(
-                                    "-> {:?} {:#?}",
+                                    "-> {:?} {:?}",
                                     self.target_registry.get_target(dep.target_id()).to_string(),
                                     dep.id()
                                 );
