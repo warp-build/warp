@@ -34,5 +34,5 @@ defmodule Build.Warp.FileRequirement do
     }
   end
 
-  field :path, 1, type: :string
+  field(:path, 1, type: :string)
 end

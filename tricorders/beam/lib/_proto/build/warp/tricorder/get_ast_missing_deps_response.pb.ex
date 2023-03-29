@@ -62,7 +62,7 @@ defmodule Build.Warp.Tricorder.GetAstMissingDepsResponse do
     }
   end
 
-  field :file, 1, type: :string
-  field :dependencies, 4, repeated: true, type: Build.Warp.Dependency
-  field :requirements, 5, repeated: true, type: Build.Warp.Requirement
+  field(:file, 1, type: :string)
+  field(:dependencies, 4, repeated: true, type: Build.Warp.Dependency)
+  field(:requirements, 5, repeated: true, type: Build.Warp.Requirement)
 end

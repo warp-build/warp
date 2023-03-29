@@ -34,5 +34,5 @@ defmodule Build.Warp.TestMatcher do
     }
   end
 
-  field :raw, 1, repeated: true, type: :string
+  field(:raw, 1, repeated: true, type: :string)
 end

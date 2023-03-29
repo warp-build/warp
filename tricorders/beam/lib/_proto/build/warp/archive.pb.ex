@@ -62,7 +62,7 @@ defmodule Build.Warp.Archive do
     }
   end
 
-  field :url, 1, type: :string
-  field :sha256, 2, type: :string
-  field :strip_prefix, 3, type: :string, json_name: "stripPrefix"
+  field(:url, 1, type: :string)
+  field(:sha256, 2, type: :string)
+  field(:strip_prefix, 3, type: :string, json_name: "stripPrefix")
 end

@@ -39,8 +39,8 @@ defmodule Build.Warp.Goal do
     }
   end
 
-  field :GOAL_UNKNOWN, 0
-  field :GOAL_BUILD, 1
-  field :GOAL_TEST, 2
-  field :GOAL_RUN, 3
+  field(:GOAL_UNKNOWN, 0)
+  field(:GOAL_BUILD, 1)
+  field(:GOAL_TEST, 2)
+  field(:GOAL_RUN, 3)
 end

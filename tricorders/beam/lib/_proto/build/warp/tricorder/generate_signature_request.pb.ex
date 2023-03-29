@@ -90,9 +90,9 @@ defmodule Build.Warp.Tricorder.GenerateSignatureRequest do
     }
   end
 
-  field :workspace_root, 1, type: :string, json_name: "workspaceRoot"
-  field :file, 2, type: :string
-  field :dependencies, 4, repeated: true, type: Build.Warp.Dependency
-  field :test_matcher, 5, type: Build.Warp.TestMatcher, json_name: "testMatcher"
-  field :goal, 6, type: Build.Warp.Goal, enum: true
+  field(:workspace_root, 1, type: :string, json_name: "workspaceRoot")
+  field(:file, 2, type: :string)
+  field(:dependencies, 4, repeated: true, type: Build.Warp.Dependency)
+  field(:test_matcher, 5, type: Build.Warp.TestMatcher, json_name: "testMatcher")
+  field(:goal, 6, type: Build.Warp.Goal, enum: true)
 end

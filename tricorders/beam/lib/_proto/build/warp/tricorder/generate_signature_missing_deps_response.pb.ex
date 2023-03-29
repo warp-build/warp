@@ -76,8 +76,8 @@ defmodule Build.Warp.Tricorder.GenerateSignatureMissingDepsResponse do
     }
   end
 
-  field :workspace_root, 1, type: :string, json_name: "workspaceRoot"
-  field :file, 2, type: :string
-  field :dependencies, 4, repeated: true, type: Build.Warp.Dependency
-  field :requirements, 5, repeated: true, type: Build.Warp.Requirement
+  field(:workspace_root, 1, type: :string, json_name: "workspaceRoot")
+  field(:file, 2, type: :string)
+  field(:dependencies, 4, repeated: true, type: Build.Warp.Dependency)
+  field(:requirements, 5, repeated: true, type: Build.Warp.Requirement)
 end

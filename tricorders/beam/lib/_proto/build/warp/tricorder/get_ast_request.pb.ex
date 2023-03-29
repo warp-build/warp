@@ -76,8 +76,8 @@ defmodule Build.Warp.Tricorder.GetAstRequest do
     }
   end
 
-  field :file, 1, type: :string
-  field :dependencies, 3, repeated: true, type: Build.Warp.Dependency
-  field :test_matcher, 4, type: Build.Warp.TestMatcher, json_name: "testMatcher"
-  field :workspace_root, 5, type: :string, json_name: "workspaceRoot"
+  field(:file, 1, type: :string)
+  field(:dependencies, 3, repeated: true, type: Build.Warp.Dependency)
+  field(:test_matcher, 4, type: Build.Warp.TestMatcher, json_name: "testMatcher")
+  field(:workspace_root, 5, type: :string, json_name: "workspaceRoot")
 end

@@ -62,7 +62,7 @@ defmodule Build.Warp.Tricorder.GenerateSignatureSuccessResponse do
     }
   end
 
-  field :workspace_root, 1, type: :string, json_name: "workspaceRoot"
-  field :file, 2, type: :string
-  field :signatures, 4, repeated: true, type: Build.Warp.Signature
+  field(:workspace_root, 1, type: :string, json_name: "workspaceRoot")
+  field(:file, 2, type: :string)
+  field(:signatures, 4, repeated: true, type: Build.Warp.Signature)
 end

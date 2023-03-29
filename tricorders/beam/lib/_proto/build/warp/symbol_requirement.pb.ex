@@ -48,6 +48,6 @@ defmodule Build.Warp.SymbolRequirement do
     }
   end
 
-  field :raw, 1, type: :string
-  field :kind, 2, type: :string
+  field(:raw, 1, type: :string)
+  field(:kind, 2, type: :string)
 end
