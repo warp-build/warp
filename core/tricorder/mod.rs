@@ -1,7 +1,9 @@
+mod context;
 mod grpc;
 mod manager;
 mod registry;
 
+pub use context::*;
 pub use grpc::*;
 pub use manager::*;
 pub use registry::*;
@@ -28,7 +30,7 @@ pub struct Connection {
 
 #[async_trait]
 pub trait Tricorder: Send + Sync + Debug {
-    async fn connect(connection: Connection) -> Result<Self, TricorderError>
+    async fn connect(connection: Connection, ctx: TricorderContext) -> Result<Self, TricorderError>
     where
         Self: Sized;
 

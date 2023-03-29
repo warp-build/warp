@@ -1,6 +1,6 @@
 use super::{
-    Connection, Tricorder, TricorderError, TricorderRegistry, TricorderRegistryError,
-    DEFAULT_TRICODER_BINARY_NAME,
+    Connection, Tricorder, TricorderContext, TricorderError, TricorderRegistry,
+    TricorderRegistryError, DEFAULT_TRICODER_BINARY_NAME,
 };
 use crate::events::event::TricorderEvent;
 use crate::store::{ArtifactManifest, Store, StoreError};
@@ -20,10 +20,11 @@ use url::Url;
 /// of processes that can be used to create new clients for existing tricorders whenever needed.
 ///
 pub struct TricorderManager<T: Tricorder, S: Store> {
-    config: Config,
-    registry: TricorderRegistry,
-    process_pool: ProcessPool<T>,
     artifact_store: Arc<S>,
+    config: Config,
+    ctx: TricorderContext,
+    process_pool: ProcessPool<T>,
+    registry: TricorderRegistry,
     tricorders: DashMap<Url, (ProcessId<T>, Connection)>,
 
     // NOTE(@ostera): only used to serialize the calls to `next` and prevent fetching the same
@@ -36,14 +37,15 @@ where
     T: Tricorder + 'static,
     S: Store,
 {
-    pub fn new(config: Config, artifact_store: Arc<S>) -> Self {
+    pub fn new(config: Config, artifact_store: Arc<S>, ctx: TricorderContext) -> Self {
         Self {
+            _lock: Arc::new(tokio::sync::Mutex::new(())),
+            artifact_store,
+            ctx,
+            process_pool: ProcessPool::new(),
             registry: TricorderRegistry::new(config.clone()),
             config,
-            process_pool: ProcessPool::new(),
-            artifact_store,
             tricorders: Default::default(),
-            _lock: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
@@ -69,7 +71,7 @@ where
         let ec = self.config.event_channel();
         if let Some(entry) = self.tricorders.get(tricorder_url) {
             let (_pid, conn) = &*entry;
-            let tricorder = T::connect(conn.clone()).await?;
+            let tricorder = T::connect(conn.clone(), self.ctx.clone()).await?;
             ec.send(TricorderEvent::TricorderConnectionEstablished {
                 tricorder_url: tricorder_url.clone(),
             });
@@ -124,7 +126,7 @@ where
             tricorder_url: tricorder_url.clone(),
             port,
         };
-        let mut tricorder = T::connect(conn.clone()).await?;
+        let mut tricorder = T::connect(conn.clone(), self.ctx.clone()).await?;
 
         ec.send(TricorderEvent::TricorderConnectionEstablished {
             tricorder_url: tricorder_url.clone(),
@@ -253,7 +255,10 @@ mod tests {
         pub struct NoopTricorder;
         #[async_trait]
         impl Tricorder for NoopTricorder {
-            async fn connect(_conn: Connection) -> Result<Self, TricorderError> {
+            async fn connect(
+                _conn: Connection,
+                _ctx: TricorderContext,
+            ) -> Result<Self, TricorderError> {
                 Ok(Self)
             }
 
@@ -346,7 +351,10 @@ mod tests {
         pub struct UnreachableTricorder;
         #[async_trait]
         impl Tricorder for UnreachableTricorder {
-            async fn connect(_conn: Connection) -> Result<Self, TricorderError> {
+            async fn connect(
+                _conn: Connection,
+                _ctx: TricorderContext,
+            ) -> Result<Self, TricorderError> {
                 unreachable!();
             }
 
@@ -447,7 +455,10 @@ mod tests {
         pub struct UnconnectableTricorder;
         #[async_trait]
         impl Tricorder for UnconnectableTricorder {
-            async fn connect(_conn: Connection) -> Result<Self, TricorderError> {
+            async fn connect(
+                _conn: Connection,
+                _ctx: TricorderContext,
+            ) -> Result<Self, TricorderError> {
                 Err(TricorderError::Unknown)
             }
 
@@ -548,7 +559,10 @@ mod tests {
         pub struct UnreadiableTricorder;
         #[async_trait]
         impl Tricorder for UnreadiableTricorder {
-            async fn connect(_conn: Connection) -> Result<Self, TricorderError> {
+            async fn connect(
+                _conn: Connection,
+                _ctx: TricorderContext,
+            ) -> Result<Self, TricorderError> {
                 Ok(Self)
             }
 

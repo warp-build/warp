@@ -67,6 +67,7 @@ impl WarpDriveMarkII {
             config.clone(),
             store.clone(),
             target_registry.clone(),
+            task_registry.clone(),
             signature_registry.clone(),
             test_matcher_registry.clone(),
             archive_manager.clone(),

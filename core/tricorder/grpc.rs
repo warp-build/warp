@@ -1,14 +1,15 @@
 use self::proto::build::warp::tricorder::generate_signature_response::Response;
 use self::proto::build::warp::tricorder::EnsureReadyRequest;
-use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderError};
+use super::{Connection, SignatureGenerationFlow, Tricorder, TricorderContext, TricorderError};
 use crate::archive::Archive;
 use crate::code::SourceHasher;
 use crate::model::{
-    rule, ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, Task, TestMatcher,
+    rule, ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, Task,
+    TestMatcher, UnregisteredTask,
 };
 use crate::store::ArtifactManifest;
 use crate::sync::Arc;
-use crate::Goal;
+use crate::{Goal, Target};
 use async_trait::async_trait;
 use std::path::PathBuf;
 use tracing::instrument;
@@ -23,16 +24,45 @@ mod proto {
 ///
 #[derive(Debug, Clone)]
 pub struct GrpcTricorder {
+    ctx: TricorderContext,
     conn: Connection,
     client: proto::build::warp::tricorder::tricorder_service_client::TricorderServiceClient<
         tonic::transport::Channel,
     >,
 }
 
+impl GrpcTricorder {
+    fn requirements_to_tasks(&self, deps: Vec<proto::build::warp::Requirement>) -> Vec<Task> {
+        let mut tasks = vec![];
+
+        for dep in deps {
+            let target: Target = match dep.requirement.unwrap() {
+                proto::build::warp::requirement::Requirement::File(file) => file.path.into(),
+                proto::build::warp::requirement::Requirement::Url(url) => url.url.into(),
+                _ => continue,
+            };
+
+            let target_id = self.ctx.target_registry.register_target(target);
+
+            let unreg_task = UnregisteredTask::builder()
+                .goal(Goal::Build)
+                .target_id(target_id)
+                .build()
+                .unwrap();
+
+            let task = self.ctx.task_registry.register(unreg_task);
+
+            tasks.push(task);
+        }
+
+        tasks
+    }
+}
+
 #[async_trait]
 impl Tricorder for GrpcTricorder {
     #[instrument(name = "GrpcTricorder::connect")]
-    async fn connect(conn: Connection) -> Result<Self, TricorderError> {
+    async fn connect(conn: Connection, ctx: TricorderContext) -> Result<Self, TricorderError> {
         let conn_str = format!("http://0.0.0.0:{}", conn.port);
         let client = loop {
             let conn =
@@ -45,7 +75,7 @@ impl Tricorder for GrpcTricorder {
             }
             tokio::time::sleep(std::time::Duration::from_millis(1)).await;
         };
-        Ok(Self { conn, client })
+        Ok(Self { conn, client, ctx })
     }
 
     #[instrument(name = "GrpcTricorder::ensure_ready", skip(self))]
@@ -103,35 +133,8 @@ impl Tricorder for GrpcTricorder {
                 let mut requirements = vec![];
 
                 for req in res.requirements {
-                    let req = match req.requirement.unwrap() {
-                        proto::build::warp::requirement::Requirement::File(file) => {
-                            Requirement::File {
-                                path: file.path.into(),
-                            }
-                        }
-                        proto::build::warp::requirement::Requirement::Symbol(sym) => {
-                            Requirement::Symbol {
-                                raw: sym.raw,
-                                kind: sym.kind,
-                            }
-                        }
-                        proto::build::warp::requirement::Requirement::Url(url) => {
-                            Requirement::Url {
-                                url: url.url.parse::<Url>().unwrap(),
-                                tricorder_url: self.conn.tricorder_url.clone(),
-                                subpath: Some(PathBuf::from(url.subpath)),
-                            }
-                        }
-                        proto::build::warp::requirement::Requirement::Dependency(dep) => {
-                            Requirement::Dependency {
-                                name: dep.name,
-                                version: dep.version,
-                                url: dep.url.parse::<Url>().unwrap(),
-                                tricorder: dep.tricorder_url.parse::<Url>().unwrap(),
-                            }
-                        }
-                    };
-                    requirements.push(req)
+                    let url = self.conn.tricorder_url.clone();
+                    requirements.push((url, req.requirement.unwrap()).into())
                 }
 
                 Ok(SignatureGenerationFlow::MissingRequirements { requirements })
@@ -185,7 +188,7 @@ impl Tricorder for GrpcTricorder {
 
         match res {
             Response::Ok(res) => {
-                let deps: Vec<Task> = dependencies
+                let shared_deps: Vec<Task> = dependencies
                     .iter()
                     .map(|(task, _spec, _manifest)| *task)
                     .collect();
@@ -198,12 +201,15 @@ impl Tricorder for GrpcTricorder {
                         rule::Value::String(proto_sig.name.clone()),
                     );
 
+                    let mut deps = self.requirements_to_tasks(proto_sig.deps);
+                    deps.extend(shared_deps.iter());
+
                     let sig = Signature::builder()
                         .name(proto_sig.name)
                         .rule(proto_sig.rule)
                         .target(concrete_target.clone())
                         .config(config)
-                        .deps(deps.clone())
+                        .deps(deps)
                         .build()?;
 
                     signatures.push(sig);
@@ -214,35 +220,8 @@ impl Tricorder for GrpcTricorder {
                 let mut requirements = vec![];
 
                 for req in res.requirements {
-                    let req = match req.requirement.unwrap() {
-                        proto::build::warp::requirement::Requirement::File(file) => {
-                            Requirement::File {
-                                path: file.path.into(),
-                            }
-                        }
-                        proto::build::warp::requirement::Requirement::Symbol(sym) => {
-                            Requirement::Symbol {
-                                raw: sym.raw,
-                                kind: sym.kind,
-                            }
-                        }
-                        proto::build::warp::requirement::Requirement::Url(url) => {
-                            Requirement::Url {
-                                url: url.url.parse::<Url>().unwrap(),
-                                tricorder_url: self.conn.tricorder_url.clone(),
-                                subpath: Some(PathBuf::from(url.subpath)),
-                            }
-                        }
-                        proto::build::warp::requirement::Requirement::Dependency(dep) => {
-                            Requirement::Dependency {
-                                name: dep.name,
-                                version: dep.version,
-                                url: dep.url.parse::<Url>().unwrap(),
-                                tricorder: dep.tricorder_url.parse::<Url>().unwrap(),
-                            }
-                        }
-                    };
-                    requirements.push(req)
+                    let url = self.conn.tricorder_url.clone();
+                    requirements.push((url, req.requirement.unwrap()).into())
                 }
 
                 Ok(SignatureGenerationFlow::MissingRequirements { requirements })
@@ -338,6 +317,35 @@ impl From<Goal> for proto::build::warp::Goal {
             Goal::Fetch => Self::Unknown,
             Goal::Run => Self::Run,
             Goal::Test { .. } => Self::Test,
+        }
+    }
+}
+
+impl From<(url::Url, proto::build::warp::requirement::Requirement)> for Requirement {
+    fn from(
+        (tricorder_url, value): (url::Url, proto::build::warp::requirement::Requirement),
+    ) -> Self {
+        match value {
+            proto::build::warp::requirement::Requirement::File(file) => Requirement::File {
+                path: file.path.into(),
+            },
+            proto::build::warp::requirement::Requirement::Symbol(sym) => Requirement::Symbol {
+                raw: sym.raw,
+                kind: sym.kind,
+            },
+            proto::build::warp::requirement::Requirement::Url(url) => Requirement::Url {
+                url: url.url.parse::<Url>().unwrap(),
+                tricorder_url,
+                subpath: Some(PathBuf::from(url.subpath)),
+            },
+            proto::build::warp::requirement::Requirement::Dependency(dep) => {
+                Requirement::Dependency {
+                    name: dep.name,
+                    version: dep.version,
+                    url: dep.url.parse::<Url>().unwrap(),
+                    tricorder: dep.tricorder_url.parse::<Url>().unwrap(),
+                }
+            }
         }
     }
 }

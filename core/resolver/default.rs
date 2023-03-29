@@ -13,8 +13,8 @@ use crate::model::{
 use crate::store::DefaultStore;
 use crate::sync::*;
 use crate::testing::TestMatcherRegistry;
-use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
-use crate::worker::TaskResults;
+use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderContext, TricorderManager};
+use crate::worker::{TaskRegistry, TaskResults};
 use crate::workspace::WorkspaceManager;
 use crate::Config;
 use async_trait::async_trait;
@@ -35,6 +35,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         config: Config,
         store: Arc<DefaultStore>,
         target_registry: Arc<TargetRegistry>,
+        task_registry: Arc<TaskRegistry>,
         signature_registry: Arc<SignatureRegistry>,
         test_matcher_registry: Arc<TestMatcherRegistry>,
         archive_manager: Arc<ArchiveManager>,
@@ -42,7 +43,13 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         task_results: Arc<TaskResults>,
         code_db: Arc<CodeDatabase>,
     ) -> Result<Self, ResolverError> {
-        let tricorder_manager = Arc::new(TricorderManager::new(config.clone(), store));
+        let tricorder_context =
+            TricorderContext::new(target_registry.clone(), task_registry);
+        let tricorder_manager = Arc::new(TricorderManager::new(
+            config.clone(),
+            store,
+            tricorder_context,
+        ));
 
         let net_resolver = Arc::new(NetResolver::new(
             archive_manager,
