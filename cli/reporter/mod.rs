@@ -169,6 +169,7 @@ impl Reporter for StatusReporter {
                 cache_status,
                 target,
                 goal,
+                signature,
             } if cache_status == CacheStatus::Cached => {
                 self.current_targets.remove(&target);
                 self.pb.set_message(format!(
@@ -181,13 +182,18 @@ impl Reporter for StatusReporter {
                 ));
 
                 let line = format!(
-                    "{:>12} {} {}",
+                    "{:>12} {} {} {}",
                     if goal.is_test() {
                         green_bold.apply_to("PASS")
                     } else {
                         blue_dim.apply_to("Cache-hit")
                     },
                     target.to_string(),
+                    if goal.is_test() {
+                        signature
+                    } else {
+                        "".to_string()
+                    },
                     if goal.is_test() { "(CACHED)" } else { "" }
                 );
                 self.pb.println(line);
@@ -195,11 +201,21 @@ impl Reporter for StatusReporter {
                 self.pb.inc(1);
                 self.cache_hits.insert(target);
             }
-            WorkerEvent::TargetBuildCompleted { target, goal, .. } => {
+            WorkerEvent::TargetBuildCompleted {
+                target,
+                goal,
+                signature,
+                ..
+            } => {
                 let line = format!(
-                    "{:>12} {}",
+                    "{:>12} {} {}",
                     green_bold.apply_to(if goal.is_test() { "PASS" } else { "Built" }),
                     target.to_string(),
+                    if goal.is_test() {
+                        signature
+                    } else {
+                        "".to_string()
+                    },
                 );
                 self.pb.println(line);
                 self.current_targets.remove(&target);
