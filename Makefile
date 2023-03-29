@@ -86,6 +86,7 @@ test: test.tricorder test.unit test.conc test.beam bootstrap
 .PHONY: test.beam
 test.beam:
 	cd tricorders/beam \
+		&& ./bootstrap.sh \
 		&& mix deps.get \
 		&& mix test
 
