@@ -336,11 +336,7 @@ impl Reporter for StatusReporter {
                 self.pb.println(line);
                 self.pb.inc(1);
             }
-            TricorderEvent::TricorderConnectionEstablished { tricorder_url } => {
-                let line = format!("{:>12} {}", purple.apply_to("Connected"), tricorder_url);
-                self.pb.println(line);
-                self.pb.inc(1);
-            }
+            TricorderEvent::TricorderConnectionEstablished { tricorder_url: _ } => (),
             TricorderEvent::SignatureGenerationStarted { target: _ } => (),
         }
     }
