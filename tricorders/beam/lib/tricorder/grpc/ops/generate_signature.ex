@@ -32,6 +32,8 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
         _ -> :all
       end
 
+    Logger.info("Using test_matcher: #{inspect(test_matcher)}")
+
     cond do
       Path.basename(req.file) in ["mix.exs"] ->
         {:ok, analysis} = Analysis.Mix.analyze(req.file, paths)

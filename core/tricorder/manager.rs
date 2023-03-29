@@ -7,6 +7,7 @@ use crate::store::{ArtifactManifest, Store, StoreError};
 use crate::sync::*;
 use crate::util::port_finder::PortFinder;
 use crate::util::process_pool::{ProcessId, ProcessPool, ProcessPoolError, ProcessSpec};
+
 use crate::Config;
 use dashmap::DashMap;
 use std::collections::HashMap;
@@ -108,9 +109,11 @@ where
 
         shell_env.insert("LANG".to_string(), env_locale);
 
+        let workspace_root = self.config.workspace_root().to_string_lossy().to_string();
+
         let spec = ProcessSpec {
             bin: bin.to_path_buf(),
-            args: vec!["start".to_string(), port.to_string()],
+            args: vec!["start".to_string(), port.to_string(), workspace_root],
             env: shell_env,
             current_dir: Some(self.config.invocation_dir().to_path_buf()),
             _process_type: PhantomData,
@@ -211,7 +214,7 @@ mod tests {
         // NOTE(@ostera): this line is useful for debugging the output directory when something
         // goes wrong.
         // let warp_root = warp_root.into_persistent();
-        // dbg!(&warp_root.path());
+        dbg!(&warp_root.path());
 
         let config = Config::builder()
             .warp_root(warp_root.path().to_path_buf())
@@ -313,7 +316,7 @@ mod tests {
         let warp_root = assert_fs::TempDir::new().unwrap();
         // NOTE(@ostera): this line is useful for debugging the output directory when something
         // goes wrong.
-        let warp_root = warp_root.into_persistent();
+        // let warp_root = warp_root.into_persistent();
         dbg!(&warp_root.path());
 
         let config = Config::builder()

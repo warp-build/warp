@@ -115,7 +115,7 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             return Ok(SignatureGenerationFlow::IgnoredTarget(task.target_id()));
         };
 
-        let save_strategy = if let Some(test_matcher) = &test_matcher {
+        let subtrees = if let Some(test_matcher) = &test_matcher {
             let subtrees = match tricorder.get_ast(&ct, &deps, test_matcher).await? {
                 SignatureGenerationFlow::ExtractedAst { subtrees } => subtrees,
                 flow @ SignatureGenerationFlow::MissingRequirements { .. } => return Ok(flow),
@@ -132,14 +132,14 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
                 }
             }
 
-            if signatures.len() == subtrees.len() {
+            if !subtrees.is_empty() && signatures.len() == subtrees.len() {
                 let signatures = signatures.concat();
                 return Ok(SignatureGenerationFlow::GeneratedSignatures { signatures });
             }
 
-            SignatureSaveStrategy::Subtrees(subtrees)
+            subtrees
         } else {
-            SignatureSaveStrategy::WholeSource(whole_source_hash)
+            vec![]
         };
 
         let sig = tricorder
@@ -147,34 +147,22 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             .await?;
 
         if let SignatureGenerationFlow::GeneratedSignatures { signatures } = &sig {
-            match save_strategy {
-                SignatureSaveStrategy::WholeSource(whole_source_hash) => {
-                    debug!("Saving signatures for the whole source hash {whole_source_hash}");
-                    self.code_db.save_signatures(
-                        task.goal(),
-                        &ct,
-                        &whole_source_hash,
-                        signatures,
-                    )?
-                }
+            debug!("Saving signatures for the whole source hash {whole_source_hash}");
+            self.code_db
+                .save_signatures(task.goal(), &ct, &whole_source_hash, signatures)?;
 
-                SignatureSaveStrategy::Subtrees(subtree_pairs) => {
-                    let sig_map: FxHashMap<String, usize> = signatures
-                        .iter()
-                        .enumerate()
-                        .map(|(idx, sig)| (sig.name().to_string(), idx))
-                        .collect();
+            if !subtrees.is_empty() {
+                let sig_map: FxHashMap<String, usize> = signatures
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, sig)| (sig.name().to_string(), idx))
+                    .collect();
 
-                    for subtree in subtree_pairs {
-                        let idx = sig_map.get(subtree.signature_name()).unwrap();
-                        let sig = signatures[*idx].clone();
-                        self.code_db.save_signatures(
-                            task.goal(),
-                            &ct,
-                            subtree.ast_hash(),
-                            &[sig],
-                        )?;
-                    }
+                for subtree in subtrees {
+                    let idx = sig_map.get(subtree.signature_name()).unwrap();
+                    let sig = signatures[*idx].clone();
+                    self.code_db
+                        .save_signatures(task.goal(), &ct, subtree.ast_hash(), &[sig])?;
                 }
             }
         }

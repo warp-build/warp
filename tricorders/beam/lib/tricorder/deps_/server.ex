@@ -1,4 +1,5 @@
 defmodule Tricorder.Deps.Server do
+  require Logger
   use GenServer
 
   def start_link(state) do
@@ -43,6 +44,8 @@ defmodule Tricorder.Deps.Server do
 
   @impl true
   def handle_cast(:scan, state) do
+    Logger.info("Scanning #{state.root}")
+
     deps =
       Gitignore.find(
         state.gitignore,

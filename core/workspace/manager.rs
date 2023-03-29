@@ -31,6 +31,8 @@ pub struct WorkspaceManager {
 
     remote_workspace_root: PathBuf,
 
+    config: Config,
+
     _register_lock: Arc<Mutex<()>>,
 }
 
@@ -43,6 +45,7 @@ impl WorkspaceManager {
             remote_workspaces: Default::default(),
             registered_urls: Default::default(),
             _register_lock: Arc::new(Mutex::new(())),
+            config,
         }
     }
 
@@ -60,11 +63,8 @@ impl WorkspaceManager {
     /// Find the a workspace using the `WorkspaceFinder`, and registers it as the current
     /// workspace.
     ///
-    pub async fn load_current_workspace(
-        &self,
-        config: &Config,
-    ) -> Result<WorkspaceId, WorkspaceManagerError> {
-        let workspace = WorkspaceFinder::find(config).await?;
+    pub async fn load_current_workspace(&self) -> Result<WorkspaceId, WorkspaceManagerError> {
+        let workspace = WorkspaceFinder::find(&self.config).await?;
 
         let current_workspace_id = self.register_local_workspace(workspace)?;
         self.set_current_workspace(current_workspace_id);
@@ -161,7 +161,7 @@ mod tests {
             .unwrap();
 
         let wm = WorkspaceManager::new(config.clone());
-        let _wid = wm.load_current_workspace(&config).await.unwrap();
+        let _wid = wm.load_current_workspace().await.unwrap();
 
         assert_eq!(
             wm.current_workspace().root(),
@@ -196,7 +196,7 @@ mod tests {
             .unwrap();
 
         let wm = WorkspaceManager::new(config.clone());
-        let _wid = wm.load_current_workspace(&config).await.unwrap();
+        let _wid = wm.load_current_workspace().await.unwrap();
 
         assert_eq!(
             wm.current_workspace().root(),

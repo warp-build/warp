@@ -28,6 +28,10 @@ pub struct Config {
     #[builder(default = "self.default_invocation_dir()?")]
     invocation_dir: PathBuf,
 
+    /// The current working directory of warp
+    #[builder(default = "self.default_workspace_root()?")]
+    workspace_root: PathBuf,
+
     /// The current user executing warp
     #[builder(default = "self.default_current_user()")]
     current_user: String,
@@ -195,6 +199,17 @@ impl Config {
     pub fn event_channel(&self) -> Arc<EventChannel> {
         self.event_channel.clone()
     }
+
+    pub fn workspace_root(&self) -> &PathBuf {
+        &self.workspace_root
+    }
+
+    pub fn set_workspace_root<P>(&mut self, workspace_root: P)
+    where
+        P: Into<PathBuf>,
+    {
+        self.workspace_root = workspace_root.into();
+    }
 }
 
 impl ConfigBuilder {
@@ -249,6 +264,10 @@ impl ConfigBuilder {
     }
 
     fn default_invocation_dir(&self) -> Result<PathBuf, ConfigError> {
+        std::env::current_dir().map_err(ConfigError::CouldNotGetCurrentDir)
+    }
+
+    fn default_workspace_root(&self) -> Result<PathBuf, ConfigError> {
         std::env::current_dir().map_err(ConfigError::CouldNotGetCurrentDir)
     }
 

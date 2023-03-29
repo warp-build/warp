@@ -41,9 +41,11 @@ pub struct WarpDriveMarkII {
 
 impl WarpDriveMarkII {
     #[instrument(name = "WarpDriveMarkII::new")]
-    pub async fn new(config: Config) -> Result<Self, WarpDriveError> {
+    pub async fn new(mut config: Config) -> Result<Self, WarpDriveError> {
         let workspace_manager = Arc::new(WorkspaceManager::new(config.clone()));
-        workspace_manager.load_current_workspace(&config).await?;
+        let _wid = workspace_manager.load_current_workspace().await?;
+
+        config.set_workspace_root(workspace_manager.current_workspace().root());
 
         let archive_manager = Arc::new(ArchiveManager::new(&config));
         let store: Arc<DefaultStore> =
