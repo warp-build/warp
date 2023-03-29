@@ -93,6 +93,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
           |> Map.delete(:runtime_deps)
           |> Map.delete(:name)
           |> Map.delete(:rule)
+          |> Map.delete(:includes)
           |> Jason.encode!()
           |> Jason.decode!()
           |> Protobuf.JSON.from_decoded(Google.Protobuf.Struct)

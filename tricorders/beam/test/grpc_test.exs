@@ -29,215 +29,302 @@ defmodule Tricorder.Grpc.ServerTest do
              :ok,
              %Build.Warp.Tricorder.GenerateSignatureResponse{
                __unknown_fields__: [],
-               response:
-                 {:ok,
-                  %Build.Warp.Tricorder.GenerateSignatureSuccessResponse{
-                    __unknown_fields__: [],
-                    file: "./test/fixtures/prop_verl.erl",
-                    signatures: [
-                      %Build.Warp.Signature{
-                        __unknown_fields__: [],
-                        config: %Google.Protobuf.Struct{
-                          __unknown_fields__: [],
-                          fields: %{
-                            "includes" => %Google.Protobuf.Value{
-                              __unknown_fields__: [],
-                              kind:
-                                {:list_value,
-                                 %Google.Protobuf.ListValue{
-                                   __unknown_fields__: [],
-                                   values: [
-                                     _assert,
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "./test/fixtures/proper.hrl"}
-                                     },
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "./test/fixtures/proper_common.hrl"}
+               response: {
+                 :ok,
+                 %Build.Warp.Tricorder.GenerateSignatureSuccessResponse{
+                   __unknown_fields__: [],
+                   file: "./test/fixtures/prop_verl.erl",
+                   signatures: [
+                     %Build.Warp.Signature{
+                       __unknown_fields__: [],
+                       config: %Google.Protobuf.Struct{
+                         __unknown_fields__: [],
+                         fields: %{
+                           "modules" => %Google.Protobuf.Value{
+                             __unknown_fields__: [],
+                             kind: {
+                               :list_value,
+                               %Google.Protobuf.ListValue{
+                                 __unknown_fields__: [],
+                                 values: [
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {:string_value, "verl"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {:string_value, "proper"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {:string_value, "re"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {
+                                       :string_value,
+                                       "proper_unused_imports_remover"
                                      }
-                                   ]
-                                 }}
-                            },
-                            "modules" => %Google.Protobuf.Value{
-                              __unknown_fields__: [],
-                              kind:
-                                {:list_value,
-                                 %Google.Protobuf.ListValue{
-                                   __unknown_fields__: [],
-                                   values: [
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "verl"}
-                                     },
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "proper"}
-                                     },
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "re"}
-                                     },
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "proper_unused_imports_remover"}
-                                     },
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "proper_statem"}
-                                     },
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "proper_symb"}
-                                     },
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "proper_types"}
-                                     },
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "proper_unicode"}
-                                     },
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "proper_transformer"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {
+                                       :string_value,
+                                       "proper_statem"
                                      }
-                                   ]
-                                 }}
-                            },
-                            "srcs" => %Google.Protobuf.Value{
-                              __unknown_fields__: [],
-                              kind:
-                                {:list_value,
-                                 %Google.Protobuf.ListValue{
-                                   __unknown_fields__: [],
-                                   values: [
-                                     %Google.Protobuf.Value{
-                                       __unknown_fields__: [],
-                                       kind: {:string_value, "prop_verl.erl"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {:string_value, "proper_symb"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {
+                                       :string_value,
+                                       "proper_types"
                                      }
-                                   ]
-                                 }}
-                            }
-                          }
-                        },
-                        deps: [
-                          _assert_hrl,
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:file,
-                               %Build.Warp.FileRequirement{
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {
+                                       :string_value,
+                                       "proper_unicode"
+                                     }
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {
+                                       :string_value,
+                                       "proper_transformer"
+                                     }
+                                   }
+                                 ]
+                               }
+                             }
+                           },
+                           "srcs" => %Google.Protobuf.Value{
+                             __unknown_fields__: [],
+                             kind: {
+                               :list_value,
+                               %Google.Protobuf.ListValue{
                                  __unknown_fields__: [],
-                                 path: "./test/fixtures/proper.hrl"
-                               }}
-                          },
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:file,
-                               %Build.Warp.FileRequirement{
-                                 __unknown_fields__: [],
-                                 path: "./test/fixtures/proper_common.hrl"
-                               }}
-                          }
-                        ],
-                        name: "./test/fixtures/prop_verl.erl",
-                        rule: "erlang_library",
-                        runtime_deps: [
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:symbol,
-                               %Build.Warp.SymbolRequirement{
-                                 __unknown_fields__: [],
-                                 kind: "module",
-                                 raw: "verl"
-                               }}
-                          },
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:symbol,
-                               %Build.Warp.SymbolRequirement{
-                                 __unknown_fields__: [],
-                                 kind: "module",
-                                 raw: "proper"
-                               }}
-                          },
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:symbol,
-                               %Build.Warp.SymbolRequirement{
-                                 __unknown_fields__: [],
-                                 kind: "module",
-                                 raw: "re"
-                               }}
-                          },
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:file,
-                               %Build.Warp.FileRequirement{
-                                 __unknown_fields__: [],
-                                 path: "test/fixtures/proper_unused_imports_remover.erl"
-                               }}
-                          },
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:symbol,
-                               %Build.Warp.SymbolRequirement{
-                                 __unknown_fields__: [],
-                                 kind: "module",
-                                 raw: "proper_statem"
-                               }}
-                          },
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:symbol,
-                               %Build.Warp.SymbolRequirement{
-                                 __unknown_fields__: [],
-                                 kind: "module",
-                                 raw: "proper_symb"
-                               }}
-                          },
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:symbol,
-                               %Build.Warp.SymbolRequirement{
-                                 __unknown_fields__: [],
-                                 kind: "module",
-                                 raw: "proper_types"
-                               }}
-                          },
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:symbol,
-                               %Build.Warp.SymbolRequirement{
-                                 __unknown_fields__: [],
-                                 kind: "module",
-                                 raw: "proper_unicode"
-                               }}
-                          },
-                          %Build.Warp.Requirement{
-                            __unknown_fields__: [],
-                            requirement:
-                              {:file,
-                               %Build.Warp.FileRequirement{
-                                 __unknown_fields__: [],
-                                 path: "test/fixtures/proper_transformer.erl"
-                               }}
-                          }
-                        ]
-                      }
-                    ],
-                    workspace_root: ""
-                  }}
+                                 values: [
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {
+                                       :string_value,
+                                       "prop_verl.erl"
+                                     }
+                                   }
+                                 ]
+                               }
+                             }
+                           }
+                         }
+                       },
+                       deps: [
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :file,
+                             %Build.Warp.FileRequirement{
+                               __unknown_fields__: [],
+                               path: "./test/fixtures/proper.hrl"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :file,
+                             %Build.Warp.FileRequirement{
+                               __unknown_fields__: [],
+                               path: "./test/fixtures/proper_common.hrl"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "verl"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "proper"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :file,
+                             %Build.Warp.FileRequirement{
+                               __unknown_fields__: [],
+                               path: "test/fixtures/proper_unused_imports_remover.erl"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "proper_statem"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "proper_symb"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "proper_types"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "proper_unicode"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :file,
+                             %Build.Warp.FileRequirement{
+                               __unknown_fields__: [],
+                               path: "test/fixtures/proper_transformer.erl"
+                             }
+                           }
+                         }
+                       ],
+                       name: "./test/fixtures/prop_verl.erl",
+                       rule: "erlang_library",
+                       runtime_deps: [
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "verl"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "proper"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :file,
+                             %Build.Warp.FileRequirement{
+                               __unknown_fields__: [],
+                               path: "test/fixtures/proper_unused_imports_remover.erl"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "proper_statem"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "proper_symb"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "proper_types"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :symbol,
+                             %Build.Warp.SymbolRequirement{
+                               __unknown_fields__: [],
+                               kind: "module",
+                               raw: "proper_unicode"
+                             }
+                           }
+                         },
+                         %Build.Warp.Requirement{
+                           __unknown_fields__: [],
+                           requirement: {
+                             :file,
+                             %Build.Warp.FileRequirement{
+                               __unknown_fields__: [],
+                               path: "test/fixtures/proper_transformer.erl"
+                             }
+                           }
+                         }
+                       ]
+                     }
+                   ],
+                   workspace_root: ""
+                 }
+               }
              }
            } = Build.Warp.Tricorder.TricorderService.Stub.generate_signature(channel, req)
   end

@@ -199,6 +199,7 @@ mod tests {
     use crate::resolver::TargetRegistry;
     use crate::store::DefaultStore;
     use crate::tricorder::{Connection, SignatureGenerationFlow};
+    use crate::worker::TaskRegistry;
     use crate::Config;
     use assert_fs::prelude::*;
     use async_trait::async_trait;
@@ -293,11 +294,13 @@ mod tests {
             }
         }
 
-        let mgr: TricorderManager<NoopTricorder, _> = TricorderManager::new(config, store);
+        let target_registry = Arc::new(TargetRegistry::new());
+        let task_registry = Arc::new(TaskRegistry::new());
+        let ctx = TricorderContext::new(target_registry.clone(), task_registry.clone());
+        let mgr: TricorderManager<NoopTricorder, _> = TricorderManager::new(config, store, ctx);
 
         let path: PathBuf = "./sample/file.exs".into();
         let t: Target = path.as_path().into();
-        let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
         let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
         mgr.find_and_ready_by_path(ct.path()).await.unwrap();
@@ -388,12 +391,15 @@ mod tests {
                 unreachable!()
             }
         }
+        let target_registry = Arc::new(TargetRegistry::new());
+        let task_registry = Arc::new(TaskRegistry::new());
+        let ctx = TricorderContext::new(target_registry.clone(), task_registry.clone());
 
-        let mgr: TricorderManager<UnreachableTricorder, _> = TricorderManager::new(config, store);
+        let mgr: TricorderManager<UnreachableTricorder, _> =
+            TricorderManager::new(config, store, ctx);
 
         let path: PathBuf = "./sample/file.exs".into();
         let t: Target = path.as_path().into();
-        let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
         let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
         let err = mgr.find_and_ready_by_path(ct.path()).await.unwrap_err();
@@ -493,11 +499,15 @@ mod tests {
             }
         }
 
-        let mgr: TricorderManager<UnconnectableTricorder, _> = TricorderManager::new(config, store);
+        let target_registry = Arc::new(TargetRegistry::new());
+        let task_registry = Arc::new(TaskRegistry::new());
+        let ctx = TricorderContext::new(target_registry.clone(), task_registry.clone());
+
+        let mgr: TricorderManager<UnconnectableTricorder, _> =
+            TricorderManager::new(config, store, ctx);
 
         let path: PathBuf = "./sample/file.exs".into();
         let t: Target = path.as_path().into();
-        let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
         let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
         let err = mgr.find_and_ready_by_path(ct.path()).await.unwrap_err();
@@ -597,11 +607,14 @@ mod tests {
             }
         }
 
-        let mgr: TricorderManager<UnreadiableTricorder, _> = TricorderManager::new(config, store);
+        let target_registry = Arc::new(TargetRegistry::new());
+        let task_registry = Arc::new(TaskRegistry::new());
+        let ctx = TricorderContext::new(target_registry.clone(), task_registry.clone());
+        let mgr: TricorderManager<UnreadiableTricorder, _> =
+            TricorderManager::new(config, store, ctx);
 
         let path: PathBuf = "./sample/file.exs".into();
         let t: Target = path.as_path().into();
-        let target_registry = TargetRegistry::new();
         let target_id = target_registry.register_target(&t);
         let ct = ConcreteTarget::new(Goal::Build, target_id, t.into(), path, ".".into());
         let err = mgr.find_and_ready_by_path(ct.path()).await.unwrap_err();

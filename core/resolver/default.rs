@@ -43,8 +43,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         task_results: Arc<TaskResults>,
         code_db: Arc<CodeDatabase>,
     ) -> Result<Self, ResolverError> {
-        let tricorder_context =
-            TricorderContext::new(target_registry.clone(), task_registry);
+        let tricorder_context = TricorderContext::new(target_registry.clone(), task_registry);
         let tricorder_manager = Arc::new(TricorderManager::new(
             config.clone(),
             store,
@@ -238,7 +237,10 @@ mod tests {
         pub struct UnreachableTricorder;
         #[async_trait]
         impl Tricorder for UnreachableTricorder {
-            async fn connect(_conn: Connection) -> Result<Self, TricorderError> {
+            async fn connect(
+                _conn: Connection,
+                _ctx: TricorderContext,
+            ) -> Result<Self, TricorderError> {
                 unreachable!()
             }
 
@@ -292,6 +294,7 @@ mod tests {
             config,
             store,
             target_registry.clone(),
+            task_registry.clone(),
             signature_registry,
             test_matcher_registry,
             archive_manager.clone(),
@@ -350,7 +353,10 @@ mod tests {
         pub struct HappyPathTricorder;
         #[async_trait]
         impl Tricorder for HappyPathTricorder {
-            async fn connect(_conn: Connection) -> Result<Self, TricorderError> {
+            async fn connect(
+                _conn: Connection,
+                _ctx: TricorderContext,
+            ) -> Result<Self, TricorderError> {
                 Ok(Self)
             }
 
@@ -410,6 +416,7 @@ mod tests {
             config,
             store,
             target_registry.clone(),
+            task_registry.clone(),
             signature_registry.clone(),
             test_matcher_registry,
             archive_manager.clone(),

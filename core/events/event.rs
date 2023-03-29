@@ -1,4 +1,4 @@
-use crate::{model::Signature, CacheStatus, Goal, Target};
+use crate::{CacheStatus, Goal, Target};
 use url::Url;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

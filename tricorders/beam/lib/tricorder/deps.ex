@@ -1285,9 +1285,7 @@ defmodule Tricorder.Deps do
   def is_standard_module?(mod) when mod in @rebar3_modules, do: true
   def is_standard_module?(mod), do: false
 
-  def is_standard_header?(hrl) do
-    String.contains?(hrl, "dist/lib/erlang/lib")
-  end
+  def is_standard_header?(hrl), do: String.contains?(hrl, "lib/erlang/lib")
 
   def find_header(hrl) do
     Logger.debug("find_header: #{hrl}")
