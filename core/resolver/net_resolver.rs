@@ -90,7 +90,10 @@ impl<T: Tricorder + Clone + 'static> NetResolver<T> {
                 .await?
         };
 
-        if let Some(mut signatures) = self.code_db.get_signatures(&ct, archive.hash())? {
+        if let Some(mut signatures) =
+            self.code_db
+                .get_signatures(task.goal(), &ct, archive.hash())?
+        {
             for signature in signatures.iter_mut() {
                 let mut ct = signature.target().clone();
                 ct.set_target(

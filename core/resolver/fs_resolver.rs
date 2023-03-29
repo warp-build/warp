@@ -98,7 +98,10 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
 
         let whole_source_hash = SourceHasher::hash(&target.path()).await?;
 
-        if let Some(signatures) = self.code_db.get_signatures(&ct, &whole_source_hash)? {
+        if let Some(signatures) =
+            self.code_db
+                .get_signatures(task.goal(), &ct, &whole_source_hash)?
+        {
             return Ok(SignatureGenerationFlow::GeneratedSignatures { signatures });
         }
 
@@ -121,7 +124,10 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
 
             let mut signatures = vec![];
             for subtree in &subtrees {
-                if let Some(saved_sigs) = self.code_db.get_signatures(&ct, subtree.ast_hash())? {
+                if let Some(saved_sigs) =
+                    self.code_db
+                        .get_signatures(task.goal(), &ct, subtree.ast_hash())?
+                {
                     signatures.push(saved_sigs);
                 }
             }
@@ -136,7 +142,6 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             SignatureSaveStrategy::WholeSource(whole_source_hash)
         };
 
-        // 2. generate signature for this concrete target
         let sig = tricorder
             .generate_signature(&ct, &deps, test_matcher)
             .await?;
@@ -145,8 +150,12 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
             match save_strategy {
                 SignatureSaveStrategy::WholeSource(whole_source_hash) => {
                     debug!("Saving signatures for the whole source hash {whole_source_hash}");
-                    self.code_db
-                        .save_signatures(&ct, &whole_source_hash, signatures)?
+                    self.code_db.save_signatures(
+                        task.goal(),
+                        &ct,
+                        &whole_source_hash,
+                        signatures,
+                    )?
                 }
 
                 SignatureSaveStrategy::Subtrees(subtree_pairs) => {
@@ -159,8 +168,12 @@ impl<T: Tricorder + Clone + 'static> FsResolver<T> {
                     for subtree in subtree_pairs {
                         let idx = sig_map.get(subtree.signature_name()).unwrap();
                         let sig = signatures[*idx].clone();
-                        self.code_db
-                            .save_signatures(&ct, subtree.ast_hash(), &[sig])?;
+                        self.code_db.save_signatures(
+                            task.goal(),
+                            &ct,
+                            subtree.ast_hash(),
+                            &[sig],
+                        )?;
                     }
                 }
             }

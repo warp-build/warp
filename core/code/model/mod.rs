@@ -216,6 +216,46 @@ impl SignatureModel {
     }
 }
 
+pub struct SignatureCollectionModel(Vec<SignatureModel>);
+
+impl SignatureCollectionModel {
+    pub fn new(sigs: Vec<SignatureModel>) -> Self {
+        Self(sigs)
+    }
+
+    pub fn signatures(self) -> Vec<SignatureModel> {
+        self.0
+    }
+}
+
+impl rusqlite::types::ToSql for GoalModel {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        let json = serde_json::to_string(&self).unwrap();
+        Ok(rusqlite::types::ToSqlOutput::Owned(json.into()))
+    }
+}
+
+impl rusqlite::types::FromSql for GoalModel {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        let goal: GoalModel = serde_json::from_str(value.as_str().unwrap()).unwrap();
+        rusqlite::types::FromSqlResult::Ok(goal)
+    }
+}
+
+impl rusqlite::types::ToSql for SignatureCollectionModel {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        let json = serde_json::to_string(&self.0).unwrap();
+        Ok(rusqlite::types::ToSqlOutput::Owned(json.into()))
+    }
+}
+
+impl rusqlite::types::FromSql for SignatureCollectionModel {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        let result: Vec<SignatureModel> = serde_json::from_str(value.as_str().unwrap()).unwrap();
+        rusqlite::types::FromSqlResult::Ok(SignatureCollectionModel(result))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -7,11 +7,13 @@ use crate::resolver::TargetRegistry;
 use crate::sync::{Arc, Mutex};
 use crate::testing::TestMatcherRegistry;
 use crate::worker::TaskRegistry;
-use crate::Config;
+use crate::{Config, Goal};
 use seahash::SeaHasher;
 use std::hash::{Hash, Hasher};
 use thiserror::Error;
 use tracing::instrument;
+
+use self::model::{GoalModel, SignatureCollectionModel};
 
 const CODE_DATABASE_NAME: &str = "code.db";
 
@@ -38,8 +40,10 @@ impl CodeDatabase {
             CREATE TABLE IF NOT EXISTS signatures (
                 target TEXT,
                 source_hash TEXT,
-                signatures TEXT
+                signatures TEXT,
+                goal TEXT
             );
+            CREATE UNIQUE INDEX IF NOT EXISTS signatures_target_source_hash_goal ON signatures (target, source_hash, goal);
         ",
             (),
         )?;
@@ -134,6 +138,7 @@ impl CodeDatabase {
     #[instrument(name = "CodeDatabase::get_signatures", skip(self))]
     pub fn get_signatures(
         &self,
+        goal: Goal,
         concrete_target: &ConcreteTarget,
         source_hash: &str,
     ) -> Result<Option<Vec<Signature>>, CodeDatabaseError> {
@@ -145,12 +150,20 @@ impl CodeDatabase {
 
         let mut query = sql.prepare(
             r#" SELECT signatures FROM signatures
-                WHERE target = ?1 AND source_hash = ?2
+                WHERE target = ?1
+                  AND source_hash = ?2
+                  AND goal = ?3
             "#,
         )?;
 
+        let goal = GoalModel::from_goal(goal, &self.test_matcher_registry);
+
         let mut rows = query.query_map(
-            rusqlite::params![concrete_target.original_target().to_string(), source_hash],
+            rusqlite::params![
+                concrete_target.original_target().to_string(),
+                source_hash,
+                goal,
+            ],
             |row| {
                 let model_json: String = row.get(0).unwrap();
                 let models: Vec<model::SignatureModel> = serde_json::from_str(&model_json).unwrap();
@@ -178,6 +191,7 @@ impl CodeDatabase {
     #[instrument(name = "CodeDatabase::save_signatures", skip(self))]
     pub fn save_signatures(
         &self,
+        goal: Goal,
         concrete_target: &ConcreteTarget,
         source_hash: &str,
         sigs: &[Signature],
@@ -195,18 +209,22 @@ impl CodeDatabase {
             );
             sig_models.push(model);
         }
+        let sigs = SignatureCollectionModel::new(sig_models);
 
         let sql = self.sql.lock().unwrap();
 
+        let goal = GoalModel::from_goal(goal, &self.test_matcher_registry);
+
         sql.execute(
             r#" INSERT
-                    INTO signatures (target, source_hash, signatures)
-                    VALUES (?1, ?2, ?3)
+                    INTO signatures (goal, target, source_hash, signatures)
+                    VALUES (?1, ?2, ?3, ?4)
                 "#,
             (
+                goal,
                 concrete_target.original_target().to_string(),
                 source_hash,
-                serde_json::to_string(&sig_models).unwrap(),
+                sigs,
             ),
         )?;
         Ok(())
