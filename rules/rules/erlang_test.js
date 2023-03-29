@@ -65,7 +65,7 @@ const impl = (ctx) => {
     .filter((path) => path.endsWith(BEAM_EXT))
     .map(File.parent)
     .unique()
-    .flatMap((dir) => ["-pa", ctx.path(dir)]);
+    .flatMap((dir) => ["-pa", dir]);
 
   const sname = name.replace("/", "-");
 

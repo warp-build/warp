@@ -1,11 +1,11 @@
 import ReScriptToolchain, {
+  AST_EXT,
   CMI_EXT,
   CMT_EXT,
   JS_EXT,
   MERLIN,
   RES_EXT,
   RESI_EXT,
-  AST_EXT,
 } from "https://rules.warp.build/toolchains/rescript.js";
 
 const impl = (ctx) => {
