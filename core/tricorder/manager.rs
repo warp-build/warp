@@ -112,7 +112,7 @@ where
             bin: bin.to_path_buf(),
             args: vec!["start".to_string(), port.to_string()],
             env: shell_env,
-            current_dir: None,
+            current_dir: Some(self.config.invocation_dir().to_path_buf()),
             _process_type: PhantomData,
         };
         let pid = self.process_pool.spawn(spec).await?;
