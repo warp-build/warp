@@ -235,6 +235,10 @@ where
             _ => return Ok(WorkerFlow::Skipped(task)),
         };
 
+        for dep in executable_spec.deps().runtime_deps() {
+            self.ctx.task_queue.queue(*dep)?;
+        }
+
         let (artifact_manifest, cache_status) =
             match self.executor.execute(&executable_spec).await? {
                 ExecutionFlow::Completed(manifest, status) => (manifest, status),
@@ -251,6 +255,7 @@ where
                 target: (*target).clone(),
                 goal,
                 cache_status,
+                signature: signature.name().to_string(),
             });
 
         Ok(WorkerFlow::Complete {
