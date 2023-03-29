@@ -9,6 +9,7 @@ use crate::archive::ArchiveManager;
 use crate::code::CodeDatabase;
 use crate::model::{
     ConcreteTarget, Goal, RemoteTarget, Requirement, Signature, Target, TargetId, Task,
+    UnregisteredTask,
 };
 use crate::store::DefaultStore;
 use crate::sync::*;
@@ -27,6 +28,7 @@ pub struct DefaultResolver<T: Tricorder + Clone> {
     fs_resolver: Arc<FsResolver<T>>,
     net_resolver: Arc<NetResolver<T>>,
     target_registry: Arc<TargetRegistry>,
+    task_registry: Arc<TaskRegistry>,
     signature_registry: Arc<SignatureRegistry>,
 }
 
@@ -43,7 +45,9 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         task_results: Arc<TaskResults>,
         code_db: Arc<CodeDatabase>,
     ) -> Result<Self, ResolverError> {
-        let tricorder_context = TricorderContext::new(target_registry.clone(), task_registry);
+        let tricorder_context =
+            TricorderContext::new(target_registry.clone(), task_registry.clone());
+
         let tricorder_manager = Arc::new(TricorderManager::new(
             config.clone(),
             store,
@@ -77,6 +81,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
             net_resolver,
             boot_resolver,
             target_registry,
+            task_registry,
             signature_registry,
             config,
         })
@@ -153,11 +158,14 @@ impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
                         Requirement::Dependency { url, .. } => url.into(),
                     };
                     let target_id = self.target_registry.register_target(target);
-                    let task = Task::builder()
+                    let unreg_task = UnregisteredTask::builder()
                         .goal(Goal::Build)
                         .target_id(target_id)
                         .build()
                         .unwrap();
+
+                    let task = self.task_registry.register(unreg_task);
+
                     deps.push(task)
                 }
                 Ok(ResolutionFlow::MissingDeps { deps })
