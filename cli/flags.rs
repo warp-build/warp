@@ -26,8 +26,8 @@ pub struct Flags {
     #[structopt(long = "public-store-metadata-url")]
     pub(crate) public_store_metadata_url: Option<Url>,
 
-    #[structopt(long = "use-db")]
-    pub(crate) use_db: bool,
+    #[structopt(long = "skip-db")]
+    pub(crate) skip_db: bool,
 
     #[structopt(
         help = r"Avoid the downloading cache and redownload every external resource.
@@ -44,7 +44,7 @@ impl From<Flags> for Config {
 
         config
             .offline(flags.offline.unwrap_or(false))
-            .enable_code_database(flags.use_db)
+            .enable_code_database(!flags.skip_db)
             .max_local_workers(flags.max_local_workers.unwrap_or_else(num_cpus::get))
             .force_redownload(flags.force_redownload);
 
