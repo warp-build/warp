@@ -18,3 +18,5 @@ for file in $(find -L . -name "*.proto"); do
 done
 
 popd
+
+mix format
