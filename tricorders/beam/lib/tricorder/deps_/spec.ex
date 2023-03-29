@@ -1,5 +1,5 @@
 defmodule Tricorder.Deps.Spec do
-  defstruct [:name, :protocol, :host, :package, :version, :url, :ref, :opts]
+  defstruct [:name, :protocol, :host, :package, :version, :url, :ref, :opts, :subdir]
 
   def parse(name) do
     hex_config =
@@ -69,6 +69,18 @@ defmodule Tricorder.Deps.Spec do
     }
   end
 
+  def parse(name, {:git_subdir, repo, ref, subdir}) do
+    ref = clean_ref(ref)
+
+    %__MODULE__{
+      name: Atom.to_string(name),
+      protocol: :git,
+      url: :binary.list_to_bin(repo),
+      ref: ref,
+      subdir: subdir |> :binary.list_to_bin()
+    }
+  end
+
   def parse(name, vsn) when is_list(vsn) do
     vsn = :binary.list_to_bin(vsn)
 
@@ -87,4 +99,5 @@ defmodule Tricorder.Deps.Spec do
   defp clean_ref(sha) when is_binary(sha), do: sha
   defp clean_ref({:ref, sha}) when is_list(sha), do: :binary.list_to_bin(sha)
   defp clean_ref({:tag, tag}) when is_list(tag), do: :binary.list_to_bin(tag)
+  defp clean_ref({:branch, branch}) when is_list(branch), do: :binary.list_to_bin(branch)
 end

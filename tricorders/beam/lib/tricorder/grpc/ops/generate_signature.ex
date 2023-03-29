@@ -66,7 +66,6 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     resp =
       Build.Warp.Tricorder.GenerateSignatureMissingDepsResponse.new(
         file: req.file,
-        symbol: req.symbol,
         requirements: includes ++ modules
       )
 
