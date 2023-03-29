@@ -1,4 +1,4 @@
-use crate::{CacheStatus, Goal, Target};
+use crate::{model::Signature, CacheStatus, Goal, Target};
 use url::Url;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -80,6 +80,7 @@ pub enum WorkerEvent {
     TargetBuildCompleted {
         goal: Goal,
         target: Target,
+        signature: String,
         cache_status: CacheStatus,
     },
     BuildError {
