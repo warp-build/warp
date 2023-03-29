@@ -119,13 +119,21 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
           includes ++
             parse_transforms ++
             type_modules ++
-            test_lib
+            test_lib ++
+            modules
+
+        runtime_deps =
+          if String.ends_with?(sig.rule, "_test") do
+            []
+          else
+            modules
+          end
 
         Build.Warp.Signature.new(
           name: sig.name,
           rule: sig.rule,
           deps: deps,
-          runtime_deps: modules,
+          runtime_deps: runtime_deps,
           config: config
         )
       end)
@@ -140,6 +148,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
   defp handle_includes(includes) do
     includes
     |> Enum.uniq()
+    |> Enum.reject(fn hrl -> Deps.is_standard_header?(hrl) end)
     |> Enum.map(fn hrl ->
       req =
         case Deps.find_header(hrl) do
@@ -161,6 +170,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
   defp handle_modules(modules) do
     modules
     |> Enum.uniq()
+    |> Enum.reject(fn mod -> Deps.is_standard_module?(mod) end)
     |> Enum.map(fn dep ->
       dep = Atom.to_string(dep)
 
