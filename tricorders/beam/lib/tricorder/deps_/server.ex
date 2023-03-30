@@ -61,6 +61,8 @@ defmodule Tricorder.Deps.Server do
       )
       |> Enum.reduce(state.deps, &Map.merge/2)
 
+    Logger.info("Scan completed")
+
     state = %{state | deps: deps, finish_scanning: true}
 
     {:noreply, state}

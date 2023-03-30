@@ -74,8 +74,10 @@ defmodule Gitignore do
   defp do_find([file | files], root, fun, gitignore, acc) do
     # if we match the gitignore we skip things
     if Gitignore.should_ignore?(gitignore, file) do
+      Logger.debug("Gitignore >> ignored: #{file}")
       do_find(files, root, fun, gitignore, acc)
     else
+      Logger.debug("Gitignore >> #{file}")
       # if this file is a dir, we recurse
       if File.dir?(file) do
         {:ok, more_files} = File.ls(file)
