@@ -65,6 +65,20 @@ defmodule Build.Warp.Tricorder.GetAstRequest do
           proto3_optional: nil,
           type: :TYPE_STRING,
           type_name: nil
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          __unknown_fields__: [],
+          default_value: nil,
+          extendee: nil,
+          json_name: "goal",
+          label: :LABEL_OPTIONAL,
+          name: "goal",
+          number: 6,
+          oneof_index: nil,
+          options: nil,
+          proto3_optional: nil,
+          type: :TYPE_ENUM,
+          type_name: ".build.warp.Goal"
         }
       ],
       name: "GetAstRequest",
@@ -80,4 +94,5 @@ defmodule Build.Warp.Tricorder.GetAstRequest do
   field(:dependencies, 3, repeated: true, type: Build.Warp.Dependency)
   field(:test_matcher, 4, type: Build.Warp.TestMatcher, json_name: "testMatcher")
   field(:workspace_root, 5, type: :string, json_name: "workspaceRoot")
+  field(:goal, 6, type: Build.Warp.Goal, enum: true)
 end

@@ -97,6 +97,7 @@ message GetAstRequest {
   // The root of the workspace that the Tricorder will be analyzing.
   //
   string workspace_root = 5;
+  Goal goal = 6;
 }
 
 message GetAstResponse {
