@@ -1,0 +1,68 @@
+---
+source: tricorders/rust/tests/tree_splitter_tests.rs
+expression: formatted_ast
+---
+#![feature(prelude_import)]
+#![no_std]
+#[prelude_import]
+use ::std::prelude::rust_2015::*;
+
+pub fn add_two(a: i32) -> i32 {
+    a + 2
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
+
+
+    #[cfg(test)]
+    #[rustc_test_marker = "tests::add_three_and_two"]
+    pub const add_three_and_two: test::TestDescAndFn = test::TestDescAndFn {
+        desc: test::TestDesc {
+            name: test::StaticTestName("tests::add_three_and_two"),
+            ignore: false,
+            ignore_message: ::core::option::Option::None,
+            source_file: "./tests/sources/t003_lib_with_tests.rs",
+            start_line: 15usize,
+            start_col: 8usize,
+            end_line: 15usize,
+            end_col: 25usize,
+            compile_fail: false,
+            no_run: false,
+            should_panic: test::ShouldPanic::No,
+            test_type: test::TestType::Unknown,
+        },
+        testfn: test::StaticTestFn(|| test::assert_test_result(add_three_and_two())),
+    };
+    fn add_three_and_two() {
+        match (&5, &add_two(3)) {
+            (left_val, right_val) => {
+                if !(*left_val == *right_val) {
+                    let kind = ::core::panicking::AssertKind::Eq;
+                    ::core::panicking::assert_failed(
+                        kind,
+                        &*left_val,
+                        &*right_val,
+                        ::core::option::Option::None,
+                    );
+                }
+            }
+        };
+    }
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+

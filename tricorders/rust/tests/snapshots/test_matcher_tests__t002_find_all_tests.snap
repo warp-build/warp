@@ -1,0 +1,12 @@
+---
+source: tricorders/rust/tests/test_matcher_tests.rs
+expression: "format!(\"{:#?}\", & matching_tests)"
+---
+[
+    "add_two_and_two",
+    "add_three_and_two",
+    "one_hundred",
+    "no_mod_test_1",
+    "no_mod_test_2",
+    "add_4_and_two",
+]

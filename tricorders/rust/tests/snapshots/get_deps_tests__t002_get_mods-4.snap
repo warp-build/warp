@@ -5,7 +5,7 @@ expression: "format!(\"{:#?}\", & signatures)"
 Ok(
     [
         Signature {
-            target: "tests/sources/t002_get_mods.rs",
+            name: "tests/sources/t002_get_mods.rs",
             rule: "rust_test",
             deps: [],
             runtime_deps: [],

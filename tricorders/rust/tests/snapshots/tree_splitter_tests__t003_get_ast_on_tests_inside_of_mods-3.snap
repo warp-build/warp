@@ -1,0 +1,69 @@
+---
+source: tricorders/rust/tests/tree_splitter_tests.rs
+expression: formatted_ast
+---
+#![feature(prelude_import)]
+#![no_std]
+#[prelude_import]
+use ::std::prelude::rust_2015::*;
+
+pub fn add_two(a: i32) -> i32 {
+    a + 2
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+
+
+
+
+
+
+    #[cfg(test)]
+    #[rustc_test_marker = "tests::one_hundred"]
+    pub const one_hundred: test::TestDescAndFn = test::TestDescAndFn {
+        desc: test::TestDesc {
+            name: test::StaticTestName("tests::one_hundred"),
+            ignore: false,
+            ignore_message: ::core::option::Option::None,
+            source_file: "./tests/sources/t003_lib_with_tests.rs",
+            start_line: 20usize,
+            start_col: 8usize,
+            end_line: 20usize,
+            end_col: 19usize,
+            compile_fail: false,
+            no_run: false,
+            should_panic: test::ShouldPanic::No,
+            test_type: test::TestType::Unknown,
+        },
+        testfn: test::StaticTestFn(|| test::assert_test_result(one_hundred())),
+    };
+    fn one_hundred() {
+        let res = super::add_two(100);
+        match (&102, &res) {
+            (left_val, right_val) => {
+                if !(*left_val == *right_val) {
+                    let kind = ::core::panicking::AssertKind::Eq;
+                    ::core::panicking::assert_failed(
+                        kind,
+                        &*left_val,
+                        &*right_val,
+                        ::core::option::Option::None,
+                    );
+                }
+            }
+        };
+    }
+}
+
+
+
+
+
+
+
+
+
+
+

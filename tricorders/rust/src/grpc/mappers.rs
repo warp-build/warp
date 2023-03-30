@@ -1,12 +1,11 @@
 use super::proto;
-use super::proto::build::warp::symbol::Sym::{All, Named};
 use super::proto::build::warp::tricorder::{
     get_ast_response, GetAstResponse, GetAstSuccessResponse,
 };
 use super::proto::build::warp::{FileRequirement, RemoteRequirement, SymbolRequirement};
 use super::proto::google::protobuf::value::Kind;
 use super::proto::google::protobuf::ListValue;
-use crate::analysis::model::{Ast, Config, Requirement, Signature, Symbol, Value};
+use crate::analysis::model::{Ast, Config, Goal, Requirement, Signature, Value};
 use std::collections::HashMap;
 
 impl From<proto::build::warp::TestMatcher> for Vec<String> {
@@ -15,38 +14,40 @@ impl From<proto::build::warp::TestMatcher> for Vec<String> {
     }
 }
 
-impl From<proto::build::warp::Symbol> for Symbol {
-    fn from(sym: proto::build::warp::Symbol) -> Self {
-        match sym.sym.unwrap() {
-            All(_) => Symbol::All,
-            Named(name) => Symbol::Named { name },
+impl From<proto::build::warp::Goal> for Goal {
+    fn from(goal: proto::build::warp::Goal) -> Self {
+        match goal {
+            proto::build::warp::Goal::Build => Goal::Build,
+            proto::build::warp::Goal::Test => Goal::Test,
+            proto::build::warp::Goal::Run => Goal::Run,
+            proto::build::warp::Goal::Unknown => unimplemented!(),
         }
     }
 }
 
-impl From<&Symbol> for proto::build::warp::Symbol {
-    fn from(sym: &Symbol) -> Self {
-        match sym {
-            Symbol::All => proto::build::warp::Symbol {
-                sym: Some(All(true)),
-            },
-            Symbol::Named { name } => proto::build::warp::Symbol {
-                sym: Some(Named(name.to_string())),
-            },
+impl From<Goal> for proto::build::warp::Goal {
+    fn from(goal: Goal) -> Self {
+        match goal {
+            Goal::Build => proto::build::warp::Goal::Build,
+            Goal::Test => proto::build::warp::Goal::Test,
+            Goal::Run => proto::build::warp::Goal::Run,
         }
     }
 }
 
-pub fn ast_to_success_response(ast: Ast) -> GetAstResponse {
+pub fn ast_to_success_response(workspace_root: String, asts: Vec<Ast>) -> GetAstResponse {
     GetAstResponse {
         response: Some(get_ast_response::Response::Ok(GetAstSuccessResponse {
-            subtrees: vec![proto::build::warp::tricorder::AstSubtree {
-                workspace_root: "".to_string(),
-                file: ast.file().to_string(),
-                source_chunk: ast.source().to_string(),
-                ast: format!("{:#?}", ast.ast()),
-                signature_name: "".to_string(),
-            }],
+            subtrees: asts
+                .iter()
+                .map(|ast| proto::build::warp::tricorder::AstSubtree {
+                    workspace_root: workspace_root.clone(),
+                    file: ast.file().to_string_lossy().to_string(),
+                    source_chunk: ast.source().to_string(),
+                    ast: format!("{:#?}", ast.ast()),
+                    signature_name: ast.test_name().to_string(),
+                })
+                .collect(),
         })),
     }
 }
@@ -54,7 +55,7 @@ pub fn ast_to_success_response(ast: Ast) -> GetAstResponse {
 impl From<Signature> for proto::build::warp::Signature {
     fn from(sig: Signature) -> Self {
         proto::build::warp::Signature {
-            name: sig.target().to_string(),
+            name: sig.name().to_string(),
             rule: sig.rule().to_string(),
             deps: sig.deps().iter().cloned().map(|e| e.into()).collect(),
             runtime_deps: sig

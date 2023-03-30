@@ -1,10 +1,36 @@
-use super::ast::*;
-use super::dependency::*;
-use super::model::Symbol;
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::process::Command;
 
+use crate::analysis::ast::*;
+use crate::analysis::dependency::*;
 pub struct TreeSplitter {}
 
 impl TreeSplitter {
+    pub fn expand_file(file_path: PathBuf) -> String {
+        let cmd_out = Command::new("rustc")
+            .arg("-Z")
+            .arg("unpretty=expanded")
+            .arg("--test")
+            .arg(file_path)
+            .output()
+            .unwrap();
+
+        String::from_utf8(cmd_out.stdout).unwrap()
+    }
+
+    pub fn parse_file(file_path: PathBuf) -> String {
+        let cmd_out = Command::new("rustc")
+            .arg("-Z")
+            .arg("unpretty=normal")
+            .arg("--test")
+            .arg(file_path)
+            .output()
+            .unwrap();
+
+        String::from_utf8(cmd_out.stdout).unwrap()
+    }
+
     pub fn get_deps_all(sources: &str) -> (Vec<String>, Vec<String>) {
         let ast = syn::parse_file(sources).unwrap();
         let mut mods: Vec<String> = Vec::new();
@@ -17,19 +43,14 @@ impl TreeSplitter {
         (mods, crates)
     }
 
-    pub fn tree_split(symbol: Symbol, sources: &str) -> (syn::File, String) {
-        match symbol {
-            Symbol::Named { name } => {
-                let ast = syn::parse_file(sources).unwrap();
-                let symbol_ast = Self::get_ast_named(&name, ast.clone());
-                let mut deps = Self::get_interested_symbols(symbol_ast, ast.clone());
-                deps.push(name);
-                let stripped_ast = Self::strip_ast(ast, deps);
-                let formatted_ast = prettyplease::unparse(&stripped_ast);
-                (stripped_ast, formatted_ast)
-            }
-            _ => panic!("Expected Symbol::Named, but got something else."),
-        }
+    pub fn tree_split(test_name: String, sources: String) -> (syn::File, String) {
+        let ast = syn::parse_file(&sources).unwrap();
+        let symbol_ast = Self::get_ast_named(&test_name, ast.clone());
+        let mut deps = Self::get_interested_symbols(symbol_ast, ast.clone());
+        deps.push(test_name);
+        let stripped_ast = Self::strip_ast(ast, deps);
+        let formatted_ast = prettyplease::unparse(&stripped_ast);
+        (stripped_ast, formatted_ast)
     }
 
     pub fn strip_ast(mut file_ast: syn::File, deps: Vec<String>) -> syn::File {
@@ -45,34 +66,51 @@ impl TreeSplitter {
         visitor.has_test
     }
 
-    pub fn get_interested_symbols(ast: syn::File, full_ast: syn::File) -> Vec<String> {
-        let mut symbols = Vec::new();
-        let mut symbols_str = Vec::new();
-        let mut visitor = SymbolDependency {
-            symbols: &mut symbols,
-            symbols_str: &mut symbols_str,
-        };
-        syn::visit::visit_file(&mut visitor, &ast);
-
-        let mut symbols_temp = symbols_str.clone();
-        let mut return_symbols = symbols_str.clone();
-        while !symbols_temp.is_empty() {
-            let mut symbols_rec = Vec::new();
-            let mut symbols_str_rec = Vec::new();
-            for dep in symbols_temp.iter() {
-                let symbol_ast = Self::get_ast_named(dep, full_ast.clone());
-                let mut visitor_temp = SymbolDependency {
-                    symbols: &mut symbols_rec,
-                    symbols_str: &mut symbols_str_rec,
+    pub fn find_matching_tests(test_matcher: Vec<String>, sources: &str) -> Vec<String> {
+        let ast = syn::parse_file(sources).unwrap();
+        let mut matching_tests: Vec<String> = Vec::new();
+        if test_matcher.is_empty() {
+            let mut visitor = TestFinder {
+                matcher: "".to_string(),
+                tests: vec![],
+            };
+            syn::visit::visit_file(&mut visitor, &ast);
+            matching_tests.extend(visitor.tests);
+        } else {
+            for matcher in test_matcher.into_iter() {
+                let mut visitor = TestFinder {
+                    matcher,
+                    tests: vec![],
                 };
-                syn::visit::visit_file(&mut visitor_temp, &symbol_ast);
+                syn::visit::visit_file(&mut visitor, &ast);
+                matching_tests.extend(visitor.tests);
             }
-            symbols_temp = symbols_str_rec.clone();
-            return_symbols.append(&mut symbols_str_rec);
         }
-        return_symbols
+        matching_tests
     }
 
+    pub fn get_interested_symbols(ast: syn::File, full_ast: syn::File) -> Vec<String> {
+        let mut symbols = HashSet::new();
+        let mut visitor = SymbolDependency::new(&mut symbols);
+        syn::visit::visit_file(&mut visitor, &ast);
+
+        let mut symbols_temp = symbols.clone();
+        while !symbols_temp.is_empty() {
+            let mut symbols_rec = HashSet::new();
+            for dep in symbols_temp.iter() {
+                let symbol_ast = Self::get_ast_named(dep.to_string().as_ref(), full_ast.clone());
+                let mut visitor_temp = SymbolDependency::new(&mut symbols_rec);
+                syn::visit::visit_file(&mut visitor_temp, &symbol_ast);
+            }
+            symbols_temp = symbols_rec.clone();
+            symbols.extend(symbols_rec);
+        }
+        let mut res: Vec<String> = symbols.iter().map(|sym| sym.to_string()).collect();
+        res.sort();
+        res
+    }
+
+    // Returns an AST with only the needed function as the only element in the items
     pub fn get_ast_named(symbol: &str, file: syn::File) -> syn::File {
         let subtree_option: Vec<syn::Item> = file
             .items
@@ -107,11 +145,6 @@ impl TreeSplitter {
                     return Some(syn::Item::Fn(item_fn));
                 }
             }
-            syn::Item::Const(item_const) => {
-                if item_const.ident == symbol {
-                    return Some(syn::Item::Const(item_const));
-                }
-            }
             syn::Item::Enum(item_enum) => {
                 if item_enum.ident == symbol {
                     return Some(syn::Item::Enum(item_enum));
@@ -135,7 +168,7 @@ impl TreeSplitter {
                                 return Some(item);
                             }
                         }
-                        _ => println!("Unsupported implementation item"),
+                        _ => {}
                     }
                 }
             }
@@ -185,7 +218,7 @@ impl TreeSplitter {
                     return Some(item);
                 }
             }
-            _ => println!("Unsupported item"),
+            _ => {}
         }
         None
     }
