@@ -22,32 +22,27 @@ const impl = (ctx) => {
   ctx.action().runShell({
     script: `
 
-cd ${prefix}
-
-${
-      build_size === "tiny"
-        ? "OTP_TINY_BUILD=true"
-        : build_size === "small"
-        ? "OTP_SMALL_BUILD=true"
-        : ""
-    }
-
-export OTP_SMALL_BUILD OTP_TINY_BUILD
+set -e
 
 unset ERL_LIBS
 unset ERL_FLAGS
 unset ERL_AFLAGS
 unset ERL_ZFLAGS
 
-if [[ ! -d "./configure" ]]; then
-    ./otp_build autoconf
-fi
+cd ${prefix}
 
-./configure ${configure_flags.join(" ")} \
+export ERLC_USE_SERVER=true
+export ERL_TOP=$(pwd)
+export LANG=C
+
+./otp_build configure \
+  ${configure_flags.join(" ")} \
   --with-ssl=$OpenSSL_HOME \
-  --prefix=$(pwd)/dist || exit 1
+  --prefix=$(pwd)/dist
 
-make all install ${make_flags.join(" ")} || exit 1
+make
+
+make install
 
 `,
   });
@@ -82,11 +77,10 @@ export default Warp.Toolchain({
     sha1: string(),
     build_size: string(),
     configure_flags: [string()],
-    make_flags: [string()],
   },
   defaults: {
-    sha1: "eb8794dd8b21284528d3236a59b1605dabba4d49",
-    version: "24.3.4.6",
+    sha1: "13f541022443d0e34021b2dca51b2541954d3e7b",
+    version: "25.3",
     build_size: "full",
     configure_flags: [
       "--disable-debug",
@@ -100,7 +94,6 @@ export default Warp.Toolchain({
       "--enable-darwin-64bit",
       "--enable-kernel-poll",
     ],
-    make_flags: [],
   },
   toolchains: [OpenSSLToolchain],
 });

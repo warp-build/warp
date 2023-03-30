@@ -5,7 +5,7 @@ export const EX_EXT = ".ex";
 export const EXS_EXT = ".exs";
 
 const impl = (ctx) => {
-  const { kind, version, sha1 } = ctx.cfg();
+  const { kind, version, sha256 } = ctx.cfg();
 
   const output = "Precompiled.zip";
 
@@ -13,7 +13,7 @@ const impl = (ctx) => {
     ? `https://github.com/elixir-lang/elixir/archive/v${version}.tar.gz`
     : `https://github.com/elixir-lang/elixir/releases/download/v${version}/Precompiled.zip`;
 
-  ctx.action().download({ url, sha1, output });
+  ctx.action().download({ url, sha1: sha256, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -67,13 +67,13 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha1: string(),
+    sha256: string(),
     kind: string(),
   },
   defaults: {
     kind: "source",
-    sha1: "f3d3f78c4bb36b4aeab66ea0687f19f821c352aa",
-    version: "1.13",
+    sha256: "6addcf88ec333fc9d0468e84abc5c8fb053d8f79",
+    version: "1.14",
   },
   toolchains: [ErlangToolchain],
 });
