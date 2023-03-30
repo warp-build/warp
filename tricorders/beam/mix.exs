@@ -14,7 +14,7 @@ defmodule Tricorder.MixProject do
 
   def application do
     [
-      extra_applications: [:mix, :logger, :grpc, :protobuf],
+      extra_applications: [:mix, :syntax_tools, :logger, :grpc, :protobuf],
       mod: {Tricorder.Application, []}
     ]
   end

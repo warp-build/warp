@@ -31,7 +31,11 @@ defmodule GitignoreTest do
              "test/fixtures/proper_unused_imports_remover.beam",
              "test/fixtures/proper_unused_imports_remover.erl",
              "test/fixtures/rebar.config",
-             "test/fixtures/rebar.lock"
+             "test/fixtures/rebar.lock",
+             "test/fixtures/tree_split_exports.erl",
+             "test/fixtures/tree_split_exports_multiline.erl",
+             "test/fixtures/tree_split_exports_multiple_matches.erl",
+             "test/fixtures/tree_split_stress.erl"
            ] =
              Gitignore.find(gitignore, "test/fixtures", fn x -> {:keep, x} end)
              |> Enum.sort()

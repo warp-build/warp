@@ -2,35 +2,34 @@ defmodule Tricorder.Analysis.Erlang.CommonTest do
   require Logger
   require Tricorder.Analysis.Erlang.Cerl
 
+  alias Tricorder.Analysis.TestMatcher
   alias Tricorder.Signatures
 
+  def is_test_suite?(file), do: String.ends_with?(file, "_SUITE.erl")
+
   def suites(file, test_matcher, modules, includes, src_analysis) do
-    if String.ends_with?(file, "_SUITE.erl") do
-      {:ok, mod} = :compile.noenv_file(:binary.bin_to_list(file), @default_compile_opts)
-      cases = mod.all() || []
+    {:ok, mod} = :compile.noenv_file(:binary.bin_to_list(file), @default_compile_opts)
+    cases = mod.all() || []
 
-      groups =
-        try do
-          mod.groups()
-        rescue
-          _ -> []
-        end
+    groups =
+      try do
+        mod.groups()
+      rescue
+        _ -> []
+      end
 
-      cases = flatten(cases, groups, [])
+    cases = flatten(cases, groups, [])
 
-      signatures = extract_suites(file, test_matcher, cases, modules, includes)
+    signatures = extract_suites(file, test_matcher, cases, modules, includes)
 
-      :code.delete(mod)
-      :code.purge(mod)
-      false = :code.is_loaded(mod)
+    :code.delete(mod)
+    :code.purge(mod)
+    false = :code.is_loaded(mod)
 
-      Logger.info("Found #{signatures |> Enum.count()} tests")
-      IO.inspect(signatures)
+    Logger.info("Found #{signatures |> Enum.count()} tests")
+    IO.inspect(signatures)
 
-      signatures
-    else
-      []
-    end
+    signatures
   end
 
   def extract_suites(file, :all, cases, modules, includes) do
@@ -39,9 +38,9 @@ defmodule Tricorder.Analysis.Erlang.CommonTest do
     end
   end
 
-  def extract_suites(file, {:match, name}, cases, modules, includes) do
+  def extract_suites(file, matcher, cases, modules, includes) do
     for case_name <- cases do
-      if String.starts_with?(case_name, name) do
+      if TestMatcher.matches?(matcher, case_name) do
         Signatures.erlang_test(file, case_name, modules, includes)
       else
         []

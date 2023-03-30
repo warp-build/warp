@@ -2,6 +2,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
   require Logger
 
   alias Tricorder.Analysis
+  alias Tricorder.Analysis.TestMatcher
   alias Tricorder.Deps
 
   def generate_signature(req, stream) do
@@ -26,11 +27,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
 
     Logger.info("Generating signature with paths: #{inspect(paths)}")
 
-    test_matcher =
-      case req.test_matcher do
-        %{raw: raw} when raw != nil -> {:match, raw}
-        _ -> :all
-      end
+    test_matcher = TestMatcher.from_parts(req.test_matcher)
 
     Logger.info("Using test_matcher: #{inspect(test_matcher)}")
 

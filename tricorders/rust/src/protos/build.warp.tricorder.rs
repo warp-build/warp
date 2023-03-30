@@ -85,6 +85,8 @@ pub struct GetAstRequest {
     ///
     #[prost(string, tag = "5")]
     pub workspace_root: ::prost::alloc::string::String,
+    #[prost(enumeration = "super::Goal", tag = "6")]
+    pub goal: i32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

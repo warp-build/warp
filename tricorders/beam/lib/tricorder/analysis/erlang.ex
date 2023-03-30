@@ -41,8 +41,11 @@ defmodule Tricorder.Analysis.Erlang do
       includes = (src_analysis.includes ++ src_analysis.missing_includes) |> Enum.uniq()
 
       signatures =
-        [Signatures.erlang_library(file, modules, includes)] ++
+        if Erlang.CommonTest.is_test_suite?(file) do
           Erlang.CommonTest.suites(file, test_matcher, modules, includes, src_analysis)
+        else
+          [Signatures.erlang_library(file, modules, includes)]
+        end
 
       {:ok, {:completed, signatures}}
     end
