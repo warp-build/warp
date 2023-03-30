@@ -1,14 +1,16 @@
 defmodule Tricorder.Deps.Hexpm.Resolver do
   require Logger
 
-  @cacerts File.stream!(Application.app_dir(:castore, "priv/cacerts.pem"))
-  def cacerts, do: @cacerts
-
   def request(method, uri, req_headers, body, _config) do
     uri = URI.parse(uri)
 
     {:ok, conn} =
-      Mint.HTTP.connect(:https, uri.host, uri.port, transport_opts: [cacerts: @cacerts])
+      Mint.HTTP.connect(
+        :https,
+        uri.host,
+        uri.port,
+        transport_opts: [cacerts: :public_key.cacerts_get()]
+      )
 
     body =
       case body do

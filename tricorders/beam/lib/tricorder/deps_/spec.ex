@@ -3,7 +3,9 @@ defmodule Tricorder.Deps.Spec do
 
   defstruct [:name, :protocol, :host, :package, :version, :url, :ref, :opts, :subdir]
 
-  def parse(name) do
+  def parse(name), do: parse(name, {:pkg, name})
+
+  def parse(name, {:pkg, pkg_name}) do
     hex_config =
       :hex_core.default_config()
       |> Map.merge(%{
