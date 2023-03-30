@@ -1,6 +1,6 @@
 use super::*;
 use crate::archive::ArchiveManager;
-use crate::code::{CodeDatabase, CodeDatabaseError};
+use crate::code::{CodeManager, CodeManagerError};
 use crate::events::event::WorkflowEvent;
 use crate::executor::local::LocalExecutor;
 use crate::model::{Goal, Target, Task, TestMatcher, UnregisteredTask};
@@ -17,7 +17,7 @@ use crate::workspace::{WorkspaceManager, WorkspaceManagerError};
 use thiserror::*;
 use tracing::{instrument, *};
 
-type MainResolver = DefaultResolver<GrpcTricorder>;
+type MainResolver = DefaultResolver<DefaultStore, GrpcTricorder>;
 type MainPlanner = DefaultPlanner<JsRuleExecutor>;
 type DefaultWorker = LocalWorker<MainResolver, MainPlanner, LocalExecutor, DefaultStore>;
 type DefaultCtxt = LocalSharedContext<MainResolver, DefaultStore>;
@@ -63,14 +63,17 @@ impl WarpDriveMarkII {
             signature_registry.clone(),
         ));
 
-        let code_db = Arc::new(CodeDatabase::new(
-            config.clone(),
-            test_matcher_registry.clone(),
-            target_registry.clone(),
-            task_registry.clone(),
-        )?);
+        let code_manager: Arc<CodeManager<DefaultStore, GrpcTricorder>> =
+            Arc::new(CodeManager::new(
+                config.clone(),
+                store.clone(),
+                test_matcher_registry.clone(),
+                target_registry.clone(),
+                task_registry.clone(),
+                task_results.clone(),
+            )?);
 
-        let resolver: DefaultResolver<GrpcTricorder> = DefaultResolver::new(
+        let resolver: DefaultResolver<DefaultStore, GrpcTricorder> = DefaultResolver::new(
             config.clone(),
             store.clone(),
             target_registry.clone(),
@@ -80,7 +83,7 @@ impl WarpDriveMarkII {
             archive_manager.clone(),
             workspace_manager.clone(),
             task_results.clone(),
-            code_db.clone(),
+            code_manager.clone(),
         )?;
 
         let shared_ctx = LocalSharedContext::new(
@@ -93,7 +96,7 @@ impl WarpDriveMarkII {
             store,
             workspace_manager,
             task_results,
-            code_db,
+            code_manager,
         );
 
         let worker_pool = WorkerPool::from_shared_context(config.clone(), shared_ctx.clone());
@@ -233,7 +236,7 @@ pub enum WarpDriveError {
     ResolverError(ResolverError),
 
     #[error(transparent)]
-    CodeDatabaseError(CodeDatabaseError),
+    CodeManagerError(CodeManagerError),
 }
 
 impl From<PackerError> for WarpDriveError {
@@ -260,8 +263,8 @@ impl From<ResolverError> for WarpDriveError {
     }
 }
 
-impl From<CodeDatabaseError> for WarpDriveError {
-    fn from(err: CodeDatabaseError) -> Self {
-        WarpDriveError::CodeDatabaseError(err)
+impl From<CodeManagerError> for WarpDriveError {
+    fn from(err: CodeManagerError) -> Self {
+        WarpDriveError::CodeManagerError(err)
     }
 }

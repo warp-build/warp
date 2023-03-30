@@ -1,8 +1,10 @@
 use super::{DefaultPlannerContext, Dependencies, Planner, PlannerError, PlanningFlow};
+
 use crate::model::{
     ExecutableSpec, ExecutionEnvironment, Signature, SourceKind, Task, UnregisteredTask,
 };
 use crate::rules::RuleExecutor;
+
 use crate::Goal;
 use async_trait::async_trait;
 use fxhash::FxHashSet;
@@ -83,7 +85,22 @@ where
 
         let planning_end_time = chrono::Utc::now();
 
-        let srcs: FxHashSet<SourceKind> = plan.srcs.into_iter().map(SourceKind::File).collect();
+        let srcs: FxHashSet<SourceKind> = if task.goal().is_test() {
+            let mut srcs = FxHashSet::default();
+
+            for src in plan.srcs.into_iter() {
+                srcs.insert(
+                    self.ctx
+                        .code_manager
+                        .get_source_chunk(task, sig, &src)
+                        .await?,
+                );
+            }
+
+            srcs
+        } else {
+            plan.srcs.into_iter().map(SourceKind::File).collect()
+        };
 
         let outs: FxHashSet<SourceKind> = plan.outs.into_iter().map(SourceKind::File).collect();
 
@@ -102,7 +119,7 @@ where
             .deps(deps)
             .hash_and_build(&self.ctx.task_results)?;
 
-        // self.ctx.code_db.save_executable_spec(&sig, &spec).unwrap();
+        // self.ctx.code_manager.save_executable_spec(&sig, &spec).unwrap();
 
         Ok(PlanningFlow::Planned { spec })
     }
@@ -160,14 +177,72 @@ enum DepFinderFlow {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
+    use url::Url;
+
     use super::*;
+    use crate::archive::ArchiveManager;
+    use crate::code::CodeManager;
     use crate::model::ConcreteTarget;
     use crate::resolver::{SignatureRegistry, TargetRegistry};
     use crate::rules::{ExecutionResult, RuleExecutorError, RuleStore};
-    use crate::store::ArtifactManifest;
+    use crate::store::{ArtifactManifest, DefaultStore, Store, StoreError};
     use crate::sync::Arc;
+    use crate::testing::TestMatcherRegistry;
     use crate::worker::{TaskRegistry, TaskResults};
     use crate::{Config, Goal};
+
+    #[derive(Debug, Clone)]
+    struct NoopStore;
+    #[async_trait]
+    impl Store for NoopStore {
+        async fn install_from_manifest_url(
+            &self,
+            _url: &Url,
+        ) -> Result<ArtifactManifest, StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        async fn find(
+            &self,
+            _spec: &ExecutableSpec,
+        ) -> Result<Option<ArtifactManifest>, StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        async fn clean(&self, _spec: &ExecutableSpec) -> Result<(), StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        async fn promote(&self, _am: &ArtifactManifest) -> Result<(), StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        async fn save(
+            &self,
+            _spec: &ExecutableSpec,
+            _manifest: &ArtifactManifest,
+        ) -> Result<(), StoreError> {
+            Err(StoreError::Unknown)
+        }
+
+        fn get_local_store_path_for_spec(&self, _spec: &ExecutableSpec) -> PathBuf {
+            PathBuf::from("")
+        }
+
+        fn get_local_store_path_for_manifest(&self, _am: &ArtifactManifest) -> PathBuf {
+            PathBuf::from("")
+        }
+
+        fn canonicalize_provided_artifact<N: AsRef<str>>(
+            &self,
+            _am: &ArtifactManifest,
+            _name: N,
+        ) -> Option<PathBuf> {
+            None
+        }
+    }
 
     struct NoopRuleExecutor;
     #[async_trait(?Send)]
@@ -195,18 +270,32 @@ mod tests {
         let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
         let signature_registry = Arc::new(SignatureRegistry::new());
-        let task_results = TaskResults::new(
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
+        let task_results = Arc::new(TaskResults::new(
             task_registry.clone(),
             target_registry.clone(),
             signature_registry.clone(),
-        )
-        .into();
+        ));
+        let archive_manager = Arc::new(ArchiveManager::new(&config));
+        let artifact_store = Arc::new(DefaultStore::new(config.clone(), archive_manager));
+        let code_manager = Arc::new(
+            CodeManager::new(
+                config.clone(),
+                artifact_store,
+                test_matcher_registry.clone(),
+                target_registry.clone(),
+                task_registry.clone(),
+                task_results.clone(),
+            )
+            .unwrap(),
+        );
         let ctx = DefaultPlannerContext::new(
             task_registry.clone(),
             target_registry,
             signature_registry,
             task_results,
             rule_store,
+            code_manager,
         );
 
         let goal = Goal::Build;
@@ -243,18 +332,32 @@ mod tests {
         let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
         let signature_registry = Arc::new(SignatureRegistry::new());
-        let task_results = TaskResults::new(
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
+        let task_results = Arc::new(TaskResults::new(
             task_registry.clone(),
             target_registry.clone(),
             signature_registry.clone(),
-        )
-        .into();
+        ));
+        let archive_manager = Arc::new(ArchiveManager::new(&config));
+        let artifact_store = Arc::new(DefaultStore::new(config.clone(), archive_manager));
+        let code_manager = Arc::new(
+            CodeManager::new(
+                config.clone(),
+                artifact_store,
+                test_matcher_registry.clone(),
+                target_registry.clone(),
+                task_registry.clone(),
+                task_results.clone(),
+            )
+            .unwrap(),
+        );
         let ctx = DefaultPlannerContext::new(
             task_registry.clone(),
             target_registry,
             signature_registry,
             task_results,
             rule_store,
+            code_manager,
         );
 
         let goal = Goal::Build;
@@ -324,18 +427,32 @@ mod tests {
         let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
         let signature_registry = Arc::new(SignatureRegistry::new());
-        let task_results = TaskResults::new(
+        let test_matcher_registry = Arc::new(TestMatcherRegistry::new());
+        let task_results = Arc::new(TaskResults::new(
             task_registry.clone(),
             target_registry.clone(),
             signature_registry.clone(),
-        )
-        .into();
+        ));
+        let archive_manager = Arc::new(ArchiveManager::new(&config));
+        let artifact_store = Arc::new(DefaultStore::new(config.clone(), archive_manager));
+        let code_manager = Arc::new(
+            CodeManager::new(
+                config.clone(),
+                artifact_store,
+                test_matcher_registry.clone(),
+                target_registry.clone(),
+                task_registry.clone(),
+                task_results.clone(),
+            )
+            .unwrap(),
+        );
         let ctx = DefaultPlannerContext::new(
-            task_registry,
+            task_registry.clone(),
             target_registry,
             signature_registry,
             task_results,
             rule_store,
+            code_manager,
         );
 
         let goal = Goal::Build;

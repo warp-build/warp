@@ -94,7 +94,9 @@ impl Tricorder for GrpcTricorder {
         dependencies: &[(Task, Arc<ExecutableSpec>, Arc<ArtifactManifest>)],
         test_matcher: &TestMatcher,
     ) -> Result<SignatureGenerationFlow, TricorderError> {
+        let goal: proto::build::warp::Goal = concrete_target.goal().into();
         let request = proto::build::warp::tricorder::GetAstRequest {
+            goal: goal.into(),
             workspace_root: concrete_target
                 .workspace_root()
                 .to_string_lossy()
@@ -132,6 +134,7 @@ impl Tricorder for GrpcTricorder {
                     .subtrees
                     .into_iter()
                     .map(|msg| Subtree {
+                        file: PathBuf::from(msg.file),
                         source_chunk: msg.source_chunk,
                         ast_hash: SourceHasher::hash_str(msg.ast),
                         signature_name: msg.signature_name,

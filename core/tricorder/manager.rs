@@ -20,7 +20,8 @@ use url::Url;
 /// A manager of Tricorder processes and creator of clients. This struct keeps a thread-safe pool
 /// of processes that can be used to create new clients for existing tricorders whenever needed.
 ///
-pub struct TricorderManager<T: Tricorder, S: Store> {
+#[derive(Clone)]
+pub struct TricorderManager<S: Store, T: Tricorder> {
     artifact_store: Arc<S>,
     config: Config,
     ctx: TricorderContext,
@@ -33,7 +34,7 @@ pub struct TricorderManager<T: Tricorder, S: Store> {
     _lock: Arc<tokio::sync::Mutex<()>>,
 }
 
-impl<T, S> TricorderManager<T, S>
+impl<S, T> TricorderManager<S, T>
 where
     T: Tricorder + 'static,
     S: Store,
@@ -300,7 +301,7 @@ mod tests {
         let target_registry = Arc::new(TargetRegistry::new());
         let task_registry = Arc::new(TaskRegistry::new());
         let ctx = TricorderContext::new(target_registry.clone(), task_registry.clone());
-        let mgr: TricorderManager<NoopTricorder, _> = TricorderManager::new(config, store, ctx);
+        let mgr: TricorderManager<_, NoopTricorder> = TricorderManager::new(config, store, ctx);
 
         let path: PathBuf = "./sample/file.exs".into();
         let t: Target = path.as_path().into();
@@ -398,7 +399,7 @@ mod tests {
         let task_registry = Arc::new(TaskRegistry::new());
         let ctx = TricorderContext::new(target_registry.clone(), task_registry.clone());
 
-        let mgr: TricorderManager<UnreachableTricorder, _> =
+        let mgr: TricorderManager<_, UnreachableTricorder> =
             TricorderManager::new(config, store, ctx);
 
         let path: PathBuf = "./sample/file.exs".into();
@@ -506,7 +507,7 @@ mod tests {
         let task_registry = Arc::new(TaskRegistry::new());
         let ctx = TricorderContext::new(target_registry.clone(), task_registry.clone());
 
-        let mgr: TricorderManager<UnconnectableTricorder, _> =
+        let mgr: TricorderManager<_, UnconnectableTricorder> =
             TricorderManager::new(config, store, ctx);
 
         let path: PathBuf = "./sample/file.exs".into();
@@ -613,7 +614,7 @@ mod tests {
         let target_registry = Arc::new(TargetRegistry::new());
         let task_registry = Arc::new(TaskRegistry::new());
         let ctx = TricorderContext::new(target_registry.clone(), task_registry.clone());
-        let mgr: TricorderManager<UnreadiableTricorder, _> =
+        let mgr: TricorderManager<_, UnreadiableTricorder> =
             TricorderManager::new(config, store, ctx);
 
         let path: PathBuf = "./sample/file.exs".into();

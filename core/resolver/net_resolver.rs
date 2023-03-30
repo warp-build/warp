@@ -1,10 +1,10 @@
 use super::{ResolverError, TargetRegistry};
 use crate::archive::ArchiveManager;
-use crate::code::CodeDatabase;
+use crate::code::CodeManager;
 use crate::model::{ConcreteTarget, RemoteTarget, Task};
-use crate::store::DefaultStore;
+use crate::store::Store;
 use crate::sync::Arc;
-use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderManager};
+use crate::tricorder::{SignatureGenerationFlow, Tricorder};
 use crate::workspace::WorkspaceManager;
 use tracing::instrument;
 
@@ -31,28 +31,29 @@ use tracing::instrument;
 ///   Tricorder --> |generates| Signature
 /// ```
 #[derive(Clone)]
-pub struct NetResolver<T: Tricorder> {
+pub struct NetResolver<S: Store, T: Tricorder> {
     archive_manager: Arc<ArchiveManager>,
     workspace_manager: Arc<WorkspaceManager>,
-    tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
     target_registry: Arc<TargetRegistry>,
-    code_db: Arc<CodeDatabase>,
+    code_manager: Arc<CodeManager<S, T>>,
 }
 
-impl<T: Tricorder + Clone + 'static> NetResolver<T> {
+impl<S, T> NetResolver<S, T>
+where
+    S: Store,
+    T: Tricorder + Clone + 'static,
+{
     pub fn new(
         archive_manager: Arc<ArchiveManager>,
         workspace_manager: Arc<WorkspaceManager>,
-        tricorder_manager: Arc<TricorderManager<T, DefaultStore>>,
         target_registry: Arc<TargetRegistry>,
-        code_db: Arc<CodeDatabase>,
+        code_manager: Arc<CodeManager<S, T>>,
     ) -> Self {
         Self {
             archive_manager,
             workspace_manager,
-            tricorder_manager,
             target_registry,
-            code_db,
+            code_manager,
         }
     }
 
@@ -90,35 +91,10 @@ impl<T: Tricorder + Clone + 'static> NetResolver<T> {
                 .await?
         };
 
-        if let Some(mut signatures) =
-            self.code_db
-                .get_signatures(task.goal(), &ct, archive.hash())?
-        {
-            for signature in signatures.iter_mut() {
-                let mut ct = signature.target().clone();
-                ct.set_target(
-                    self.target_registry.get_target(task.target_id()),
-                    task.target_id(),
-                );
-                let ct = self
-                    .target_registry
-                    .associate_concrete_target(task.target_id(), ct);
-                signature.set_target((*ct).clone());
-            }
-            return Ok(SignatureGenerationFlow::GeneratedSignatures { signatures });
-        }
-
-        let mut tricorder = if let Some(tricorder) = self
-            .tricorder_manager
-            .find_and_ready(&target.tricorder_url().unwrap())
-            .await?
-        {
-            tricorder
-        } else {
-            return Ok(SignatureGenerationFlow::IgnoredTarget(task.target_id()));
-        };
-
-        let sig = tricorder.ready_dependency(&ct, &archive).await?;
+        let sig = self
+            .code_manager
+            .ready_dependency(task, target, &ct, &archive)
+            .await?;
 
         Ok(sig)
     }

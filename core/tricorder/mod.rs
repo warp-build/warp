@@ -17,6 +17,7 @@ use crate::store::ArtifactManifest;
 use crate::sync::*;
 use async_trait::async_trait;
 use std::fmt::Debug;
+use std::path::{Path, PathBuf};
 use thiserror::*;
 use url::Url;
 
@@ -71,6 +72,7 @@ pub enum TricorderError {
 
 #[derive(Debug)]
 pub struct Subtree {
+    file: PathBuf,
     source_chunk: String,
     ast_hash: String,
     signature_name: String,
@@ -87,6 +89,10 @@ impl Subtree {
 
     pub fn signature_name(&self) -> &str {
         self.signature_name.as_ref()
+    }
+
+    pub fn file(&self) -> &Path {
+        &self.file
     }
 }
 

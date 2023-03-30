@@ -1,17 +1,17 @@
 use crate::sync::*;
 use crate::Config;
-use fxhash::FxHashMap;
+use dashmap::DashMap;
 use std::path::{Path, PathBuf};
-use thiserror::*;
+use thiserror::Error;
 use tracing::*;
 use url::Url;
 
 /// A registry of tricorders with methods to find the right one based on the existence of certain
 /// paths.
 ///
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TricorderRegistry {
-    tricorders: FxHashMap<String, Arc<Url>>,
+    tricorders: DashMap<String, Arc<Url>>,
 }
 
 impl TricorderRegistry {
@@ -40,7 +40,7 @@ impl TricorderRegistry {
             ),
         ];
 
-        let mut tricorders = FxHashMap::default();
+        let tricorders = DashMap::default();
 
         for (name, exts) in data {
             let name = Arc::new(name);
@@ -70,8 +70,8 @@ impl TricorderRegistry {
     }
 
     fn find_tricorder(&self, name: &str) -> Option<Url> {
-        if let Some(tricorder) = self.tricorders.get(name).cloned() {
-            return Some((*tricorder).clone());
+        if let Some(tricorder) = self.tricorders.get(name) {
+            return Some((**tricorder).clone());
         }
         None
     }

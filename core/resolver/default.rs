@@ -6,15 +6,15 @@ use super::{
     FsResolver, ResolutionFlow, Resolver, ResolverError, SignatureRegistry, TargetRegistry,
 };
 use crate::archive::ArchiveManager;
-use crate::code::CodeDatabase;
+use crate::code::CodeManager;
 use crate::model::{
     ConcreteTarget, Goal, RemoteTarget, Requirement, Signature, Target, TargetId, Task,
     UnregisteredTask,
 };
-use crate::store::DefaultStore;
+use crate::store::{DefaultStore, Store};
 use crate::sync::*;
 use crate::testing::TestMatcherRegistry;
-use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderContext, TricorderManager};
+use crate::tricorder::{SignatureGenerationFlow, Tricorder};
 use crate::worker::{TaskRegistry, TaskResults};
 use crate::workspace::WorkspaceManager;
 use crate::Config;
@@ -22,20 +22,24 @@ use async_trait::async_trait;
 use tracing::instrument;
 
 #[derive(Clone)]
-pub struct DefaultResolver<T: Tricorder + Clone> {
+pub struct DefaultResolver<S: Store, T: Tricorder + Clone> {
     boot_resolver: Arc<BootstrapResolver>,
     config: Config,
-    fs_resolver: Arc<FsResolver<T>>,
-    net_resolver: Arc<NetResolver<T>>,
+    fs_resolver: Arc<FsResolver<S, T>>,
+    net_resolver: Arc<NetResolver<S, T>>,
     target_registry: Arc<TargetRegistry>,
     task_registry: Arc<TaskRegistry>,
     signature_registry: Arc<SignatureRegistry>,
 }
 
-impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
+impl<S, T> DefaultResolver<S, T>
+where
+    S: Store,
+    T: Tricorder + Clone + 'static,
+{
     pub fn new(
         config: Config,
-        store: Arc<DefaultStore>,
+        _store: Arc<DefaultStore>,
         target_registry: Arc<TargetRegistry>,
         task_registry: Arc<TaskRegistry>,
         signature_registry: Arc<SignatureRegistry>,
@@ -43,32 +47,21 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
         archive_manager: Arc<ArchiveManager>,
         workspace_manager: Arc<WorkspaceManager>,
         task_results: Arc<TaskResults>,
-        code_db: Arc<CodeDatabase>,
+        code_manager: Arc<CodeManager<S, T>>,
     ) -> Result<Self, ResolverError> {
-        let tricorder_context =
-            TricorderContext::new(target_registry.clone(), task_registry.clone());
-
-        let tricorder_manager = Arc::new(TricorderManager::new(
-            config.clone(),
-            store,
-            tricorder_context,
-        ));
-
         let net_resolver = Arc::new(NetResolver::new(
             archive_manager,
             workspace_manager.clone(),
-            tricorder_manager.clone(),
             target_registry.clone(),
-            code_db.clone(),
+            code_manager.clone(),
         ));
 
         let fs_resolver = Arc::new(FsResolver::new(
             workspace_manager.clone(),
-            tricorder_manager,
             target_registry.clone(),
             test_matcher_registry,
             task_results,
-            code_db,
+            code_manager,
         ));
 
         let boot_resolver = Arc::new(BootstrapResolver::new(
@@ -89,7 +82,7 @@ impl<T: Tricorder + Clone + 'static> DefaultResolver<T> {
 }
 
 #[async_trait]
-impl<T: Tricorder + Clone + 'static> Resolver for DefaultResolver<T> {
+impl<S: Store, T: Tricorder + Clone + 'static> Resolver for DefaultResolver<S, T> {
     #[instrument(name = "DefaultResolver::resolve", skip(self))]
     async fn resolve(
         &self,
@@ -213,7 +206,7 @@ mod tests {
     use crate::archive::{Archive, ArchiveManager};
     use crate::model::{ExecutableSpec, Signature, TestMatcher, UnregisteredTask};
     use crate::store::ArtifactManifest;
-    use crate::tricorder::{Connection, TricorderError};
+    use crate::tricorder::{Connection, TricorderContext, TricorderError};
     use crate::worker::TaskRegistry;
     use crate::workspace::Workspace;
     use assert_fs::prelude::*;
@@ -235,7 +228,7 @@ mod tests {
             .unwrap();
 
         let am = ArchiveManager::new(&config).into();
-        let store = DefaultStore::new(config.clone(), am).into();
+        let store = Arc::new(DefaultStore::new(config.clone(), am));
         let target_registry = Arc::new(TargetRegistry::new());
         let task_registry = Arc::new(TaskRegistry::new());
         let signature_registry = Arc::new(SignatureRegistry::new());
@@ -297,17 +290,19 @@ mod tests {
             signature_registry.clone(),
         ));
 
-        let code_db = Arc::new(
-            CodeDatabase::new(
+        let code_manager = Arc::new(
+            CodeManager::new(
                 config.clone(),
+                store.clone(),
                 test_matcher_registry.clone(),
                 target_registry.clone(),
                 task_registry.clone(),
+                task_results.clone(),
             )
             .unwrap(),
         );
 
-        let r: DefaultResolver<UnreachableTricorder> = DefaultResolver::new(
+        let r: DefaultResolver<_, UnreachableTricorder> = DefaultResolver::new(
             config,
             store,
             target_registry.clone(),
@@ -317,7 +312,7 @@ mod tests {
             archive_manager.clone(),
             workspace_manager.into(),
             task_results,
-            code_db,
+            code_manager,
         )
         .unwrap();
 
@@ -360,7 +355,7 @@ mod tests {
             .unwrap();
 
         let am = ArchiveManager::new(&config).into();
-        let store = DefaultStore::new(config.clone(), am).into();
+        let store = Arc::new(DefaultStore::new(config.clone(), am));
         let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
         let signature_registry = Arc::new(SignatureRegistry::new());
@@ -428,16 +423,19 @@ mod tests {
         ));
 
         workspace_manager.set_current_workspace(wid);
-        let code_db = Arc::new(
-            CodeDatabase::new(
+        let code_manager = Arc::new(
+            CodeManager::new(
                 config.clone(),
+                store.clone(),
                 test_matcher_registry.clone(),
                 target_registry.clone(),
                 task_registry.clone(),
+                task_results.clone(),
             )
             .unwrap(),
         );
-        let r: DefaultResolver<HappyPathTricorder> = DefaultResolver::new(
+
+        let r: DefaultResolver<_, HappyPathTricorder> = DefaultResolver::new(
             config,
             store,
             target_registry.clone(),
@@ -447,7 +445,7 @@ mod tests {
             archive_manager.clone(),
             workspace_manager.into(),
             task_results,
-            code_db,
+            code_manager,
         )
         .unwrap();
 

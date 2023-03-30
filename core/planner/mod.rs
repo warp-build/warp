@@ -2,17 +2,14 @@
 
 mod default;
 mod default_planner_context;
+mod error;
 
-use async_trait::async_trait;
 pub use default::*;
 pub use default_planner_context::*;
+pub use error::*;
 
-use crate::model::{
-    Dependencies, DependenciesError, ExecutableSpec, ExecutableSpecError, ExecutionEnvironment,
-    Signature, Task,
-};
-use crate::rules::RuleExecutorError;
-use thiserror::*;
+use crate::model::{Dependencies, ExecutableSpec, ExecutionEnvironment, Signature, Task};
+use async_trait::async_trait;
 
 #[derive(Debug)]
 pub enum PlanningFlow {
@@ -35,37 +32,4 @@ pub trait Planner {
         sig: &Signature,
         env: ExecutionEnvironment,
     ) -> Result<PlanningFlow, PlannerError>;
-}
-
-#[derive(Error, Debug)]
-pub enum PlannerError {
-    #[error("Something went wrong with this planner")]
-    Unknown,
-
-    #[error(transparent)]
-    RuleExecutorError(RuleExecutorError),
-
-    #[error(transparent)]
-    ExecutableSpecError(ExecutableSpecError),
-
-    #[error(transparent)]
-    DependenciesError(DependenciesError),
-}
-
-impl From<RuleExecutorError> for PlannerError {
-    fn from(value: RuleExecutorError) -> Self {
-        PlannerError::RuleExecutorError(value)
-    }
-}
-
-impl From<ExecutableSpecError> for PlannerError {
-    fn from(value: ExecutableSpecError) -> Self {
-        PlannerError::ExecutableSpecError(value)
-    }
-}
-
-impl From<DependenciesError> for PlannerError {
-    fn from(value: DependenciesError) -> Self {
-        PlannerError::DependenciesError(value)
-    }
 }

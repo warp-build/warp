@@ -1,5 +1,5 @@
 use crate::archive::ArchiveManagerError;
-use crate::code::{CodeDatabaseError, SourceHasherError};
+use crate::code::{CodeDatabaseError, CodeManagerError, SourceHasherError};
 use crate::model::TargetError;
 use crate::tricorder::{TricorderError, TricorderManagerError};
 use crate::{Goal, Target};
@@ -34,6 +34,9 @@ pub enum ResolverError {
 
     #[error(transparent)]
     SourceHasherError(SourceHasherError),
+
+    #[error(transparent)]
+    CodeManagerError(CodeManagerError),
 }
 
 impl From<TricorderError> for ResolverError {
@@ -69,5 +72,11 @@ impl From<CodeDatabaseError> for ResolverError {
 impl From<SourceHasherError> for ResolverError {
     fn from(value: SourceHasherError) -> Self {
         ResolverError::SourceHasherError(value)
+    }
+}
+
+impl From<CodeManagerError> for ResolverError {
+    fn from(value: CodeManagerError) -> Self {
+        ResolverError::CodeManagerError(value)
     }
 }

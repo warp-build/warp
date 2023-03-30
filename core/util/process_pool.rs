@@ -1,3 +1,4 @@
+use crate::sync::Arc;
 use dashmap::DashMap;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -10,8 +11,9 @@ use tokio::process::{Child, Command};
 pub struct ProcessId<P>(uuid::Uuid, PhantomData<P>);
 
 /// A Process Pool that can be used to manage processes that share the same interface.
+#[derive(Clone)]
 pub struct ProcessPool<P> {
-    processes: DashMap<uuid::Uuid, Child>,
+    processes: DashMap<uuid::Uuid, Arc<Child>>,
     _process_type: PhantomData<P>,
 }
 
@@ -57,7 +59,7 @@ impl<P> ProcessPool<P> {
         let handle = cmd.spawn()?;
 
         let next_id = uuid::Uuid::new_v4();
-        self.processes.insert(next_id, handle);
+        self.processes.insert(next_id, handle.into());
 
         Ok(ProcessId(next_id, PhantomData::default()))
     }

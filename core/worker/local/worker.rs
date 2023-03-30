@@ -43,7 +43,6 @@ use super::LocalSharedContext;
 ///   sleep -->|timeout| loop
 /// ```
 ///
-#[derive(Debug)]
 pub struct LocalWorker<R: Resolver, P: Planner, E: Executor, S: Store> {
     role: Role,
     ctx: LocalSharedContext<R, S>,
@@ -360,7 +359,7 @@ impl From<TaskQueueError> for LocalWorkerError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::code::CodeDatabase;
+    use crate::code::CodeManager;
 
     use crate::model::{ConcreteTarget, ExecutableSpec, Goal, Signature, Target};
     use crate::planner::PlannerError;
@@ -505,12 +504,14 @@ mod tests {
             target_registry.clone(),
             signature_registry.clone(),
         ));
-        let code_db = Arc::new(
-            CodeDatabase::new(
+        let code_manager = Arc::new(
+            CodeManager::new(
                 config.clone(),
+                NoopStore.into(),
                 test_matcher_registry.clone(),
                 target_registry.clone(),
                 task_registry.clone(),
+                task_results.clone(),
             )
             .unwrap(),
         );
@@ -524,7 +525,7 @@ mod tests {
             NoopStore.into(),
             workspace_manager,
             task_results,
-            code_db,
+            code_manager,
         );
 
         ctx.coordinator.signal_shutdown();
@@ -560,12 +561,14 @@ mod tests {
             target_registry.clone(),
             signature_registry.clone(),
         ));
-        let code_db = Arc::new(
-            CodeDatabase::new(
+        let code_manager = Arc::new(
+            CodeManager::new(
                 config.clone(),
+                NoopStore.into(),
                 test_matcher_registry.clone(),
                 target_registry.clone(),
                 task_registry.clone(),
+                task_results.clone(),
             )
             .unwrap(),
         );
@@ -579,7 +582,7 @@ mod tests {
             NoopStore.into(),
             workspace_manager,
             task_results,
-            code_db,
+            code_manager,
         );
 
         let mut gen = quickcheck::Gen::new(100);
@@ -672,12 +675,14 @@ mod tests {
             target_registry.clone(),
             signature_registry.clone(),
         ));
-        let code_db = Arc::new(
-            CodeDatabase::new(
+        let code_manager = Arc::new(
+            CodeManager::new(
                 config.clone(),
+                NoopStore.into(),
                 test_matcher_registry.clone(),
                 target_registry.clone(),
                 task_registry.clone(),
+                task_results.clone(),
             )
             .unwrap(),
         );
@@ -691,7 +696,7 @@ mod tests {
             NoopStore.into(),
             workspace_manager,
             task_results,
-            code_db,
+            code_manager,
         );
 
         let mut gen = quickcheck::Gen::new(100);

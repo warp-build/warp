@@ -1,4 +1,6 @@
-use crate::code::CodeDatabase;
+use tracing::instrument;
+
+use crate::code::CodeManager;
 use crate::config::Config;
 use crate::events::EventChannel;
 use crate::executor::local::LocalExecutorContext;
@@ -8,6 +10,7 @@ use crate::rules::RuleStore;
 use crate::store::{DefaultStore, Store};
 use crate::sync::Arc;
 use crate::testing::TestMatcherRegistry;
+use crate::tricorder::GrpcTricorder;
 use crate::worker::coordinator::Coordinator;
 use crate::worker::task_queue::TaskQueue;
 use crate::worker::{Context, TaskRegistry, TaskResults};
@@ -22,10 +25,9 @@ use crate::workspace::WorkspaceManager;
 /// * an Event Channel where they can report events
 /// * a Workspace Manager to get information about the current workspace
 ///
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct LocalSharedContext<R: Resolver, S: Store> {
     pub(crate) artifact_store: Arc<S>,
-    pub(crate) code_db: Arc<CodeDatabase>,
     pub(crate) coordinator: Arc<Coordinator>,
     pub(crate) event_channel: Arc<EventChannel>,
     pub(crate) resolver: Arc<R>,
@@ -37,6 +39,7 @@ pub struct LocalSharedContext<R: Resolver, S: Store> {
     pub(crate) task_results: Arc<TaskResults>,
     pub(crate) test_matcher_registry: Arc<TestMatcherRegistry>,
     pub(crate) workspace_manager: Arc<WorkspaceManager>,
+    pub(crate) code_manager: Arc<CodeManager<S, GrpcTricorder>>,
 }
 
 impl<R, S> LocalSharedContext<R, S>
@@ -44,15 +47,18 @@ where
     R: Resolver,
     S: Store,
 {
-    #[tracing::instrument(
+    #[instrument(
         name = "SharedContext::new",
         skip(
+            task_registry,
             target_registry,
+            signature_registry,
+            test_matcher_registry,
             resolver,
             artifact_store,
             workspace_manager,
             task_results,
-            code_db
+            code_manager,
         )
     )]
     pub fn new(
@@ -65,7 +71,7 @@ where
         artifact_store: Arc<S>,
         workspace_manager: Arc<WorkspaceManager>,
         task_results: Arc<TaskResults>,
-        code_db: Arc<CodeDatabase>,
+        code_manager: Arc<CodeManager<S, GrpcTricorder>>,
     ) -> Self {
         let coordinator = Arc::new(Coordinator::new());
 
@@ -83,7 +89,7 @@ where
 
         Self {
             artifact_store,
-            code_db,
+            code_manager,
             coordinator,
             event_channel: config.event_channel(),
             resolver,
@@ -123,6 +129,7 @@ impl<R: Resolver> From<LocalSharedContext<R, DefaultStore>> for DefaultPlannerCo
             ctx.signature_registry,
             ctx.task_results,
             ctx.rule_store,
+            ctx.code_manager,
         )
     }
 }
