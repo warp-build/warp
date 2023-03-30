@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{CacheStatus, Goal, Target};
 use url::Url;
 
@@ -43,6 +45,29 @@ pub enum ArchiveEvent {
         target: String,
         sha256: String,
         total_files: usize,
+    },
+    DownloadProgress {
+        url: Url,
+        progress: usize,
+        total_size: u64,
+    },
+    DownloadCompleted {
+        url: Url,
+        sha256: String,
+        total_size: u64,
+    },
+    DownloadStarted {
+        url: Url,
+    },
+    ExtractionStarted {
+        source: PathBuf,
+        destination: PathBuf,
+        url: Url,
+    },
+    ExtractionCompleted {
+        source: PathBuf,
+        destination: PathBuf,
+        url: Url,
     },
 }
 

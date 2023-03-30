@@ -71,6 +71,22 @@ impl ArchiveManager {
         archive: &Archive,
         root: &Path,
     ) -> Result<Archive, ArchiveManagerError> {
+        let extracted_archive = Archive::builder()
+            .final_path(root.to_path_buf())
+            .hash(archive.hash())
+            .url(archive.url().clone())
+            .build()?;
+
+        if fs::metadata(root).await.is_ok() {
+            return Ok(extracted_archive);
+        }
+
+        self.event_channel.send(ArchiveEvent::ExtractionStarted {
+            source: archive.final_path().to_path_buf(),
+            destination: root.to_path_buf(),
+            url: archive.url().clone(),
+        });
+
         let file = fs::File::open(archive.final_path()).await?;
         {
             let root = root.to_path_buf();
@@ -94,13 +110,13 @@ impl ArchiveManager {
             .unwrap()
         }?;
 
-        let archive = Archive::builder()
-            .final_path(root)
-            .hash(archive.hash())
-            .url(archive.url().clone())
-            .build()?;
+        self.event_channel.send(ArchiveEvent::ExtractionCompleted {
+            source: extracted_archive.final_path().to_path_buf(),
+            destination: root.to_path_buf(),
+            url: extracted_archive.url().clone(),
+        });
 
-        Ok(archive)
+        Ok(extracted_archive)
     }
 
     #[instrument(name = "ArchiveManager::compress", skip(self))]
@@ -190,10 +206,19 @@ impl ArchiveManager {
             }
         }
 
+        self.event_channel
+            .send(ArchiveEvent::DownloadStarted { url: url.clone() });
+
         let response = self.client.get(url.clone()).send().await?;
 
         if response.status().is_success() {
-            let (final_path, hash) = self.stream_response(response, url).await?;
+            let (final_path, hash, total_size) = self.stream_response(response, url).await?;
+
+            self.event_channel.send(ArchiveEvent::DownloadCompleted {
+                url: url.clone(),
+                sha256: hash.clone(),
+                total_size,
+            });
 
             let archive = Archive::builder()
                 .final_path(final_path)
@@ -214,7 +239,10 @@ impl ArchiveManager {
         &self,
         response: reqwest::Response,
         url: &Url,
-    ) -> Result<(PathBuf, String), std::io::Error> {
+    ) -> Result<(PathBuf, String, u64), std::io::Error> {
+        let total_size = response.content_length().unwrap_or_default();
+        let mut progress = 0;
+
         let mut byte_stream = response
             .bytes_stream()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
@@ -228,6 +256,12 @@ impl ArchiveManager {
         let mut s = Sha256::new();
         while let Some(chunk) = byte_stream.next().await {
             let mut chunk = chunk?;
+            progress += chunk.len();
+            self.event_channel.send(ArchiveEvent::DownloadProgress {
+                url: url.clone(),
+                progress,
+                total_size,
+            });
             s.update(&chunk);
             outfile.write_all_buf(&mut chunk).await?;
         }
@@ -239,7 +273,7 @@ impl ArchiveManager {
         let hash = format!("{:x}", s.finalize());
         fs::write(path.with_extension("sha256"), &hash).await?;
 
-        Ok((path, hash))
+        Ok((path, hash, total_size))
     }
 
     fn archive_path(&self, url: &Url) -> PathBuf {

@@ -98,7 +98,32 @@ impl StatusReporter {
 
 impl Reporter for StatusReporter {
     fn on_archive_event(&mut self, event: ArchiveEvent) {
+        let yellow = console::Style::new().yellow();
         match event {
+            ArchiveEvent::ExtractionStarted { .. } => {
+                self.pb.set_length(self.pb.length() + 1);
+            }
+            ArchiveEvent::ExtractionCompleted { url, .. } => {
+                let line = format!("{:>12} {}", yellow.apply_to("Extracted"), url);
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
+            ArchiveEvent::DownloadStarted { .. } => {
+                self.pb.set_length(self.pb.length() + 1);
+            }
+            ArchiveEvent::DownloadProgress { .. } => {
+                self.pb.set_length(self.pb.length() + 1);
+            }
+            ArchiveEvent::DownloadCompleted { url, sha256, .. } => {
+                let line = format!(
+                    "{:>12} {} (sha256={})",
+                    yellow.apply_to("Downloaded"),
+                    url,
+                    sha256
+                );
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
             ArchiveEvent::CompressionStarted { total_files, .. } => {
                 self.pb.set_length(self.pb.length() + (total_files as u64));
             }
