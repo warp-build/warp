@@ -425,7 +425,6 @@ spec = {:#?}
         match fs::copy(&src, &dst).await.map(|_| ()) {
             Ok(_) => (),
             Err(err) if err.kind() == std::io::ErrorKind::InvalidInput => (),
-            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => (),
             Err(err) => {
                 return Err(ExecutorError::CouldNotCopy {
                     target: target.clone().into(),
