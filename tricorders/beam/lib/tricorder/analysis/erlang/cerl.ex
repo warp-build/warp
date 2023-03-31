@@ -8,18 +8,17 @@ defmodule Tricorder.Analysis.Erlang.Cerl do
     :strict_record_tests,
     :strict_record_updates,
     :no_spawn_compiler_process,
-    :binary,
-    :to_core
+    :binary
   ]
 
-  def compile(file, include_paths, code_paths) do
+  def compile(file, %{include_paths: include_paths, code_paths: code_paths}) do
     for code_path <- code_paths do
       true = code_path |> :binary.bin_to_list() |> :code.add_path()
     end
 
     compile_opts =
       @default_compile_opts ++
-        for path <- include_paths, do: {:i, path}
+        for path <- include_paths, do: {:i, path |> :binary.bin_to_list()}
 
     file = :binary.bin_to_list(file)
 
@@ -27,12 +26,15 @@ defmodule Tricorder.Analysis.Erlang.Cerl do
       "Compiling #{file} with opts #{inspect(compile_opts)} and paths #{inspect(code_paths)}"
     )
 
-    with {:ok, mod, core} <- :compile.noenv_file(file, compile_opts) do
-      tree = :cerl.from_records(core)
-      attrs = :cerl.module_attrs(core)
-      {:ok, tree, attrs}
+    with {:ok, mod, bytecode} <- :compile.noenv_file(file, compile_opts),
+         {:ok, mod, core} <- :compile.noenv_file(file, compile_opts ++ [:to_core]) do
+      Logger.info("Compilation succeeded: #{mod}")
+      # tree = :cerl.from_records(core)
+      # attrs = :cerl.module_attrs(core)
+      {:ok, mod, bytecode, core}
     else
       {:error, err, _} ->
+        Logger.error("Compilation error: #{inspect(err, pretty: true)}")
         {:missing_dependencies, %{modules: parse_transforms(err, [])}}
     end
   end

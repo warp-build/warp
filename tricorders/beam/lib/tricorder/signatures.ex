@@ -50,14 +50,17 @@ defmodule Tricorder.Signatures do
     }
   end
 
-  def erlang_test(file, case_name, modules, includes) do
+  def erlang_test(file, case_desc, modules, includes) do
     %{
-      name: case_name,
+      name: case_desc.name,
       rule: "erlang_test",
       test: file,
       modules: modules,
       includes: includes,
-      cases: [case_name]
+      group: case_desc.group_name || nil,
+      cases: [case_desc.test_name],
+      group_opts: case_desc.group_opts || [],
+      test_opts: case_desc.test_opts || []
     }
   end
 end

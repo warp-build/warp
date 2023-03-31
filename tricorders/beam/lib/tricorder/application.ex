@@ -19,6 +19,10 @@ defmodule Tricorder.Application do
           %{
             id: Tricorder.Deps.Server,
             start: {Tricorder.Deps.Server, :start_link, [workspace_root]}
+          },
+          %{
+            id: Tricorder.Deps.Hexpm.Server,
+            start: {Tricorder.Deps.Hexpm.Server, :start_link, []}
           }
         ]
       else

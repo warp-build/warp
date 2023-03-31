@@ -6,16 +6,7 @@ defmodule Tricorder.Deps.Spec do
   def parse(name), do: parse(name, {:pkg, name})
 
   def parse(name, {:pkg, pkg_name}) do
-    hex_config =
-      :hex_core.default_config()
-      |> Map.merge(%{
-        http_user_agent_fragment: "(tools.warp.build/hexpm/resolver)",
-        http_adapter: {Tricorder.Deps.Hexpm.Resolver, %{}}
-      })
-
-    pkg_name = Atom.to_string(name)
-
-    {:ok, {_, _, resp}} = :hex_api_package.get(hex_config, pkg_name)
+    {:ok, resp} = Tricorder.Deps.Hexpm.get_package(pkg_name)
     Logger.info("Found #{Enum.count(resp["releases"])} versions for #{pkg_name}")
 
     host = "hex.pm"

@@ -40,10 +40,10 @@ defmodule Tricorder.Analysis.CommonTestTest do
            ] =
              CommonTest.suites(
                "./test/fixtures/ct_suite_without_groups_SUITE.erl",
-               :all,
-               [],
-               [],
-               %{
+               _test_matcher = :all,
+               _modules = [],
+               _includes = [],
+               _paths = %{
                  include_paths: [],
                  code_paths: []
                }
@@ -72,10 +72,10 @@ defmodule Tricorder.Analysis.CommonTestTest do
            ] =
              CommonTest.suites(
                "./test/fixtures/ct_suite_without_groups_SUITE.erl",
-               {:match, "a"},
-               [],
-               [],
-               %{
+               _test_matcher = {:match, "a"},
+               _modules = [],
+               _includes = [],
+               _paths = %{
                  include_paths: [],
                  code_paths: []
                }
@@ -86,36 +86,45 @@ defmodule Tricorder.Analysis.CommonTestTest do
   test "use-case: returns all test cases with config" do
     assert [
              %{
-               cases: ["group_a:a_test"],
+               cases: ["a_test"],
                includes: [],
                modules: [],
                name: "group_a:a_test",
                rule: "erlang_test",
-               test: "./test/fixtures/ct_suite_with_groups_SUITE.erl"
+               test: "./test/fixtures/ct_suite_with_groups_SUITE.erl",
+               group: "group_a",
+               group_opts: [],
+               test_opts: []
              },
              %{
-               cases: ["group_a:b_test"],
+               cases: ["b_test"],
                includes: [],
                modules: [],
                name: "group_a:b_test",
                rule: "erlang_test",
-               test: "./test/fixtures/ct_suite_with_groups_SUITE.erl"
+               test: "./test/fixtures/ct_suite_with_groups_SUITE.erl",
+               group: "group_a",
+               group_opts: [],
+               test_opts: []
              },
              %{
-               cases: ["group_b:c_test"],
+               cases: ["c_test"],
                includes: [],
                modules: [],
                name: "group_b:c_test",
                rule: "erlang_test",
-               test: "./test/fixtures/ct_suite_with_groups_SUITE.erl"
+               test: "./test/fixtures/ct_suite_with_groups_SUITE.erl",
+               group: "group_b",
+               group_opts: [:parallel],
+               test_opts: []
              }
            ] =
              CommonTest.suites(
                "./test/fixtures/ct_suite_with_groups_SUITE.erl",
-               :all,
-               [],
-               [],
-               %{
+               _test_matcher = :all,
+               _modules = [],
+               _includes = [],
+               _paths = %{
                  include_paths: [],
                  code_paths: []
                }

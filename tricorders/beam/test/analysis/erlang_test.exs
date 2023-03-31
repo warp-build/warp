@@ -22,17 +22,21 @@ defmodule Tricorder.Analysis.ErlangTest do
   end
 
   test "detects direct module depedencies" do
-    assert {:ok,
-            {:completed,
-             [
-               %{
-                 includes: [],
-                 modules: [:dep_c, :dep_b, :dep_a],
-                 name: "./test/fixtures/direct_deps.erl",
-                 rule: "erlang_library",
-                 srcs: ["direct_deps.erl"]
-               }
-             ]}} =
+    assert {
+             :ok,
+             {
+               :completed,
+               [
+                 %{
+                   includes: [],
+                   modules: [:dep_a, :dep_b, :dep_c],
+                   name: "./test/fixtures/direct_deps.erl",
+                   rule: "erlang_library",
+                   srcs: ["direct_deps.erl"]
+                 }
+               ]
+             }
+           } =
              Tricorder.Analysis.Erlang.analyze("./test/fixtures/direct_deps.erl", :all, %{
                include_paths: [],
                code_paths: []
@@ -47,7 +51,7 @@ defmodule Tricorder.Analysis.ErlangTest do
                [
                  %{
                    includes: [],
-                   modules: [:panic, :option, :result],
+                   modules: [:option, :panic, :result],
                    name: "./test/fixtures/direct_type_deps.erl",
                    rule: "erlang_library",
                    srcs: ["direct_type_deps.erl"]
@@ -69,7 +73,7 @@ defmodule Tricorder.Analysis.ErlangTest do
                [
                  %{
                    includes: [],
-                   modules: [:dep_c, :dep_b, :dep_a],
+                   modules: [:dep_a, :dep_b, :dep_c],
                    name: "./test/fixtures/imported_deps.erl",
                    rule: "erlang_library",
                    srcs: ["imported_deps.erl"]
@@ -106,32 +110,35 @@ defmodule Tricorder.Analysis.ErlangTest do
   end
 
   test "use-case: detect deps in proper tests" do
-    assert {:ok,
-            {:completed,
-             [
-               %{
-                 includes: [
-                   # NB(@ostera): we ignore this path since it is system dependant
-                   _assert,
-                   "./test/fixtures/proper.hrl",
-                   "./test/fixtures/proper_common.hrl"
-                 ],
-                 modules: [
-                   :verl,
-                   :proper,
-                   :re,
-                   :proper_unused_imports_remover,
-                   :proper_statem,
-                   :proper_symb,
-                   :proper_types,
-                   :proper_unicode,
-                   :proper_transformer
-                 ],
-                 name: "./test/fixtures/prop_verl.erl",
-                 rule: "erlang_library",
-                 srcs: ["prop_verl.erl"]
-               }
-             ]}} =
+    assert {
+             :ok,
+             {
+               :completed,
+               [
+                 %{
+                   includes: [
+                     "./test/fixtures/proper.hrl",
+                     "./test/fixtures/proper_common.hrl",
+                     "/nix/store/i2bnhvrvd28jcifmj1w9adk78rifhgd8-erlang-24.3.4.5/lib/erlang/lib/stdlib-3.17.2.1/include/assert.hrl"
+                   ],
+                   modules: [
+                     :proper,
+                     :re,
+                     :verl,
+                     :proper_statem,
+                     :proper_symb,
+                     :proper_types,
+                     :proper_unicode,
+                     :proper_unused_imports_remover,
+                     :proper_transformer
+                   ],
+                   name: "./test/fixtures/prop_verl.erl",
+                   rule: "erlang_library",
+                   srcs: ["prop_verl.erl"]
+                 }
+               ]
+             }
+           } =
              Tricorder.Analysis.Erlang.analyze("./test/fixtures/prop_verl.erl", :all, %{
                include_paths: [],
                code_paths: ["./test/fixtures"]

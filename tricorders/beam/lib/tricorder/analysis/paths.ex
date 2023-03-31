@@ -38,6 +38,7 @@ defmodule Tricorder.Analysis.Paths do
     Enum.flat_map(deps, fn dep ->
       Enum.flat_map(dep.outputs, fn out ->
         [
+          Path.join([dep.store_path, out]) |> Path.dirname() |> Path.dirname(),
           Path.join([dep.store_path, out]) |> Path.dirname(),
           Path.join([dep.store_path, out, "include"])
         ]

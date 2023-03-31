@@ -1,14 +1,19 @@
 defmodule Tricorder.Analysis.Erlang.Ast do
   require Logger
 
+  alias Tricorder.Analysis.Erlang
+
   def parse(file, include_paths) do
+    Logger.info("Parsing Erlang file: #{file}")
     {:ok, ast} = :epp.parse_file(:binary.bin_to_list(file), includes: include_paths)
 
     case has_include_errors?(ast) do
       {true, missing_includes} ->
+        Logger.error("Error parsing Erlang file, missing includes: #{missing_includes}")
         {:missing_dependencies, %{includes: missing_includes}}
 
       false ->
+        Logger.info("Parsed Erlang file: #{file}")
         {:ok, ast}
     end
   end
@@ -23,23 +28,30 @@ defmodule Tricorder.Analysis.Erlang.Ast do
     end
   end
 
-  def scan(ast) do
+  def scan(file, ast) do
+    current_mod = Erlang.module_name_for_file(file)
+
     %{
-      includes: includes(ast),
+      includes: includes(file, ast),
       missing_includes: missing_includes(ast),
       parse_transforms: parse_transforms(ast),
-      remote_functions: remote_functions(ast),
-      remote_types: remote_types(ast),
-      imported_mods: imported_mods(ast)
+      remote_functions: remote_functions(current_mod, ast),
+      remote_types: remote_types(current_mod, ast),
+      imported_mods: imported_mods(current_mod, ast)
     }
+    |> Enum.map(fn {k, v} -> {k, v |> Enum.uniq() |> Enum.sort()} end)
+    |> Enum.into(%{})
   end
 
-  def includes(ast) do
+  def includes(current_file, ast) do
+    current_file = String.to_charlist(current_file)
+
     :erl_visitor.walk(
       ast,
       [],
       fn
-        {:attribute, _, :file, {file, _}}, acc ->
+        # NOTE(@ostera): .hrl trees include themselves!
+        {:attribute, _, :file, {file, _}}, acc when file != current_file ->
           case Path.extname(file) do
             ".hrl" -> [file | acc]
             _ -> acc
@@ -71,23 +83,24 @@ defmodule Tricorder.Analysis.Erlang.Ast do
     |> Enum.map(&ensure_string/1)
   end
 
-  def remote_functions(ast) do
+  def remote_functions(current_mod, ast) do
     :erl_visitor.walk(
       ast,
       _acc = [],
       fn
-        {:remote, _, {:atom, _, mod}, _}, acc -> [mod | acc]
+        {:remote, _, {:atom, _, mod}, _}, acc when mod != current_mod -> [mod | acc]
         _, acc -> acc
       end
     )
   end
 
-  def remote_types(ast) do
+  def remote_types(current_mod, ast) do
     :erl_visitor.walk(
       ast,
       _acc = [],
       fn
-        {:attribute, _, :type, {_, {:remote_type, _, [{:atom, _, mod}, _, _]}, _}}, acc ->
+        {:attribute, _, :type, {_, {:remote_type, _, [{:atom, _, mod}, _, _]}, _}}, acc
+        when mod != current_mod ->
           [mod | acc]
 
         _, acc ->
@@ -96,12 +109,12 @@ defmodule Tricorder.Analysis.Erlang.Ast do
     )
   end
 
-  defp imported_mods(ast) do
+  defp imported_mods(current_mod, ast) do
     :erl_visitor.walk(
       ast,
       _Acc = [],
       fn
-        {:attribute, _, :import, {mod, _}}, acc -> [mod | acc]
+        {:attribute, _, :import, {mod, _}}, acc when mod != current_mod -> [mod | acc]
         _, acc -> acc
       end
     )

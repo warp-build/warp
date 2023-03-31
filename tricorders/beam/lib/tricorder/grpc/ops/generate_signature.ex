@@ -9,7 +9,10 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     Logger.info("Analyzing: #{req.file}")
 
     with {:ok, response} <- do_generate_signature(req) do
-      Logger.info("Response: #{inspect(response)}")
+      Logger.info(
+        "Response: #{inspect(response, pretty: true, limit: :infinity, printable_limit: :infinity)}"
+      )
+
       Build.Warp.Tricorder.GenerateSignatureResponse.new(response: response)
     else
       err -> Logger.error("#{err}")
@@ -44,7 +47,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
         {:ok, analysis} = Analysis.Erlang.analyze(req.file, test_matcher, paths)
         {:ok, analysis_to_resp(req, analysis)}
 
-      Path.extname(req.file) in [".ex", ".exs"] ->
+      Path.extname(req.file) in [".exs"] ->
         {:ok, analysis} = Analysis.Elixir.analyze_script(req.file, paths)
         {:ok, analysis_to_resp(req, analysis)}
 
@@ -53,6 +56,7 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
         {:ok, analysis_to_resp(req, analysis)}
 
       true ->
+        Logger.error("Can't handle input file #{req.file}")
         {:error, :unhandled_input}
     end
   end
@@ -159,7 +163,16 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
              )}
 
           _ ->
-            {:file, Build.Warp.FileRequirement.new(path: hrl)}
+            hrl = clean_warp_store_path(hrl)
+
+            glob = Path.wildcard("./**/#{hrl}")
+            Logger.info("Found module #{hrl} in #{glob}")
+
+            req =
+              case glob do
+                [file | _] -> {:file, Build.Warp.FileRequirement.new(path: file)}
+                _ -> {:file, Build.Warp.FileRequirement.new(path: hrl)}
+              end
         end
 
       Build.Warp.Requirement.new(requirement: req)
@@ -184,5 +197,12 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
 
       Build.Warp.Requirement.new(requirement: req)
     end)
+  end
+
+  def clean_warp_store_path(path) do
+    case Path.split(path) do
+      ["/", _warp, _store, _hash | path] -> Path.join(path)
+      _ -> path
+    end
   end
 end
