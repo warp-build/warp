@@ -114,7 +114,7 @@ test.conc:
 bootstrap: install
 	warp bootstrap --print-hashes
 	warp build ./tricorders/beam/mix.exs
-	warp build ./tricorders/rust/Cargo.toml
+	# warp build ./tricorders/rust/Cargo.toml
 
 .PHONY: cov
 cov:
