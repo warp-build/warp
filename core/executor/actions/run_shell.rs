@@ -49,7 +49,7 @@ impl RunShellAction {
 
         cmd.current_dir(store_root)
             .env_clear()
-            .envs(default_env)
+            .envs(default_env.iter())
             .args(["-c", &script]);
 
         trace!("Running script: {:#?} {}", &self.env, &self.script);
@@ -63,8 +63,9 @@ impl RunShellAction {
             Ok(())
         } else {
             Err(anyhow!(
-                "Error running bash script: \n\nStore Root = {}\n\nScript = {}",
+                "Error running script: \n\nStore Root = {}\n\nEnv = {:#?}\n\nScript = {}",
                 store_root.to_string_lossy(),
+                default_env,
                 self.script,
             ))
         }
