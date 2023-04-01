@@ -25,9 +25,12 @@ built in Rust.
 
 ### Features
 
-- Faster than light. Every build action is cached and reused, and all builds are reproducible.
-- Zero configuration. All build configuration is derived from sources and existing tool config.
-- Designed to be extended. Use custom Tricorders, or write JavaScript rules and toolchains.
+- Faster than light. Every build action is cached and reused, and all builds are
+  reproducible.
+- Zero configuration. All build configuration is derived from sources and
+  existing tool config.
+- Designed to be extended. Use custom Tricorders, or write JavaScript rules and
+  toolchains.
 - Automatically manages language installations per project for you.
 
 ### Install
