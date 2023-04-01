@@ -62,6 +62,7 @@ where
         // within the file system already.
         if tokio::fs::metadata(target.path()).await.is_err() {
             return Err(ResolverError::CouldNotFindFile {
+                target: target.clone(),
                 path: target.path().clone(),
             });
         }

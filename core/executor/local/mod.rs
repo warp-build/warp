@@ -93,19 +93,14 @@ impl LocalExecutor {
                     .runtime_deps()
                     .iter()
                     .map(|dep| {
-                        let manifest = self
-                            .ctx
-                            .task_results
-                            .get_task_result(dep)
-                            .unwrap()
-                            .artifact_manifest;
-                        (manifest.target().to_string(), manifest.hash().to_string())
+                        let target = self.ctx.target_registry.get_target(dep.target_id());
+                        (target.to_string(), target.to_string())
                     })
                     .collect();
 
                 let transitive_deps = spec
                     .deps()
-                    .transitive_deps()
+                    .transitive_compile_deps()
                     .iter()
                     .map(|dep| {
                         let manifest = self
@@ -167,27 +162,7 @@ impl LocalExecutor {
 
     fn shell_env(&self, store_path: &Path, spec: &ExecutableSpec) -> BTreeMap<String, String> {
         let mut env = BTreeMap::default();
-        for toolchain in spec.deps().toolchains().iter().map(|l| {
-            self.ctx
-                .task_results
-                .get_task_result(l)
-                .unwrap()
-                .artifact_manifest
-        }) {
-            env.extend(toolchain.shell_env().clone())
-        }
-
-        for dep in spec.deps().compile_deps().iter().map(|l| {
-            self.ctx
-                .task_results
-                .get_task_result(l)
-                .unwrap()
-                .artifact_manifest
-        }) {
-            env.extend(dep.shell_env().clone())
-        }
-
-        for dep in spec.deps().transitive_deps().iter().map(|l| {
+        for dep in spec.deps().all_compile_deps().map(|l| {
             self.ctx
                 .task_results
                 .get_task_result(l)
@@ -209,9 +184,7 @@ impl LocalExecutor {
             .deps()
             .toolchains()
             .iter()
-            .chain(spec.deps().transitive_deps().iter())
-            .chain(spec.deps().runtime_deps().iter())
-            .chain(spec.deps().compile_deps().iter())
+            .chain(spec.deps().transitive_compile_deps().iter())
             .map(|l| {
                 self.ctx
                     .task_results
@@ -246,19 +219,13 @@ impl LocalExecutor {
         spec: &ExecutableSpec,
     ) -> Result<(), ExecutorError> {
         // Copy dependencies
-        for dep in spec
-            .deps()
-            .transitive_deps()
-            .iter()
-            .chain(spec.deps().runtime_deps().iter())
-            .map(|d| {
-                self.ctx
-                    .task_results
-                    .get_task_result(d)
-                    .unwrap()
-                    .artifact_manifest
-            })
-        {
+        for dep in spec.deps().transitive_compile_deps().iter().map(|d| {
+            self.ctx
+                .task_results
+                .get_task_result(d)
+                .unwrap()
+                .artifact_manifest
+        }) {
             let dep_src = self
                 .ctx
                 .artifact_store

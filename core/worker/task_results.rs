@@ -116,6 +116,14 @@ impl TaskResults {
         );
     }
 
+    pub fn get_dependencies(&self, task: TaskId) -> Result<Vec<TaskId>, TaskResultError> {
+        if let Some(old_deps) = self.build_graph.get(&task) {
+            Ok(old_deps.to_vec())
+        } else {
+            Ok(vec![])
+        }
+    }
+
     pub fn add_dependencies(&self, task: TaskId, deps: &[TaskId]) -> Result<(), TaskResultError> {
         let deps = if let Some(old_deps) = self.build_graph.get(&task) {
             (*old_deps)

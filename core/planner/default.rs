@@ -1,11 +1,13 @@
 use super::{DefaultPlannerContext, Dependencies, Planner, PlannerError, PlanningFlow};
 
 use crate::model::{
-    ExecutableSpec, ExecutionEnvironment, Signature, SourceKind, Task, UnregisteredTask,
+    ExecutableSpec, ExecutionEnvironment, RemoteTarget, Requirement, Signature, SourceKind, Task,
+    UnregisteredTask,
 };
 use crate::rules::RuleExecutor;
 
-use crate::Goal;
+use crate::tricorder::SignatureGenerationFlow;
+use crate::{Goal, Target};
 use async_trait::async_trait;
 use fxhash::FxHashSet;
 use tracing::instrument;
@@ -44,21 +46,32 @@ where
             DepFinderFlow::AllDepsFound(deps) => deps, //vec![deps, prior_deps].concat(),
         };
 
+        let transitive_compile_deps =
+            match self._deps(task, &compile_deps, DepKind::TransitiveCompile) {
+                DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
+                DepFinderFlow::AllDepsFound(deps) => deps,
+            };
+
+        // NB(@ostera): runtime_deps and transitive_runtime_deps are *not needed* for
+        // planning/executing. They just need to be built before you can execute the _results_ of
+        // whatever you're running. Otherwise we can have dependency cycles.
         let runtime_deps = match self._deps(task, sig.runtime_deps(), DepKind::Runtime) {
-            DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
+            DepFinderFlow::MissingDeps(deps) => deps,
             DepFinderFlow::AllDepsFound(deps) => deps,
         };
 
-        let transitive_deps = match self._deps(task, &compile_deps, DepKind::Transitive) {
-            DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
-            DepFinderFlow::AllDepsFound(deps) => deps,
-        };
+        let transitive_runtime_deps =
+            match self._deps(task, &runtime_deps, DepKind::TransitiveRuntime) {
+                DepFinderFlow::MissingDeps(deps) => deps,
+                DepFinderFlow::AllDepsFound(deps) => deps,
+            };
 
         let mut deps = Dependencies::builder()
-            .compile_deps(compile_deps)
             .toolchains(vec![])
-            .transitive_deps(transitive_deps)
+            .compile_deps(compile_deps)
             .runtime_deps(runtime_deps)
+            .transitive_compile_deps(transitive_compile_deps)
+            .transitive_runtime_deps(transitive_runtime_deps)
             .build()?;
 
         let plan = self.rule_executor.execute(&env, sig, &deps).await?;
@@ -89,12 +102,52 @@ where
             let mut srcs = FxHashSet::default();
 
             for src in plan.srcs.into_iter() {
-                srcs.insert(
-                    self.ctx
-                        .code_manager
-                        .get_source_chunk(task, sig, &src)
-                        .await?,
-                );
+                let chunk = match self
+                    .ctx
+                    .code_manager
+                    .get_source_chunk(task, sig, &src)
+                    .await?
+                {
+                    SignatureGenerationFlow::ChunkedSource(chunk) => chunk,
+                    SignatureGenerationFlow::MissingRequirements { requirements } => {
+                        let mut deps = vec![];
+                        for req in requirements {
+                            let target: Target = match req {
+                                Requirement::File { path } => path.into(),
+                                Requirement::Url {
+                                    url,
+                                    tricorder_url,
+                                    subpath,
+                                } => {
+                                    let remote_target = RemoteTarget::builder()
+                                        .url(url)
+                                        .tricorder_url(tricorder_url)
+                                        .subpath(subpath.unwrap())
+                                        .build()
+                                        .unwrap();
+                                    Target::Remote(remote_target)
+                                }
+                                Requirement::Symbol { .. } => unimplemented!(),
+                                Requirement::Dependency { url, .. } => url.into(),
+                            };
+                            let target_id = self.ctx.target_registry.register_target(target);
+                            let unreg_task = UnregisteredTask::builder()
+                                .goal(Goal::Build)
+                                .target_id(target_id)
+                                .build()
+                                .unwrap();
+
+                            let task = self.ctx.task_registry.register(unreg_task);
+
+                            deps.push(task)
+                        }
+
+                        return Ok(PlanningFlow::MissingDeps { deps });
+                    }
+                    _ => unreachable!(),
+                };
+
+                srcs.insert(chunk);
             }
 
             srcs
@@ -147,7 +200,8 @@ impl<RE: RuleExecutor> DefaultPlanner<RE> {
                         DepKind::Compile => deps.compile_deps(),
                         DepKind::Runtime => deps.runtime_deps(),
                         DepKind::Toolchain => deps.toolchains(),
-                        DepKind::Transitive => deps.transitive_deps(),
+                        DepKind::TransitiveCompile => deps.transitive_compile_deps(),
+                        DepKind::TransitiveRuntime => deps.transitive_runtime_deps(),
                     });
                 }
             } else {
@@ -167,7 +221,8 @@ enum DepKind {
     Compile,
     Runtime,
     Toolchain,
-    Transitive,
+    TransitiveCompile,
+    TransitiveRuntime,
 }
 
 enum DepFinderFlow {

@@ -217,12 +217,15 @@ impl Tricorder for GrpcTricorder {
                     let mut deps = self.requirements_to_tasks(proto_sig.deps);
                     deps.extend(shared_deps.iter());
 
+                    let runtime_deps = self.requirements_to_tasks(proto_sig.runtime_deps);
+
                     let sig = Signature::builder()
                         .name(proto_sig.name)
                         .rule(proto_sig.rule)
                         .target(concrete_target.clone())
                         .config(config)
                         .deps(deps)
+                        .runtime_deps(runtime_deps)
                         .build()?;
 
                     signatures.push(sig);

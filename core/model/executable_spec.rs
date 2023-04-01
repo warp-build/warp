@@ -167,7 +167,7 @@ impl ExecutableSpecBuilder {
             .deps()
             .compile_deps()
             .iter()
-            .chain(spec.deps().transitive_deps().iter())
+            .chain(spec.deps().transitive_compile_deps().iter())
             .chain(spec.deps().toolchains().iter())
             .map(|d| {
                 task_results

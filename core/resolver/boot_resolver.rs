@@ -35,6 +35,7 @@ impl BootstrapResolver {
     ) -> Result<SignatureGenerationFlow, ResolverError> {
         if tokio::fs::metadata(target.path()).await.is_err() {
             return Err(ResolverError::CouldNotFindFile {
+                target: target.clone(),
                 path: target.path().clone(),
             });
         }

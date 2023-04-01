@@ -1,6 +1,6 @@
 use crate::archive::ArchiveManagerError;
 use crate::code::{CodeDatabaseError, CodeManagerError, SourceHasherError};
-use crate::model::TargetError;
+use crate::model::{FsTarget, TargetError};
 use crate::tricorder::{TricorderError, TricorderManagerError};
 use crate::{Goal, Target};
 use std::path::PathBuf;
@@ -29,8 +29,8 @@ pub enum ResolverError {
     #[error(transparent)]
     CodeDatabaseError(CodeDatabaseError),
 
-    #[error("Could not open file at {path:?}")]
-    CouldNotFindFile { path: PathBuf },
+    #[error("Could not open file at {path:?}, from target: {target:#?}")]
+    CouldNotFindFile { path: PathBuf, target: FsTarget },
 
     #[error(transparent)]
     SourceHasherError(SourceHasherError),

@@ -328,7 +328,7 @@ mod tests {
 
         assert_matches!(
             result.unwrap_err(),
-        ResolverError::CouldNotFindFile { path } if path == PathBuf::from("bad/file/path.ex")
+        ResolverError::CouldNotFindFile { path, .. } if path == PathBuf::from("bad/file/path.ex")
         );
     }
 

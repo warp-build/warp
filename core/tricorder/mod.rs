@@ -10,8 +10,8 @@ pub use registry::*;
 
 use crate::archive::Archive;
 use crate::model::{
-    ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, TargetId, Task,
-    TestMatcher,
+    ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, SourceKind, TargetId,
+    Task, TestMatcher,
 };
 use crate::store::ArtifactManifest;
 use crate::sync::*;
@@ -102,4 +102,5 @@ pub enum SignatureGenerationFlow {
     ExtractedAst { subtrees: Vec<Subtree> },
     MissingRequirements { requirements: Vec<Requirement> },
     IgnoredTarget(TargetId),
+    ChunkedSource(SourceKind),
 }

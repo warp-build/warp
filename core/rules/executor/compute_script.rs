@@ -62,8 +62,9 @@ impl ComputeScript {
         );
 
         let transitive_deps: serde_json::Value = serde_json::Value::Array(
-            deps.transitive_deps()
+            deps.transitive_compile_deps()
                 .iter()
+                .chain(deps.transitive_runtime_deps())
                 .flat_map(|dep| task_results.get_task_result(dep))
                 .map(|tr| tr.artifact_manifest)
                 .map(|dep| {
