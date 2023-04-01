@@ -233,7 +233,11 @@ mod tests {
     where
         W: Worker<Context = LocalSharedContext<NoopResolver, NoopStore>>,
     {
-        let config = Config::default();
+        let warp_root = assert_fs::TempDir::new().unwrap();
+        let config = Config::builder()
+            .warp_root(warp_root.path().to_path_buf())
+            .build()
+            .unwrap();
 
         let workspace_manager = WorkspaceManager::new(config.clone()).into();
         let task_registry = Arc::new(TaskRegistry::new());
