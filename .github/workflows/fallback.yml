@@ -30,11 +30,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust_toolchain: "stable"
-        deno_toolchain: "v1.25"
-        otp_version: "25.3"
-        elixir_version: "1.14"
-        rebar3_version: "3.14.1"
+        rust_toolchain: [stable]
+        deno_toolchain: ["v1.25"]
+        otp_version: ["25.3"]
+        elixir_version: ["1.14"]
+        rebar3_version: ["3.14.1"]
 
         include:
           # macos targets
