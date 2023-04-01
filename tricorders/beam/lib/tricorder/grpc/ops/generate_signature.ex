@@ -123,14 +123,13 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
             parse_transforms ++
             type_modules ++
             test_lib ++
-            modules
+            if String.ends_with?(sig.rule, "_test") do
+              modules
+            else
+              []
+            end
 
-        runtime_deps =
-          if String.ends_with?(sig.rule, "_test") do
-            []
-          else
-            modules
-          end
+        runtime_deps = modules
 
         Build.Warp.Signature.new(
           name: sig.name,
