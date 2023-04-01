@@ -25,11 +25,11 @@ pub struct Config {
     offline: bool,
 
     /// The current working directory of warp
-    #[builder(default = "self.default_invocation_dir()?")]
+    #[builder(default = "self.default_invocation_dir()")]
     invocation_dir: PathBuf,
 
     /// The current working directory of warp
-    #[builder(default = "self.default_workspace_root()?")]
+    #[builder(default = "self.default_workspace_root()")]
     workspace_root: PathBuf,
 
     /// The current user executing warp
@@ -263,12 +263,12 @@ impl ConfigBuilder {
         whoami::username()
     }
 
-    fn default_invocation_dir(&self) -> Result<PathBuf, ConfigError> {
-        std::env::current_dir().map_err(ConfigError::CouldNotGetCurrentDir)
+    fn default_invocation_dir(&self) -> PathBuf {
+        PathBuf::from(".")
     }
 
-    fn default_workspace_root(&self) -> Result<PathBuf, ConfigError> {
-        std::env::current_dir().map_err(ConfigError::CouldNotGetCurrentDir)
+    fn default_workspace_root(&self) -> PathBuf {
+        PathBuf::from(".")
     }
 
     fn default_created_at(&self) -> Instant {
