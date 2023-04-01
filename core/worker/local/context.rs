@@ -117,7 +117,7 @@ where
 
 impl<R: Resolver> From<LocalSharedContext<R, DefaultStore>> for LocalExecutorContext {
     fn from(ctx: LocalSharedContext<R, DefaultStore>) -> Self {
-        Self::new(ctx.artifact_store, ctx.task_results)
+        Self::new(ctx.artifact_store, ctx.task_results, ctx.target_registry)
     }
 }
 

@@ -217,8 +217,10 @@ where
             .map(|id| self.test_matcher_registry.get(id))
             .unwrap_or_default();
 
+        let deps = self.task_results.get_task_deps(task);
+
         let subtrees = match tricorder
-            .get_ast(sig.target(), &[], &test_matcher)
+            .get_ast(sig.target(), &deps, &test_matcher)
             .await
             .unwrap()
         {
