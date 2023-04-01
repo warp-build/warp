@@ -154,6 +154,9 @@ where
                 self.db
                     .save_signatures(task.goal(), ct, subtree.ast_hash(), &[sig])?;
             }
+
+            self.db
+                .save_signatures(task.goal(), ct, &whole_source_hash, signatures)?;
         }
 
         ec.send(TricorderEvent::SignatureGenerationCompleted {
@@ -196,6 +199,11 @@ where
     ) -> Result<SignatureGenerationFlow, CodeManagerError> {
         let ec = self.config.event_channel();
 
+        if let Some(chunk) = self.db.get_source_chunk(src, sig)? {
+            let chunk = SourceKind::Chunk(src.to_path_buf(), chunk);
+            return Ok(SignatureGenerationFlow::ChunkedSource(chunk));
+        }
+
         ec.send(TricorderEvent::SourceChunkingStarted {
             src: src.to_path_buf(),
             sig_name: sig.name().to_string(),
@@ -225,10 +233,12 @@ where
             .unwrap()
         {
             SignatureGenerationFlow::ExtractedAst { subtrees } => subtrees,
+            flow @ SignatureGenerationFlow::MissingRequirements { .. } => return Ok(flow),
             _ => unreachable!(),
         };
 
         info!("go {} subtrees", subtrees.len());
+        let mut source = SourceKind::File(src.to_path_buf());
         for subtree in subtrees {
             info!(
                 "Subtree {} == {} -> {}",
@@ -240,10 +250,8 @@ where
                 info!("Using source chunk: {}", subtree.ast_hash());
                 self.db
                     .save_source_chunk(subtree.file(), sig, subtree.source_chunk())?;
-                return Ok(SourceKind::Chunk(
-                    src.to_path_buf(),
-                    subtree.source_chunk().to_string(),
-                ));
+                source = SourceKind::Chunk(src.to_path_buf(), subtree.source_chunk().to_string());
+                break;
             }
         }
 
