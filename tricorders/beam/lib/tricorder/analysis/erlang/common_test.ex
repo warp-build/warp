@@ -56,6 +56,24 @@ defmodule Tricorder.Analysis.Erlang.CommonTest do
 
   def flatten([], _groups, acc), do: acc
 
+  def flatten([{:group, name} | cases], groups, acc) do
+    tests =
+      groups
+      |> Enum.filter(fn {group_name, _opts, _tests} -> group_name == name end)
+      |> Enum.flat_map(fn {_group_name, _opts, tests} -> tests end)
+      |> Enum.map(fn test ->
+        %{
+          name: "#{name}:#{test}",
+          group_name: Atom.to_string(name),
+          test_name: Atom.to_string(test),
+          group_opts: [],
+          test_opts: []
+        }
+      end)
+
+    flatten(cases, groups, tests ++ acc)
+  end
+
   def flatten([{:group, name, opts} | cases], groups, acc) do
     tests =
       groups
