@@ -30,28 +30,48 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust_toolchain: [stable]
-        deno_toolchain: ["v1.25"]
-        otp_version: ["25.3"]
-        elixir_version: ["1.14"]
-        rebar3_version: ["3.14.1"]
         include:
           # macos targets
           - target: x86_64-apple-darwin
             os: macos-latest
+            rust_toolchain: stable
+            deno_toolchain: "v1.25"
+            otp_version: "25.3"
+            elixir_version: "1.14"
+            rebar3_version: "3.14.1"
 
           - target: aarch64-apple-darwin
             os: macos-latest
+            rust_toolchain: stable
+            deno_toolchain: "v1.25"
+            otp_version: "25.3"
+            elixir_version: "1.14"
+            rebar3_version: "3.14.1"
 
           # linux builds
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-latest
+            rust_toolchain: stable
+            deno_toolchain: "v1.25"
+            otp_version: "25.3"
+            elixir_version: "1.14"
+            rebar3_version: "3.14.1"
 
           - target: aarch64-unknown-linux-musl
             os: ubuntu-latest
+            rust_toolchain: stable
+            deno_toolchain: "v1.25"
+            otp_version: "25.3"
+            elixir_version: "1.14"
+            rebar3_version: "3.14.1"
 
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
+            rust_toolchain: stable
+            deno_toolchain: "v1.25"
+            otp_version: "25.3"
+            elixir_version: "1.14"
+            rebar3_version: "3.14.1"
 
     env:
       OS: ${{ matrix.os }}
