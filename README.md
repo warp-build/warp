@@ -11,14 +11,11 @@
     <a href="https://docs.warp.build/references/contributing">
         <img src="https://img.shields.io/github/contributors-anon/warp-build/warp" alt="Contributors badge" />
     </a>
-    <a href="https://github.com/warp-build/warp/actions">
-        <img src="https://github.com/warp-build/warp/workflows/ci/badge.svg?branch=main&amp;event=push" alt="Build Status - Cirrus" style="max-width: 100%;">
-    </a>
     <a href="https://twitter.com/intent/follow?screen_name=warpbuild" rel="nofollow">
-        <img src="" alt="Twitter handle" data-canonical-src="https://img.shields.io/twitter/follow/warpbuild.svg?style=social&amp;label=Follow" style="max-width: 100%;">
+        <img src="https://twitter.com/intent/follow?screen_name=warpbuild" alt="Twitter handle" style="max-width: 100%;">
     </a>
     <a href="https://warp.build/discord" rel="nofollow">
-        <img src="" alt="Discord Chat" data-canonical-src="https://img.shields.io/discord/971146972507549696?logo=discord&amp;style=social" style="max-width: 100%;">
+        <img src="https://img.shields.io/discord/971146972507549696?logo=discord&style=social" alt="Discord Chat" style="max-width: 100%;">
     </a>
 </p>
 
