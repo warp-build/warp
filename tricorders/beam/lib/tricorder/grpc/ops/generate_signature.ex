@@ -152,6 +152,8 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
     |> Enum.uniq()
     |> Enum.reject(fn hrl -> Deps.is_standard_header?(hrl) end)
     |> Enum.map(fn hrl ->
+      hrl = clean_warp_store_path(hrl)
+
       req =
         case Deps.find_header(hrl) do
           {:ok, dep} ->
@@ -162,16 +164,16 @@ defmodule Tricorder.Grpc.Ops.GenerateSignature do
              )}
 
           _ ->
-            hrl = clean_warp_store_path(hrl)
-
             glob = Path.wildcard("./**/#{hrl}")
             Logger.info("Found module #{hrl} in #{glob}")
 
-            req =
+            hrl =
               case glob do
-                [file | _] -> {:file, Build.Warp.FileRequirement.new(path: file)}
-                _ -> {:file, Build.Warp.FileRequirement.new(path: hrl)}
+                [file | _] -> file
+                _ -> hrl
               end
+
+            {:file, Build.Warp.FileRequirement.new(path: hrl)}
         end
 
       Build.Warp.Requirement.new(requirement: req)
