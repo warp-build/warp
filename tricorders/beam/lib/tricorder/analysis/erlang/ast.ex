@@ -5,7 +5,9 @@ defmodule Tricorder.Analysis.Erlang.Ast do
 
   def parse(file, include_paths) do
     Logger.info("Parsing Erlang file: #{file}")
-    {:ok, ast} = :epp.parse_file(:binary.bin_to_list(file), includes: include_paths)
+    includes = for path <- include_paths, do: :binary.bin_to_list(path)
+
+    {:ok, ast} = :epp.parse_file(:binary.bin_to_list(file), includes: includes)
 
     case has_include_errors?(ast) do
       {true, missing_includes} ->
