@@ -119,7 +119,7 @@ defmodule Tricorder.Analysis.ErlangTest do
                    includes: [
                      "./test/fixtures/proper.hrl",
                      "./test/fixtures/proper_common.hrl",
-                     "/nix/store/i2bnhvrvd28jcifmj1w9adk78rifhgd8-erlang-24.3.4.5/lib/erlang/lib/stdlib-3.17.2.1/include/assert.hrl"
+                     _
                    ],
                    modules: [
                      :proper,
