@@ -131,6 +131,10 @@ defmodule Tricorder.Analysis.Erlang.Ast.CleanLoc do
     {:bin_element, _loc, clean(expr), mode, opts}
   end
 
+  def clean({:catch, _loc, expr}) do
+    {:catch, 0, clean(expr)}
+  end
+
   def clean({:eof, _}), do: {:eof, 0}
 
   def clean({:integer, _loc, int}), do: {:integer, 0, int}
