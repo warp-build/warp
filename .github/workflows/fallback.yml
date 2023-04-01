@@ -101,8 +101,7 @@ jobs:
             v${{ secrets.CACHE_VERSION }}-${{ matrix.os }}-${{ matrix.target }}-${{ env.cache-name }}-
             v${{ secrets.CACHE_VERSION }}-${{ matrix.os }}-${{ matrix.target }}-
 
-      - name: Use Rust (stable)
-        uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain@v1
         with:
           toolchain: ${{ matrix.rust_toolchain }}
           target: ${{ matrix.target }}
@@ -112,12 +111,12 @@ jobs:
           deno-version: ${{ matrix.deno_toolchain }}
 
       - uses: erlef/setup-beam@v1
+        if: ${{ runner.os != 'macOS' }}
         with:
           otp-version: ${{ matrix.otp_version }}
           elixir-version: ${{ matrix.elixir_version }}
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v1
+      - uses: arduino/setup-protoc@v1
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -134,7 +133,7 @@ jobs:
         run: make setup
 
       - name: Run code checks
-        if: ${{ success() }}
+        if: ${{ runner.os != 'macOS' }}
         run: make check
 
       - name: Build project
