@@ -56,6 +56,16 @@ install:
 install.release:
 	cargo install --path cli
 
+.PHONY: check
+check:
+	cargo fmt --check -- \
+		--config unstable_features=true \
+		--config imports_granularity="Module" \
+		--config normalize_doc_attributes=true  \
+		--config space_after_colon=true 
+	deno fmt --check
+	mix format --check-formatted
+
 .PHONY: fmt
 fmt:
 	cargo clippy --fix --allow-dirty --allow-staged

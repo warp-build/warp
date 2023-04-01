@@ -104,9 +104,9 @@ jobs:
       - name: Setup Rust targets
         run: make setup
 
-      - name: Check code formatting
-        if: ${{ success() && startsWith(runner.os, 'Linux') }}
-        run: make fmt
+      - name: Run code checks
+        if: ${{ success() }}
+        run: make check
 
       - name: Build project
         run: make build
