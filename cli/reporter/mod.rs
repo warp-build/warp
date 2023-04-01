@@ -363,6 +363,29 @@ impl Reporter for StatusReporter {
             }
             TricorderEvent::TricorderConnectionEstablished { tricorder_url: _ } => (),
             TricorderEvent::SignatureGenerationStarted { target: _ } => (),
+            TricorderEvent::SignatureGenerationCompleted { target } => {
+                let line = format!("{:>12} {}", purple.apply_to("Generating"), target);
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
+            TricorderEvent::SourceChunkingStarted {
+                src: _,
+                sig_name: _,
+            } => (),
+            TricorderEvent::SourceChunkingCompleted {
+                src,
+                sig_name,
+                source: _,
+            } => {
+                let line = format!(
+                    "{:>12} {} {}",
+                    purple.apply_to("Chunking"),
+                    src.to_string_lossy(),
+                    sig_name
+                );
+                self.pb.println(line);
+                self.pb.inc(1);
+            }
         }
     }
 }

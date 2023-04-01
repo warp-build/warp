@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::model::SourceKind;
 use crate::{CacheStatus, Goal, Target};
 use url::Url;
 
@@ -89,11 +90,33 @@ pub enum QueueEvent {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TricorderEvent {
-    SignatureGenerationStarted { target: String },
-    TricorderReadyingStarted { tricorder_url: Url },
-    TricorderReadyingCompleted { tricorder_url: Url },
-    TricorderConnectionEstablished { tricorder_url: Url },
-    TricorderServiceStarted { tricorder_url: Url },
+    SignatureGenerationCompleted {
+        target: String,
+    },
+    SignatureGenerationStarted {
+        target: String,
+    },
+    SourceChunkingStarted {
+        src: PathBuf,
+        sig_name: String,
+    },
+    SourceChunkingCompleted {
+        src: PathBuf,
+        sig_name: String,
+        source: SourceKind,
+    },
+    TricorderConnectionEstablished {
+        tricorder_url: Url,
+    },
+    TricorderReadyingCompleted {
+        tricorder_url: Url,
+    },
+    TricorderReadyingStarted {
+        tricorder_url: Url,
+    },
+    TricorderServiceStarted {
+        tricorder_url: Url,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
