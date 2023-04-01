@@ -1,5 +1,6 @@
 use super::{CodeDatabase, CodeDatabaseError, SourceHasher, SourceHasherError};
 use crate::archive::Archive;
+use crate::events::event::TricorderEvent;
 use crate::model::{ConcreteTarget, FsTarget, RemoteTarget, Signature, SourceKind, Task};
 use crate::resolver::TargetRegistry;
 use crate::store::Store;
@@ -74,6 +75,8 @@ where
         target: &FsTarget,
         ct: &ConcreteTarget,
     ) -> Result<SignatureGenerationFlow, CodeManagerError> {
+        let ec = self.config.event_channel();
+
         let whole_source_hash = SourceHasher::hash(target.path()).await?;
 
         if let Some(signatures) = self
@@ -82,6 +85,10 @@ where
         {
             return Ok(SignatureGenerationFlow::GeneratedSignatures { signatures });
         }
+
+        ec.send(TricorderEvent::SignatureGenerationStarted {
+            target: target.to_string(),
+        });
 
         let mut tricorder = if let Some(tricorder) = self
             .tricorder_manager
@@ -149,6 +156,10 @@ where
             }
         }
 
+        ec.send(TricorderEvent::SignatureGenerationCompleted {
+            target: target.to_string(),
+        });
+
         Ok(sig)
     }
 
@@ -182,7 +193,14 @@ where
         task: Task,
         sig: &Signature,
         src: &Path,
-    ) -> Result<SourceKind, CodeManagerError> {
+    ) -> Result<SignatureGenerationFlow, CodeManagerError> {
+        let ec = self.config.event_channel();
+
+        ec.send(TricorderEvent::SourceChunkingStarted {
+            src: src.to_path_buf(),
+            sig_name: sig.name().to_string(),
+        });
+
         let mut tricorder = if let Some(tricorder) = self
             .tricorder_manager
             .find_and_ready_by_path(sig.target().path())
@@ -226,7 +244,14 @@ where
                 ));
             }
         }
-        Ok(SourceKind::File(src.to_path_buf()))
+
+        ec.send(TricorderEvent::SourceChunkingCompleted {
+            src: src.to_path_buf(),
+            sig_name: sig.name().to_string(),
+            source: source.clone(),
+        });
+
+        Ok(SignatureGenerationFlow::ChunkedSource(source))
     }
 }
 
