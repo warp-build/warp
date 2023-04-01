@@ -11,6 +11,10 @@ defmodule Tricorder.Analysis.Erlang.Ast.CleanLoc do
     {:function, clean(mod), clean(fun), clean(arity)}
   end
 
+  def clean({:attribute, _loc, :file, {path, number}}) do
+    {:attribute, 0, :file, {clean_path(path), number}}
+  end
+
   def clean({:attribute, _loc, name, body}) do
     {:attribute, 0, name, body}
   end
@@ -143,4 +147,19 @@ defmodule Tricorder.Analysis.Erlang.Ast.CleanLoc do
   def clean({nil, _loc}), do: {nil, 0}
   def clean({:string, _loc, str}), do: {:string, 0, str}
   def clean({:function, name, arity}), do: {:function, name, arity}
+
+  def clean_path(path) do
+    bin_path = :binary.list_to_bin(path)
+
+    if Tricorder.Deps.is_standard_header?(bin_path) do
+      Path.split(bin_path)
+      |> Enum.reverse()
+      |> Enum.take(6)
+      |> Enum.reverse()
+      |> Path.join()
+      |> :binary.bin_to_list()
+    else
+      path
+    end
+  end
 end
