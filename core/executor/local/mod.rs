@@ -1,10 +1,10 @@
+pub mod action_runner;
 mod context;
-pub mod traced_action_runner;
 
 pub use context::*;
 use tracing::instrument;
 
-use self::traced_action_runner::{ActionRunnerFlow, TracedActionRunner};
+use self::action_runner::{ActionRunner, ActionRunnerFlow};
 use super::{ExecutionFlow, Executor, ExecutorError, ValidationStatus};
 use crate::model::{ConcreteTarget, ExecutableSpec};
 use crate::store::{ArtifactManifest, BuildStamps, Store};
@@ -51,7 +51,7 @@ impl LocalExecutor {
         self.copy_files(&store_path, spec).await?;
 
         if let ActionRunnerFlow::MissingInputs { inputs } =
-            TracedActionRunner::run(&store_path, &shell_env, spec).await?
+            ActionRunner::run(&store_path, &shell_env, spec).await?
         {
             let deps = vec![];
             for _input in inputs {}

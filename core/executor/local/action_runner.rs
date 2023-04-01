@@ -8,9 +8,9 @@ pub enum ActionRunnerFlow {
     MissingInputs { inputs: Vec<PathBuf> },
 }
 
-pub struct TracedActionRunner;
+pub struct ActionRunner;
 
-impl TracedActionRunner {
+impl ActionRunner {
     pub async fn run(
         store_path: &PathBuf,
         env: &BTreeMap<String, String>,

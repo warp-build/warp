@@ -1,9 +1,8 @@
+use super::local::action_runner::ActionRunnerError;
 use crate::model::ConcreteTarget;
 use crate::store::{ArtifactManifestError, StoreError};
 use std::path::PathBuf;
 use thiserror::Error;
-
-use super::local::traced_action_runner::ActionRunnerError;
 
 #[derive(Error, Debug)]
 pub enum ExecutorError {
