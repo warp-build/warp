@@ -35,7 +35,6 @@ jobs:
         otp_version: ["25.3"]
         elixir_version: ["1.14"]
         rebar3_version: ["3.14.1"]
-
         include:
           # macos targets
           - target: x86_64-apple-darwin
