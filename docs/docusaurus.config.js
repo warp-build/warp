@@ -67,7 +67,7 @@ const config = {
           },
           { to: "/blog", label: "Blog", position: "left" },
           {
-            href: "https://warp.build/#pricing",
+            href: "https://github.com/warp-build/warp",
             label: "Get Warp",
             position: "right",
           },
