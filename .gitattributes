@@ -1,3 +1,4 @@
-tricorders/beam/lib/_proto/ linguist-generated=true
+tricorders/beam/lib/_proto/**/* linguist-generated=true
 tricorders/beam/test/analysis/erlang/ast_clean_loc_test.exs linguist-generated=true
-tricorders/rust/src/protos/ linguist-generated=true
+tricorders/beam/test/fixtures/**/* linguist-vendored=true
+tricorders/rust/src/protos/**/* linguist-generated=true
