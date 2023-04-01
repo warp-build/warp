@@ -104,15 +104,15 @@ jobs:
       - name: Setup Rust targets
         run: make setup
 
-      - name: Build project
-        run: make clean build
-
-      - name: Run tests
-        run: make test
-
       - name: Check code formatting
         if: ${{ success() && startsWith(runner.os, 'Linux') }}
         run: make fmt
+
+      - name: Build project
+        run: make build
+
+      - name: Run tests
+        run: make test
 
       - name: Create release archive (Unix)
         if: ${{ success() && runner.os != 'Windows' }}
