@@ -1,9 +1,9 @@
 <p align="center" >
   <a href="https://warp.build#gh-light-mode-only">
-    <img src="https://docs.warp.build/img/warp_logo_dark.svg"width="500px" alt="Warp logo"  style="margin: 2rem;" />
+    <img src="https://docs.warp.build/img/warp_logo_dark.svg"width="500px" alt="Warp logo" />
   </a>
   <a href="https://warp.build#gh-dark-mode-only">
-    <img src="https://docs.warp.build/img/warp_logo.svg" width="500px" alt="Warp logo"  style="margin: 2rem;" />
+    <img src="https://docs.warp.build/img/warp_logo.svg" width="500px" alt="Warp logo" />
   </a>
 </p>
 
@@ -32,4 +32,4 @@ built in Rust.
 
 ### Install
 
-See the [releases page](https://github.com/warp_build/warp/releases).
+See the [releases page](https://github.com/warp-build/warp/releases).
