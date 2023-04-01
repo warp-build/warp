@@ -84,10 +84,6 @@ setup:
 
 .PHONY: setup.local
 setup.local: setup
-	rustup target add aarch64-apple-darwin
-	rustup target add x86_64-apple-darwin
-	rustup target add x86_64-unknown-linux-gnu
-	rustup target add aarch64-unknown-linux-gnu
 	cargo install hyperfine cargo-strip cargo-insta mdbook flamegraph miri cargo-asm cargo-criterion
 
 .PHONY: test

@@ -1,0 +1,14 @@
+[toolchain]
+channel = "stable"
+components = [
+  "rustfmt",
+  "clippy",
+  "llvm-tools",
+]
+targets = [
+	"aarch64-apple-darwin",
+	"x86_64-apple-darwin",
+	"x86_64-unknown-linux-gnu",
+	"aarch64-unknown-linux-gnu",
+]
+profile = "minimal"
