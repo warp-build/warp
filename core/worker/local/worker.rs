@@ -493,7 +493,11 @@ mod tests {
 
     #[tokio::test]
     async fn when_coordinator_marks_shutdown_the_worker_stops() {
-        let config = Config::builder().build().unwrap();
+        let warp_root = assert_fs::TempDir::new().unwrap();
+        let config = Config::builder()
+            .warp_root(warp_root.path().to_path_buf())
+            .build()
+            .unwrap();
         let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
         let signature_registry = Arc::new(SignatureRegistry::new());
@@ -550,7 +554,11 @@ mod tests {
             }
         }
 
-        let config = Config::builder().build().unwrap();
+        let warp_root = assert_fs::TempDir::new().unwrap();
+        let config = Config::builder()
+            .warp_root(warp_root.path().to_path_buf())
+            .build()
+            .unwrap();
         let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
         let signature_registry = Arc::new(SignatureRegistry::new());
@@ -664,7 +672,11 @@ mod tests {
             }
         }
 
-        let config = Config::builder().build().unwrap();
+        let warp_root = assert_fs::TempDir::new().unwrap();
+        let config = Config::builder()
+            .warp_root(warp_root.path().to_path_buf())
+            .build()
+            .unwrap();
         let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
         let signature_registry = Arc::new(SignatureRegistry::new());

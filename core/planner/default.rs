@@ -320,7 +320,11 @@ mod tests {
 
     #[tokio::test]
     async fn plans_a_signature_for_execution() {
-        let config = Config::builder().build().unwrap();
+        let warp_root = assert_fs::TempDir::new().unwrap();
+        let config = Config::builder()
+            .warp_root(warp_root.path().to_path_buf())
+            .build()
+            .unwrap();
         let rule_store = RuleStore::new(&config).into();
         let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
@@ -382,7 +386,12 @@ mod tests {
 
     #[tokio::test]
     async fn finds_built_dependencies() {
-        let config = Config::builder().build().unwrap();
+        let warp_root = assert_fs::TempDir::new().unwrap();
+        let config = Config::builder()
+            .warp_root(warp_root.path().to_path_buf())
+            .build()
+            .unwrap();
+
         let rule_store = RuleStore::new(&config).into();
         let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
@@ -477,7 +486,11 @@ mod tests {
 
     #[tokio::test]
     async fn when_missing_dependencies_we_abort() {
-        let config = Config::builder().build().unwrap();
+        let warp_root = assert_fs::TempDir::new().unwrap();
+        let config = Config::builder()
+            .warp_root(warp_root.path().to_path_buf())
+            .build()
+            .unwrap();
         let rule_store = RuleStore::new(&config).into();
         let task_registry = Arc::new(TaskRegistry::new());
         let target_registry = Arc::new(TargetRegistry::new());
