@@ -5,7 +5,7 @@ import ErlangToolchain, {
 } from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { name, deps, test, cases, cwd } = ctx.cfg();
+  const { name, deps, test, cases, groups, cwd } = ctx.cfg();
 
   const transitiveDeps = ctx.transitiveDeps().flatMap((dep) => dep.outs);
   const runtimeDeps = ctx.runtimeDeps().flatMap((dep) => dep.outs);
@@ -29,8 +29,6 @@ const impl = (ctx) => {
       //
       // So we do some path juggling here to make sure `erlc` finds the file.
       //
-      const parts = File.parent(path).split("/");
-
       // NOTE(@ostera): EXCEPT when we have a _build dependency, which is a 3rdparty dependency
       // then we only allow `-include_lib("emqx/include/types.hrl")`
       if (path.startsWith("_build")) {
@@ -41,19 +39,7 @@ const impl = (ctx) => {
         // this is the full path to the folder, so if the file is `apps/emqx/include/types.hrl`
         // it becomes `apps/emqx/include`
         File.parent(path),
-
-        // this is an array of paths starting at the root of the full path, and walking downwards.
-        // so for `apps/emqx/include/types.hrl` this is:
-        //   [
-        //     "apps",
-        //     "apps/emqx",
-        //     "apps/emqx/include"
-        //   ]
-        //
-        ...new Array(parts.length - 1).fill(true).flatMap((_, idx) => {
-          const path = parts.slice(0, idx + 1).join("/");
-          return [path, `${path}/include`];
-        }),
+        File.parent(File.parent(path)),
       ];
     })
     .unique()
@@ -77,6 +63,7 @@ ct_run \
   -verbosity 100 \
   -no-auto-compile \
   -suite ${test.replace(ERL_EXT, "")} \
+  ${groups.length > 0 ? `-group ${groups.join(" ")}` : ""} \
   ${cases.length > 0 ? `-case ${cases.join(" ")}` : ""} \
   ${includePaths.join(" ")} \
   -erl_args \
@@ -96,12 +83,14 @@ export default Warp.Rule({
   cfg: {
     name: target(),
     test: file(),
+    groups: [string()],
     cases: [string()],
     deps: [target()],
   },
   defaults: {
     deps: [],
     cases: [],
+    groups: [],
   },
   toolchains: [ErlangToolchain],
 });

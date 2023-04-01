@@ -57,7 +57,12 @@ defmodule Tricorder.Signatures do
       test: file,
       modules: modules,
       includes: includes,
-      group: case_desc.group_name || nil,
+      groups:
+        if case_desc.group_name == nil do
+          []
+        else
+          [case_desc.group_name]
+        end,
       cases: [case_desc.test_name],
       group_opts: case_desc.group_opts || [],
       test_opts: case_desc.test_opts || []

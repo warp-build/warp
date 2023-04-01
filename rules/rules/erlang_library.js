@@ -16,6 +16,12 @@ const impl = (ctx) => {
     .concat(srcsHrl)
     .filter((path) => path.endsWith(HEADER_EXT))
     .flatMap((path) => {
+      // NOTE(@ostera): EXCEPT when we have a _build dependency, which is a 3rdparty dependency
+      // then we only allow `-include_lib("emqx/include/types.hrl")`
+      // if (path.startsWith("_build")) {
+      //   return [File.parent(File.parent(File.parent(path)))];
+      // }
+
       // NOTE(@ostera): for every header file we find, we want a series of
       // paths to be made available to the compiler. This complexity is
       // unfortunately required because `-include` and `-include_lib` are super
@@ -32,31 +38,9 @@ const impl = (ctx) => {
       //
       // So we do some path juggling here to make sure `erlc` finds the file.
       //
-      const parts = File.parent(path).split("/");
-
-      // NOTE(@ostera): EXCEPT when we have a _build dependency, which is a 3rdparty dependency
-      // then we only allow `-include_lib("emqx/include/types.hrl")`
-      if (path.startsWith("_build")) {
-        return [File.parent(File.parent(File.parent(path)))];
-      }
-
       return [
-        // this is the full path to the folder, so if the file is `apps/emqx/include/types.hrl`
-        // it becomes `apps/emqx/include`
         File.parent(path),
-
-        // this is an array of paths starting at the root of the full path, and walking downwards.
-        // so for `apps/emqx/include/types.hrl` this is:
-        //   [
-        //     "apps",
-        //     "apps/emqx",
-        //     "apps/emqx/include"
-        //   ]
-        //
-        ...new Array(parts.length - 1).fill(true).flatMap((_, idx) => {
-          const path = parts.slice(0, idx + 1).join("/");
-          return [path, `${path}/include`];
-        }),
+        File.parent(File.parent(path)),
       ];
     })
     .unique()
