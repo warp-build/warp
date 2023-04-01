@@ -92,7 +92,7 @@ defmodule Tricorder.Analysis.CommonTestTest do
                name: "group_a:a_test",
                rule: "erlang_test",
                test: "./test/fixtures/ct_suite_with_groups_SUITE.erl",
-               group: "group_a",
+               groups: ["group_a"],
                group_opts: [],
                test_opts: []
              },
@@ -103,7 +103,7 @@ defmodule Tricorder.Analysis.CommonTestTest do
                name: "group_a:b_test",
                rule: "erlang_test",
                test: "./test/fixtures/ct_suite_with_groups_SUITE.erl",
-               group: "group_a",
+               groups: ["group_a"],
                group_opts: [],
                test_opts: []
              },
@@ -114,7 +114,7 @@ defmodule Tricorder.Analysis.CommonTestTest do
                name: "group_b:c_test",
                rule: "erlang_test",
                test: "./test/fixtures/ct_suite_with_groups_SUITE.erl",
-               group: "group_b",
+               groups: ["group_b"],
                group_opts: [:parallel],
                test_opts: []
              }

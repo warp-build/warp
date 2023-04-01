@@ -49,63 +49,42 @@ defmodule Tricorder.Grpc.ServerTest do
                                  values: [
                                    %Google.Protobuf.Value{
                                      __unknown_fields__: [],
-                                     kind: {
-                                       :string_value,
-                                       "proper"
-                                     }
+                                     kind: {:string_value, "proper"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {:string_value, "re"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {:string_value, "verl"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {:string_value, "proper_statem"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {:string_value, "proper_symb"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {:string_value, "proper_types"}
+                                   },
+                                   %Google.Protobuf.Value{
+                                     __unknown_fields__: [],
+                                     kind: {:string_value, "proper_unicode"}
                                    },
                                    %Google.Protobuf.Value{
                                      __unknown_fields__: [],
                                      kind: {
                                        :string_value,
-                                       "re"
+                                       "proper_unused_imports_remover"
                                      }
                                    },
                                    %Google.Protobuf.Value{
                                      __unknown_fields__: [],
-                                     kind: {
-                                       :string_value,
-                                       "verl"
-                                     }
-                                   },
-                                   %Google.Protobuf.Value{
-                                     __unknown_fields__: [],
-                                     kind: {
-                                       :string_value,
-                                       "proper_statem"
-                                     }
-                                   },
-                                   %Google.Protobuf.Value{
-                                     __unknown_fields__: [],
-                                     kind: {
-                                       :string_value,
-                                       "proper_symb"
-                                     }
-                                   },
-                                   %Google.Protobuf.Value{
-                                     __unknown_fields__: [],
-                                     kind: {
-                                       :string_value,
-                                       "proper_types"
-                                     }
-                                   },
-                                   %Google.Protobuf.Value{
-                                     __unknown_fields__: [],
-                                     kind: {
-                                       :string_value,
-                                       "proper_unicode"
-                                     }
-                                   },
-                                   %Google.Protobuf.Value{
-                                     __unknown_fields__: [],
-                                     kind: {:string_value, "proper_unused_imports_remover"}
-                                   },
-                                   %Google.Protobuf.Value{
-                                     __unknown_fields__: [],
-                                     kind: {
-                                       :string_value,
-                                       "proper_transformer"
-                                     }
+                                     kind: {:string_value, "proper_transformer"}
                                    }
                                  ]
                                }
@@ -120,10 +99,7 @@ defmodule Tricorder.Grpc.ServerTest do
                                  values: [
                                    %Google.Protobuf.Value{
                                      __unknown_fields__: [],
-                                     kind: {
-                                       :string_value,
-                                       "prop_verl.erl"
-                                     }
+                                     kind: {:string_value, "prop_verl.erl"}
                                    }
                                  ]
                                }
@@ -149,91 +125,6 @@ defmodule Tricorder.Grpc.ServerTest do
                              %Build.Warp.FileRequirement{
                                __unknown_fields__: [],
                                path: "./test/fixtures/proper_common.hrl"
-                             }
-                           }
-                         },
-                         %Build.Warp.Requirement{
-                           __unknown_fields__: [],
-                           requirement: {
-                             :symbol,
-                             %Build.Warp.SymbolRequirement{
-                               __unknown_fields__: [],
-                               kind: "module",
-                               raw: "proper"
-                             }
-                           }
-                         },
-                         %Build.Warp.Requirement{
-                           __unknown_fields__: [],
-                           requirement: {
-                             :symbol,
-                             %Build.Warp.SymbolRequirement{
-                               __unknown_fields__: [],
-                               kind: "module",
-                               raw: "verl"
-                             }
-                           }
-                         },
-                         %Build.Warp.Requirement{
-                           __unknown_fields__: [],
-                           requirement: {
-                             :symbol,
-                             %Build.Warp.SymbolRequirement{
-                               __unknown_fields__: [],
-                               kind: "module",
-                               raw: "proper_statem"
-                             }
-                           }
-                         },
-                         %Build.Warp.Requirement{
-                           __unknown_fields__: [],
-                           requirement: {
-                             :symbol,
-                             %Build.Warp.SymbolRequirement{
-                               __unknown_fields__: [],
-                               kind: "module",
-                               raw: "proper_symb"
-                             }
-                           }
-                         },
-                         %Build.Warp.Requirement{
-                           __unknown_fields__: [],
-                           requirement: {
-                             :symbol,
-                             %Build.Warp.SymbolRequirement{
-                               __unknown_fields__: [],
-                               kind: "module",
-                               raw: "proper_types"
-                             }
-                           }
-                         },
-                         %Build.Warp.Requirement{
-                           __unknown_fields__: [],
-                           requirement: {
-                             :symbol,
-                             %Build.Warp.SymbolRequirement{
-                               __unknown_fields__: [],
-                               kind: "module",
-                               raw: "proper_unicode"
-                             }
-                           }
-                         },
-                         %Build.Warp.Requirement{
-                           __unknown_fields__: [],
-                           requirement:
-                             {:file,
-                              %Build.Warp.FileRequirement{
-                                __unknown_fields__: [],
-                                path: "test/fixtures/proper_unused_imports_remover.erl"
-                              }}
-                         },
-                         %Build.Warp.Requirement{
-                           __unknown_fields__: [],
-                           requirement: {
-                             :file,
-                             %Build.Warp.FileRequirement{
-                               __unknown_fields__: [],
-                               path: "test/fixtures/proper_transformer.erl"
                              }
                            }
                          }
@@ -309,12 +200,13 @@ defmodule Tricorder.Grpc.ServerTest do
                          },
                          %Build.Warp.Requirement{
                            __unknown_fields__: [],
-                           requirement:
-                             {:file,
-                              %Build.Warp.FileRequirement{
-                                __unknown_fields__: [],
-                                path: "test/fixtures/proper_unused_imports_remover.erl"
-                              }}
+                           requirement: {
+                             :file,
+                             %Build.Warp.FileRequirement{
+                               __unknown_fields__: [],
+                               path: "test/fixtures/proper_unused_imports_remover.erl"
+                             }
+                           }
                          },
                          %Build.Warp.Requirement{
                            __unknown_fields__: [],
