@@ -5,60 +5,60 @@ defmodule Build.Warp.Tricorder.GetAstMissingDepsResponse do
   def descriptor do
     # credo:disable-for-next-line
     %Google.Protobuf.DescriptorProto{
-      __unknown_fields__: [],
-      enum_type: [],
-      extension: [],
-      extension_range: [],
+      name: "GetAstMissingDepsResponse",
       field: [
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "file",
-          label: :LABEL_OPTIONAL,
           name: "file",
+          extendee: nil,
           number: 1,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
+          label: :LABEL_OPTIONAL,
           type: :TYPE_STRING,
-          type_name: nil
+          type_name: nil,
+          default_value: nil,
+          options: nil,
+          oneof_index: nil,
+          json_name: "file",
+          proto3_optional: nil,
+          __unknown_fields__: []
         },
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "dependencies",
-          label: :LABEL_REPEATED,
           name: "dependencies",
+          extendee: nil,
           number: 4,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
+          label: :LABEL_REPEATED,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.Dependency"
+          type_name: ".build.warp.Dependency",
+          default_value: nil,
+          options: nil,
+          oneof_index: nil,
+          json_name: "dependencies",
+          proto3_optional: nil,
+          __unknown_fields__: []
         },
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "requirements",
-          label: :LABEL_REPEATED,
           name: "requirements",
+          extendee: nil,
           number: 5,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
+          label: :LABEL_REPEATED,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.Requirement"
+          type_name: ".build.warp.Requirement",
+          default_value: nil,
+          options: nil,
+          oneof_index: nil,
+          json_name: "requirements",
+          proto3_optional: nil,
+          __unknown_fields__: []
         }
       ],
-      name: "GetAstMissingDepsResponse",
       nested_type: [],
-      oneof_decl: [],
+      enum_type: [],
+      extension_range: [],
+      extension: [],
       options: nil,
+      oneof_decl: [],
+      reserved_range: [],
       reserved_name: [],
-      reserved_range: []
+      __unknown_fields__: []
     }
   end
 

@@ -7,47 +7,47 @@ defmodule Build.Warp.Tricorder.TricorderService.Service do
   def descriptor do
     # credo:disable-for-next-line
     %Google.Protobuf.ServiceDescriptorProto{
-      __unknown_fields__: [],
+      name: "TricorderService",
       method: [
         %Google.Protobuf.MethodDescriptorProto{
-          __unknown_fields__: [],
-          client_streaming: false,
-          input_type: ".build.warp.tricorder.EnsureReadyRequest",
           name: "EnsureReady",
-          options: nil,
+          input_type: ".build.warp.tricorder.EnsureReadyRequest",
           output_type: ".build.warp.tricorder.EnsureReadyResponse",
-          server_streaming: false
+          options: nil,
+          client_streaming: false,
+          server_streaming: false,
+          __unknown_fields__: []
         },
         %Google.Protobuf.MethodDescriptorProto{
-          __unknown_fields__: [],
-          client_streaming: false,
-          input_type: ".build.warp.tricorder.GenerateSignatureRequest",
           name: "GenerateSignature",
-          options: nil,
+          input_type: ".build.warp.tricorder.GenerateSignatureRequest",
           output_type: ".build.warp.tricorder.GenerateSignatureResponse",
-          server_streaming: false
+          options: nil,
+          client_streaming: false,
+          server_streaming: false,
+          __unknown_fields__: []
         },
         %Google.Protobuf.MethodDescriptorProto{
-          __unknown_fields__: [],
-          client_streaming: false,
-          input_type: ".build.warp.tricorder.GetAstRequest",
           name: "GetAst",
-          options: nil,
+          input_type: ".build.warp.tricorder.GetAstRequest",
           output_type: ".build.warp.tricorder.GetAstResponse",
-          server_streaming: false
+          options: nil,
+          client_streaming: false,
+          server_streaming: false,
+          __unknown_fields__: []
         },
         %Google.Protobuf.MethodDescriptorProto{
-          __unknown_fields__: [],
-          client_streaming: false,
-          input_type: ".build.warp.tricorder.PrepareDependencyRequest",
           name: "PrepareDependency",
-          options: nil,
+          input_type: ".build.warp.tricorder.PrepareDependencyRequest",
           output_type: ".build.warp.tricorder.PrepareDependencyResponse",
-          server_streaming: false
+          options: nil,
+          client_streaming: false,
+          server_streaming: false,
+          __unknown_fields__: []
         }
       ],
-      name: "TricorderService",
-      options: nil
+      options: nil,
+      __unknown_fields__: []
     }
   end
 

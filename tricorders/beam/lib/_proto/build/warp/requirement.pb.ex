@@ -5,80 +5,80 @@ defmodule Build.Warp.Requirement do
   def descriptor do
     # credo:disable-for-next-line
     %Google.Protobuf.DescriptorProto{
-      __unknown_fields__: [],
-      enum_type: [],
-      extension: [],
-      extension_range: [],
+      name: "Requirement",
       field: [
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "file",
-          label: :LABEL_OPTIONAL,
           name: "file",
+          extendee: nil,
           number: 1,
-          oneof_index: 0,
-          options: nil,
-          proto3_optional: nil,
+          label: :LABEL_OPTIONAL,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.FileRequirement"
+          type_name: ".build.warp.FileRequirement",
+          default_value: nil,
+          options: nil,
+          oneof_index: 0,
+          json_name: "file",
+          proto3_optional: nil,
+          __unknown_fields__: []
         },
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "symbol",
-          label: :LABEL_OPTIONAL,
           name: "symbol",
+          extendee: nil,
           number: 2,
-          oneof_index: 0,
-          options: nil,
-          proto3_optional: nil,
+          label: :LABEL_OPTIONAL,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.SymbolRequirement"
+          type_name: ".build.warp.SymbolRequirement",
+          default_value: nil,
+          options: nil,
+          oneof_index: 0,
+          json_name: "symbol",
+          proto3_optional: nil,
+          __unknown_fields__: []
         },
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "url",
-          label: :LABEL_OPTIONAL,
           name: "url",
+          extendee: nil,
           number: 3,
-          oneof_index: 0,
-          options: nil,
-          proto3_optional: nil,
+          label: :LABEL_OPTIONAL,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.UrlRequirement"
+          type_name: ".build.warp.UrlRequirement",
+          default_value: nil,
+          options: nil,
+          oneof_index: 0,
+          json_name: "url",
+          proto3_optional: nil,
+          __unknown_fields__: []
         },
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "dependency",
-          label: :LABEL_OPTIONAL,
           name: "dependency",
+          extendee: nil,
           number: 4,
-          oneof_index: 0,
-          options: nil,
-          proto3_optional: nil,
+          label: :LABEL_OPTIONAL,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.DependencyRequirement"
+          type_name: ".build.warp.DependencyRequirement",
+          default_value: nil,
+          options: nil,
+          oneof_index: 0,
+          json_name: "dependency",
+          proto3_optional: nil,
+          __unknown_fields__: []
         }
       ],
-      name: "Requirement",
       nested_type: [],
+      enum_type: [],
+      extension_range: [],
+      extension: [],
+      options: nil,
       oneof_decl: [
         %Google.Protobuf.OneofDescriptorProto{
-          __unknown_fields__: [],
           name: "requirement",
-          options: nil
+          options: nil,
+          __unknown_fields__: []
         }
       ],
-      options: nil,
+      reserved_range: [],
       reserved_name: [],
-      reserved_range: []
+      __unknown_fields__: []
     }
   end
 

@@ -5,52 +5,52 @@ defmodule Build.Warp.Tricorder.GenerateSignatureResponse do
   def descriptor do
     # credo:disable-for-next-line
     %Google.Protobuf.DescriptorProto{
-      __unknown_fields__: [],
-      enum_type: [],
-      extension: [],
-      extension_range: [],
+      name: "GenerateSignatureResponse",
       field: [
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "ok",
-          label: :LABEL_OPTIONAL,
           name: "ok",
+          extendee: nil,
           number: 1,
-          oneof_index: 0,
-          options: nil,
-          proto3_optional: nil,
+          label: :LABEL_OPTIONAL,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.tricorder.GenerateSignatureSuccessResponse"
+          type_name: ".build.warp.tricorder.GenerateSignatureSuccessResponse",
+          default_value: nil,
+          options: nil,
+          oneof_index: 0,
+          json_name: "ok",
+          proto3_optional: nil,
+          __unknown_fields__: []
         },
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "missingDeps",
-          label: :LABEL_OPTIONAL,
           name: "missing_deps",
+          extendee: nil,
           number: 3,
-          oneof_index: 0,
-          options: nil,
-          proto3_optional: nil,
+          label: :LABEL_OPTIONAL,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.tricorder.GenerateSignatureMissingDepsResponse"
+          type_name: ".build.warp.tricorder.GenerateSignatureMissingDepsResponse",
+          default_value: nil,
+          options: nil,
+          oneof_index: 0,
+          json_name: "missingDeps",
+          proto3_optional: nil,
+          __unknown_fields__: []
         }
       ],
-      name: "GenerateSignatureResponse",
       nested_type: [],
+      enum_type: [],
+      extension_range: [],
+      extension: [],
+      options: nil,
       oneof_decl: [
         %Google.Protobuf.OneofDescriptorProto{
-          __unknown_fields__: [],
           name: "response",
-          options: nil
+          options: nil,
+          __unknown_fields__: []
         }
       ],
-      options: nil,
+      reserved_range: [],
       reserved_name: [],
-      reserved_range: []
+      __unknown_fields__: []
     }
   end
 

@@ -5,60 +5,60 @@ defmodule Build.Warp.Tricorder.GenerateSignatureSuccessResponse do
   def descriptor do
     # credo:disable-for-next-line
     %Google.Protobuf.DescriptorProto{
-      __unknown_fields__: [],
-      enum_type: [],
-      extension: [],
-      extension_range: [],
+      name: "GenerateSignatureSuccessResponse",
       field: [
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "workspaceRoot",
-          label: :LABEL_OPTIONAL,
           name: "workspace_root",
+          extendee: nil,
           number: 1,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
-          type: :TYPE_STRING,
-          type_name: nil
-        },
-        %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
-          extendee: nil,
-          json_name: "file",
           label: :LABEL_OPTIONAL,
-          name: "file",
-          number: 2,
-          oneof_index: nil,
-          options: nil,
-          proto3_optional: nil,
           type: :TYPE_STRING,
-          type_name: nil
+          type_name: nil,
+          default_value: nil,
+          options: nil,
+          oneof_index: nil,
+          json_name: "workspaceRoot",
+          proto3_optional: nil,
+          __unknown_fields__: []
         },
         %Google.Protobuf.FieldDescriptorProto{
-          __unknown_fields__: [],
-          default_value: nil,
+          name: "file",
           extendee: nil,
-          json_name: "signatures",
-          label: :LABEL_REPEATED,
-          name: "signatures",
-          number: 4,
-          oneof_index: nil,
+          number: 2,
+          label: :LABEL_OPTIONAL,
+          type: :TYPE_STRING,
+          type_name: nil,
+          default_value: nil,
           options: nil,
+          oneof_index: nil,
+          json_name: "file",
           proto3_optional: nil,
+          __unknown_fields__: []
+        },
+        %Google.Protobuf.FieldDescriptorProto{
+          name: "signatures",
+          extendee: nil,
+          number: 4,
+          label: :LABEL_REPEATED,
           type: :TYPE_MESSAGE,
-          type_name: ".build.warp.Signature"
+          type_name: ".build.warp.Signature",
+          default_value: nil,
+          options: nil,
+          oneof_index: nil,
+          json_name: "signatures",
+          proto3_optional: nil,
+          __unknown_fields__: []
         }
       ],
-      name: "GenerateSignatureSuccessResponse",
       nested_type: [],
-      oneof_decl: [],
+      enum_type: [],
+      extension_range: [],
+      extension: [],
       options: nil,
+      oneof_decl: [],
+      reserved_range: [],
       reserved_name: [],
-      reserved_range: []
+      __unknown_fields__: []
     }
   end
 
