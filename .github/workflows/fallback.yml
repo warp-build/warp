@@ -140,6 +140,11 @@ jobs:
         run: make build
 
       - name: Run tests
+        if: ${{ runner.os == 'macOS' }}
+        run: make test.tricorder test.unit test.conc
+
+      - name: Run tests
+        if: ${{ runner.os != 'macOS' }}
         run: make test
 
       - name: Create release archive (Unix)
