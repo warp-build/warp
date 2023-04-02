@@ -87,7 +87,7 @@ setup.local: setup
 	cargo install hyperfine cargo-strip cargo-insta mdbook flamegraph miri cargo-asm cargo-criterion
 
 .PHONY: test
-test: test.tricorder test.unit test.conc test.beam bootstrap
+test: test.tricorder test.unit test.conc test.beam
 
 .PHONY: test.beam
 test.beam:
