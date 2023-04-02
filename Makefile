@@ -31,6 +31,10 @@ bench:
 .PHONY: release
 release: release.mac.intel release.mac.m1 release.linux.intel release.linux.arm
 
+release.ci:
+	cargo build --release
+	tar czf release.tar.gz -C ./target/release $(WARP_EXE)
+
 release.mac.m1:
 	cargo build --release --target aarch64-apple-darwin
 	tar czf dist/warp-aarch64-apple-darwin.tar.gz -C ./target/aarch64-apple-darwin/release $(WARP_EXE)

@@ -149,7 +149,7 @@ jobs:
 
       - name: Create release archive (Unix)
         if: ${{ success() && runner.os != 'Windows' }}
-        run: make release
+        run: make release.ci
 
       - name: Upload Warp build artifact
         if: ${{ success() }}
