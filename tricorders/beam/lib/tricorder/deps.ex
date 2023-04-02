@@ -1285,7 +1285,45 @@ defmodule Tricorder.Deps do
   def is_standard_module?(mod) when mod in @rebar3_modules, do: true
   def is_standard_module?(mod), do: false
 
-  def is_standard_header?(hrl), do: String.contains?(hrl, "lib/erlang/lib")
+  def is_standard_header?(hrl) do
+    String.contains?(hrl, [
+      "lib/asn1",
+      "lib/common_test",
+      "lib/compiler",
+      "lib/crypto",
+      "lib/debugger",
+      "lib/dialyzer",
+      "lib/diameter",
+      "lib/edoc",
+      "lib/eldap",
+      "lib/erl_docgen",
+      "lib/erl_interface",
+      "lib/erts",
+      "lib/et",
+      "lib/eunit",
+      "lib/ftp",
+      "lib/inets",
+      "lib/kernel",
+      "lib/megaco",
+      "lib/mnesia",
+      "lib/observer",
+      "lib/os_mon",
+      "lib/parsetools",
+      "lib/public_key",
+      "lib/reltool",
+      "lib/runtime_tools",
+      "lib/sasl",
+      "lib/snmp",
+      "lib/ssh",
+      "lib/ssl",
+      "lib/stdlib",
+      "lib/syntax_tools",
+      "lib/tftp",
+      "lib/tools",
+      "lib/wx",
+      "lib/xmerl"
+    ])
+  end
 
   def find_header(hrl) do
     Logger.debug("find_header: #{hrl}")
