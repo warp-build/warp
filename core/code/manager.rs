@@ -140,6 +140,12 @@ where
 
         if let SignatureGenerationFlow::GeneratedSignatures { signatures } = &sig {
             debug!("Saving signatures for the whole source hash {whole_source_hash}");
+
+            if !subtrees.is_empty() {
+                self.db
+                    .save_signatures(task.goal(), ct, &whole_source_hash, signatures)?;
+            }
+
             let sig_map: FxHashMap<String, usize> = signatures
                 .iter()
                 .enumerate()
@@ -154,9 +160,6 @@ where
                 self.db
                     .save_signatures(task.goal(), ct, subtree.ast_hash(), &[sig])?;
             }
-
-            self.db
-                .save_signatures(task.goal(), ct, &whole_source_hash, signatures)?;
         }
 
         ec.send(TricorderEvent::SignatureGenerationCompleted {
