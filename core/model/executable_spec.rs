@@ -158,6 +158,12 @@ impl ExecutableSpecBuilder {
 
         let actions: Vec<String> = spec.actions().iter().map(|a| format!("{:?}", a)).collect();
 
+        let env: Vec<String> = spec
+            .shell_env()
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect();
+
         let mut srcs: Vec<PathBuf> = spec.srcs().files().to_vec();
 
         srcs.dedup_by(|a, b| a == b);
@@ -185,6 +191,7 @@ impl ExecutableSpecBuilder {
             .map(|d| d.as_str())
             .chain(outs.iter().map(|o| o.to_str().unwrap()))
             .chain(actions.iter().map(|a| a.as_str()))
+            .chain(env.iter().map(|e| e.as_str()))
             .chain(srcs.iter().map(|s| s.to_str().unwrap()))
             .collect();
 
