@@ -26,6 +26,12 @@ impl Dependencies {
             .chain(self.runtime_deps().iter())
     }
 
+    pub fn all_transitive_deps(&self) -> impl Iterator<Item = &Task> {
+        self.transitive_compile_deps()
+            .iter()
+            .chain(self.transitive_runtime_deps().iter())
+    }
+
     pub fn all_compile_deps(&self) -> impl Iterator<Item = &Task> {
         self.toolchains()
             .iter()

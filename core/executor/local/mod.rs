@@ -6,7 +6,7 @@ use tracing::instrument;
 
 use self::action_runner::{ActionRunner, ActionRunnerFlow};
 use super::{ExecutionFlow, Executor, ExecutorError, ValidationStatus};
-use crate::model::{ConcreteTarget, ExecutableSpec};
+use crate::model::{ConcreteTarget, ExecutableSpec, Task};
 use crate::store::{ArtifactManifest, BuildStamps, Store};
 use crate::CacheStatus;
 use async_trait::async_trait;
@@ -218,8 +218,14 @@ impl LocalExecutor {
         store_path: &Path,
         spec: &ExecutableSpec,
     ) -> Result<(), ExecutorError> {
+        let deps: Vec<Task> = if spec.goal().is_runnable() {
+            spec.deps().all_transitive_deps().copied().collect()
+        } else {
+            spec.deps().transitive_compile_deps().to_vec()
+        };
+
         // Copy dependencies
-        for dep in spec.deps().transitive_compile_deps().iter().map(|d| {
+        for dep in deps.iter().map(|d| {
             self.ctx
                 .task_results
                 .get_task_result(d)

@@ -56,14 +56,18 @@ where
         // planning/executing. They just need to be built before you can execute the _results_ of
         // whatever you're running. Otherwise we can have dependency cycles.
         let runtime_deps = match self._deps(task, sig.runtime_deps(), DepKind::Runtime) {
-            DepFinderFlow::MissingDeps(deps) => deps,
-            DepFinderFlow::AllDepsFound(deps) => deps,
+            DepFinderFlow::MissingDeps(deps) if task.goal().is_runnable() => {
+                return Ok(PlanningFlow::MissingDeps { deps })
+            }
+            DepFinderFlow::MissingDeps(deps) | DepFinderFlow::AllDepsFound(deps) => deps,
         };
 
         let transitive_runtime_deps =
             match self._deps(task, &runtime_deps, DepKind::TransitiveRuntime) {
-                DepFinderFlow::MissingDeps(deps) => deps,
-                DepFinderFlow::AllDepsFound(deps) => deps,
+                DepFinderFlow::MissingDeps(deps) if task.goal().is_runnable() => {
+                    return Ok(PlanningFlow::MissingDeps { deps })
+                }
+                DepFinderFlow::MissingDeps(deps) | DepFinderFlow::AllDepsFound(deps) => deps,
             };
 
         let mut deps = Dependencies::builder()
