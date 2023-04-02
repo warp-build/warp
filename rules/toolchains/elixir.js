@@ -4,6 +4,8 @@ export const BEAM_EXT = ".beam";
 export const EX_EXT = ".ex";
 export const EXS_EXT = ".exs";
 
+const cleanVersion = (version) => version.split(".").slice(0, 2).join("-");
+
 const impl = (ctx) => {
   const { kind, version, sha256 } = ctx.cfg();
 
@@ -18,11 +20,14 @@ const impl = (ctx) => {
   ctx.action().extract({ src: output, dst: "." });
 
   let elixir_path = `elixir-${version}`;
+  let MIX_HOME = `${elixir_path}/.mix`;
   let MIX_ARCHIVES = `${elixir_path}/.mix/archives`;
+  let MIX_REBAR3 = `${MIX_HOME}/elixir/${cleanVersion(version)}/rebar3`;
 
   if (kind === "source") {
     ctx.action().runShell({
       env: {
+        MIX_HOME,
         MIX_ARCHIVES,
       },
       script: `
@@ -58,6 +63,8 @@ ${elixir_path}/bin/mix local.rebar --force
   ctx.setEnv({
     ELIXIR_HOME: ctx.path(binRoot),
     MIX_ARCHIVES: ctx.path(MIX_ARCHIVES),
+    MIX_REBAR3: ctx.path(MIX_REBAR3),
+    MIX_HOME: ctx.path(MIX_HOME),
   });
 };
 
