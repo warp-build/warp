@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
+use tracing::instrument;
 use url::Url;
 
 #[derive(Debug, Clone)]
@@ -49,7 +50,7 @@ impl RuleStore {
         })
     }
 
-    #[tracing::instrument(name = "RuleStore::fetch", skip(self))]
+    #[instrument(name = "RuleStore::fetch", skip(self))]
     async fn fetch(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
         if let Some(path) = self.find_in_global_rules(name).await? {
             return Ok(Some(path));
@@ -57,7 +58,7 @@ impl RuleStore {
         self.download(name).await
     }
 
-    #[tracing::instrument(name = "RuleStore::find_in_global_rules", skip(self), ret)]
+    #[instrument(name = "RuleStore::find_in_global_rules", skip(self), ret)]
     async fn find_in_global_rules(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
         let path = self._global_rule_path(name);
         let meta = fs::metadata(&path)
@@ -74,6 +75,7 @@ impl RuleStore {
         }
     }
 
+    #[instrument(name = "RuleStore::download", skip(self), ret)]
     async fn download(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
         let name = if name.ends_with(".js") {
             name.to_string()
@@ -130,7 +132,7 @@ impl RuleStore {
             .insert(name.to_string(), path.to_path_buf());
     }
 
-    #[tracing::instrument(name = "RuleStore::normalize_name", skip(self), ret)]
+    #[instrument(name = "RuleStore::normalize_name", skip(self), ret)]
     pub fn normalize_name(&self, name: &str) -> String {
         let url = url::Url::parse(name);
         if url.is_ok() {
@@ -145,7 +147,7 @@ impl RuleStore {
     /// NOTE(@ostera): when normalizing the name to use it in paths, we need to drop the
     /// protocol :// so `http://hello.world/a` becomes `http/hello.world/a` which is a valid
     /// path name.
-    #[tracing::instrument(name = "RuleStore::_global_rule_path", skip(self), ret)]
+    #[instrument(name = "RuleStore::_global_rule_path", skip(self), ret)]
     fn _global_rule_path(&self, name: &str) -> PathBuf {
         let name = name.replace("://", "/");
         self.global_rules_root.join(name).with_extension("js")
