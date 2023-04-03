@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use structopt::StructOpt;
 use url::Url;
 use warp_core::Config;
@@ -39,6 +41,12 @@ NOTE: this can result in a fresh build.
         long = "force-redownload"
     )]
     pub(crate) force_redownload: bool,
+
+    #[structopt(long = "invocation-dir")]
+    pub(crate) invocation_dir: Option<PathBuf>,
+
+    #[structopt(long = "warp-root")]
+    pub(crate) warp_root: Option<PathBuf>,
 }
 
 impl From<Flags> for Config {
@@ -50,6 +58,14 @@ impl From<Flags> for Config {
             .enable_code_database(!flags.skip_db)
             .max_local_workers(flags.max_local_workers.unwrap_or_else(num_cpus::get))
             .force_redownload(flags.force_redownload);
+
+        if let Some(dir) = flags.invocation_dir {
+            config.invocation_dir(dir);
+        }
+
+        if let Some(dir) = flags.warp_root {
+            config.warp_root(dir);
+        }
 
         if let Some(url) = flags.public_store_metadata_url {
             config.public_store_metadata_url(url);
