@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Create draft release on tags
         id: create_draft_release
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/create-release@v1.1.4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -35,32 +35,24 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos-latest
             rust_toolchain: stable
-            deno_toolchain: "v1.25"
+            deno_toolchain: "v1.32"
             otp_version: "25.3"
             elixir_version: "1.14"
             rebar3_version: "3.14.1"
 
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: self-hosted
             rust_toolchain: stable
-            deno_toolchain: "v1.25"
+            deno_toolchain: "v1.32"
             otp_version: "25.3"
             elixir_version: "1.14"
             rebar3_version: "3.14.1"
 
           # linux builds
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: buildjet-4vcpu-ubuntu-2204-arm
             rust_toolchain: stable
-            deno_toolchain: "v1.25"
-            otp_version: "25.3"
-            elixir_version: "1.14"
-            rebar3_version: "3.14.1"
-
-          - target: aarch64-unknown-linux-musl
-            os: ubuntu-latest
-            rust_toolchain: stable
-            deno_toolchain: "v1.25"
+            deno_toolchain: "v1.32"
             otp_version: "25.3"
             elixir_version: "1.14"
             rebar3_version: "3.14.1"
@@ -68,7 +60,7 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             rust_toolchain: stable
-            deno_toolchain: "v1.25"
+            deno_toolchain: "v1.32"
             otp_version: "25.3"
             elixir_version: "1.14"
             rebar3_version: "3.14.1"
@@ -106,18 +98,19 @@ jobs:
           toolchain: ${{ matrix.rust_toolchain }}
           target: ${{ matrix.target }}
 
-      - uses: denoland/setup-deno@v1
+      - uses: ostera/setup-deno@d77d23e81419383bfcdb535d27cd6da58abb78d9
         with:
           deno-version: ${{ matrix.deno_toolchain }}
 
       - uses: erlef/setup-beam@v1
-        if: ${{ runner.os != 'macOS' }}
+        if: runner.os != 'macOS' && !contains(matrix.target, 'aarch64')
         with:
           otp-version: ${{ matrix.otp_version }}
           elixir-version: ${{ matrix.elixir_version }}
 
-      - uses: arduino/setup-protoc@v1
+      - uses: ostera/setup-protoc@dff0728ec4c36c20efc390bdd5c27cb23eb0347a
         with:
+          version: "v22.2"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set git user
@@ -126,33 +119,33 @@ jobs:
           git config --global user.email github-actions-bot@users.noreply.github.com
 
       - name: Define env (Unix)
-        if: ${{ runner.os != 'Windows' }}
+        if: runner.os != 'Windows'
         run: echo "GITHUB_TAG=$(git describe --always --tags)" >> $GITHUB_ENV
 
       - name: Setup Rust targets
         run: make setup
 
       - name: Run code checks
-        if: ${{ runner.os != 'macOS' }}
+        if: runner.os != 'macOS' && !contains(matrix.target, 'aarch64')
         run: make check
 
       - name: Build project
         run: make build
 
       - name: Run tests
-        if: ${{ runner.os == 'macOS' }}
-        run: make test.tricorder test.unit test.conc
+        if: contains(matrix.target, 'aarch64') || runner.os == 'macOS'
+        run: make test.tricorder test.unit
 
       - name: Run tests
-        if: ${{ runner.os != 'macOS' }}
+        if: runner.os == 'Linux' && contains(matrix.target, 'x86_64')
         run: make test
 
       - name: Create release archive (Unix)
-        if: ${{ success() && runner.os != 'Windows' }}
+        if: success() && runner.os != 'Windows'
         run: make release.ci
 
       - name: Upload Warp build artifact
-        if: ${{ success() }}
+        if: success()
         uses: actions/upload-artifact@v2
         with:
           path: release.tar.gz
@@ -160,7 +153,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Warp release tarball
-        if: ${{ success() && startsWith(github.ref, 'refs/tags/') }}
+        if: success() && startsWith(github.ref, 'refs/tags/')
         id: upload-warp-release-tarball
         uses: actions/upload-release-asset@v1
         env:

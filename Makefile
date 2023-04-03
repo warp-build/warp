@@ -11,6 +11,9 @@ clean:
 build:
 	cargo build
 
+build.ci:
+	cargo build --target $(TARGET)
+
 build.mac.m1:
 	cargo build --target aarch64-apple-darwin
 
@@ -102,7 +105,7 @@ test.beam:
 
 .PHONY: test.tricorder
 test.tricorder:
-	cargo build --package test-tricorder \
+	cargo build --package warp-tricorder-test \
 		&& cp target/debug/test-tricorder ./core/tests/test_tricorder \
 		&& cd ./core/tests/test_tricorder \
 		&& tar czf package.tar.gz test-tricorder Manifest.json
