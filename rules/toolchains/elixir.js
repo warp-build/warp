@@ -20,8 +20,8 @@ const impl = (ctx) => {
   ctx.action().extract({ src: output, dst: "." });
 
   let elixir_path = `elixir-${version}`;
-  let MIX_HOME = `${elixir_path}/.mix`;
-  let MIX_ARCHIVES = `${elixir_path}/.mix/archives`;
+  let MIX_HOME = `.mix`;
+  let MIX_ARCHIVES = `${MIX_HOME}/archives`;
   let MIX_REBAR3 = `${MIX_HOME}/elixir/${cleanVersion(version)}/rebar3`;
 
   if (kind === "source") {
