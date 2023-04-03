@@ -10,6 +10,9 @@ pub struct Flags {
     )]
     pub(crate) print_hashes: bool,
 
+    #[structopt(help = r"Print cache-hits.", long = "print-cache-hits")]
+    pub(crate) print_cache_hits: bool,
+
     #[structopt(
         help = r"Never access the network, but continue working if possible.",
         long = "offline"

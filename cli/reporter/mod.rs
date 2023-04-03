@@ -195,7 +195,7 @@ impl Reporter for StatusReporter {
                 target,
                 goal,
                 signature,
-            } if cache_status == CacheStatus::Cached => {
+            } if cache_status == CacheStatus::Cached && self.flags.print_cache_hits => {
                 self.current_targets.remove(&target);
                 self.pb.set_message(format!(
                     " {}",
@@ -230,8 +230,8 @@ impl Reporter for StatusReporter {
                 target,
                 goal,
                 signature,
-                ..
-            } => {
+                cache_status,
+            } if cache_status != CacheStatus::Cached => {
                 let line = format!(
                     "{:>12} {} {}",
                     green_bold.apply_to(if goal.is_test() { "PASS" } else { "Built" }),
