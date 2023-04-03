@@ -12,9 +12,9 @@ pub use js::*;
 pub use result::*;
 
 use crate::model::rule::expander::ExpanderError;
-use crate::model::{Dependencies, ExecutionEnvironment, Rule, Signature, Target, TargetId};
+use crate::model::{Dependencies, ExecutionEnvironment, Rule, Signature, Target, Task};
 use async_trait::async_trait;
-use dashmap::DashMap;
+
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -30,6 +30,7 @@ pub trait RuleExecutor {
 
     async fn execute(
         &mut self,
+        task: Task,
         env: &ExecutionEnvironment,
         sig: &Signature,
         deps: &Dependencies,
@@ -47,11 +48,8 @@ pub enum RuleExecutorError {
     #[error(transparent)]
     RuleStoreError(RuleStoreError),
 
-    #[error("Could not find declared outputs for target {target:?} in outputs: {outputs:#?}")]
-    MissingDeclaredOutputs {
-        target: TargetId,
-        outputs: DashMap<TargetId, Vec<PathBuf>>,
-    },
+    #[error("Could not find declared outputs for target {target}")]
+    MissingDeclaredOutputs { target: String },
 
     #[error("Execution Error for {}\nSignature: {sig:#?}\n\nError: {err:?}", target.to_string())]
     ExecutionError {

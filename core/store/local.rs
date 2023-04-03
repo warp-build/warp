@@ -23,6 +23,7 @@ impl LocalStore {
         self.store_root.join(key.inner())
     }
 
+    #[instrument(name = "LocalStore::get_manifest", skip(self))]
     pub async fn get_manifest(
         &self,
         key: ArtifactId,

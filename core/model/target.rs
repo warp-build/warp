@@ -97,6 +97,10 @@ impl std::str::FromStr for Target {
 }
 
 impl Target {
+    pub fn is_remote(&self) -> bool {
+        matches!(&self, Self::Remote(_))
+    }
+
     pub fn is_all(&self) -> bool {
         matches!(
             &self,

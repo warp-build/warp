@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use super::public::PublicArtifactDownload;
 use super::{
     ArtifactId, ArtifactManifest, LocalStore, LocalStoreError, PackageManifest, PublicStore,
     PublicStoreError, Store, StoreError, MANIFEST_FILE,
@@ -33,11 +34,17 @@ impl DefaultStore {
         }
     }
 
+    #[instrument(name = "DefaultStore::download_from_public_store", skip(self))]
     async fn download_from_public_store(&self, key: ArtifactId) -> Result<(), StoreError> {
-        if self.local_store.get_manifest(key.clone()).await?.is_none() {
-            self.public_store.try_fetch(&key).await?;
+        if self.local_store.get_manifest(key.clone()).await?.is_some() {
+            return Ok(());
         }
-        Ok(())
+
+        if let PublicArtifactDownload::Downloaded = self.public_store.try_fetch(&key).await? {
+            return Ok(());
+        }
+
+        Err(StoreError::CouldNotFindArtifactInPublicStore { key })
     }
 }
 
@@ -79,8 +86,16 @@ impl Store for DefaultStore {
     }
 
     async fn find(&self, spec: &ExecutableSpec) -> Result<Option<ArtifactManifest>, StoreError> {
-        let manifest = self.local_store.get_manifest(spec.artifact_id()).await?;
-        Ok(manifest)
+        match self.local_store.get_manifest(spec.artifact_id()).await? {
+            None if spec.target().original_target().is_remote() => {
+                // NB(@ostera): only remote targets will be available in the public store. Other
+                // local targets may also be available in a `cloud_store` that is private per
+                // organization, but we haven't included this in the Mark II yet.
+                let _ = self.public_store.try_fetch(&spec.artifact_id()).await?;
+                Ok(self.local_store.get_manifest(spec.artifact_id()).await?)
+            }
+            manifest => Ok(manifest),
+        }
     }
 
     async fn clean(&self, spec: &ExecutableSpec) -> Result<(), StoreError> {

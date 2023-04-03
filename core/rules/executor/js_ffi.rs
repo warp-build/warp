@@ -1,5 +1,5 @@
 use crate::executor::actions::Action;
-use crate::model::{Rule, RunScript, TargetId};
+use crate::model::{Rule, RunScript, TaskId, TestRunner};
 use crate::rules::FfiContext;
 use deno_core::error::AnyError;
 use deno_core::*;
@@ -15,16 +15,18 @@ pub fn op_env_var(var: String) -> Result<String, AnyError> {
 }
 
 #[op]
-pub fn op_target_dir(state: &mut OpState, target: TargetId) -> Result<String, AnyError> {
+pub fn op_target_dir(state: &mut OpState, task: TaskId) -> Result<String, AnyError> {
     let ctx = state.borrow::<FfiContext>();
-    let target = ctx.target_registry.get_concrete_target(target);
+    let task = ctx.task_registry.get(task);
+    let target = ctx.target_registry.get_concrete_target(task.target_id());
     Ok(target.dir().to_str().unwrap().to_string())
 }
 
 #[op]
-pub fn op_target_path(state: &mut OpState, target: TargetId) -> Result<String, AnyError> {
+pub fn op_target_path(state: &mut OpState, task: TaskId) -> Result<String, AnyError> {
     let ctx = state.borrow::<FfiContext>();
-    let target = ctx.target_registry.get_concrete_target(target);
+    let task = ctx.task_registry.get(task);
+    let target = ctx.target_registry.get_concrete_target(task.target_id());
     let path = target.path().to_str().unwrap().to_string();
 
     Ok(if path.is_empty() {
@@ -40,9 +42,10 @@ pub fn op_target_path(state: &mut OpState, target: TargetId) -> Result<String, A
 }
 
 #[op]
-pub fn op_target_name(state: &mut OpState, target: TargetId) -> Result<String, AnyError> {
+pub fn op_target_name(state: &mut OpState, task: TaskId) -> Result<String, AnyError> {
     let ctx = state.borrow::<FfiContext>();
-    let target = ctx.target_registry.get_concrete_target(target);
+    let task = ctx.task_registry.get(task);
+    let target = ctx.target_registry.get_concrete_target(task.target_id());
     Ok(target.name().to_string())
 }
 
@@ -84,8 +87,39 @@ pub fn op_file_with_extension(args: FileWithExtension) -> Result<String, AnyErro
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+pub struct DeclareTestRunner {
+    task: TaskId,
+    test_runner: String,
+    env: HashMap<String, String>,
+}
+
+#[op]
+pub fn op_ctx_actions_declare_test_runner(
+    state: &mut OpState,
+    args: DeclareTestRunner,
+) -> Result<(), AnyError> {
+    let ctx = state.borrow::<FfiContext>();
+    let test_runner_map = &ctx.test_runner_map;
+
+    let task = args.task;
+    let test_runner = match test_runner_map.get(&task) {
+        None => PathBuf::from(args.test_runner),
+        Some(_entry) => panic!("TestRunner already declared for: {:?}", &task),
+    };
+    test_runner_map.insert(
+        task,
+        TestRunner {
+            test_runner,
+            env: args.env,
+        },
+    );
+    Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct DeclareRunScript {
-    target: TargetId,
+    task: TaskId,
     run_script: String,
     env: HashMap<String, String>,
 }
@@ -98,13 +132,13 @@ pub fn op_ctx_actions_declare_run_script(
     let ctx = state.borrow::<FfiContext>();
     let run_script_map = &ctx.run_script_map;
 
-    let target = args.target;
-    let run_script = match run_script_map.get(&target) {
+    let task = args.task;
+    let run_script = match run_script_map.get(&task) {
         None => PathBuf::from(args.run_script),
-        Some(_entry) => panic!("RunScript already declared for: {:?}", &target),
+        Some(_entry) => panic!("RunScript already declared for: {:?}", &task),
     };
     run_script_map.insert(
-        target,
+        task,
         RunScript {
             run_script,
             env: args.env,
@@ -116,7 +150,7 @@ pub fn op_ctx_actions_declare_run_script(
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DeclareOutputs {
-    target: TargetId,
+    task: TaskId,
     outs: Vec<String>,
 }
 
@@ -128,9 +162,9 @@ pub fn op_ctx_actions_declare_outputs(
     let ctx = state.borrow::<FfiContext>();
     let output_map = &ctx.output_map;
 
-    let target = args.target;
+    let task = args.task;
     let outs: Vec<PathBuf> = args.outs.iter().map(PathBuf::from).collect();
-    let new_outs = match output_map.get(&target) {
+    let new_outs = match output_map.get(&task) {
         None => outs,
         Some(entry) => {
             let last_outs = entry.value();
@@ -140,14 +174,14 @@ pub fn op_ctx_actions_declare_outputs(
             new_outs
         }
     };
-    output_map.insert(target, new_outs);
+    output_map.insert(task, new_outs);
     Ok(())
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DeclareEnv {
-    target: TargetId,
+    task: TaskId,
     env: FxHashMap<String, String>,
 }
 
@@ -156,8 +190,8 @@ pub fn op_ctx_declare_env(state: &mut OpState, args: DeclareEnv) -> Result<(), A
     let ctx = state.borrow::<FfiContext>();
     let env_map = &ctx.shell_env_map;
 
-    let target = args.target;
-    env_map.insert(target, args.env);
+    let task = args.task;
+    env_map.insert(task, args.env);
 
     Ok(())
 }
@@ -165,7 +199,7 @@ pub fn op_ctx_declare_env(state: &mut OpState, args: DeclareEnv) -> Result<(), A
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DeclareProvides {
-    target: TargetId,
+    task: TaskId,
     provides: FxHashMap<String, String>,
 }
 
@@ -174,7 +208,7 @@ pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Re
     let ctx = state.borrow::<FfiContext>();
     let provides_map = &ctx.provides_map;
 
-    provides_map.insert(args.target, args.provides);
+    provides_map.insert(args.task, args.provides);
 
     Ok(())
 }
@@ -182,7 +216,7 @@ pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Re
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct FetchProvides {
-    target: TargetId,
+    task: TaskId,
 }
 
 #[op]
@@ -193,9 +227,9 @@ pub fn op_ctx_fetch_provides(
     let ctx = state.borrow::<FfiContext>();
     let provides_map = &ctx.provides_map;
 
-    let provides = match provides_map.get(&args.target) {
+    let provides = match provides_map.get(&args.task) {
         None => {
-            panic!("Undefined provides for target: {:?}", &args.target)
+            panic!("Undefined provides for task: {:?}", &args.task)
         }
         Some(provides) => provides.clone(),
     };
@@ -206,7 +240,7 @@ pub fn op_ctx_fetch_provides(
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SetPermissions {
-    target: TargetId,
+    task: TaskId,
     file: PathBuf,
     executable: bool,
 }
@@ -216,9 +250,9 @@ pub fn op_ctx_set_permissions(state: &mut OpState, args: SetPermissions) -> Resu
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
-    let target = args.target;
+    let task = args.task;
     let action = Action::set_permissions(args.file, args.executable);
-    let new_actions = if let Some(entry) = action_map.get(&target) {
+    let new_actions = if let Some(entry) = action_map.get(&task) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
@@ -228,7 +262,7 @@ pub fn op_ctx_set_permissions(state: &mut OpState, args: SetPermissions) -> Resu
         vec![action]
     };
 
-    action_map.insert(target, new_actions);
+    action_map.insert(task, new_actions);
 
     Ok(())
 }
@@ -236,7 +270,7 @@ pub fn op_ctx_set_permissions(state: &mut OpState, args: SetPermissions) -> Resu
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Extract {
-    target: TargetId,
+    task: TaskId,
     src: PathBuf,
     dst: PathBuf,
 }
@@ -246,9 +280,9 @@ pub fn op_ctx_extract(state: &mut OpState, args: Extract) -> Result<(), AnyError
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
-    let target = args.target;
+    let task = args.task;
     let action = Action::extract(args.src, args.dst);
-    let new_actions = if let Some(entry) = action_map.get(&target) {
+    let new_actions = if let Some(entry) = action_map.get(&task) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
@@ -258,7 +292,7 @@ pub fn op_ctx_extract(state: &mut OpState, args: Extract) -> Result<(), AnyError
         vec![action]
     };
 
-    action_map.insert(target, new_actions);
+    action_map.insert(task, new_actions);
 
     Ok(())
 }
@@ -266,7 +300,7 @@ pub fn op_ctx_extract(state: &mut OpState, args: Extract) -> Result<(), AnyError
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct VerifyChecksum {
-    target: TargetId,
+    task: TaskId,
     file: PathBuf,
     sha1: String,
 }
@@ -276,9 +310,9 @@ pub fn op_ctx_verify_checksum(state: &mut OpState, args: VerifyChecksum) -> Resu
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
-    let target = args.target;
+    let task = args.task;
     let action = Action::verify_checksum(args.file, args.sha1);
-    let new_actions = if let Some(entry) = action_map.get(&target) {
+    let new_actions = if let Some(entry) = action_map.get(&task) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
@@ -288,7 +322,7 @@ pub fn op_ctx_verify_checksum(state: &mut OpState, args: VerifyChecksum) -> Resu
         vec![action]
     };
 
-    action_map.insert(target, new_actions);
+    action_map.insert(task, new_actions);
 
     Ok(())
 }
@@ -296,7 +330,7 @@ pub fn op_ctx_verify_checksum(state: &mut OpState, args: VerifyChecksum) -> Resu
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Download {
-    target: TargetId,
+    task: TaskId,
     url: String,
     sha1: String,
     output: PathBuf,
@@ -307,9 +341,9 @@ pub fn op_ctx_download(state: &mut OpState, args: Download) -> Result<(), AnyErr
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
-    let target = args.target;
+    let task = args.task;
     let action = Action::download(args.url, args.sha1, args.output);
-    let new_actions = if let Some(entry) = action_map.get(&target) {
+    let new_actions = if let Some(entry) = action_map.get(&task) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
@@ -319,7 +353,7 @@ pub fn op_ctx_download(state: &mut OpState, args: Download) -> Result<(), AnyErr
         vec![action]
     };
 
-    action_map.insert(target, new_actions);
+    action_map.insert(task, new_actions);
 
     Ok(())
 }
@@ -327,7 +361,7 @@ pub fn op_ctx_download(state: &mut OpState, args: Download) -> Result<(), AnyErr
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RunShell {
-    target: TargetId,
+    task: TaskId,
     script: String,
     env: std::collections::HashMap<String, String>,
     needs_tty: bool,
@@ -338,9 +372,9 @@ pub fn op_ctx_actions_run_shell(state: &mut OpState, args: RunShell) -> Result<(
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
-    let target = args.target;
+    let task = args.task;
     let action = Action::run_shell(args.script, args.env, args.needs_tty);
-    let new_actions = if let Some(entry) = action_map.get(&target) {
+    let new_actions = if let Some(entry) = action_map.get(&task) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
@@ -350,7 +384,7 @@ pub fn op_ctx_actions_run_shell(state: &mut OpState, args: RunShell) -> Result<(
         vec![action]
     };
 
-    action_map.insert(target, new_actions);
+    action_map.insert(task, new_actions);
 
     Ok(())
 }
@@ -358,7 +392,7 @@ pub fn op_ctx_actions_run_shell(state: &mut OpState, args: RunShell) -> Result<(
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct WriteFile {
-    target: TargetId,
+    task: TaskId,
     data: String,
     dst: String,
 }
@@ -368,9 +402,9 @@ pub fn op_ctx_actions_write_file(state: &mut OpState, args: WriteFile) -> Result
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
-    let target = args.target;
+    let task = args.task;
     let action = Action::write_file(args.data, PathBuf::from(args.dst));
-    let new_actions = if let Some(entry) = action_map.get(&target) {
+    let new_actions = if let Some(entry) = action_map.get(&task) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
@@ -380,7 +414,7 @@ pub fn op_ctx_actions_write_file(state: &mut OpState, args: WriteFile) -> Result
         vec![action]
     };
 
-    action_map.insert(target, new_actions);
+    action_map.insert(task, new_actions);
 
     Ok(())
 }
@@ -388,7 +422,7 @@ pub fn op_ctx_actions_write_file(state: &mut OpState, args: WriteFile) -> Result
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CopyFile {
-    target: TargetId,
+    task: TaskId,
     src: String,
     dst: String,
 }
@@ -398,9 +432,9 @@ pub fn op_ctx_actions_copy(state: &mut OpState, args: CopyFile) -> Result<(), An
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
-    let target = args.target;
+    let task = args.task;
     let action = Action::copy(PathBuf::from(args.src), PathBuf::from(args.dst));
-    let new_actions = if let Some(entry) = action_map.get(&target) {
+    let new_actions = if let Some(entry) = action_map.get(&task) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
@@ -410,14 +444,14 @@ pub fn op_ctx_actions_copy(state: &mut OpState, args: CopyFile) -> Result<(), An
         vec![action]
     };
 
-    action_map.insert(target, new_actions);
+    action_map.insert(task, new_actions);
     Ok(())
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Exec {
-    target: TargetId,
+    task: TaskId,
     env: std::collections::HashMap<String, String>,
     cmd: String,
     args: Vec<String>,
@@ -430,7 +464,7 @@ pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyErr
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
-    let target = args.target;
+    let task = args.task;
     let cwd: Option<PathBuf> = args.cwd.map(PathBuf::from);
     let action = Action::exec(
         PathBuf::from(args.cmd),
@@ -439,7 +473,7 @@ pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyErr
         args.env,
         args.needs_tty,
     );
-    let new_actions = if let Some(entry) = action_map.get(&target) {
+    let new_actions = if let Some(entry) = action_map.get(&task) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
         new_actions.extend(last_actions.to_vec());
@@ -449,7 +483,7 @@ pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyErr
         vec![action]
     };
 
-    action_map.insert(target, new_actions);
+    action_map.insert(task, new_actions);
     Ok(())
 }
 

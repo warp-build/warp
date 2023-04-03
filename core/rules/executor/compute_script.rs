@@ -1,5 +1,5 @@
 use crate::model::rule::{Config, Value};
-use crate::model::{Dependencies, ExecutionEnvironment, Rule, Signature};
+use crate::model::{Dependencies, ExecutionEnvironment, Rule, Signature, Task};
 use crate::sync::*;
 use crate::worker::TaskResults;
 use tracing::instrument;
@@ -14,6 +14,7 @@ impl ComputeScript {
     )]
     pub fn as_js_source(
         task_results: Arc<TaskResults>,
+        task: Task,
         env: &ExecutionEnvironment,
         sig: &Signature,
         deps: &Dependencies,
@@ -150,6 +151,8 @@ impl ComputeScript {
 
         let target: serde_json::Value = serde_json::to_value(sig.target().target_id()).unwrap();
 
+        let task: serde_json::Value = serde_json::to_value(task.id()).unwrap();
+
         let env: serde_json::Value = env.clone().into();
 
         let program_template = r#"
@@ -157,6 +160,7 @@ impl ComputeScript {
 (() => {
     let input = {
       target: {TARGET},
+      task: {TASK},
       rule: "{RULE_NAME}",
       cfg: {CONFIG},
       deps: {DEPS},
@@ -174,6 +178,7 @@ impl ComputeScript {
 
         program_template
             .replace("{TARGET}", &target.to_string())
+            .replace("{TASK}", &task.to_string())
             .replace("{RULE_NAME}", rule.name())
             .replace("{CONFIG}", &config.to_string())
             .replace("{DEPS}", &compile_deps.to_string())
