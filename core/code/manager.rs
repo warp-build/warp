@@ -1,4 +1,5 @@
-use super::{CodeDatabase, CodeDatabaseError, SourceHasher, SourceHasherError};
+use super::error::CodeManagerError;
+use super::{CodeDatabase, SourceHasher};
 use crate::archive::Archive;
 use crate::events::event::TricorderEvent;
 use crate::model::{ConcreteTarget, FsTarget, RemoteTarget, Signature, SourceKind, Task};
@@ -6,15 +7,11 @@ use crate::resolver::TargetRegistry;
 use crate::store::Store;
 use crate::sync::Arc;
 use crate::testing::TestMatcherRegistry;
-use crate::tricorder::{
-    SignatureGenerationFlow, Tricorder, TricorderContext, TricorderError, TricorderManager,
-    TricorderManagerError,
-};
+use crate::tricorder::{SignatureGenerationFlow, Tricorder, TricorderContext, TricorderManager};
 use crate::worker::{TaskRegistry, TaskResults};
 use crate::Config;
 use fxhash::FxHashMap;
 use std::path::Path;
-use thiserror::Error;
 use tracing::{debug, info};
 
 pub struct CodeManager<S: Store, T: Tricorder> {
@@ -63,10 +60,6 @@ where
             test_matcher_registry,
             tricorder_manager,
         })
-    }
-
-    pub fn tricorder_manager(&self) -> Arc<TricorderManager<S, T>> {
-        self.tricorder_manager.clone()
     }
 
     pub async fn get_signatures(
@@ -141,10 +134,8 @@ where
         if let SignatureGenerationFlow::GeneratedSignatures { signatures } = &sig {
             debug!("Saving signatures for the whole source hash {whole_source_hash}");
 
-            if !subtrees.is_empty() {
-                self.db
-                    .save_signatures(task.goal(), ct, &whole_source_hash, signatures)?;
-            }
+            self.db
+                .save_signatures(task.goal(), ct, &whole_source_hash, signatures)?;
 
             let sig_map: FxHashMap<String, usize> = signatures
                 .iter()
@@ -268,41 +259,28 @@ where
     }
 }
 
-#[derive(Error, Debug)]
-pub enum CodeManagerError {
-    #[error(transparent)]
-    CodeDatabaseError(CodeDatabaseError),
+#[cfg(test)]
+mod tests {
 
-    #[error(transparent)]
-    TricorderManagerError(TricorderManagerError),
-
-    #[error(transparent)]
-    TricorderError(TricorderError),
-
-    #[error(transparent)]
-    SourceHasherError(SourceHasherError),
-}
-
-impl From<CodeDatabaseError> for CodeManagerError {
-    fn from(value: CodeDatabaseError) -> Self {
-        CodeManagerError::CodeDatabaseError(value)
+    mod get_signature {
+        #[test]
+        fn caches_signatures_by_source_hash() {}
+        #[test]
+        fn regenerates_all_source_chunk_signatures_if_some_are_missing() {}
+        #[test]
+        fn ignores_tasks_without_matching_tricorder() {}
+        #[test]
+        fn panics_on_tree_splitting_that_is_not_an_ast_or_requirements() {}
     }
-}
 
-impl From<TricorderManagerError> for CodeManagerError {
-    fn from(value: TricorderManagerError) -> Self {
-        CodeManagerError::TricorderManagerError(value)
-    }
-}
-
-impl From<TricorderError> for CodeManagerError {
-    fn from(value: TricorderError) -> Self {
-        CodeManagerError::TricorderError(value)
-    }
-}
-
-impl From<SourceHasherError> for CodeManagerError {
-    fn from(value: SourceHasherError) -> Self {
-        CodeManagerError::SourceHasherError(value)
+    mod get_ast {
+        #[test]
+        fn panics_on_source_chunking_with_unknown_tricorder() {}
+        #[test]
+        fn panics_on_tree_splitting_that_is_not_an_ast_or_requirements() {}
+        #[test]
+        fn caches_source_chunks_for_whole_file() {}
+        #[test]
+        fn caches_source_chunks_for_source_chunks() {}
     }
 }

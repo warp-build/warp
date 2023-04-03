@@ -92,7 +92,10 @@ impl TaskRegistry {
 
     #[instrument(name = "TaskRegistry::get", skip(self))]
     pub fn get(&self, id: TaskId) -> Task {
-        *self.tasks.get(&id).unwrap()
+        *self
+            .tasks
+            .get(&id)
+            .unwrap_or_else(|| panic!("Could not find a target with id {:?}", id))
     }
 
     pub fn len(&self) -> usize {

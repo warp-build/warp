@@ -1,7 +1,9 @@
 use super::*;
+use crate::events::event::ArchiveEvent;
 use crate::Config;
 use async_compression::tokio::bufread::GzipDecoder;
 use futures::stream::TryStreamExt;
+use sha2::{Digest, Sha256};
 use thiserror::*;
 use tokio::io::AsyncReadExt;
 use tracing::*;
@@ -22,11 +24,18 @@ impl PublicStore {
         }
     }
 
-    pub async fn try_fetch(&self, id: &ArtifactId) -> Result<(), PublicStoreError> {
+    pub async fn try_fetch(
+        &self,
+        id: &ArtifactId,
+    ) -> Result<PublicArtifactDownload, PublicStoreError> {
+        let ec = self.config.event_channel();
+
         let mut url = self.config.public_store_cdn_url().clone();
         url.set_path(&format!("{}.tar.gz", id.inner()));
 
-        let response = self.client.get(url).send().await?;
+        ec.send(ArchiveEvent::DownloadStarted { url: url.clone() });
+
+        let response = self.client.get(url.clone()).send().await?;
 
         if response.status() == 200 {
             let byte_stream = response
@@ -38,6 +47,11 @@ impl PublicStore {
             let mut data = vec![];
             unzip_stream.read_to_end(&mut data).await?;
 
+            let mut s = Sha256::new();
+            s.update(&data);
+            let sha256 = format!("{:x}", s.finalize());
+            let total_size = data.len() as u64;
+
             let dst = self.config.artifact_store_root().join(id.clone());
             tokio::task::spawn_blocking(move || {
                 let mut tar = tar::Archive::new(std::io::BufReader::new(&*data));
@@ -46,11 +60,22 @@ impl PublicStore {
             .await
             .unwrap()?;
 
-            return Ok(());
+            ec.send(ArchiveEvent::DownloadCompleted {
+                url,
+                sha256,
+                total_size,
+            });
+
+            return Ok(PublicArtifactDownload::Downloaded);
         }
 
-        Err(PublicStoreError::CouldNotDownloadArtifact { id: id.clone() })
+        Ok(PublicArtifactDownload::Missing)
     }
+}
+
+pub enum PublicArtifactDownload {
+    Downloaded,
+    Missing,
 }
 
 #[derive(Error, Debug)]

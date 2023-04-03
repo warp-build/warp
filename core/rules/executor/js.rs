@@ -1,7 +1,7 @@
 use super::net_module_loader::NetModuleLoader;
 use super::{js_ffi, FfiContext, RuleExecutor, RuleExecutorError, SharedJsContext};
 use crate::model::rule::expander::Expander;
-use crate::model::{Dependencies, ExecutionEnvironment, Rule, RunScript, Signature};
+use crate::model::{Dependencies, ExecutionEnvironment, Rule, RunScript, Signature, Task};
 use crate::rules::executor::compute_script::ComputeScript;
 use crate::rules::ExecutionResult;
 use async_trait::async_trait;
@@ -35,6 +35,7 @@ impl RuleExecutor for JsRuleExecutor {
                     js_ffi::op_ctx_actions_copy::decl(),
                     js_ffi::op_ctx_actions_declare_outputs::decl(),
                     js_ffi::op_ctx_actions_declare_run_script::decl(),
+                    js_ffi::op_ctx_actions_declare_test_runner::decl(),
                     js_ffi::op_ctx_actions_exec::decl(),
                     js_ffi::op_ctx_actions_run_shell::decl(),
                     js_ffi::op_ctx_actions_write_file::decl(),
@@ -45,14 +46,14 @@ impl RuleExecutor for JsRuleExecutor {
                     js_ffi::op_ctx_fetch_provides::decl(),
                     js_ffi::op_ctx_set_permissions::decl(),
                     js_ffi::op_ctx_verify_checksum::decl(),
+                    js_ffi::op_env_var::decl(),
                     js_ffi::op_file_filename::decl(),
                     js_ffi::op_file_parent::decl(),
                     js_ffi::op_file_with_extension::decl(),
+                    js_ffi::op_rule_new::decl(),
+                    js_ffi::op_target_dir::decl(),
                     js_ffi::op_target_name::decl(),
                     js_ffi::op_target_path::decl(),
-                    js_ffi::op_target_dir::decl(),
-                    js_ffi::op_rule_new::decl(),
-                    js_ffi::op_env_var::decl(),
                 ])
                 .state(move |state| {
                     state.put(ffi_ctx.clone());
@@ -81,6 +82,7 @@ impl RuleExecutor for JsRuleExecutor {
 
     async fn execute(
         &mut self,
+        task: Task,
         env: &ExecutionEnvironment,
         sig: &Signature,
         deps: &Dependencies,
@@ -93,6 +95,7 @@ impl RuleExecutor for JsRuleExecutor {
 
         let compute_program = ComputeScript::as_js_source(
             self.ctx.task_results.clone(),
+            task,
             env,
             sig,
             deps,
@@ -118,34 +121,30 @@ impl RuleExecutor for JsRuleExecutor {
         let actions = self
             .ctx
             .action_map
-            .get(&sig.target().target_id())
+            .get(task.id())
             .map(|entry| entry.value().clone())
             .unwrap_or_default();
 
         let outs: FxHashSet<PathBuf> = self
             .ctx
             .output_map
-            .get(&sig.target().target_id())
+            .get(task.id())
             .ok_or(RuleExecutorError::MissingDeclaredOutputs {
-                target: sig.target().target_id(),
-                outputs: (*self.ctx.output_map).clone(),
+                target: sig.target().to_string(),
             })?
             .iter()
             .cloned()
             .collect();
 
-        let run_script: Option<RunScript> = self
-            .ctx
-            .run_script_map
-            .get(&sig.target().target_id())
-            .map(|rs| rs.clone());
+        let run_script: Option<RunScript> =
+            self.ctx.run_script_map.get(task.id()).map(|rs| rs.clone());
 
         let srcs = config.get_file_set();
 
         let provides = self
             .ctx
             .provides_map
-            .get(&sig.target().target_id())
+            .get(task.id())
             .map(|r| r.value().clone())
             .unwrap_or_default()
             .into_iter()
@@ -155,7 +154,7 @@ impl RuleExecutor for JsRuleExecutor {
         let shell_env = self
             .ctx
             .shell_env_map
-            .get(&sig.target().target_id())
+            .get(task.id())
             .map(|r| r.value().clone())
             .unwrap_or_default()
             .into_iter()
@@ -279,7 +278,7 @@ impl JsRuleExecutor {
 mod tests {
     use super::*;
     use crate::model::rule::{self, Value};
-    use crate::model::ConcreteTarget;
+    use crate::model::{ConcreteTarget, UnregisteredTask};
     use crate::resolver::{SignatureRegistry, TargetRegistry};
     use crate::rules::RuleStore;
     use crate::sync::Arc;
@@ -333,7 +332,12 @@ mod tests {
             signature_registry.clone(),
         )
         .into();
-        let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
+        let ctx = SharedJsContext::new(
+            target_registry.clone(),
+            task_registry.clone(),
+            task_results,
+            rule_store,
+        );
 
         // 3. Create our planning inputs
 
@@ -341,6 +345,13 @@ mod tests {
         let target = Arc::new("./my/file.ex".into());
         let target_id = target_registry.register_target(&target);
         let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into(), ".".into());
+
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = task_registry.register(unreg_task);
 
         let mut config = rule::Config::default();
         config.insert("name".into(), Value::Target((*target).clone()));
@@ -363,7 +374,7 @@ mod tests {
         // 4. Create the executor and run!
 
         let mut exec = JsRuleExecutor::new(ctx).unwrap();
-        let res = exec.execute(&env, &sig, &deps).await.unwrap();
+        let res = exec.execute(task, &env, &sig, &deps).await.unwrap();
 
         assert!(!res.outs.is_empty());
         assert_eq!(
@@ -419,7 +430,12 @@ mod tests {
             signature_registry.clone(),
         )
         .into();
-        let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
+        let ctx = SharedJsContext::new(
+            target_registry.clone(),
+            task_registry.clone(),
+            task_results,
+            rule_store,
+        );
 
         // 3. Create our planning inputs
 
@@ -427,6 +443,13 @@ mod tests {
         let target = Arc::new("./my/file.ex".into());
         let target_id = target_registry.register_target(&target);
         let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into(), ".".into());
+
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = task_registry.register(unreg_task);
 
         let mut config = rule::Config::default();
         config.insert("name".into(), Value::Target((*target).clone()));
@@ -445,11 +468,11 @@ mod tests {
         // 4. Create the executor and run!
 
         let mut exec = JsRuleExecutor::new(ctx).unwrap();
-        let err = exec.execute(&env, &sig, &deps).await.unwrap_err();
+        let err = exec.execute(task, &env, &sig, &deps).await.unwrap_err();
 
         assert_matches!(
             err,
-            RuleExecutorError::MissingDeclaredOutputs { target, .. } if target == target_id
+            RuleExecutorError::MissingDeclaredOutputs { target: t, .. } if t == target.to_string()
         );
 
         m.assert();
@@ -500,7 +523,12 @@ mod tests {
             signature_registry.clone(),
         )
         .into();
-        let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
+        let ctx = SharedJsContext::new(
+            target_registry.clone(),
+            task_registry.clone(),
+            task_results,
+            rule_store,
+        );
 
         // 3. Create our planning inputs
 
@@ -508,6 +536,13 @@ mod tests {
         let target = Arc::new("./my/file.ex".into());
         let target_id = target_registry.register_target(&target);
         let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into(), ".".into());
+
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = task_registry.register(unreg_task);
 
         let mut config = rule::Config::default();
         config.insert("name".into(), Value::Target((*target).clone()));
@@ -526,7 +561,7 @@ mod tests {
         // 4. Create the executor and run!
 
         let mut exec = JsRuleExecutor::new(ctx).unwrap();
-        let err = exec.execute(&env, &sig, &deps).await.unwrap_err();
+        let err = exec.execute(task, &env, &sig, &deps).await.unwrap_err();
 
         assert_matches!(
             err,
@@ -592,7 +627,12 @@ mod tests {
             signature_registry.clone(),
         )
         .into();
-        let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
+        let ctx = SharedJsContext::new(
+            target_registry.clone(),
+            task_registry.clone(),
+            task_results,
+            rule_store,
+        );
 
         // 3. Create our planning inputs
 
@@ -600,6 +640,13 @@ mod tests {
         let target = Arc::new("./my/file.ex".into());
         let target_id = target_registry.register_target(&target);
         let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into(), ".".into());
+
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = task_registry.register(unreg_task);
 
         let mut config = rule::Config::default();
         config.insert("name".into(), Value::Target((*target).clone()));
@@ -622,7 +669,7 @@ mod tests {
         // 4. Create the executor and run!
 
         let mut exec = JsRuleExecutor::new(ctx).unwrap();
-        let res = exec.execute(&env, &sig, &deps).await.unwrap();
+        let res = exec.execute(task, &env, &sig, &deps).await.unwrap();
 
         assert!(!res.outs.is_empty());
         assert_eq!(
@@ -690,7 +737,12 @@ mod tests {
             signature_registry.clone(),
         )
         .into();
-        let ctx = SharedJsContext::new(target_registry.clone(), task_results, rule_store);
+        let ctx = SharedJsContext::new(
+            target_registry.clone(),
+            task_registry.clone(),
+            task_results,
+            rule_store,
+        );
 
         // 3. Create our planning inputs
 
@@ -698,6 +750,13 @@ mod tests {
         let target = Arc::new("./my/file.ex".into());
         let target_id = target_registry.register_target(&target);
         let c_target = ConcreteTarget::new(goal, target_id, target.clone(), "".into(), ".".into());
+
+        let unreg_task = UnregisteredTask::builder()
+            .goal(goal)
+            .target_id(target_id)
+            .build()
+            .unwrap();
+        let task = task_registry.register(unreg_task);
 
         let mut config = rule::Config::default();
         config.insert("name".into(), Value::Target((*target).clone()));
@@ -720,7 +779,7 @@ mod tests {
         // 4. Create the executor and run!
 
         let mut exec = JsRuleExecutor::new(ctx).unwrap();
-        let err = exec.execute(&env, &sig, &deps).await.unwrap_err();
+        let err = exec.execute(task, &env, &sig, &deps).await.unwrap_err();
 
         let expected_module_name = format!(
             "file://{}/http/127.0.0.1:{mock_port}/rule_with_dep.js",

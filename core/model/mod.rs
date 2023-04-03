@@ -16,6 +16,7 @@ mod task;
 mod task_id;
 mod test_matcher;
 mod test_matcher_id;
+mod test_runner;
 
 pub use concrete_target::*;
 pub use dependencies::*;
@@ -35,6 +36,7 @@ pub use task::*;
 pub use task_id::*;
 pub use test_matcher::*;
 pub use test_matcher_id::*;
+pub use test_runner::*;
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CacheStatus {

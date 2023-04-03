@@ -39,7 +39,12 @@ impl DefaultPlannerContext {
 
 impl From<DefaultPlannerContext> for SharedJsContext {
     fn from(ctx: DefaultPlannerContext) -> Self {
-        SharedJsContext::new(ctx.target_registry, ctx.task_results, ctx.rule_store)
+        SharedJsContext::new(
+            ctx.target_registry,
+            ctx.task_registry,
+            ctx.task_results,
+            ctx.rule_store,
+        )
     }
 }
 
