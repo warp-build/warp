@@ -143,6 +143,7 @@ defmodule Tricorder.Analysis.Erlang.Ast.CleanLoc do
 
   def clean({:integer, _loc, int}), do: {:integer, 0, int}
   def clean({:var, _loc, name}), do: {:var, 0, name}
+  def clean({:char, _loc, char}), do: {:char, 0, char}
   def clean({:atom, _loc, name}), do: {:atom, 0, name}
   def clean({nil, _loc}), do: {nil, 0}
   def clean({:string, _loc, str}), do: {:string, 0, str}
