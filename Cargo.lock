@@ -1546,11 +1546,8 @@ version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a19187fea3ac7e84da7dacf48de0c45d63c6a76f9490dae389aead16c243fce3"
 dependencies = [
- "atty",
- "humantime",
  "log",
  "regex",
- "termcolor",
 ]
 
 [[package]]
@@ -2056,6 +2053,12 @@ dependencies = [
  "toml",
  "uuid",
 ]
+
+[[package]]
+name = "human_bytes"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39b528196c838e8b3da8b665e08c30958a6f2ede91d79f2ffcd0d4664b9c64eb"
 
 [[package]]
 name = "humantime"
@@ -3972,22 +3975,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
 
 [[package]]
-name = "test-tricorder"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cc",
- "prost 0.11.8",
- "thiserror",
- "tokio",
- "tonic",
- "tonic-build",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "textwrap"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4641,11 +4628,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "warp-build"
+name = "warp-cli"
 version = "0.0.76"
 dependencies = [
  "anyhow",
  "assert_cmd",
+ "assert_fs",
  "chrono",
  "console",
  "crossbeam",
@@ -4654,12 +4642,13 @@ dependencies = [
  "dashmap",
  "dialoguer",
  "dir-diff",
- "env_logger 0.8.4",
+ "env_logger 0.9.3",
  "futures",
  "fxhash",
  "globset",
  "guess_host_triple",
  "human-panic",
+ "human_bytes",
  "humantime",
  "ignore",
  "indicatif",
@@ -4769,6 +4758,22 @@ dependencies = [
  "uuid",
  "v8 0.60.1",
  "whoami",
+]
+
+[[package]]
+name = "warp-tricorder-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cc",
+ "prost 0.11.8",
+ "thiserror",
+ "tokio",
+ "tonic",
+ "tonic-build",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
 ]
 
 [[package]]

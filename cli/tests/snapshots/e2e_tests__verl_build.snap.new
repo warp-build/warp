@@ -1,0 +1,13 @@
+---
+source: cli/tests/e2e_tests.rs
+assertion_line: 57
+expression: stdout
+---
+
+Targets:
+  69ee8b77f4fa632c41309fa11ea75f24613689d1f307776175c44dc948d85f29 => https://rules.warp.build/toolchains/openssl
+  d335ea86d12bce62398a73b7ab3f04fa2d1b5ad808537b43c492fa87d95a6a92 => https://rules.warp.build/toolchains/erlang
+  e72801fb5d3e44f72602d40114ef0b4cfee283ee3076a7cd6170d46c5cc17571 => ./src/verl.erl
+  ca1469c3c7b8b79236997f00a56d747bec7d67d5f684e585f840401bb1f0bc8b => src/verl_parser.erl
+
+
