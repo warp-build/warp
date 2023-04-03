@@ -27,7 +27,16 @@ To do this, we need sudo permissions to:
             config.current_user()
         );
 
-        let setup_script = include_str!("./setup.sh");
+        let setup_script = {
+            let host_triple = guess_host_triple::guess_host_triple().unwrap();
+            if host_triple.contains("darwin") {
+                include_str!("./setup-darwin.sh")
+            } else if host_triple.contains("linux") {
+                include_str!("./setup-linux.sh")
+            } else {
+                unimplemented!()
+            }
+        };
         let mut cmd = Command::new("bash");
 
         cmd.args(["-c", setup_script]);
