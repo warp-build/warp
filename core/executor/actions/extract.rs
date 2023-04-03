@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use tokio::fs;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct ExtractAction {
     pub src: PathBuf,
     pub dst: PathBuf,

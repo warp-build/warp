@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use tokio::fs;
 use tokio::io::AsyncReadExt;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct VerifyChecksumAction {
     pub file: PathBuf,
     pub sha1: String,

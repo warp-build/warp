@@ -1,6 +1,7 @@
 use anyhow::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::process::Command;
 use tracing::*;
@@ -12,6 +13,18 @@ pub struct ExecAction {
     pub args: Vec<String>,
     pub cwd: Option<PathBuf>,
     pub needs_tty: bool,
+}
+
+impl Hash for ExecAction {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.cmd.hash(state);
+        self.args.hash(state);
+        self.cwd.hash(state);
+        self.needs_tty.hash(state);
+        let mut env: Vec<(&String, &String)> = self.env.iter().collect();
+        env.sort();
+        env.hash(state);
+    }
 }
 
 impl ExecAction {

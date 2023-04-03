@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct DownloadAction {
     pub url: String,
     pub sha1: String,

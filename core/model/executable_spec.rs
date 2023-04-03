@@ -7,10 +7,12 @@ use crate::store::ArtifactId;
 use crate::util::serde::*;
 use crate::worker::TaskResults;
 use chrono::{DateTime, Utc};
+use fxhash::FxHasher;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use std::io::{BufReader, Read};
 use std::path::PathBuf;
 use thiserror::Error;
@@ -156,7 +158,15 @@ impl ExecutableSpecBuilder {
 
         let mut s = Sha256::new();
 
-        let actions: Vec<String> = spec.actions().iter().map(|a| format!("{:?}", a)).collect();
+        // NB(@ostera): since actions are already ordered and are primarily other rust structs, we
+        // will defer to the implementations of the `Hash` trait for hashing. In some cases this
+        // trait has been implemented manually to account for some internal data (btrees, hashmaps)
+        // and make sure the hashing is deterministic.
+        let mut action_hasher = FxHasher::default();
+        for action in spec.actions() {
+            action.hash(&mut action_hasher);
+        }
+        s.update(action_hasher.finish().to_ne_bytes());
 
         let env: Vec<String> = spec
             .shell_env()
@@ -190,7 +200,6 @@ impl ExecutableSpecBuilder {
             .iter()
             .map(|d| d.as_str())
             .chain(outs.iter().map(|o| o.to_str().unwrap()))
-            .chain(actions.iter().map(|a| a.as_str()))
             .chain(env.iter().map(|e| e.as_str()))
             .chain(srcs.iter().map(|s| s.to_str().unwrap()))
             .collect();

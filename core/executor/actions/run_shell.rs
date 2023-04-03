@@ -1,6 +1,7 @@
 use anyhow::*;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use tokio::process::Command;
 use tracing::*;
@@ -10,6 +11,16 @@ pub struct RunShellAction {
     pub env: HashMap<String, String>,
     pub script: String,
     pub needs_tty: bool,
+}
+
+impl Hash for RunShellAction {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.script.hash(state);
+        self.needs_tty.hash(state);
+        let mut env: Vec<(&String, &String)> = self.env.iter().collect();
+        env.sort();
+        env.hash(state);
+    }
 }
 
 impl RunShellAction {
