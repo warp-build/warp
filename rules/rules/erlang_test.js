@@ -55,25 +55,30 @@ const impl = (ctx) => {
 
   const sname = name.replace("/", "-");
 
-  ctx.action().runShell({
-    script: `
+  const testRunner = `${name}.runtest`;
+  ctx.action().writeFile({
+    dst: testRunner,
+    data: `set -e
 
-ct_run \
-  -dir ${cwd()} \
-  -verbosity 100 \
-  -no-auto-compile \
-  -suite ${test.replace(ERL_EXT, "")} \
-  ${groups.length > 0 ? `-group ${groups.join(" ")}` : ""} \
-  ${cases.length > 0 ? `-case ${cases.join(" ")}` : ""} \
-  ${includePaths.join(" ")} \
-  -erl_args \
-    -sname test-$(uuidgen) \
+cd $(dirname "\${BASH_SOURCE[0]}")
+
+ct_run \\
+  -dir . \\
+  -verbosity 100 \\
+  -no-auto-compile \\
+  -suite ${test.replace(ERL_EXT, "")} \\
+  ${groups.length > 0 ? `-group ${groups.join(" \n")}` : ""} \\
+  ${cases.length > 0 ? `-case ${cases.join(" \n")}` : ""} \\
+  ${includePaths.join(" \n")} \\
+  -erl_args \\
+    -sname test-$(uuidgen) \\
     ${extraLibPaths.join(" ")}
 
   `,
   });
-
   ctx.action().declareOutputs([]);
+  ctx.action().setPermissions({ file: testRunner, executable: true });
+  ctx.action().declareTestRunner(testRunner);
 };
 
 export default Warp.Rule({

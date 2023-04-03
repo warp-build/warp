@@ -8,10 +8,7 @@ pub struct TaskId(u128);
 
 impl std::fmt::Display for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        "Task(".fmt(f)?;
-        self.0.fmt(f)?;
-        ")".fmt(f)?;
-        Ok(())
+        self.0.fmt(f)
     }
 }
 

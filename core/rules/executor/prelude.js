@@ -64,7 +64,7 @@ Warp.Signatures.compute = (inputSignature) => {
   trace(`computing signature: ${JSON.stringify(inputSignature.target)}`);
   const signature = inputSignature;
 
-  const target = signature.target;
+  const task = signature.task;
 
   trace(`getting rule: ${signature.rule}`);
   const rule = Warp.Rules.getByName(signature.rule);
@@ -86,8 +86,9 @@ Warp.Signatures.compute = (inputSignature) => {
   const config = JSON.parse(JSON.stringify(ruleConfig));
   trace(`with config: ${JSON.stringify(config, null, 2)}`);
 
-  config.target = target;
-  config.cwd = () => Target.dir(target);
+  config.task = task;
+  config.target = task;
+  config.cwd = () => Target.dir(task);
 
   let _provides = null;
   let _env = null;
@@ -128,58 +129,64 @@ Warp.Signatures.compute = (inputSignature) => {
       copy: ({ src, dst }) =>
         _actions.push({
           ffi: "op_ctx_actions_copy",
-          data: { target, src, dst },
+          data: { task, src, dst },
         }),
 
       declareOutputs: (outs) =>
         _actions.push({
           ffi: "op_ctx_actions_declare_outputs",
-          data: { target, outs },
+          data: { task, outs },
+        }),
+
+      declareTestRunner: (testRunner, opts = { env: {} }) =>
+        _actions.push({
+          ffi: "op_ctx_actions_declare_test_runner",
+          data: { task, testRunner, env: opts.env },
         }),
 
       declareRunScript: (runScript, opts = { env: {} }) =>
         _actions.push({
           ffi: "op_ctx_actions_declare_run_script",
-          data: { target, runScript, env: opts.env },
+          data: { task, runScript, env: opts.env },
         }),
 
       download: ({ url, sha1, output }) =>
         _actions.push({
           ffi: "op_ctx_download",
-          data: { target, url, sha1, output },
+          data: { task, url, sha1, output },
         }),
 
       exec: ({ env = {}, cmd, args, cwd, needsTty = false }) =>
         _actions.push({
           ffi: "op_ctx_actions_exec",
-          data: { target, cmd, args, cwd, env, needsTty },
+          data: { task, cmd, args, cwd, env, needsTty },
         }),
 
       extract: ({ src, dst }) =>
-        _actions.push({ ffi: "op_ctx_extract", data: { target, src, dst } }),
+        _actions.push({ ffi: "op_ctx_extract", data: { task, src, dst } }),
 
       runShell: ({ script, env = {}, needsTty = false }) =>
         _actions.push({
           ffi: "op_ctx_actions_run_shell",
-          data: { target, script, env, needsTty },
+          data: { task, script, env, needsTty },
         }),
 
       setPermissions: ({ file, executable }) =>
         _actions.push({
           ffi: "op_ctx_set_permissions",
-          data: { target, file, executable },
+          data: { task, file, executable },
         }),
 
       writeFile: ({ data, dst }) =>
         _actions.push({
           ffi: "op_ctx_actions_write_file",
-          data: { target, data, dst },
+          data: { task, data, dst },
         }),
 
       verifyChecksum: ({ file, sha1 }) =>
         _actions.push({
           ffi: "op_ctx_verify_checksum",
-          data: { target, file, sha1 },
+          data: { task, file, sha1 },
         }),
     }),
   };
@@ -191,9 +198,9 @@ Warp.Signatures.compute = (inputSignature) => {
   trace(`provides: ${JSON.stringify(_provides, null, 2)}`);
 
   if (_provides !== null) {
-    ffi("op_ctx_declare_provides", { target, provides: _provides });
+    ffi("op_ctx_declare_provides", { task, provides: _provides });
   }
-  if (_env !== null) ffi("op_ctx_declare_env", { target, env: _env });
+  if (_env !== null) ffi("op_ctx_declare_env", { task, env: _env });
   _actions.forEach((action) => ffi(action.ffi, action.data));
 };
 
@@ -353,8 +360,8 @@ File.changeRoot = (path, root) => {
 
 const Target = {};
 
-Target.path = (target) => ffi("op_target_path", target);
+Target.path = (task) => ffi("op_target_path", task);
 
-Target.dir = (target) => ffi("op_target_dir", target);
+Target.dir = (task) => ffi("op_target_dir", task);
 
-Target.name = (target) => ffi("op_target_name", target);
+Target.name = (task) => ffi("op_target_name", task);

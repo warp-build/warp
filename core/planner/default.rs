@@ -78,7 +78,7 @@ where
             .transitive_runtime_deps(transitive_runtime_deps)
             .build()?;
 
-        let plan = self.rule_executor.execute(&env, sig, &deps).await?;
+        let plan = self.rule_executor.execute(task, &env, sig, &deps).await?;
 
         let toolchains: Vec<Task> = self
             .ctx
@@ -314,6 +314,7 @@ mod tests {
 
         async fn execute(
             &mut self,
+            _task: Task,
             _env: &ExecutionEnvironment,
             _sig: &Signature,
             _deps: &Dependencies,

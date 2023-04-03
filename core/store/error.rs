@@ -1,4 +1,4 @@
-use super::{LocalStoreError, PublicStoreError};
+use super::{ArtifactId, LocalStoreError, PublicStoreError};
 use crate::archive::ArchiveManagerError;
 use crate::util::from_file::FromFileError;
 use thiserror::Error;
@@ -28,6 +28,9 @@ pub enum StoreError {
         "Could not find the current host architecture ({host}) in the package manifest to be installed"
     )]
     CouldNotFindHostTripleInManifest { host: String },
+
+    #[error("Could not download public artifact {key:?}")]
+    CouldNotFindArtifactInPublicStore { key: ArtifactId },
 }
 
 impl From<ArchiveManagerError> for StoreError {
