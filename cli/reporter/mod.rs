@@ -116,13 +116,18 @@ impl Reporter for StatusReporter {
             ArchiveEvent::DownloadProgress { .. } => {
                 self.pb.set_length(self.pb.length() + 1);
             }
-            ArchiveEvent::DownloadCompleted { url, sha256, .. } => {
+            ArchiveEvent::DownloadCompleted {
+                url,
+                sha256,
+                total_size,
+            } => {
                 self.pb.set_length(self.pb.length() + 1);
                 let line = format!(
-                    "{:>12} {} (sha256={})",
+                    "{:>12} {} (sha256={} size={})",
                     yellow.apply_to("Downloaded"),
                     url,
-                    sha256
+                    sha256,
+                    human_bytes::human_bytes(total_size as f64)
                 );
                 self.pb.println(line);
                 self.pb.inc(1);

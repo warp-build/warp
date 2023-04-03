@@ -1,5 +1,5 @@
 [package]
-name = "warp-build"
+name = "warp-cli"
 version = "0.0.76"
 authors = ["Leandro Ostera <leandro@warp.build>"]
 description = "[beta] warp is a simple, fast, and correct build system for modern polyglot teams"
@@ -13,6 +13,8 @@ path = "main.rs"
 warp-core = { path = "../core", version = "*" }
 
 anyhow = { workspace=true }
+assert_cmd = { workspace=true }
+assert_fs = { workspace=true }
 chrono = { workspace=true }
 console = { workspace=true }
 crossbeam = { workspace=true }
@@ -26,9 +28,11 @@ fxhash = { workspace=true }
 globset = { workspace=true }
 guess_host_triple = { workspace=true }
 human-panic = { workspace=true }
+human_bytes = { workspace=true }
 humantime = { workspace=true }
 ignore = { workspace=true }
 indicatif = { workspace=true }
+insta.workspace = true
 notify = { workspace=true }
 num_cpus = { workspace=true }
 opentelemetry = { workspace = true, features = ["rt-tokio"] }
