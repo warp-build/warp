@@ -118,7 +118,7 @@ jobs:
 
       - uses: arduino/setup-protoc@v1
         with:
-          version: "v22.2"
+          version: "3.20.2"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set git user
