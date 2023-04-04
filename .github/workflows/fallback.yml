@@ -106,7 +106,7 @@ jobs:
           toolchain: ${{ matrix.rust_toolchain }}
           target: ${{ matrix.target }}
 
-      - uses: ostera/setup-deno@main
+      - uses: ostera/setup-deno@0282639c9b85f102420c95458fcbd3fecb64be56
         with:
           deno-version: ${{ matrix.deno_toolchain }}
 
@@ -116,7 +116,7 @@ jobs:
           otp-version: ${{ matrix.otp_version }}
           elixir-version: ${{ matrix.elixir_version }}
 
-      - uses: arduino/setup-protoc@v1
+      - uses: ostera/setup-protoc@71794594049b1021c13b630661a3c873ca5f0395
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
