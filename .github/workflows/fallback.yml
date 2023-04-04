@@ -111,7 +111,7 @@ jobs:
           deno-version: ${{ matrix.deno_toolchain }}
 
       - uses: erlef/setup-beam@v1
-        if: ${{ (runner.os != 'macOS') && !matrix.target.includes("aarch64") }}
+        if: runner.os != 'macOS' && !contains(matrix.target, "aarch64")
         with:
           otp-version: ${{ matrix.otp_version }}
           elixir-version: ${{ matrix.elixir_version }}
@@ -126,7 +126,7 @@ jobs:
           git config --global user.email github-actions-bot@users.noreply.github.com
 
       - name: Define env (Unix)
-        if: ${{ runner.os != 'Windows' }}
+        if: runner.os != 'Windows'
         run: echo "GITHUB_TAG=$(git describe --always --tags)" >> $GITHUB_ENV
 
       - name: Setup Rust targets
@@ -140,19 +140,19 @@ jobs:
         run: make build
 
       - name: Run tests
-        if: ${{ (runner.os == 'macOS') || matrix.target.includes("aarch64") }}
+        if: runner.os == 'macOS' || contains(matrix.target, "aarch64")
         run: make test.tricorder test.unit test.conc
 
       - name: Run tests
-        if: ${{ (runner.os != 'Linux') && !matrix.target.includes("aarch64") }}
+        if: runner.os != 'Linux' && !contains(matrix.target, "aarch64")
         run: make test
 
       - name: Create release archive (Unix)
-        if: ${{ success() && runner.os != 'Windows' }}
+        if: success() && runner.os != 'Windows'
         run: make release.ci
 
       - name: Upload Warp build artifact
-        if: ${{ success() }}
+        if:  success()
         uses: actions/upload-artifact@v2
         with:
           path: release.tar.gz
@@ -160,7 +160,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Warp release tarball
-        if: ${{ success() && startsWith(github.ref, 'refs/tags/') }}
+        if: success() && startsWith(github.ref, 'refs/tags/')
         id: upload-warp-release-tarball
         uses: actions/upload-release-asset@v1
         env:
