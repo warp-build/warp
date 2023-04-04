@@ -1,0 +1,9 @@
+{
+  "published_at": "2023-03-01T21:09:32+00:00",
+  "keys": {
+    "aarch64-unknown-linux-gnu": [
+      "6c6b409e9f3e03acf384e82185620369c469e5efd24a58810a362b8cbddb3a77"
+    ],
+    "aarch64-apple-darwin": []
+  }
+}
