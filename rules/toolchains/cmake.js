@@ -1,5 +1,11 @@
 const impl = (ctx) => {
-  const { version, sha1_aarch64, sha1_x86_64 } = ctx.cfg();
+  const {
+    version,
+    sha1_macos_aarch64,
+    sha1_macos_x86_64,
+    sha1_linux_x86_64,
+    sha1_linux_aarch64,
+  } = ctx.cfg();
 
   const { host } = ctx.env();
 
@@ -21,9 +27,15 @@ const impl = (ctx) => {
     ext = "zip";
   }
 
-  let sha1 = sha1_aarch64;
-  if (arch == "x86_64") {
-    sha1 = sha1_x86_64;
+  let sha1 = sha1_macos_aarch64;
+  if (arch === "x86_64" && host.os == "darwin") {
+    sha1 = sha1_macos_x86_64;
+  }
+  if (arch === "x86_64" && host.os == "linux") {
+    sha1 = sha1_linux_x86_64;
+  }
+  if (arch === "aarch64" && host.os == "linux") {
+    sha1 = sha1_linux_aarch64;
   }
 
   const cmake = `cmake-${version}-${os}-${arch}`;
@@ -64,8 +76,10 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha1_aarch64: string(),
-    sha1_x86_64: string(),
+    sha1_macos_aarch64: string(),
+    sha1_macos_x86_64: string(),
+    sha1_linux_aarch64: string(),
+    sha1_linux_x86_64: string(),
   },
   defaults: {
     sha1_aarch64: "19b1473e6ded2d234256b6aac90eb22616c5ab5e",

@@ -5,17 +5,25 @@ const impl = (ctx) => {
   const { host } = ctx.env();
   const {
     cwd,
-    sha1_aarch64,
-    sha1_x86_64,
+    sha1_macos_aarch64,
+    sha1_macos_x86_64,
+    sha1_linux_x86_64,
+    sha1_linux_aarch64,
     toolchains,
     targets,
     components,
   } = ctx.cfg();
 
   let arch = host.arch;
-  let sha1 = sha1_aarch64;
-  if (arch === "x86_64") {
-    sha1 = sha1_x86_64;
+  let sha1 = sha1_macos_aarch64;
+  if (arch === "x86_64" && host.os == "darwin") {
+    sha1 = sha1_macos_x86_64;
+  }
+  if (arch === "x86_64" && host.os == "linux") {
+    sha1 = sha1_linux_x86_64;
+  }
+  if (arch === "aarch64" && host.os == "linux") {
+    sha1 = sha1_linux_aarch64;
   }
 
   const url =
@@ -71,16 +79,22 @@ export default Warp.Toolchain({
     toolchains: [string()],
     targets: [string()],
     components: [string()],
-    sha1_aarch64: string(),
-    sha1_x86_64: string(),
+    sha1_macos_aarch64: string(),
+    sha1_macos_x86_64: string(),
+    sha1_linux_aarch64: string(),
+    sha1_linux_x86_64: string(),
     profile: string(),
   },
   defaults: {
     profile: "default",
-    sha1_aarch64: "71939cab8697adf952e7021bb2e89cd61aca55cc",
-    sha1_x86_64: "682fd896e1f0cbad9f6689ba7f8a8f3d21efb4df",
+    sha1_macos_aarch64: "71939cab8697adf952e7021bb2e89cd61aca55cc",
+    sha1_macos_x86_64: "2d31e91ea76580511281c1d5d9fac81ea42db78d",
+    sha1_linux_aarch64: "5fd9e67e4fa696d35fa8393b0ad4f742267d1d52",
+    sha1_linux_x86_64: "682fd896e1f0cbad9f6689ba7f8a8f3d21efb4df",
     toolchains: [
       "stable-aarch64-apple-darwin",
+      "stable-aarch64-unknown-linux-gnu",
+      "stable-x86_64-apple-darwin",
       "stable-x86_64-unknown-linux-gnu",
     ],
     targets: [

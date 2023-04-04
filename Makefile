@@ -21,10 +21,10 @@ build.mac.intel:
 	cargo build --target x86_64-apple-darwin
 
 build.linux.arm:
-	CC=aarch64-unknown-linux-gnu-gcc cargo build --target aarch64-unknown-linux-gnu
+	CC=aarch64-linux-gnu-gcc cargo build --target aarch64-unknown-linux-gnu
 
 build.linux.intel:
-	CC=x86_64-unknown-linux-gnu-gcc cargo build --target x86_64-unknown-linux-gnu
+	CC=x86_64-linux-gnu-gcc cargo build --target x86_64-unknown-linux-gnu
 
 .PHONY: build
 bench:
@@ -58,6 +58,12 @@ release.linux.arm:
 .PHONY: install
 install:
 	cargo install --debug --path cli
+
+install.linux.arm:
+	CC=aarch64-linux-gnu-gcc cargo install --debug --path cli --target aarch64-unknown-linux-gnu
+
+install.linux.intel:
+	CC=x86_64-linux-gnu-gcc cargo install --debug --path cli --target x86_64-unknown-linux-gnu
 
 .PHONY: install.release
 install.release:
