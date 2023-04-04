@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::model::SourceKind;
+use crate::model::{SourceKind, TaskId};
 use crate::{CacheStatus, Goal, Target};
 use url::Url;
 
@@ -127,6 +127,7 @@ pub enum WorkerEvent {
     },
     TargetBuildCompleted {
         goal: Goal,
+        task_id: TaskId,
         target: Target,
         signature: String,
         cache_status: CacheStatus,

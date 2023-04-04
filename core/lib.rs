@@ -28,7 +28,7 @@ pub(crate) mod workspace;
 
 pub use config::*;
 pub use drive::*;
-pub use model::{CacheStatus, Goal, Target};
+pub use model::{CacheStatus, Goal, Target, TaskId};
 
 #[macro_use]
 extern crate derive_builder;
