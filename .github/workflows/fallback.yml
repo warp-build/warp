@@ -106,9 +106,8 @@ jobs:
           toolchain: ${{ matrix.rust_toolchain }}
           target: ${{ matrix.target }}
 
-      - uses: ostera/setup-deno@8a14d9ac80ac8477781184be585272b56b4b66be
+      - uses: ostera/setup-deno@d77d23e81419383bfcdb535d27cd6da58abb78d9
         with:
-          version: "v22.2"
           deno-version: ${{ matrix.deno_toolchain }}
 
       - uses: erlef/setup-beam@v1
@@ -117,8 +116,9 @@ jobs:
           otp-version: ${{ matrix.otp_version }}
           elixir-version: ${{ matrix.elixir_version }}
 
-      - uses: ostera/setup-protoc@71794594049b1021c13b630661a3c873ca5f0395
+      - uses: ostera/setup-protoc@8a14d9ac80ac8477781184be585272b56b4b66be
         with:
+          version: "v22.2"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set git user
