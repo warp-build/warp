@@ -118,7 +118,7 @@ jobs:
 
       - uses: ostera/setup-protoc@b58f659cae5625f7788f0920e3204778f216841f
         with:
-          version: "3.20.2"
+          version: "v3.20.2"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set git user
