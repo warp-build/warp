@@ -2,6 +2,7 @@ use crate::model::ExecutableSpec;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use thiserror::Error;
+use tracing::debug;
 
 pub enum ActionRunnerFlow {
     Completed,
@@ -17,7 +18,11 @@ impl ActionRunner {
         spec: &ExecutableSpec,
     ) -> Result<ActionRunnerFlow, ActionRunnerError> {
         for action in spec.actions() {
-            action.run(spec.target(), store_path, env).await?;
+            let res = action.run(spec.target(), store_path, env).await;
+            debug!("executed action with result: {:?}", res);
+            if let Err(err) = res {
+                return Err(ActionRunnerError::ActionError(err));
+            }
         }
         Ok(ActionRunnerFlow::Completed)
     }
@@ -27,6 +32,9 @@ impl ActionRunner {
 pub enum ActionRunnerError {
     #[error(transparent)]
     Unknown(anyhow::Error),
+
+    #[error(transparent)]
+    ActionError(anyhow::Error),
 }
 
 impl From<anyhow::Error> for ActionRunnerError {
