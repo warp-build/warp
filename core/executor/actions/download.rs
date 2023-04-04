@@ -6,7 +6,8 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
+use tracing::{debug, instrument};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct DownloadAction {
@@ -16,7 +17,7 @@ pub struct DownloadAction {
 }
 
 impl DownloadAction {
-    #[tracing::instrument(name = "action::DownloadAction::run")]
+    #[instrument(name = "action::DownloadAction::run")]
     pub async fn run(
         &self,
         target: &ConcreteTarget,
@@ -28,17 +29,16 @@ impl DownloadAction {
 
         let mut resp = reqwest::get(&self.url).await?.bytes_stream();
 
+        let mut hasher = Sha1::new();
         while let Some(chunk) = resp.next().await {
-            outfile.write_all_buf(&mut chunk?).await?;
+            let mut chunk = chunk?;
+            debug!("downloaded {} bytes", chunk.len());
+            hasher.input(&chunk);
+            outfile.write_all_buf(&mut chunk).await?;
         }
 
-        let mut outfile = fs::File::open(out_path).await?;
-        let mut hasher = Sha1::new();
-        let mut contents: Vec<u8> =
-            std::vec::Vec::with_capacity(outfile.metadata().await?.len() as usize);
-        outfile.read_to_end(&mut contents).await?;
-        hasher.input(&contents);
         let hash = hasher.result_str();
+        debug!("download hashed {} == {}", &hash, &self.sha1);
         if hash == self.sha1 {
             Ok(())
         } else {

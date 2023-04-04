@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
 use tokio_util::compat::TokioAsyncReadCompatExt;
+use tracing::instrument;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct ExtractAction {
@@ -13,7 +14,7 @@ pub struct ExtractAction {
 }
 
 impl ExtractAction {
-    #[tracing::instrument(name = "action::ExtractAction::run")]
+    #[instrument(name = "action::ExtractAction::run")]
     pub async fn run(
         &self,
         target: &ConcreteTarget,
