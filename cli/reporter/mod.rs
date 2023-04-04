@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tracing::debug;
 use warp_core::events::event::*;
 use warp_core::events::{EventChannel, EventConsumer};
-use warp_core::{CacheStatus, Goal, Target};
+use warp_core::{CacheStatus, Goal, Target, TaskId};
 
 trait Reporter {
     fn handle_event(&mut self, event: Event) {
@@ -39,7 +39,8 @@ pub struct StatusReporter {
     flags: Flags,
     goal: Goal,
     current_targets: DashSet<Target>,
-    cache_hits: DashSet<Target>,
+    cache_hits: DashSet<TaskId>,
+    passed_tests: DashSet<TaskId>,
     queued_labels: DashSet<Target>,
     error_count: u32,
     errored: bool,
@@ -74,6 +75,7 @@ impl StatusReporter {
             hashed_count: DashSet::default(),
             current_targets: DashSet::default(),
             cache_hits: Default::default(),
+            passed_tests: Default::default(),
             queued_labels: Default::default(),
             should_stop: false,
         }
@@ -115,6 +117,7 @@ impl Reporter for StatusReporter {
                 self.pb.set_length(self.pb.length() + 1);
             }
             ArchiveEvent::DownloadCompleted { url, sha256, .. } => {
+                self.pb.set_length(self.pb.length() + 1);
                 let line = format!(
                     "{:>12} {} (sha256={})",
                     yellow.apply_to("Downloaded"),
@@ -172,13 +175,10 @@ impl Reporter for StatusReporter {
     }
 
     fn on_queue_event(&mut self, event: QueueEvent) {
-        match event {
-            QueueEvent::TaskQueued { target, .. } => {
-                if self.target_count.insert(target) {
-                    self.pb.set_length(self.pb.length() + 1);
-                }
+        if let QueueEvent::TaskQueued { target, .. } = event {
+            if self.target_count.insert(target) {
+                self.pb.set_length(self.pb.length() + 1);
             }
-            _ => (),
         }
     }
 
@@ -193,9 +193,11 @@ impl Reporter for StatusReporter {
             WorkerEvent::TargetBuildCompleted {
                 cache_status,
                 target,
+                task_id,
                 goal,
                 signature,
             } if cache_status == CacheStatus::Cached && self.flags.print_cache_hits => {
+                self.pb.set_length(self.pb.length() + 1);
                 self.current_targets.remove(&target);
                 self.pb.set_message(format!(
                     " {}",
@@ -224,14 +226,33 @@ impl Reporter for StatusReporter {
                 self.pb.println(line);
 
                 self.pb.inc(1);
-                self.cache_hits.insert(target);
+
+                self.cache_hits.insert(task_id);
+
+                if goal.is_test() {
+                    self.passed_tests.insert(task_id);
+                }
+            }
+            WorkerEvent::TargetBuildCompleted {
+                cache_status,
+                task_id,
+                goal,
+                ..
+            } if cache_status == CacheStatus::Cached => {
+                self.cache_hits.insert(task_id);
+
+                if goal.is_test() {
+                    self.passed_tests.insert(task_id);
+                }
             }
             WorkerEvent::TargetBuildCompleted {
                 target,
                 goal,
+                task_id,
                 signature,
                 cache_status,
             } if cache_status != CacheStatus::Cached => {
+                self.pb.set_length(self.pb.length() + 1);
                 let line = format!(
                     "{:>12} {} {}",
                     green_bold.apply_to(if goal.is_test() { "PASS" } else { "Built" }),
@@ -254,6 +275,10 @@ impl Reporter for StatusReporter {
                 ));
                 self.pb.inc(1);
                 self.target_count.insert(target);
+
+                if goal.is_test() {
+                    self.passed_tests.insert(task_id);
+                }
             }
             _ => (),
         }
@@ -294,7 +319,7 @@ impl Reporter for StatusReporter {
                     )
                 } else if self.targets.len() == 1 {
                     format!(
-                        "{:>12} {} in {}ms ({} built, {} cached{})",
+                        "{:>12} {} in {}ms ({} passed, {} errors, {} built, {} cached{})",
                         if self.errored {
                             red_bold.apply_to("Finished with errors")
                         } else if self.goal.is_runnable() {
@@ -304,6 +329,8 @@ impl Reporter for StatusReporter {
                         },
                         self.targets[0].to_string(),
                         t1.saturating_duration_since(self.build_started).as_millis(),
+                        self.passed_tests.len(),
+                        self.error_count,
                         self.target_count.len(),
                         self.cache_hits.len(),
                         if self.error_count > 0 {
@@ -338,6 +365,7 @@ impl Reporter for StatusReporter {
                 };
                 self.pb.println("");
                 self.pb.println(line);
+                self.pb.inc(1);
                 self.should_stop = true;
             }
         }

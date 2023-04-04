@@ -253,6 +253,7 @@ where
             .send(WorkerEvent::TargetBuildCompleted {
                 target: (*target).clone(),
                 goal,
+                task_id: *task.clone().id(),
                 cache_status,
                 signature: signature.name().to_string(),
             });
