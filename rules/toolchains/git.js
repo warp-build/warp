@@ -21,9 +21,10 @@ const impl = (ctx) => {
 
     ./configure --prefix=$(pwd)/dist
 
-    make -j
+    make \
+      NO_TCLTK=YesPlease
 
-    make install -j
+    make install
 
     `,
   });

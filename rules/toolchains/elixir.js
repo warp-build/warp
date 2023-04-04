@@ -7,7 +7,15 @@ export const EXS_EXT = ".exs";
 const cleanVersion = (version) => version.split(".").slice(0, 2).join("-");
 
 const impl = (ctx) => {
-  const { kind, version, sha256 } = ctx.cfg();
+  const { host } = ctx.env();
+  const {
+    kind,
+    version,
+    sha1_macos_aarch64,
+    sha1_macos_x86_64,
+    sha1_linux_x86_64,
+    sha1_linux_aarch64,
+  } = ctx.cfg();
 
   const output = "Precompiled.zip";
 
@@ -15,7 +23,18 @@ const impl = (ctx) => {
     ? `https://github.com/elixir-lang/elixir/archive/v${version}.tar.gz`
     : `https://github.com/elixir-lang/elixir/releases/download/v${version}/Precompiled.zip`;
 
-  ctx.action().download({ url, sha1: sha256, output });
+  let sha1 = sha1_macos_aarch64;
+  if (host.arch === "x86_64" && host.os == "darwin") {
+    sha1 = sha1_macos_x86_64;
+  }
+  if (host.arch === "x86_64" && host.os == "linux") {
+    sha1 = sha1_linux_x86_64;
+  }
+  if (host.arch === "aarch64" && host.os == "linux") {
+    sha1 = sha1_linux_aarch64;
+  }
+
+  ctx.action().download({ url, sha1, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -74,12 +93,18 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha256: string(),
+    sha1_macos_aarch64: string(),
+    sha1_linux_aarch64: string(),
+    sha1_macos_x86_64: string(),
+    sha1_linux_x86_64: string(),
     kind: string(),
   },
   defaults: {
     kind: "source",
-    sha256: "6addcf88ec333fc9d0468e84abc5c8fb053d8f79",
+    sha1_macos_aarch64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
+    sha1_linux_aarch64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
+    sha1_macos_x86_64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
+    sha1_linux_x86_64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
     version: "1.14",
   },
   toolchains: [ErlangToolchain],
