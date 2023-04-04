@@ -128,7 +128,7 @@ jobs:
 
       - name: Define env (Unix)
         if: runner.os != 'Windows'
-        run: echo "GITHUB_TAG=$(git describe --always --tags)/ >> $GITHUB_ENV
+        run: echo "GITHUB_TAG=$(git describe --always --tags)" >> $GITHUB_ENV
 
       - name: Setup Rust targets
         run: make setup
