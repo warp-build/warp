@@ -106,7 +106,7 @@ jobs:
           toolchain: ${{ matrix.rust_toolchain }}
           target: ${{ matrix.target }}
 
-      - uses: ostera/setup-deno@e8483bc87c98dd8c342d96a34c145de8ccc04b8f
+      - uses: ostera/setup-deno@ffd121786bce1ef44c713fb1b34a895e3ae8d0d1
         with:
           deno-version: ${{ matrix.deno_toolchain }}
 
