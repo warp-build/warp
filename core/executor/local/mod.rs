@@ -35,7 +35,8 @@ impl Executor for LocalExecutor {
             return Ok(ExecutionFlow::Completed(manifest, CacheStatus::Cached));
         }
 
-        self.do_execute(spec).await
+        let flow = self.do_execute(spec).await?;
+        Ok(flow)
     }
 }
 

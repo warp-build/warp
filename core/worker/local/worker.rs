@@ -51,6 +51,7 @@ pub struct LocalWorker<R: Resolver, P: Planner, E: Executor, S: Store> {
     env: ExecutionEnvironment,
 }
 
+#[derive(Debug)]
 pub enum WorkerFlow {
     Complete {
         task: Task,
@@ -143,7 +144,11 @@ where
 
         debug!("Handling task {:#?}", task);
 
-        match self.handle_task(task).await? {
+        let flow = self.handle_task(task).await?;
+
+        debug!("result {:?}", &flow);
+
+        match flow {
             WorkerFlow::Complete {
                 task,
                 executable_spec,
