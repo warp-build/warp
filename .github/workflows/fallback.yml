@@ -116,7 +116,7 @@ jobs:
           otp-version: ${{ matrix.otp_version }}
           elixir-version: ${{ matrix.elixir_version }}
 
-      - uses: ostera/setup-protoc@8a14d9ac80ac8477781184be585272b56b4b66be
+      - uses: ostera/setup-protoc@904f108ede001758ef615946f9b8fa333a2f6529
         with:
           version: "v22.2"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
