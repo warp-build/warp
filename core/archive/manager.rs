@@ -162,18 +162,31 @@ impl ArchiveManager {
                 let mut f = std::fs::File::open(manifest_path)?;
                 tar.append_file(MANIFEST_FILE, &mut f)?;
 
-                for (current, out) in manifest.outs().iter().enumerate() {
-                    let mut f = std::fs::File::open(manifest.store_path().join(out))?;
+                let mut files = manifest.outs().to_vec();
+                let mut current = 1;
+                while let Some(out) = files.pop() {
+                    let path = manifest.store_path().join(&out);
+                    let mut f = std::fs::File::open(&path)?;
                     if f.metadata().unwrap().is_dir() {
-                        tar.append_dir_all(out, manifest.store_path().join(out))?;
-                    } else {
-                        tar.append_file(out, &mut f)?;
+                        let mut read_dir = std::fs::read_dir(&path)?;
+                        while let Some(Ok(entry)) = read_dir.next() {
+                            let path = entry.path().clone();
+                            files.push(
+                                path.strip_prefix(manifest.store_path())
+                                    .unwrap()
+                                    .to_path_buf(),
+                            );
+                        }
+                        continue;
                     }
+
+                    tar.append_file(out, &mut f)?;
                     ec.send(ArchiveEvent::CompressionProgress {
                         target: target.clone(),
                         current,
                         total_files,
                     });
+                    current += 1;
                 }
 
                 tar.finish()
