@@ -50,7 +50,7 @@ jobs:
 
           # linux builds
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: buildjet-2vcpu-ubuntu-2204-arm
             rust_toolchain: stable
             deno_toolchain: "v1.25"
             otp_version: "25.3"
@@ -58,7 +58,7 @@ jobs:
             rebar3_version: "3.14.1"
 
           - target: aarch64-unknown-linux-musl
-            os: ubuntu-latest
+            os: buildjet-2vcpu-ubuntu-2204-arm
             rust_toolchain: stable
             deno_toolchain: "v1.25"
             otp_version: "25.3"
