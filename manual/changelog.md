@@ -1,8 +1,30 @@
 ---
-description: Warp is improving every day!
+description: Warp is constantly improving! 🚀
 ---
 
 # Changelog
+
+### v0.0.77 (2023/04/05)
+
+* First automated release of `warp` binaries for Mac (Intel & M1) and Linux (x86 & aarch64)
+
+### v0.0.76 (2023/04/02)
+
+* Core:
+  * Improved hashing of executable plans and artifacts
+  * Hard-split between Buildtime and Runtime dependency graphs
+  * Improved support for multiple Signatures per Target
+  * Improved caching of Signatures via CodeDB
+  * Enabled CodeDB by default (can be disabled with the `--skip-db` flag)
+* CLI:
+  * Hide cache-hits by default (but show them under a flag)
+* Tricorders:
+  * BEAM:
+    * Upgrade to Erlang/OTP 25 and Elixir 1.14
+      * Expose `MIX_REBAR3`env var to toolchains depending on Elixir
+      * Improved detection of CommonTest Suites
+      * Improved matching of CommonTest tests and groups by name
+      * Support for more rebar3/mix dependency specs (including `git_subdir` and `branch`)
 
 ### v0.0.68 (2023/01/12)
 
