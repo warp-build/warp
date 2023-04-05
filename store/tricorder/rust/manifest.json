@@ -1,6 +1,9 @@
 {
   "published_at": "2023-03-01T21:09:32+00:00",
   "keys": {
+    "x86_64-unknown-linux-gnu": [
+      "87bc12c99c8df2102446cc2a3969796608349fc92c21ce7ff88deebf5a5a5f52"
+    ],
     "aarch64-unknown-linux-gnu": [
       "6c6b409e9f3e03acf384e82185620369c469e5efd24a58810a362b8cbddb3a77"
     ],
