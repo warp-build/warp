@@ -40,6 +40,7 @@ fn verl_build() {
             "--print-hashes",
             "--print-cache-hits",
             "--force-redownload",
+            "--skip-db",
             "--warp-root",
             warp_root.to_string_lossy().as_ref(),
             "--invocation-dir",
