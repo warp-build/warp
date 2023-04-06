@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use super::package::Package;
 use super::PackageManifest;
 use crate::archive::{Archive, ArchiveManager, ArchiveManagerError};
@@ -6,6 +8,7 @@ use crate::events::event::PackerEvent;
 use crate::events::EventChannel;
 use crate::resolver::TargetRegistry;
 use crate::sync::Arc;
+use crate::util::from_file::FromFileError;
 use crate::worker::{TaskResult, TaskResults};
 use crate::Target;
 use thiserror::Error;
@@ -104,6 +107,23 @@ impl Packer {
         Ok(pkg)
     }
 
+    pub async fn update_local_package_manifest(
+        &self,
+        path: &Path,
+        manifest: &PackageManifest,
+    ) -> Result<(), PackerError> {
+        // get current manifest
+        let manifest_from_local_store = PackageManifest::from_file(path).await?;
+        // merge with current manifest
+        let new_manifest = manifest_from_local_store.merge(manifest);
+
+        // save new manifest
+        match new_manifest.write(path).await {
+            Ok(_) => Ok(()),
+            Err(err) => Err(PackerError::CouldNotWriteManifest(err)),
+        }
+    }
+
     pub async fn upload_to_public_store(&self, package: &Package) -> Result<(), PackerError> {
         let config = aws_config::load_from_env().await;
         let client = aws_sdk_s3::Client::new(&config);
@@ -165,10 +185,19 @@ pub enum PackerError {
     CompressError(ArchiveManagerError),
 
     #[error(transparent)]
+    CouldNotWriteManifest(FromFileError),
+
+    #[error(transparent)]
     UploadError(aws_sdk_s3::types::SdkError<aws_sdk_s3::error::PutObjectError>),
 
     #[error(transparent)]
     StoreCheckError(aws_sdk_s3::types::SdkError<aws_sdk_s3::error::HeadObjectError>),
+}
+
+impl From<FromFileError> for PackerError {
+    fn from(value: FromFileError) -> Self {
+        PackerError::CouldNotWriteManifest(value)
+    }
 }
 
 impl From<ArchiveManagerError> for PackerError {

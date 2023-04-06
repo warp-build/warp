@@ -6,6 +6,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;
 use thiserror::Error;
+use tokio::fs;
 use tokio::io::AsyncReadExt;
 
 use super::ArtifactManifest;
@@ -81,6 +82,27 @@ impl PackageManifest {
     /// The time at which this manifest was published
     pub fn published_at(&self) -> DateTime<Utc> {
         self.published_at
+    }
+
+    pub async fn write(&self, path: &Path) -> Result<(), FromFileError> {
+        let json = serde_json::to_string_pretty(&self).unwrap();
+        fs::write(&path, json)
+            .await
+            .map_err(|err| FromFileError::CouldNotWriteFile {
+                err,
+                file: path.to_path_buf(),
+            })
+    }
+
+    // replaces the existing keys with those of a new manifest
+    pub fn merge(&self, other: &Self) -> Self {
+        let mut keys = self.keys.clone();
+
+        for (key, value) in other.keys.iter() {
+            keys.insert(key.clone(), value.clone());
+        }
+
+        Self::builder().keys(keys).build().unwrap()
     }
 
     /// The keys to retrieve from the cache when downloading this manifest. They are grouped by the
