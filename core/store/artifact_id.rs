@@ -1,6 +1,6 @@
 use std::path::Path;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArtifactId(String);
 
 impl ArtifactId {

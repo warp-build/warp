@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use super::public::PublicArtifactDownload;
 use super::{
     ArtifactId, ArtifactManifest, LocalStore, LocalStoreError, PackageManifest, PublicStore,
@@ -10,6 +8,7 @@ use crate::model::ExecutableSpec;
 use crate::sync::*;
 use crate::Config;
 use async_trait::async_trait;
+use std::path::PathBuf;
 use tracing::instrument;
 use url::Url;
 
@@ -264,9 +263,11 @@ mod tests {
 
         assert_matches!(
             result.unwrap_err(),
-            StoreError::PublicStoreError(PublicStoreError::CouldNotDownloadArtifact {
-                id
-            }) if id.inner() == "b-hash"
+            StoreError::CouldNotFindArtifactInPublicStore{
+                key
+            } => {
+                assert_eq!(key, ArtifactId::new("b-hash"));
+            }
         );
     }
 
