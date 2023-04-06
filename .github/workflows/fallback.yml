@@ -33,7 +33,8 @@ jobs:
         include:
           # macos targets
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: x86_64-apple-darwin
+            image_os: 'macOS Ventura'
             rust_toolchain: stable
             deno_toolchain: "v1.32"
             otp_version: "25.3"
@@ -41,7 +42,8 @@ jobs:
             rebar3_version: "3.14.1"
 
           - target: aarch64-apple-darwin
-            os: self-hosted
+            os: aarch64-apple-darwin
+            image_os: 'macOS Ventura'
             rust_toolchain: stable
             deno_toolchain: "v1.32"
             otp_version: "25.3"
@@ -50,7 +52,8 @@ jobs:
 
           # linux builds
           - target: aarch64-unknown-linux-gnu
-            os: buildjet-4vcpu-ubuntu-2204-arm
+            os: aarch64-unknown-linux-gnu
+            image_os: 'ubuntu22'
             rust_toolchain: stable
             deno_toolchain: "v1.32"
             otp_version: "25.3"
@@ -58,7 +61,8 @@ jobs:
             rebar3_version: "3.14.1"
 
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: x86_64-unknown-linux-gnu
+            image_os: 'ubuntu22'
             rust_toolchain: stable
             deno_toolchain: "v1.32"
             otp_version: "25.3"
@@ -68,6 +72,7 @@ jobs:
     env:
       OS: ${{ matrix.os }}
       RUST_TOOLCHAIN: ${{ matrix.rust_toolchain }}
+      ImageOS: ${{ matrix.image_os }}
 
     runs-on: ${{ matrix.os }}
 
