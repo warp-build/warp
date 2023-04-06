@@ -13,18 +13,10 @@ macro_rules! assert_in_store {
 #[test]
 fn verl_build() {
     let warp_root = PathBuf::from("/warp");
-    // let warp_root = warp_root.into_persistent();
     dbg!(&warp_root);
 
-    let invocation_dir = assert_fs::TempDir::new().unwrap();
-    // let invocation_dir = invocation_dir.into_persistent();
+    let invocation_dir = PathBuf::from("./tests/repos/verl/").canonicalize().unwrap();
     dbg!(&invocation_dir);
-
-    invocation_dir
-        .copy_from("./tests/repos/verl/", &["**/*"])
-        .unwrap();
-
-    assert!(invocation_dir.child("Warpfile").exists());
 
     let mut warp = std::process::Command::new(assert_cmd::cargo::cargo_bin("warp"));
 
@@ -52,7 +44,7 @@ fn verl_build() {
             "--warp-root",
             warp_root.to_string_lossy().as_ref(),
             "--invocation-dir",
-            invocation_dir.path().to_string_lossy().as_ref(),
+            invocation_dir.to_string_lossy().as_ref(),
             "--max-localworkers",
             "0",
         ])
