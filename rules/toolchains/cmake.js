@@ -82,9 +82,11 @@ export default Warp.Toolchain({
     sha1_linux_x86_64: string(),
   },
   defaults: {
-    sha1_aarch64: "19b1473e6ded2d234256b6aac90eb22616c5ab5e",
-    sha1_x86_64: "12627c808674ee5f5bd3a6982176613bbd3ad9db",
-    version: "3.24.2",
+    sha1_macos_aarch64: "ecd0845ad5087211d1e73e41ecfa80eeb754ef2e",
+    sha1_macos_x86_64: "12627c808674ee5f5bd3a6982176613bbd3ad9db",
+    sha1_linux_aarch64: "e451586e5e2132b4fce9a701493ef74e31f2fa94",
+    sha1_linux_x86_64: "0e4bb2905347aaf8634c7d048be69513999453c3",
+    version: "3.26.2",
   },
   toolchains: [],
 });
