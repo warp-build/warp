@@ -4,11 +4,19 @@ description: Warp is constantly improving! 🚀
 
 # Changelog
 
-### v0.0.77 (2023/04/05)
+## v0.0.77 (2023/04/05)
 
-* First automated release of `warp` binaries for Mac (Intel & M1) and Linux (x86 & aarch64)
+First automated release of `warp` binaries for Mac (Intel & M1) and Linux (x86 & aarch64).
 
-### v0.0.76 (2023/04/02)
+### What's Changed
+
+* WARP-111: add setup support for linux by [@ostera](https://github.com/ostera) in [#30](https://github.com/warp-build/warp/pull/30)
+* feat(store): add first manifests into this repo by [@ostera](https://github.com/ostera) in [#31](https://github.com/warp-build/warp/pull/31)
+* fix(reporter): correct nr of caches and tests by [@Enkronan](https://github.com/Enkronan) in [#33](https://github.com/warp-build/warp/pull/33)
+* feat(store): adding x86\_linux hashes by [@diogomqbm](https://github.com/diogomqbm) in [#34](https://github.com/warp-build/warp/pull/34)
+* fix(ci): release arm64 binaries by [@ostera](https://github.com/ostera) in [#35](https://github.com/warp-build/warp/pull/35)
+
+## v0.0.76 (2023/04/02)
 
 * Core:
   * Improved hashing of executable plans and artifacts
@@ -26,7 +34,7 @@ description: Warp is constantly improving! 🚀
       * Improved matching of CommonTest tests and groups by name
       * Support for more rebar3/mix dependency specs (including `git_subdir` and `branch`)
 
-### v0.0.68 (2023/01/12)
+## v0.0.68 (2023/01/12)
 
 This is our biggest release yet and we're super excited to share it with you 🤩
 
@@ -82,7 +90,7 @@ In it you can add some JSON to describe what targets this file provides, and whi
 
 Looking forward to sharing more in the next couple of months! So if you've got any feedback feel free to drop it in the box below, and in our [Public Roadmap](https://warp.productlane.io/roadmap).
 
-### v0.0.44  (2022/10/21)
+## v0.0.44  (2022/10/21)
 
 ⚡️ **Instant Setup**: new and existing projects can now be set up incredibly quickly with warp init. This flow will ask you to choose whichever languages and tools you are going to use (\`ruby\`, erlang, make, etc), and will prepare your workspace for it.
 
@@ -126,7 +134,7 @@ We are also working towards moving away from Build files to provide an even clea
 
 \* Fixed stack overflows when importing JS modules due to a large number of Rust Futures
 
-### v0.0.33 (2022/10/03)
+## v0.0.33 (2022/10/03)
 
 🖇️ **Remote Workspaces**: now your workspace can reference things that live in _other repos_. This is super useful for 2 things: polyrepo setups, and to execute stuff that someone else has built but that you don't want to set up locally by yourself.
 
@@ -160,7 +168,7 @@ deps = ["./lib/users:lib"]
 
 \* warp will now always create a /warp/home dir for all the sandboxed tools to rely on
 
-### v0.0.22 (2022/09/22)
+## v0.0.22 (2022/09/22)
 
 Small change that caches the rules based on the URLs (treating the URLs as uinque enough) rather than hashing the URL paths. This means that inspecting and tinkering with them becomes a lot easier :star\_struck:
 
@@ -245,7 +253,7 @@ Now you can see the path structure much more clearly:
 
 The rule writing experience has a lot of room for improvement, since it's been only us writing them so far, but we'll put some docs on how to get up and running soon for those of you that want to customize your builds :relieved:
 
-### v0.0.18 (2022/09/20)
+## v0.0.18 (2022/09/20)
 
 In this release we got:
 
