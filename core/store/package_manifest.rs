@@ -95,11 +95,10 @@ impl PackageManifest {
     }
 
     // replaces the existing keys with those of a new manifest
-    pub fn merge(&self, other: &Self) -> Self {
-        let mut keys = self.keys.clone();
-
-        for (key, value) in other.keys.iter() {
-            keys.insert(key.clone(), value.clone());
+    pub fn merge(self, other: Self) -> Self {
+        let mut keys = self.keys().clone();
+        for (k, v) in other.keys().iter() {
+            keys.insert(k.clone(), v.clone());
         }
 
         Self::builder().keys(keys).build().unwrap()

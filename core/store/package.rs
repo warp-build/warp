@@ -34,8 +34,7 @@ impl Package {
         let path = self.get_local_manifest_path(&target);
         let local_manifest = PackageManifest::from_file(&path).await.unwrap_or_default();
 
-        let new_manifest = self.manifest();
-        let merged = local_manifest.merge(new_manifest);
+        let merged = local_manifest.merge(self.manifest().clone());
 
         merged.write(&path).await
     }
