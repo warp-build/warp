@@ -10,7 +10,18 @@ There are 3 main phases to any Warp execution: resolve, plan, execute.
 
 ### Workspace
 
-A Warp workspace is any folder that is also a Git repository and includes a Warpfile
+A Warp workspace is any folder that is also a Git repository and includes a Warpfile.
+
+Warpfiles serve two purposes: 1) indicates to Warp that this is a warp-ready workspace, 2) provides workspace-specific configurations. If the default configurations are sufficient, the Warpfile is as simple as: 
+```json
+{
+  "workspace": {
+    "name": "workspace-name"
+  }
+}
+
+```
+Note that the Warpfile should exist at the root of the workspace.
 
 ### Goal
 
