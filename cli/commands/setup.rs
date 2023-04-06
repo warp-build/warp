@@ -14,6 +14,11 @@ impl SetupCommand {
     pub async fn run(&self) -> Result<(), anyhow::Error> {
         let config = warp_core::Config::builder().build()?;
 
+        if std::fs::File::open(config.warp_root()).is_ok() {
+            println!("This is a warp-capable machine. No setup is necessary");
+            return Ok(());
+        }
+
         println!(
             r#"
 
