@@ -347,12 +347,17 @@ mod tests {
             .unwrap();
         let am = ArchiveManager::new(&config);
 
-        let _m = mockito::mock("GET", "/sample_artifact.tar.gz")
+        let mut server = mockito::Server::new_with_port_async(1234).await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
+        let _m = server
+            .mock("GET", "/sample_artifact.tar.gz")
             .with_status(200)
             .with_body(include_bytes!("./fixtures/sample_artifact.tar.gz"))
-            .create();
+            .create_async()
+            .await;
 
-        let url: Url = format!("{}/sample_artifact.tar.gz", mockito::server_url())
+        let url: Url = format!("{}sample_artifact.tar.gz", mock_url)
             .parse()
             .unwrap();
         let archive = am.download(&url).await.unwrap();
@@ -372,11 +377,16 @@ mod tests {
         let config = Config::default();
         let am = ArchiveManager::new(&config);
 
-        let _m = mockito::mock("GET", "/sample_artifact.tar.gz")
-            .with_status(400)
-            .create();
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
 
-        let url: Url = format!("{}/sample_artifact.tar.gz", mockito::server_url())
+        let _m = server
+            .mock("GET", "/sample_artifact.tar.gz")
+            .with_status(400)
+            .create_async()
+            .await;
+
+        let url: Url = format!("{}sample_artifact.tar.gz", mock_url)
             .parse()
             .unwrap();
         assert!(am.download(&url).await.is_err());

@@ -215,13 +215,17 @@ mod tests {
     async fn gets_rule_from_name() {
         let store_root = assert_fs::TempDir::new().unwrap();
 
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
             .rule_store_root(store_root.path().to_path_buf())
-            .public_rule_store_url(mockito::server_url().parse::<Url>().unwrap())
+            .public_rule_store_url(mock_url)
             .build()
             .unwrap();
 
-        let m = mockito::mock("GET", "/dummy_rule.js")
+        let m = server
+            .mock("GET", "/dummy_rule.js")
             .with_status(200)
             .with_body(include_bytes!("./fixtures/dummy_rule.js"))
             .create();
@@ -241,13 +245,17 @@ mod tests {
     async fn does_not_hit_server_if_rule_is_loaded() {
         let store_root = assert_fs::TempDir::new().unwrap();
 
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
             .rule_store_root(store_root.path().to_path_buf())
-            .public_rule_store_url(mockito::server_url().parse::<Url>().unwrap())
+            .public_rule_store_url(mock_url)
             .build()
             .unwrap();
 
-        let m = mockito::mock("GET", "/dummy_rule.js")
+        let m = server
+            .mock("GET", "/dummy_rule.js")
             .with_status(200)
             .with_body(include_bytes!("./fixtures/dummy_rule.js"))
             .expect(0)
@@ -268,13 +276,17 @@ mod tests {
     async fn fails_when_cannot_download_file() {
         let store_root = assert_fs::TempDir::new().unwrap();
 
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
             .rule_store_root(store_root.path().to_path_buf())
-            .public_rule_store_url(mockito::server_url().parse::<Url>().unwrap())
+            .public_rule_store_url(mock_url)
             .build()
             .unwrap();
 
-        let m = mockito::mock("GET", "/unreachable_rule.js")
+        let m = server
+            .mock("GET", "/unreachable_rule.js")
             .with_status(404)
             .expect(1)
             .create();

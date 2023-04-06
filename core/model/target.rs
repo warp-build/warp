@@ -110,6 +110,26 @@ impl Target {
         )
     }
 
+    pub fn as_local(&self) -> Option<&FsTarget> {
+        match self {
+            Target::Alias(_) => None,
+            Target::Remote(_) => None,
+            Target::Fs(f) => Some(f),
+        }
+    }
+
+    pub fn normalize(self, root: &Path) -> Result<Target, TargetError> {
+        match self {
+            Target::Alias(_) => Ok(self),
+            Target::Remote(_) => Ok(self),
+            Target::Fs(f) => Ok(Target::Fs(f.normalize(root)?)),
+        }
+    }
+
+    pub fn is_local(&self) -> bool {
+        matches!(&self, Self::Fs(_))
+    }
+
     pub fn url(&self) -> Option<Url> {
         match self {
             Target::Alias(_) => None,
@@ -212,6 +232,28 @@ impl FsTarget {
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
+
+    pub fn normalize(mut self, root: &Path) -> Result<FsTarget, TargetError> {
+        let abs_path = std::fs::canonicalize(self.path)?;
+
+        #[cfg(target_os = "macos")]
+        {
+            self.path = if let Ok(path) = abs_path.strip_prefix("/private") {
+                Path::new("/").join(path)
+            } else {
+                abs_path
+            }
+            .strip_prefix(root)?
+            .to_path_buf();
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            self.path = abs_path.strip_prefix(root)?.to_path_buf();
+        }
+
+        Ok(self)
+    }
 }
 
 impl Default for FsTarget {
@@ -252,11 +294,27 @@ impl From<&Path> for FsTarget {
 pub enum TargetError {
     #[error(transparent)]
     BuilderError(derive_builder::UninitializedFieldError),
+    #[error(transparent)]
+    IOError(std::io::Error),
+    #[error(transparent)]
+    CouldNotNormalizePath(std::path::StripPrefixError),
 }
 
 impl From<derive_builder::UninitializedFieldError> for TargetError {
     fn from(value: derive_builder::UninitializedFieldError) -> Self {
         TargetError::BuilderError(value)
+    }
+}
+
+impl From<std::io::Error> for TargetError {
+    fn from(value: std::io::Error) -> Self {
+        TargetError::IOError(value)
+    }
+}
+
+impl From<std::path::StripPrefixError> for TargetError {
+    fn from(value: std::path::StripPrefixError) -> Self {
+        TargetError::CouldNotNormalizePath(value)
     }
 }
 

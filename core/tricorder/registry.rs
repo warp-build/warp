@@ -21,19 +21,19 @@ impl TricorderRegistry {
         let default_host = config.public_store_metadata_url().to_string();
         let data = [
             (
-                format!("{default_host}tricorder/test/manifest.json")
+                format!("{default_host}tricorders/test/manifest.json")
                     .parse::<Url>()
                     .unwrap(),
                 vec!["warp_test"],
             ),
             (
-                format!("{default_host}tricorder/beam/manifest.json")
+                format!("{default_host}tricorders/beam/manifest.json")
                     .parse::<Url>()
                     .unwrap(),
                 vec!["ex", "exs", "erl", "hrl", "rebar.config", "erl.mk"],
             ),
             (
-                format!("{default_host}tricorder/rust/manifest.json")
+                format!("{default_host}tricorders/rust/manifest.json")
                     .parse::<Url>()
                     .unwrap(),
                 vec!["rs", "Cargo.toml"],
@@ -93,13 +93,13 @@ mod tests {
         let tricorder = TricorderRegistry::new(config);
 
         let url = tricorder
-            .find_by_path(Path::new("tricorder/rust/Cargo.toml"))
+            .find_by_path(Path::new("tricorders/rust/Cargo.toml"))
             .unwrap()
             .unwrap();
 
         assert_eq!(
             url,
-            "https://store.warp.build/tricorder/rust/manifest.json"
+            "https://store.warp.build/tricorders/rust/manifest.json"
                 .parse()
                 .unwrap()
         );

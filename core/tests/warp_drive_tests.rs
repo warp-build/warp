@@ -89,7 +89,8 @@ async fn executes_target() {
     let file_target = curr_workspace.child("good_file.warp_test");
     file_target.write_str("dummy data").unwrap();
 
-    let mock_url = mockito::server_url().parse::<Url>().unwrap();
+    let mut server = mockito::Server::new_async().await;
+    let mock_url = server.url().parse::<Url>().unwrap();
     let config = Config::builder()
         .warp_root(warp_root.path().to_path_buf())
         .invocation_dir(curr_workspace.path().to_path_buf())
@@ -100,13 +101,16 @@ async fn executes_target() {
         .unwrap();
 
     // NOTE(@ostera): this mock will be used to not fetch the real tricorder
-    let public_store_mock = mockito::mock("GET", "/a-hash.tar.gz")
+    let public_store_mock = server
+        .mock("GET", "/a-hash.tar.gz")
         .with_status(200)
         .with_body(include_bytes!("./test_tricorder/package.tar.gz"))
-        .create();
+        .create_async()
+        .await;
 
     // NOTE(@ostera): this mock will be used to download the manifest
-    let package_manifest_mock = mockito::mock("GET", "/tricorder/test/manifest.json")
+    let package_manifest_mock = server
+        .mock("GET", "/tricorders/test/manifest.json")
         .with_status(200)
         .with_body(
             r#"
@@ -121,16 +125,19 @@ async fn executes_target() {
 }
                 "#,
         )
-        .create();
+        .create_async()
+        .await;
 
-    let rule_store_mock = mockito::mock("GET", "/test_rule.js")
+    let rule_store_mock = server
+        .mock("GET", "/test_rule.js")
         .with_status(200)
         .with_body(
             include_str!("./fixtures/rules/test_rule.js")
-                .replace("{URL}", &mockito::server_url())
+                .replace("{URL}", &server.url())
                 .as_bytes(),
         )
-        .create();
+        .create_async()
+        .await;
 
     let mut drive = WarpDriveMarkII::new(config).await.unwrap();
 
@@ -144,9 +151,9 @@ async fn executes_target() {
 
     assert!(!results.is_empty());
 
-    public_store_mock.assert();
-    package_manifest_mock.assert();
-    rule_store_mock.assert();
+    public_store_mock.assert_async().await;
+    package_manifest_mock.assert_async().await;
+    rule_store_mock.assert_async().await;
 
     let task_result = results.get(0).unwrap();
     let hash = task_result.artifact_manifest.hash();
@@ -172,6 +179,8 @@ async fn packs_target() {
     // let curr_workspace = curr_workspace.into_persistent();
     dbg!(&curr_workspace.path());
 
+    curr_workspace.child("store").create_dir_all().unwrap();
+
     let warpfile = curr_workspace.child(WARPFILE);
     warpfile
         .write_str(
@@ -188,7 +197,9 @@ async fn packs_target() {
     let file_target = curr_workspace.child("good_file.warp_test");
     file_target.write_str("dummy data").unwrap();
 
-    let mock_url = mockito::server_url().parse::<Url>().unwrap();
+    let mut server = mockito::Server::new_async().await;
+    let mock_url = server.url().parse::<Url>().unwrap();
+
     let config = Config::builder()
         .warp_root(warp_root.path().to_path_buf())
         .invocation_dir(curr_workspace.path().to_path_buf())
@@ -199,13 +210,16 @@ async fn packs_target() {
         .unwrap();
 
     // NOTE(@ostera): this mock will be used to not fetch the real tricorder
-    let public_store_mock = mockito::mock("GET", "/a-hash.tar.gz")
+    let public_store_mock = server
+        .mock("GET", "/a-hash.tar.gz")
         .with_status(200)
         .with_body(include_bytes!("./test_tricorder/package.tar.gz"))
-        .create();
+        .create_async()
+        .await;
 
     // NOTE(@ostera): this mock will be used to download the manifest
-    let package_manifest_mock = mockito::mock("GET", "/tricorder/test/manifest.json")
+    let package_manifest_mock = server
+        .mock("GET", "/tricorders/test/manifest.json")
         .with_status(200)
         .with_body(
             r#"
@@ -220,20 +234,24 @@ async fn packs_target() {
 }
                 "#,
         )
-        .create();
+        .create_async()
+        .await;
 
-    let rule_store_mock = mockito::mock("GET", "/test_rule.js")
+    let rule_store_mock = server
+        .mock("GET", "/test_rule.js")
         .with_status(200)
         .with_body(
             include_str!("./fixtures/rules/test_rule.js")
-                .replace("{URL}", &mockito::server_url())
+                .replace("{URL}", &server.url())
                 .as_bytes(),
         )
-        .create();
+        .create_async()
+        .await;
 
     let mut drive = WarpDriveMarkII::new(config.clone()).await.unwrap();
 
-    let target: Target = curr_workspace.path().join("good_file.warp_test").into();
+    let target_path = curr_workspace.path().join("good_file.warp_test");
+    let target: Target = target_path.clone().into();
 
     let results = drive
         .execute(Goal::Build, &[target.clone()])
@@ -243,9 +261,9 @@ async fn packs_target() {
 
     assert!(!results.is_empty());
 
-    public_store_mock.assert();
-    package_manifest_mock.assert();
-    rule_store_mock.assert();
+    public_store_mock.assert_async().await;
+    package_manifest_mock.assert_async().await;
+    rule_store_mock.assert_async().await;
 
     let manifest = results.get(0).unwrap().artifact_manifest.clone();
     let pack_results = drive.pack(target, /* upload */ false).await.unwrap();
@@ -257,4 +275,5 @@ async fn packs_target() {
         .unwrap();
 
     assert_eq!(pkgs, &vec![manifest.hash().to_string()]);
+    assert!(target_path.exists());
 }

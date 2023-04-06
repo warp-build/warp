@@ -211,6 +211,7 @@ mod tests {
     use crate::workspace::Workspace;
     use assert_fs::prelude::*;
     use async_trait::async_trait;
+    use url::Url;
 
     #[tokio::test]
     async fn fails_if_we_cannot_concretize_a_target() {
@@ -220,10 +221,13 @@ mod tests {
         // let warp_root = warp_root.into_persistent();
         // dbg!(&warp_root.path());
 
+        let server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
             .warp_root(warp_root.path().to_path_buf())
-            .public_store_cdn_url(mockito::server_url().parse().unwrap())
-            .public_store_metadata_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mock_url.clone())
+            .public_store_metadata_url(mock_url)
             .build()
             .unwrap();
 
@@ -346,11 +350,14 @@ mod tests {
         let file_target = curr_workspace.child("good_file.ex");
         file_target.write_str("dummy data").unwrap();
 
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
             .warp_root(warp_root.path().to_path_buf())
             .invocation_dir(curr_workspace.path().to_path_buf())
-            .public_store_cdn_url(mockito::server_url().parse().unwrap())
-            .public_store_metadata_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mock_url.clone())
+            .public_store_metadata_url(mock_url.clone())
             .build()
             .unwrap();
 
@@ -450,13 +457,16 @@ mod tests {
         .unwrap();
 
         // NOTE(@ostera): this mock will be used to not fetch the real tricorder
-        let _public_store_mock1 = mockito::mock("GET", "/a-hash.tar.gz")
+        let _public_store_mock1 = server
+            .mock("GET", "/a-hash.tar.gz")
             .with_status(200)
             .with_body(include_bytes!("./fixtures/sample_artifact.tar.gz"))
-            .create();
+            .create_async()
+            .await;
 
         // NOTE(@ostera): this mock will be used to download the manifest
-        let _package_manifest_mock = mockito::mock("GET", "/tricorder/beam/manifest.json")
+        let _package_manifest_mock = server
+            .mock("GET", "/tricorders/beam/manifest.json")
             .with_status(200)
             .with_body(
                 r#"
@@ -471,7 +481,8 @@ mod tests {
 }
                 "#,
             )
-            .create();
+            .create_async()
+            .await;
 
         let target: Target = curr_workspace.path().join("good_file.ex").into();
         let target_id = target_registry.register_target(&target);

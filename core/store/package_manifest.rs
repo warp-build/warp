@@ -6,6 +6,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::Path;
 use thiserror::Error;
+use tokio::fs;
 use tokio::io::AsyncReadExt;
 
 use super::ArtifactManifest;
@@ -14,7 +15,7 @@ pub const PUBLISH_MANIFEST_FILE: &str = "Manifest.json";
 
 /// A manifest used for describing a published package with Warp.
 ///
-#[derive(Builder, Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Builder, Debug, Clone, Serialize, Deserialize)]
 pub struct PackageManifest {
     #[serde(with = "crate::util::serde::iso8601")]
     #[builder(default = "Utc::now()")]
@@ -83,6 +84,25 @@ impl PackageManifest {
         self.published_at
     }
 
+    pub async fn write(&self, path: &Path) -> Result<(), FromFileError> {
+        let json = serde_json::to_string_pretty(&self).unwrap();
+        fs::write(&path, json)
+            .await
+            .map_err(|err| FromFileError::CouldNotWriteFile {
+                err,
+                file: path.to_path_buf(),
+            })
+    }
+
+    // replaces the existing keys with those of a new manifest
+    pub fn merge(mut self, other: Self) -> Self {
+        for (key, value) in other.keys.into_iter() {
+            self.keys.insert(key.clone(), value.clone());
+        }
+
+        self
+    }
+
     /// The keys to retrieve from the cache when downloading this manifest. They are grouped by the
     /// hash of the environment used to build them.
     ///
@@ -98,6 +118,15 @@ impl PackageManifest {
     /// ```
     pub fn keys(&self) -> &BTreeMap<String, Vec<String>> {
         &self.keys
+    }
+}
+
+impl Default for PackageManifest {
+    fn default() -> Self {
+        Self {
+            published_at: Utc::now(),
+            keys: Default::default(),
+        }
     }
 }
 
