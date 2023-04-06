@@ -1,6 +1,6 @@
 # What is Warp?
 
-[Warp](https://warp.build) is a friendly, fast, and correct, zero-configuration build system designed to build and test you monorepo. You can think of it as a smart layer above your tools that will save you thousands of hours.
+[Warp](https://warp.build) is a friendly, fast, and correct, zero-configuration build system designed to build and test your monorepo. You can think of it as a smart layer above your tools that will save you thousands of hours.
 
 Keep reading to learn more, or get started now.
 
@@ -8,7 +8,9 @@ Keep reading to learn more, or get started now.
 
 ⚡️ **Faster-than-light.** Never do any work twice. Always get incremental build and test feedback within milliseconds.
 
-🤝 **Built for teams.** Share every build and test artifact with your entire team. Speed up your CI pipelines 100x.
+🤝 **Built for teams.** Share every build and test artifact with your entire team. 
+
+💰 **Save on CI.** Speed up your CI pipelines 100x.
 
 🍰 **No setup, no hassle.** All build configuration is derived from sources and other tools config files.&#x20;
 
