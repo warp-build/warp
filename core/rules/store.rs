@@ -17,6 +17,7 @@ pub struct RuleStore {
     public_rule_store_url: Url,
     client: reqwest::Client,
     _lock: Arc<Mutex<()>>,
+    force_redownload: bool,
 }
 
 impl RuleStore {
@@ -26,6 +27,7 @@ impl RuleStore {
             loaded_rules: DashMap::default(),
             public_rule_store_url: config.public_rule_store_url().clone(),
             client: config.http_client().clone(),
+            force_redownload: config.force_redownload(),
             _lock: Arc::new(Mutex::new(())),
         }
     }
@@ -52,6 +54,10 @@ impl RuleStore {
 
     #[instrument(name = "RuleStore::fetch", skip(self))]
     async fn fetch(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
+        if self.force_redownload {
+            return self.download(name).await;
+        }
+
         if let Some(path) = self.find_in_global_rules(name).await? {
             return Ok(Some(path));
         }
