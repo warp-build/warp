@@ -42,12 +42,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - uses: warp-build/setup-warp@8224a36e869579a0ebd3b2332cf1bb4f2e78bd6b
+      - uses: warp-build/setup-warp@8649288ff7250dcc75568c23a658eaf33d13fc77
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Warp
-        run: warp setup
 
       - name: Build tricorders
         run: |
