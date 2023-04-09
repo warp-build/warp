@@ -8,7 +8,7 @@ fn main() {
     tonic_build::configure()
         .build_server(true)
         .include_file("_include.rs")
-        .out_dir("src/protos/")
+        .out_dir("src/grpc/protos/")
         .compile_well_known_types(true)
         .compile(
             &[

@@ -1,27 +1,12 @@
-use crate::models::{Ast, Symbol};
-use crate::tree_splitter::TreeSplitter;
+use crate::analysis::model::{Ast, AstError, Symbol};
+use crate::analysis::tree_splitter::TreeSplitter;
 use std::path::Path;
-pub(crate) use thiserror::*;
+use thiserror::*;
 use tokio::fs;
 use tracing::*;
 
 #[derive(Default)]
 pub struct GetAst {}
-
-#[derive(Error, Debug)]
-pub enum GetAstError {
-    #[error("Could not load file at {file:?} due to {err:?}")]
-    CouldNotReadFile { file: String, err: std::io::Error },
-
-    #[error("Could not parse file {file:?} due to {err:?}")]
-    CouldNotParseFile { file: String, err: syn::Error },
-
-    #[error(transparent)]
-    BuilderError(derive_builder::UninitializedFieldError),
-
-    #[error("Unsupported file {file:?}")]
-    UnsupportedFile { file: String },
-}
 
 impl GetAst {
     pub async fn get_ast(file: String, symbol: Symbol) -> Result<Ast, GetAstError> {
@@ -80,5 +65,26 @@ impl GetAst {
             Some(ext) => ext == "rs",
             _ => false,
         }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum GetAstError {
+    #[error("Could not load file at {file:?} due to {err:?}")]
+    CouldNotReadFile { file: String, err: std::io::Error },
+
+    #[error("Could not parse file {file:?} due to {err:?}")]
+    CouldNotParseFile { file: String, err: syn::Error },
+
+    #[error("Unsupported file {file:?}")]
+    UnsupportedFile { file: String },
+
+    #[error(transparent)]
+    AstError(AstError),
+}
+
+impl From<AstError> for GetAstError {
+    fn from(value: AstError) -> Self {
+        GetAstError::AstError(value)
     }
 }

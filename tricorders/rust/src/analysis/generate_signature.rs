@@ -1,23 +1,11 @@
-use crate::models::{Config, Signature};
-use crate::tree_splitter::TreeSplitter;
+use super::model::{Config, Signature, Value};
+use super::tree_splitter::TreeSplitter;
 use std::path::{Path, PathBuf};
 use thiserror::*;
 use tokio::fs;
 
 #[derive(Default)]
 pub struct GenerateSignature {}
-
-#[derive(Error, Debug)]
-pub enum GenerateSignatureError {
-    #[error("Could not load file at {file:?} due to {err:?}")]
-    CouldNotReadFile { file: String, err: std::io::Error },
-
-    #[error("Missing dep {dep:?}")]
-    MissingDependency { dep: String },
-
-    #[error("Unsupported file {file:?}")]
-    UnsupportedFile { file: String },
-}
 
 impl GenerateSignature {
     pub async fn all(
@@ -52,7 +40,7 @@ impl GenerateSignature {
         let mut config = Config::default();
         config.insert(
             "srcs".to_string(),
-            crate::Value::List(
+            Value::List(
                 mod_paths
                     .iter()
                     .map(|e| e.display().to_string().into())
@@ -99,7 +87,7 @@ impl GenerateSignature {
         let mut config = Config::default();
         config.insert(
             "srcs".to_string(),
-            crate::Value::List(
+            Value::List(
                 mod_paths
                     .iter()
                     .map(|e| e.display().to_string().into())
@@ -109,7 +97,7 @@ impl GenerateSignature {
 
         config.insert(
             "tests".to_string(),
-            crate::Value::List(test_matcher.iter().map(|e| e.to_string().into()).collect()),
+            Value::List(test_matcher.iter().map(|e| e.to_string().into()).collect()),
         );
 
         let signature = Signature::builder()
@@ -143,4 +131,16 @@ impl GenerateSignature {
         }
         Ok(mod_files)
     }
+}
+
+#[derive(Error, Debug)]
+pub enum GenerateSignatureError {
+    #[error("Could not load file at {file:?} due to {err:?}")]
+    CouldNotReadFile { file: String, err: std::io::Error },
+
+    #[error("Missing dep {dep:?}")]
+    MissingDependency { dep: String },
+
+    #[error("Unsupported file {file:?}")]
+    UnsupportedFile { file: String },
 }
