@@ -35,6 +35,8 @@ fn verl_build() {
         .stdin(Stdio::piped())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
+        .env("WARP_LOG", "debug")
+        .env("WARP_TRICORDER_LOG", "debug")
         .args([
             "build",
             "--print-hashes",
