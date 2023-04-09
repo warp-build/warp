@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use super::package::Package;
 use super::PackageManifest;
 use crate::archive::{Archive, ArchiveManager, ArchiveManagerError};
@@ -104,26 +102,9 @@ impl Packer {
             .build()
             .unwrap();
 
-        pkg.update(target.clone()).await?;
+        pkg.update(&target).await?;
 
         Ok(pkg)
-    }
-
-    pub async fn update_local_package_manifest(
-        &self,
-        path: &Path,
-        manifest: &PackageManifest,
-    ) -> Result<(), PackerError> {
-        // get current manifest
-        let manifest_from_local_store = PackageManifest::from_file(path).await?;
-        // merge with current manifest
-        let new_manifest = manifest_from_local_store.merge(manifest);
-
-        // save new manifest
-        match new_manifest.write(path).await {
-            Ok(_) => Ok(()),
-            Err(err) => Err(PackerError::CouldNotWriteManifest(err)),
-        }
     }
 
     pub async fn upload_to_public_store(&self, package: &Package) -> Result<(), PackerError> {

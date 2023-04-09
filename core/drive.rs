@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use super::*;
 use crate::archive::ArchiveManager;
 use crate::code::{CodeManager, CodeManagerError};
@@ -187,33 +185,13 @@ impl WarpDriveMarkII {
     ///
     #[instrument(name = "WarpDriveMarkII::pack", skip(self))]
     pub async fn pack(&mut self, target: Target, upload: bool) -> Result<Package, WarpDriveError> {
-        let local_manifest_path = self.get_local_manifest_path(target.clone())?;
         let package = self.packer.pack(target).await?;
-
-        // only replace local manifest if it exists
-        // avoids blowing up when running tests
-        if let true = local_manifest_path.exists() {
-            self.packer
-                .update_local_package_manifest(&local_manifest_path, package.manifest())
-                .await?;
-        }
 
         if upload {
             self.packer.upload_to_public_store(&package).await?;
         }
 
         Ok(package)
-    }
-
-    fn get_local_manifest_path(&self, _target: Target) -> Result<PathBuf, WarpDriveError> {
-        let local_manifest_path = self
-            .shared_ctx
-            .workspace_manager
-            .current_workspace()
-            .root()
-            .join("store/tricorder/beam/manifest.json");
-
-        Ok(local_manifest_path)
     }
 
     fn go_to_workspace_root(&self) -> Result<(), WarpDriveError> {

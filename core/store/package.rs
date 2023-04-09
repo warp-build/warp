@@ -30,8 +30,8 @@ impl Package {
         self.deps.as_ref()
     }
 
-    pub async fn update(&self, target: Target) -> Result<(), FromFileError> {
-        let path = self.get_local_manifest_path(&target);
+    pub async fn update(&self, target: &Target) -> Result<(), FromFileError> {
+        let path = self.get_local_manifest_path(target);
         let local_manifest = PackageManifest::from_file(&path).await.unwrap_or_default();
 
         let merged = local_manifest.merge(self.manifest().clone());
