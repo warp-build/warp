@@ -1,6 +1,6 @@
-use crate::ast::*;
-use crate::dependency::*;
-use crate::models::Symbol;
+use super::ast::*;
+use super::dependency::*;
+use super::model::Symbol;
 
 pub struct TreeSplitter {}
 

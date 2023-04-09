@@ -1,4 +1,4 @@
-use crate::models::{Config, Requirement};
+use super::{Config, Requirement};
 use std::path::PathBuf;
 use thiserror::*;
 
@@ -51,7 +51,7 @@ impl Signature {
 
 impl std::fmt::Display for Signature {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(fmt, "{}(\"{}\")", self.rule, self.target.to_string())
+        write!(fmt, "{}(\"{}\")", self.rule, self.target)
     }
 }
 #[derive(Error, Debug)]

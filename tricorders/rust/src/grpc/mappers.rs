@@ -1,24 +1,24 @@
-use crate::models::{Ast, Config, Requirement, Signature, Symbol, Value};
-use crate::proto;
-use crate::proto::build::warp::symbol::Sym::{All, Named};
-use crate::proto::build::warp::tricorder::{
+use super::proto;
+use super::proto::build::warp::symbol::Sym::{All, Named};
+use super::proto::build::warp::tricorder::{
     get_ast_response, GetAstResponse, GetAstSuccessResponse,
 };
-use crate::proto::build::warp::{
+use super::proto::build::warp::{
     DependencyRequirement, FileRequirement, SymbolRequirement, UrlRequirement,
 };
-use crate::proto::google::protobuf::value::Kind;
-use crate::proto::google::protobuf::ListValue;
+use super::proto::google::protobuf::value::Kind;
+use super::proto::google::protobuf::ListValue;
+use crate::analysis::model::{Ast, Config, Requirement, Signature, Symbol, Value};
 use std::collections::HashMap;
 
-impl From<crate::proto::build::warp::TestMatcher> for Vec<String> {
-    fn from(matcher: crate::proto::build::warp::TestMatcher) -> Self {
+impl From<proto::build::warp::TestMatcher> for Vec<String> {
+    fn from(matcher: proto::build::warp::TestMatcher) -> Self {
         matcher.raw
     }
 }
 
-impl From<crate::proto::build::warp::Symbol> for Symbol {
-    fn from(sym: crate::proto::build::warp::Symbol) -> Self {
+impl From<proto::build::warp::Symbol> for Symbol {
+    fn from(sym: proto::build::warp::Symbol) -> Self {
         match sym.sym.unwrap() {
             All(_) => Symbol::All,
             Named(name) => Symbol::Named { name },
@@ -26,13 +26,13 @@ impl From<crate::proto::build::warp::Symbol> for Symbol {
     }
 }
 
-impl From<&Symbol> for crate::proto::build::warp::Symbol {
+impl From<&Symbol> for proto::build::warp::Symbol {
     fn from(sym: &Symbol) -> Self {
         match sym {
-            Symbol::All => crate::proto::build::warp::Symbol {
+            Symbol::All => proto::build::warp::Symbol {
                 sym: Some(All(true)),
             },
-            Symbol::Named { name } => crate::proto::build::warp::Symbol {
+            Symbol::Named { name } => proto::build::warp::Symbol {
                 sym: Some(Named(name.to_string())),
             },
         }
@@ -53,9 +53,9 @@ pub fn ast_to_success_response(ast: Ast) -> GetAstResponse {
     }
 }
 
-impl From<Signature> for crate::proto::build::warp::Signature {
+impl From<Signature> for proto::build::warp::Signature {
     fn from(sig: Signature) -> Self {
-        crate::proto::build::warp::Signature {
+        proto::build::warp::Signature {
             name: sig.target().to_string(),
             rule: sig.rule().to_string(),
             deps: sig.deps().iter().map(|e| e.clone().into()).collect(),
@@ -69,18 +69,18 @@ impl From<Signature> for crate::proto::build::warp::Signature {
     }
 }
 
-impl From<Requirement> for crate::proto::build::warp::Requirement {
+impl From<Requirement> for proto::build::warp::Requirement {
     fn from(req: Requirement) -> Self {
         match req {
-            Requirement::File { path } => crate::proto::build::warp::Requirement {
-                requirement: Some(crate::proto::build::warp::requirement::Requirement::File(
+            Requirement::File { path } => proto::build::warp::Requirement {
+                requirement: Some(proto::build::warp::requirement::Requirement::File(
                     FileRequirement {
                         path: path.to_str().unwrap().to_string(),
                     },
                 )),
             },
-            Requirement::Symbol { raw, kind } => crate::proto::build::warp::Requirement {
-                requirement: Some(crate::proto::build::warp::requirement::Requirement::Symbol(
+            Requirement::Symbol { raw, kind } => proto::build::warp::Requirement {
+                requirement: Some(proto::build::warp::requirement::Requirement::Symbol(
                     SymbolRequirement { raw, kind },
                 )),
             },
@@ -88,8 +88,8 @@ impl From<Requirement> for crate::proto::build::warp::Requirement {
                 url,
                 tricorder_url: _,
                 subpath,
-            } => crate::proto::build::warp::Requirement {
-                requirement: Some(crate::proto::build::warp::requirement::Requirement::Url(
+            } => proto::build::warp::Requirement {
+                requirement: Some(proto::build::warp::requirement::Requirement::Url(
                     UrlRequirement {
                         url: url.to_string(),
                         subpath: subpath.unwrap().to_str().unwrap().to_string(),
@@ -101,48 +101,46 @@ impl From<Requirement> for crate::proto::build::warp::Requirement {
                 version,
                 url,
                 tricorder,
-            } => crate::proto::build::warp::Requirement {
-                requirement: Some(
-                    crate::proto::build::warp::requirement::Requirement::Dependency(
-                        DependencyRequirement {
-                            name: name,
-                            version: version,
-                            url: url.to_string(),
-                            tricorder_url: tricorder.to_string(),
-                            archive_resolver: "".to_string(),
-                            signature_resolver: "".to_string(),
-                        },
-                    ),
-                ),
+            } => proto::build::warp::Requirement {
+                requirement: Some(proto::build::warp::requirement::Requirement::Dependency(
+                    DependencyRequirement {
+                        name,
+                        version,
+                        url: url.to_string(),
+                        tricorder_url: tricorder.to_string(),
+                        archive_resolver: "".to_string(),
+                        signature_resolver: "".to_string(),
+                    },
+                )),
             },
         }
     }
 }
 
-impl From<&Config> for crate::proto::google::protobuf::Struct {
+impl From<&Config> for proto::google::protobuf::Struct {
     fn from(config: &Config) -> Self {
         let mut configs = HashMap::new();
         for (key, value) in config.values() {
             configs.insert(key.to_string(), value.clone().into());
         }
 
-        crate::proto::google::protobuf::Struct { fields: configs }
+        proto::google::protobuf::Struct { fields: configs }
     }
 }
 
-impl From<Value> for crate::proto::google::protobuf::Value {
+impl From<Value> for proto::google::protobuf::Value {
     fn from(val: Value) -> Self {
         match val {
-            Value::String(string) => crate::proto::google::protobuf::Value {
+            Value::String(string) => proto::google::protobuf::Value {
                 kind: Some(Kind::StringValue(string)),
             },
-            Value::Target(target) => crate::proto::google::protobuf::Value {
-                kind: Some(Kind::StringValue(target.to_string())),
+            Value::Target(target) => proto::google::protobuf::Value {
+                kind: Some(Kind::StringValue(target)),
             },
-            Value::File(file) => crate::proto::google::protobuf::Value {
+            Value::File(file) => proto::google::protobuf::Value {
                 kind: Some(Kind::StringValue(file.to_str().unwrap().to_string())),
             },
-            Value::List(parts) => crate::proto::google::protobuf::Value {
+            Value::List(parts) => proto::google::protobuf::Value {
                 kind: Some(Kind::ListValue(ListValue {
                     values: parts.iter().map(|e| e.clone().into()).collect(),
                 })),

@@ -1,4 +1,5 @@
-use tricorder::{Symbol, TreeSplitter};
+use tricorder::analysis::model::Symbol;
+use tricorder::analysis::tree_splitter::TreeSplitter;
 
 #[test]
 fn t001_simple_fn_graph() {

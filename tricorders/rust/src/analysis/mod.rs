@@ -1,13 +1,22 @@
-mod generate_signature;
-pub use generate_signature::*;
+pub mod ast;
+mod dependency;
+pub mod generate_signature;
+pub mod model;
+pub mod tree_splitter;
 
-use crate::models::Signature;
+use self::ast::{GetAst, GetAstError};
+use self::generate_signature::{GenerateSignature, GenerateSignatureError};
+use self::model::{Ast, Signature, Symbol};
 use std::path::Path;
 
 #[derive(Default)]
 pub struct Analysis {}
 
 impl Analysis {
+    pub async fn get_ast(file: String, symbol: Symbol) -> Result<Ast, GetAstError> {
+        GetAst::get_ast(file, symbol).await
+    }
+
     pub async fn generate_signature(
         workspace_root: String,
         file: String,
@@ -19,15 +28,11 @@ impl Analysis {
             return Err(GenerateSignatureError::UnsupportedFile { file });
         }
 
-        if test_matcher.len() != 0 {
+        if !test_matcher.is_empty() {
             return GenerateSignature::test(workspace_root, file, test_matcher).await;
         }
 
-        let sigs = GenerateSignature::all(workspace_root, file).await;
-        if let Err(err) = sigs {
-            return Err(err);
-        }
-        Ok(sigs.unwrap())
+        GenerateSignature::all(workspace_root, file).await
     }
 
     pub fn is_supported_file(file: &str) -> bool {

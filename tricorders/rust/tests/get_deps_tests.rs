@@ -1,5 +1,6 @@
 use assert_fs::prelude::*;
-use tricorder::{GenerateSignature, TreeSplitter};
+use tricorder::analysis::generate_signature::GenerateSignature;
+use tricorder::analysis::tree_splitter::TreeSplitter;
 
 #[tokio::test]
 async fn t002_get_mods() {
