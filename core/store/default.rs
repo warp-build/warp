@@ -53,9 +53,19 @@ impl Store for DefaultStore {
     ///
     #[instrument(name = "DefaultStore::install_from_manifest_url", skip(self))]
     async fn install_from_manifest_url(&self, url: &Url) -> Result<ArtifactManifest, StoreError> {
-        let archive = self.archive_manager.download(url).await?;
+        let manifest_path = if let Some(local_path) = self.config.public_store_metadata_path() {
+            let path = url
+                .path_segments()
+                .unwrap()
+                .collect::<Vec<&str>>()
+                .join("/");
+            local_path.join(path)
+        } else {
+            let archive = self.archive_manager.download(url).await?;
+            archive.final_path().to_path_buf()
+        };
 
-        let package_manifest = PackageManifest::from_file(archive.final_path())
+        let package_manifest = PackageManifest::from_file(&manifest_path)
             .await
             .map_err(|err| StoreError::PackageManifestReadError {
                 err,

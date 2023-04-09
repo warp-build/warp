@@ -1,3 +1,4 @@
+use std::env::current_dir;
 use std::path::PathBuf;
 use std::process::Stdio;
 
@@ -11,6 +12,8 @@ macro_rules! assert_in_store {
 
 #[test]
 fn verl_build() {
+    let cwd = current_dir().unwrap();
+
     let warp_root = PathBuf::from("/warp");
     dbg!(&warp_root);
 
@@ -35,14 +38,16 @@ fn verl_build() {
         .stdin(Stdio::piped())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
-        .env("WARP_LOG", "debug")
-        .env("WARP_TRICORDER_LOG", "debug")
         .args([
             "build",
             "--print-hashes",
             "--print-cache-hits",
             "--force-redownload",
             "--skip-db",
+            "--add-rule-dir",
+            &cwd.join("../rules").to_string_lossy(),
+            "--public-store-metadata-path",
+            &cwd.join("../store").to_string_lossy(),
             "--warp-root",
             warp_root.to_string_lossy().as_ref(),
             "--invocation-dir",
@@ -93,29 +98,29 @@ fn verl_build() {
     {
         assert_in_store!(
             s,
-            "00c39478f3f0123218585a263a0787feac7f0f5f5bfdd16e11badd4edd40d42d",
-            "04499780a76fc5c4bd8ac69d473c86da44c686f756a5096f9c9e3b19ae8a62eb",
-            "1a5b95862726dc879af106aa136ce809b46b256131f0acec2f06ec4a78164f4f",
-            "1c8e7843b0bb63836d1e1767de32467efa6ea7d3238b37f0409aea099f403e50",
+            "131ecbb0230461df974899f0f7e2c0ba0631cad788e6c2dad2c5fc4e4e167f23",
+            "16f41fd5b764f2c9b3ef972501b0e2aecd3d709bb7a75176ac2a301d350057b6",
+            "2a8a08535a76804472038892fc80081c558566042241e5027f35a43e5fd587cc",
             "2bbd0e2b0fbfcb5ab04568e2e1ad6d147547463879af8ca95cb8f0382cf37eb8",
-            "2c362796a5af25c8dee486692d24eec6b3478d9e08e254a293b7d84e89fd7daf",
-            "37fa934f08a5ee6b9147abce4027ff971a20ffd505e0c2d5959dce67b71eac79",
+            "2e50a71fc89fff242d48a34baf9c9056b4fba763e535b1f79f35bc9ba4589ca3",
+            "382c0399756ae9fef9ecbe94e2b9e7ea914b53d1ccaba8635f3b1f80b9575b21",
             "3870c9f068551ba410e21072fd9d12dfa6323ef0dfb3301715ed0900a8a3c414",
-            "46d9897cd0e79247f70b29bdc76920a5c8069bdf026738207edbccf843ee7aaa",
             "46ea95b466a4245f0eb3325e25c1cfd326ec400e7cdaec1d0f4e45bf04774b55",
             "52eca3eb150f6a5af275caabf4931734099d4bab16063225fe773ac8c5a6d1cd",
-            "60b24851345ef748a630a5c846776a937ed2f796325d8f57783ae20124652efa",
+            "57a61bbd4fdc5867633985742c6fa452e9c18beb11cf38901b6162f068000be8",
+            "63871713b8040e75f715bf5a2968e641cc186863776b1cd0f312417473a6f8f3",
             "64f99841ba878c93af7c6e52f7e017552e9ab4e5abe97411209a3d1382dd3ae8",
-            "6820a95aec18132a97f3ebdf8d1803f83dc0857e3c03125cdb670788ef72215c",
             "71b65b889048bffbde8d2dccc0d2d085c848343d08803e08b993503a78fcbf5f",
             "80488929ae79c2c0de40640e68e8b6026cfdbfffd307ad3ccca588dff6cc9c05",
             "93b12b32fa4451401f8b924613e1cd7595a6d86a180d5a671131084c8b067e2f",
+            "9744945af955e06f2b6d277f55dc7faaa9d3ec425159782ea3b9fc85f882f5e7",
             "a1643a7ebd37160763c1f447b269e6f4a803620577384f23111af208e8314f1c",
-            "b87102569bcef6d1fc71407108fed90dde58a1dce2ad2c5a5889ee5a58a4b34c",
-            "d70d73546dba0b83621675c937dd7912082597ae9223ff4abb6fa3bfa273eb3d",
+            "b818b699a08d2ae40d9c32455810d9bfbfa32904e00d802bb6389eeba8277bee",
+            "baf7e16386c160e375aff9fbd67ee745502a30d25abbf0230c1349cdc889ea70",
+            "cd07577ceb655d1afd3664a9ca853c99079a67a2b7ec724d7761d89ebb9d7c1b",
             "da0eeffc4636bbc2d9aee86ed46d7acd62cfd1176ebc37c3cca3e2503f66e4a3",
-            "ddc9986b0767f24d6022c17ad755b0107e839deafb7813f0d2e432ddbe69c181",
-            "f0dcc961d3d4bcb8ef718cea4ad1672a13ba0388c05e6a3163b239aa1841f0e8"
+            "da19a80831d9c0a09bc371de10a04382d75893408d10d9fc337c002d6d71b095",
+            "ddc9986b0767f24d6022c17ad755b0107e839deafb7813f0d2e432ddbe69c181"
         );
     };
 

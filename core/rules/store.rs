@@ -18,6 +18,7 @@ pub struct RuleStore {
     client: reqwest::Client,
     _lock: Arc<Mutex<()>>,
     force_redownload: bool,
+    extra_rule_dirs: Vec<PathBuf>,
 }
 
 impl RuleStore {
@@ -28,6 +29,7 @@ impl RuleStore {
             public_rule_store_url: config.public_rule_store_url().clone(),
             client: config.http_client().clone(),
             force_redownload: config.force_redownload(),
+            extra_rule_dirs: config.extra_rule_dirs().to_vec(),
             _lock: Arc::new(Mutex::new(())),
         }
     }
@@ -58,27 +60,31 @@ impl RuleStore {
             return self.download(name).await;
         }
 
-        if let Some(path) = self.find_in_global_rules(name).await? {
+        if let Some(path) = self.find_in_rule_dirs(name).await? {
             return Ok(Some(path));
         }
         self.download(name).await
     }
 
-    #[instrument(name = "RuleStore::find_in_global_rules", skip(self), ret)]
-    async fn find_in_global_rules(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
-        let path = self._global_rule_path(name);
-        let meta = fs::metadata(&path)
-            .await
-            .map_err(|err| RuleStoreError::FileSystemError {
-                name: name.to_string(),
-                path: path.clone(),
-                err,
-            });
-        if meta.is_err() {
-            Ok(None)
-        } else {
-            Ok(Some(path))
+    #[instrument(name = "RuleStore::find_in_rule_dirs", skip(self), ret)]
+    async fn find_in_rule_dirs(&self, name: &str) -> Result<Option<PathBuf>, RuleStoreError> {
+        let url = url::Url::parse(name).unwrap();
+        let path = url
+            .path_segments()
+            .unwrap()
+            .collect::<Vec<&str>>()
+            .join("/");
+        for dir in &self.extra_rule_dirs {
+            let path = self._rule_path(dir, &path);
+            if fs::metadata(&path).await.is_ok() {
+                return Ok(Some(path));
+            }
         }
+        let path = self._global_rule_path(name);
+        if fs::metadata(&path).await.is_ok() {
+            return Ok(Some(path));
+        }
+        Ok(None)
     }
 
     #[instrument(name = "RuleStore::download", skip(self), ret)]
@@ -150,13 +156,18 @@ impl RuleStore {
         }
     }
 
+    #[instrument(name = "RuleStore::_global_rule_path", skip(self), ret)]
+    fn _global_rule_path(&self, name: &str) -> PathBuf {
+        self._rule_path(&self.global_rules_root, name)
+    }
+
+    #[instrument(name = "RuleStore::_rule_path", skip(self), ret)]
     /// NOTE(@ostera): when normalizing the name to use it in paths, we need to drop the
     /// protocol :// so `http://hello.world/a` becomes `http/hello.world/a` which is a valid
     /// path name.
-    #[instrument(name = "RuleStore::_global_rule_path", skip(self), ret)]
-    fn _global_rule_path(&self, name: &str) -> PathBuf {
+    fn _rule_path(&self, dir: &Path, name: &str) -> PathBuf {
         let name = name.replace("://", "/");
-        self.global_rules_root.join(name).with_extension("js")
+        dir.join(name).with_extension("js")
     }
 }
 
