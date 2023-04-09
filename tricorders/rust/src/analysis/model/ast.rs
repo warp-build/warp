@@ -1,8 +1,9 @@
-use crate::models::Symbol;
+use super::Symbol;
 use syn::parse_quote;
+use thiserror::Error;
 
 #[derive(Builder, Debug, Clone)]
-#[builder(build_fn(error = "crate::GetAstError"))]
+#[builder(build_fn(error = "AstError"))]
 pub struct Ast {
     ast: syn::File,
 
@@ -35,12 +36,6 @@ impl Ast {
     }
 }
 
-impl From<derive_builder::UninitializedFieldError> for crate::GetAstError {
-    fn from(value: derive_builder::UninitializedFieldError) -> Self {
-        crate::GetAstError::BuilderError(value)
-    }
-}
-
 impl Default for Ast {
     fn default() -> Self {
         Self {
@@ -49,5 +44,17 @@ impl Default for Ast {
             file: "".to_string(),
             symbol: Symbol::default(),
         }
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum AstError {
+    #[error(transparent)]
+    BuilderError(derive_builder::UninitializedFieldError),
+}
+
+impl From<derive_builder::UninitializedFieldError> for AstError {
+    fn from(value: derive_builder::UninitializedFieldError) -> Self {
+        AstError::BuilderError(value)
     }
 }
