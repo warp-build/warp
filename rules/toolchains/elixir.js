@@ -101,7 +101,7 @@ export default Warp.Toolchain({
   },
   defaults: {
     kind: "source",
-    sha1_macos_aarch64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
+    sha1_macos_aarch64: "9f754f439a0d280b0e13803eb9263d3051142b00",
     sha1_linux_aarch64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
     sha1_macos_x86_64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
     sha1_linux_x86_64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
