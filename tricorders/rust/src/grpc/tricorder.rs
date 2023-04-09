@@ -8,12 +8,11 @@ use super::proto::build::warp::tricorder::{
     PrepareDependencyRequest, PrepareDependencyResponse,
 };
 use super::GrpcTricorderError;
-use crate::analysis::ast::GetAstError;
-use crate::analysis::generate_signature::GenerateSignatureError;
-use crate::analysis::model::{Ast, Signature, Symbol};
-use crate::analysis::Analysis;
+use crate::analysis::model::{Ast, Symbol};
+use crate::analysis::Analyzer;
 use crate::dependencies::DependencyManager;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
@@ -23,6 +22,7 @@ use tonic::{Request, Response, Status};
 pub struct GrpcTricorder {
     address: SocketAddr,
     dep_manager: Arc<DependencyManager>,
+    analyzer: Arc<Analyzer>,
 }
 
 impl GrpcTricorder {
@@ -64,8 +64,10 @@ impl TricorderService for GrpcTricorder {
         };
         let workspace_root = request_data.workspace_root;
 
-        let response: Result<Vec<Signature>, GenerateSignatureError> =
-            Analysis::generate_signature(workspace_root.clone(), file.clone(), test_matcher).await;
+        let response = self
+            .analyzer
+            .generate_signature(workspace_root.clone(), Path::new(&file), test_matcher)
+            .await;
 
         match response {
             Ok(signature) => Ok(Response::new(GenerateSignatureResponse {
@@ -103,7 +105,7 @@ impl TricorderService for GrpcTricorder {
             _ => Symbol::All,
         };
 
-        let response: Result<Ast, GetAstError> = Analysis::get_ast(request.file, sym).await;
+        let response = self.analyzer.get_ast(request.file, sym).await;
 
         match response {
             Ok(ast) => Ok(Response::new(ast_to_success_response(ast))),

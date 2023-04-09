@@ -142,5 +142,5 @@ pub enum GenerateSignatureError {
     MissingDependency { dep: String },
 
     #[error("Unsupported file {file:?}")]
-    UnsupportedFile { file: String },
+    UnsupportedFile { file: PathBuf },
 }
