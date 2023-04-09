@@ -1,0 +1,66 @@
+name: Warp Tricorder Publish
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches-ignore:
+      - 'pull/*'
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - x86_64-apple-darwin
+        - aarch64-apple-darwin
+        - aarch64-unknown-linux-gnu
+        - x86_64-unknown-linux-gnu
+        - ubuntu-latest
+        - macos-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Fetch tags
+        id: tag
+        run: git fetch --tags --force
+
+      - name: Set git user
+        run: |
+          git config --global user.name github-actions
+          git config --global user.email github-actions-bot@users.noreply.github.com
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - uses: warp-build/setup-warp@8224a36e869579a0ebd3b2332cf1bb4f2e78bd6b
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Warp
+        run: warp setup
+
+      - name: Build tricorders
+        run: |
+          warp build tricorders/beam/mix.exs \
+            --force-redownload \
+            --skip-db \
+            --print-hashes
+
+      - name: Pack tricorders
+        run: |
+          warp pack tricorders/beam/mix.exs \
+            --upload \
+            --force-redownload \
+            --skip-db \
+            --print-hashes
+

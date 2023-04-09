@@ -1,8 +1,11 @@
 name: Fallback Release Workflow
 
 on:
-  - push
-  - pull_request
+  pull_request:
+    types: [opened, reopened, synchronize]
+  push:
+    branches:
+      - main
 
 jobs:
   create_draft_release:
