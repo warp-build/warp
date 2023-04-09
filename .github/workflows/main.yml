@@ -4,8 +4,8 @@ on:
   pull_request:
     types: [opened, reopened, synchronize]
   push:
-    branches-ignore:
-      - 'pull/*'
+    branches:
+      - main
 
 jobs:
   build:
