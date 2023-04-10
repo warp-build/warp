@@ -52,31 +52,33 @@ where
                 DepFinderFlow::AllDepsFound(deps) => deps,
             };
 
-        // NB(@ostera): runtime_deps and transitive_runtime_deps are *not needed* for
-        // planning/executing. They just need to be built before you can execute the _results_ of
-        // whatever you're running. Otherwise we can have dependency cycles.
-        let runtime_deps = match self._deps(task, sig.runtime_deps(), DepKind::Runtime) {
-            DepFinderFlow::MissingDeps(deps) if task.goal().is_runnable() => {
-                return Ok(PlanningFlow::MissingDeps { deps })
-            }
-            DepFinderFlow::MissingDeps(deps) | DepFinderFlow::AllDepsFound(deps) => deps,
-        };
+        let mut deps = Dependencies::builder();
 
-        let transitive_runtime_deps =
-            match self._deps(task, &runtime_deps, DepKind::TransitiveRuntime) {
-                DepFinderFlow::MissingDeps(deps) if task.goal().is_runnable() => {
-                    return Ok(PlanningFlow::MissingDeps { deps })
-                }
-                DepFinderFlow::MissingDeps(deps) | DepFinderFlow::AllDepsFound(deps) => deps,
+        deps.compile_deps(compile_deps)
+            .transitive_compile_deps(transitive_compile_deps);
+
+        if task.goal().is_runnable() {
+            // NB(@ostera): runtime_deps and transitive_runtime_deps are *not needed* for
+            // planning/executing. They just need to be built before you can execute the _results_ of
+            // whatever you're running. Otherwise we can have dependency cycles.
+            let runtime_deps = match self._deps(task, sig.runtime_deps(), DepKind::Runtime) {
+                DepFinderFlow::MissingDeps(deps) => return Ok(PlanningFlow::MissingDeps { deps }),
+                DepFinderFlow::AllDepsFound(deps) => deps,
             };
 
-        let mut deps = Dependencies::builder()
-            .toolchains(vec![])
-            .compile_deps(compile_deps)
-            .runtime_deps(runtime_deps)
-            .transitive_compile_deps(transitive_compile_deps)
-            .transitive_runtime_deps(transitive_runtime_deps)
-            .build()?;
+            let transitive_runtime_deps =
+                match self._deps(task, &runtime_deps, DepKind::TransitiveRuntime) {
+                    DepFinderFlow::MissingDeps(deps) => {
+                        return Ok(PlanningFlow::MissingDeps { deps })
+                    }
+                    DepFinderFlow::AllDepsFound(deps) => deps,
+                };
+
+            deps.runtime_deps(runtime_deps)
+                .transitive_runtime_deps(transitive_runtime_deps);
+        }
+
+        let mut deps = deps.build()?;
 
         let plan = self.rule_executor.execute(task, &env, sig, &deps).await?;
 
@@ -176,7 +178,7 @@ where
             .deps(deps)
             .hash_and_build(&self.ctx.task_results)?;
 
-        // self.ctx.code_manager.save_executable_spec(&sig, &spec).unwrap();
+        self.ctx.code_manager.save_executable_spec(sig, &spec)?;
 
         Ok(PlanningFlow::Planned { spec })
     }

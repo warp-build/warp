@@ -5,10 +5,15 @@ use thiserror::Error;
 #[derive(Builder, Debug, Default, Clone, Serialize, Deserialize)]
 #[builder(build_fn(error = "DependenciesError"))]
 pub struct Dependencies {
+    #[builder(default)]
     toolchains: Vec<Task>,
+    #[builder(default)]
     compile_deps: Vec<Task>,
+    #[builder(default)]
     runtime_deps: Vec<Task>,
+    #[builder(default)]
     transitive_compile_deps: Vec<Task>,
+    #[builder(default)]
     transitive_runtime_deps: Vec<Task>,
 }
 

@@ -70,6 +70,10 @@ pub struct Config {
     #[builder(default = "self.default_public_store_metadata_url()")]
     public_store_metadata_url: Url,
 
+    /// The location of the public store Manifests
+    #[builder(default)]
+    public_store_metadata_path: Option<PathBuf>,
+
     /// The location of the public rule store
     #[builder(default = "self.default_public_rule_store_url()")]
     public_rule_store_url: Url,
@@ -97,6 +101,10 @@ pub struct Config {
     /// Whether or not to redownload any of the archives, even if they are cached.
     #[builder(default = "false")]
     force_redownload: bool,
+
+    /// Extra directories in which to look for Rules.
+    #[builder(default = "vec![]")]
+    extra_rule_dirs: Vec<PathBuf>,
 
     /// The HTTP Client to be used across the application.
     /// NOTE(@ostera): this is safe to clone since it is really an [Arc] to a client pool.
@@ -209,6 +217,14 @@ impl Config {
         P: Into<PathBuf>,
     {
         self.workspace_root = workspace_root.into();
+    }
+
+    pub fn extra_rule_dirs(&self) -> &[PathBuf] {
+        self.extra_rule_dirs.as_ref()
+    }
+
+    pub fn public_store_metadata_path(&self) -> Option<&PathBuf> {
+        self.public_store_metadata_path.as_ref()
     }
 }
 
