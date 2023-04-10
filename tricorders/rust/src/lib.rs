@@ -7,6 +7,7 @@ pub use error::*;
 
 #[macro_use]
 extern crate derive_builder;
+use analysis::Analyzer;
 use dependencies::DependencyManager;
 use grpc::GrpcTricorder;
 use std::net::SocketAddr;
@@ -23,9 +24,11 @@ pub struct Tricorder {
 impl Tricorder {
     pub fn new(address: SocketAddr) -> Result<Self, TricorderError> {
         let dep_manager = Arc::new(DependencyManager::default());
+        let analyzer = Arc::new(Analyzer::default());
 
         let service = GrpcTricorder::builder()
             .dep_manager(dep_manager.clone())
+            .analyzer(analyzer)
             .address(address)
             .build()?;
 

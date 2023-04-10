@@ -1,44 +1,53 @@
 pub mod ast;
+mod cargo;
 mod dependency;
 pub mod generate_signature;
 pub mod model;
+mod rust_module;
 pub mod tree_splitter;
 
 use self::ast::{GetAst, GetAstError};
-use self::generate_signature::{GenerateSignature, GenerateSignatureError};
+use self::cargo::CargoAnalyzer;
+use self::generate_signature::GenerateSignatureError;
 use self::model::{Ast, Signature, Symbol};
+use self::rust_module::RustModuleAnalyzer;
 use std::path::Path;
 
 #[derive(Default)]
-pub struct Analysis {}
+pub struct Analyzer {
+    cargo_analyzer: CargoAnalyzer,
+    rust_module_analyzer: RustModuleAnalyzer,
+}
 
-impl Analysis {
-    pub async fn get_ast(file: String, symbol: Symbol) -> Result<Ast, GetAstError> {
+impl Analyzer {
+    pub async fn get_ast(&self, file: String, symbol: Symbol) -> Result<Ast, GetAstError> {
         GetAst::get_ast(file, symbol).await
     }
 
     pub async fn generate_signature(
+        &self,
         workspace_root: String,
-        file: String,
+        file: &Path,
         test_matcher: Vec<String>,
     ) -> Result<Vec<Signature>, GenerateSignatureError> {
         println!("Analyzing: {:?}", &file);
 
-        if !Self::is_supported_file(&file) {
-            return Err(GenerateSignatureError::UnsupportedFile { file });
-        }
-
-        if !test_matcher.is_empty() {
-            return GenerateSignature::test(workspace_root, file, test_matcher).await;
-        }
-
-        GenerateSignature::all(workspace_root, file).await
-    }
-
-    pub fn is_supported_file(file: &str) -> bool {
-        match Path::new(&file).extension() {
-            Some(ext) => ext == "rs",
-            _ => false,
+        let ext = file.extension().unwrap().to_str().unwrap();
+        let basename = file.file_name().unwrap().to_str().unwrap();
+        match (basename, ext) {
+            ("Cargo.toml", _) => {
+                self.cargo_analyzer
+                    .generate_signature(workspace_root, file)
+                    .await
+            }
+            (_, "rs") => {
+                self.rust_module_analyzer
+                    .generate_signature(workspace_root, file, test_matcher)
+                    .await
+            }
+            _ => Err(GenerateSignatureError::UnsupportedFile {
+                file: file.to_path_buf(),
+            }),
         }
     }
 }
