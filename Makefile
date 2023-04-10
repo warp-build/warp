@@ -96,13 +96,13 @@ fmt:
 .PHONY: setup
 setup:
 	rustup default stable
-	cargo install \
+	cargo install --force \
 		cargo-strip \
 		taplo-cli
 
 .PHONY: setup.local
 setup.local: setup
-	cargo install \
+	cargo install --force \
 		hyperfine \
 		cargo-insta \
 		mdbook \
