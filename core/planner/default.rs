@@ -176,7 +176,7 @@ where
             .deps(deps)
             .hash_and_build(&self.ctx.task_results)?;
 
-        // self.ctx.code_manager.save_executable_spec(&sig, &spec).unwrap();
+        self.ctx.code_manager.save_executable_spec(sig, &spec)?;
 
         Ok(PlanningFlow::Planned { spec })
     }

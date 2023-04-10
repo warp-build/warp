@@ -2,7 +2,9 @@ use super::error::CodeManagerError;
 use super::{CodeDatabase, SourceHasher};
 use crate::archive::Archive;
 use crate::events::event::TricorderEvent;
-use crate::model::{ConcreteTarget, FsTarget, RemoteTarget, Signature, SourceKind, Task};
+use crate::model::{
+    ConcreteTarget, ExecutableSpec, FsTarget, RemoteTarget, Signature, SourceKind, Task,
+};
 use crate::resolver::TargetRegistry;
 use crate::store::Store;
 use crate::sync::Arc;
@@ -256,6 +258,15 @@ where
         });
 
         Ok(SignatureGenerationFlow::ChunkedSource(source))
+    }
+
+    pub fn save_executable_spec(
+        &self,
+        sig: &Signature,
+        spec: &ExecutableSpec,
+    ) -> Result<(), CodeManagerError> {
+        self.db.save_executable_spec(sig, spec)?;
+        Ok(())
     }
 }
 
