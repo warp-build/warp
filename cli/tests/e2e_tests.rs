@@ -42,8 +42,6 @@ fn verl_build() {
             "build",
             "--print-hashes",
             "--print-cache-hits",
-            "--force-redownload",
-            "--skip-db",
             "--add-rule-dir",
             &cwd.join("../rules").to_string_lossy(),
             "--public-store-metadata-path",
