@@ -1,6 +1,7 @@
+cli/tests/repos/**/* linguist-vendored=true
+core/benches/fixtures/**/* linguist-vendored=true
 tricorders/beam/lib/_proto/**/* linguist-generated=true
 tricorders/beam/test/analysis/erlang/ast_clean_loc_test.exs linguist-generated=true
 tricorders/beam/test/fixtures/**/* linguist-vendored=true
 tricorders/rust/src/protos/**/* linguist-generated=true
-core/benches/fixtures/**/* linguist-vendored=true
-cli/tests/repos/**/* linguist-vendored=true
+tricorders/rust/tests/snapshots/** linguist-generated=true
