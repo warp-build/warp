@@ -14,87 +14,92 @@ name = "source_hashing"
 harness = false
 
 [dependencies]
-anyhow = { workspace=true }
-aquamarine = { workspace=true }
+anyhow = { workspace = true }
+aquamarine = { workspace = true }
 assert_cmd = { workspace = true, features = ["color"] }
 assert_fs = { workspace = true, features = ["color"] }
-assert_matches = { workspace=true }
-async-compression = { workspace = true, features = [ "futures-io", "tokio", "stream", "all-algorithms", ] }
-async-stream = { workspace=true }
-async-trait = { workspace=true }
-async_zip = { workspace=true }
-aws-config = { workspace=true }
-aws-sdk-s3 = { workspace=true }
-bincode = { workspace=true }
-chrono = { workspace=true }
+assert_matches = { workspace = true }
+async-compression = { workspace = true, features = [
+  "futures-io",
+  "tokio",
+  "stream",
+  "all-algorithms",
+] }
+async-stream = { workspace = true }
+async-trait = { workspace = true }
+async_zip = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-s3 = { workspace = true }
+bincode = { workspace = true }
+chrono = { workspace = true }
 criterion = { workspace = true, features = ["async_tokio"] }
-crossbeam = { workspace=true }
-daggy = { workspace=true }
-dashmap = { workspace=true }
-deno_console = { workspace=true }
-deno_core = { workspace=true }
-derive_builder = { workspace=true }
-dir-diff = { workspace=true }
-directories = { workspace=true }
-env_logger = { workspace=true }
-fixedbitset = { workspace=true }
-flate2 = { workspace=true }
-fs_extra = { workspace=true }
-futures = { workspace=true }
-fxhash = { workspace=true }
-glob = { workspace=true }
-globset = { workspace=true }
-guess_host_triple = { workspace=true }
-hyper = { workspace=true }
-ignore = { workspace=true }
-json_comments = { workspace=true }
-log = { workspace=true }
-mockito = { workspace=true }
-nix = { workspace=true }
-num_cpus = { workspace=true }
-once_cell = { workspace=true }
+crossbeam = { workspace = true }
+daggy = { workspace = true }
+dashmap = { workspace = true }
+deno_console = { workspace = true }
+deno_core = { workspace = true }
+derive_builder = { workspace = true }
+dir-diff = { workspace = true }
+directories = { workspace = true }
+env_logger = { workspace = true }
+fixedbitset = { workspace = true }
+flate2 = { workspace = true }
+fs_extra = { workspace = true }
+futures = { workspace = true }
+fxhash = { workspace = true }
+glob = { workspace = true }
+globset = { workspace = true }
+guess_host_triple = { workspace = true }
+hyper = { workspace = true }
+ignore = { workspace = true }
+json_comments = { workspace = true }
+log = { workspace = true }
+mockito = { workspace = true }
+nix = { workspace = true }
+num_cpus = { workspace = true }
+once_cell = { workspace = true }
 openssl = { workspace = true, features = ["vendored"] }
 opentelemetry = { workspace = true, features = ["rt-tokio"] }
 opentelemetry-jaeger = { workspace = true, features = ["rt-tokio"] }
-petgraph = { workspace=true }
-predicates = { workspace=true }
-prost = { workspace=true }
-prost-types = { workspace=true }
-quickcheck = { workspace=true }
-quickcheck_macros = { workspace=true }
-rand = { workspace=true }
-regex = { workspace=true }
+petgraph = { workspace = true }
+predicates = { workspace = true }
+prost = { workspace = true }
+prost-types = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
 reqwest = { workspace = true, features = ["stream", "json", "gzip"] }
-rexpect = { workspace=true }
+rexpect = { workspace = true }
 rusqlite = { workspace = true, features = ["bundled"] }
-rust-crypto = { workspace=true }
-seahash = { workspace=true }
+rust-crypto = { workspace = true }
+seahash = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
-serde_derive = { workspace=true }
+serde_derive = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
-sha2 = { workspace=true }
-shuttle = { workspace=true }
-structopt = { workspace=true }
-tar = { workspace=true }
-tempdir = { workspace=true }
-tempfile = { workspace=true }
-termcolor = { workspace=true }
-thiserror = { workspace=true }
+sha2 = { workspace = true }
+shuttle = { workspace = true }
+structopt = { workspace = true }
+tar = { workspace = true }
+tempdir = { workspace = true }
+tempfile = { workspace = true }
+termcolor = { workspace = true }
+thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
-tokio-serde = { workspace=true }
-tokio-tar = { workspace=true }
+tokio-serde = { workspace = true }
+tokio-tar = { workspace = true }
 tokio-util = { workspace = true, features = ["rt", "compat"] }
-tonic = { workspace=true }
+tonic = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
-tracing-opentelemetry = { workspace=true }
-tracing-subscriber = { workspace=true }
-url = { workspace=true }
+tracing-opentelemetry = { workspace = true }
+tracing-subscriber = { workspace = true }
+url = { workspace = true }
 uuid = { workspace = true, features = ["v4", "fast-rng", "macro-diagnostics"] }
-v8 = { workspace=true }
-whoami = { workspace=true }
+v8 = { workspace = true }
+whoami = { workspace = true }
 
 [build-dependencies]
-anyhow = { workspace=true }
-deno_console = { workspace=true }
-deno_core = { workspace=true }
-tonic-build = { workspace=true }
+anyhow = { workspace = true }
+deno_console = { workspace = true }
+deno_core = { workspace = true }
+tonic-build = { workspace = true }

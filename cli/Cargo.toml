@@ -12,52 +12,52 @@ path = "main.rs"
 [dependencies]
 warp-core = { path = "../core", version = "*" }
 
-anyhow = { workspace=true }
-assert_cmd = { workspace=true }
-assert_fs = { workspace=true }
-chrono = { workspace=true }
-console = { workspace=true }
-crossbeam = { workspace=true }
-crossbeam-channel = { workspace=true }
-crossterm = { workspace=true }
-dashmap = { workspace=true }
-dialoguer = { workspace=true }
-env_logger="*"
-futures = { workspace=true }
-fxhash = { workspace=true }
-globset = { workspace=true }
-guess_host_triple = { workspace=true }
-human-panic = { workspace=true }
-human_bytes = { workspace=true }
-humantime = { workspace=true }
-ignore = { workspace=true }
-indicatif = { workspace=true }
+anyhow = { workspace = true }
+assert_cmd = { workspace = true }
+assert_fs = { workspace = true }
+chrono = { workspace = true }
+console = { workspace = true }
+crossbeam = { workspace = true }
+crossbeam-channel = { workspace = true }
+crossterm = { workspace = true }
+dashmap = { workspace = true }
+dialoguer = { workspace = true }
+env_logger = "*"
+futures = { workspace = true }
+fxhash = { workspace = true }
+globset = { workspace = true }
+guess_host_triple = { workspace = true }
+human-panic = { workspace = true }
+human_bytes = { workspace = true }
+humantime = { workspace = true }
+ignore = { workspace = true }
+indicatif = { workspace = true }
 insta.workspace = true
-notify = { workspace=true }
-num_cpus = { workspace=true }
+notify = { workspace = true }
+num_cpus = { workspace = true }
 opentelemetry = { workspace = true, features = ["rt-tokio"] }
-opentelemetry-jaeger = { workspace = true, features = ["rt-tokio"]  }
-prost = { workspace=true }
-serde = { workspace=true }
-serde_derive = { workspace=true }
+opentelemetry-jaeger = { workspace = true, features = ["rt-tokio"] }
+prost = { workspace = true }
+serde = { workspace = true }
+serde_derive = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
-structopt = { workspace=true }
-termcolor = { workspace=true }
+structopt = { workspace = true }
+termcolor = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-tokio-util = { workspace=true }
-tonic = { workspace=true }
-tonic-build = { workspace=true }
+tokio-util = { workspace = true }
+tonic = { workspace = true }
+tonic-build = { workspace = true }
 tracing = { workspace = true }
-tracing-opentelemetry = { workspace=true }
-tracing-subscriber = { workspace=true }
-url = { workspace=true }
-whoami = { workspace=true }
+tracing-opentelemetry = { workspace = true }
+tracing-subscriber = { workspace = true }
+url = { workspace = true }
+whoami = { workspace = true }
 
 [dev-dependencies]
-insta = { workspace=true }
-assert_cmd = { workspace=true }
-dir-diff = { workspace=true }
+assert_cmd = { workspace = true }
+dir-diff = { workspace = true }
+insta = { workspace = true }
 
 [build-dependencies]
-anyhow = { workspace=true }
-tonic-build = { workspace=true }
+anyhow = { workspace = true }
+tonic-build = { workspace = true }

@@ -21,13 +21,20 @@ fxhash = "0"
 gitignore = "1"
 insta = "1"
 predicates = "2"
-prettyplease="0"
+prettyplease = "0"
 prost = "0"
 prost-types = "0"
 serde = { version = "1.0", features = ["rc"] }
 serde_derive = "1.0"
 serde_json = { version = "1.0", features = ["preserve_order"] }
-syn = { version = "1", features = ["full", "parsing", "extra-traits", "visit", "visit-mut", "fold"] }
+syn = { version = "1", features = [
+  "full",
+  "parsing",
+  "extra-traits",
+  "visit",
+  "visit-mut",
+  "fold",
+] }
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 tonic = "0.8"

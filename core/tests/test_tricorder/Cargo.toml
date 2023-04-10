@@ -5,18 +5,18 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
+prost = { workspace = true }
 thiserror = { workspace = true }
-tonic = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tonic = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
-prost = { workspace = true }
 
 [[bin]]
 name = "test-tricorder"
 path = "src/main.rs"
 
 [build-dependencies]
+cc = { workspace = true }
 tonic-build = { workspace = true }
-cc={ workspace = true }
