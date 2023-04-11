@@ -9,7 +9,10 @@ pub struct RustToolchain {
 }
 
 impl RustToolchain {
-    pub async fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, RustToolchainError> {
+    pub async fn from_path<P>(path: P) -> Result<Self, RustToolchainError>
+    where
+        P: AsRef<Path>,
+    {
         let toml = tokio::fs::read_to_string(path.as_ref()).await?;
         Self::from_str(&toml)
     }

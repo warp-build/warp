@@ -1,3 +1,4 @@
+use crate::dependencies::crates::Crates;
 use crate::dependencies::DependencyManager;
 
 use super::ast::{GetAst, GetAstError};
@@ -8,7 +9,6 @@ use super::GenerateSignatureError;
 use std::path::Path;
 use std::sync::Arc;
 
-#[derive(Default)]
 pub struct Analyzer {
     cargo_analyzer: CargoAnalyzer,
     rust_module_analyzer: RustModuleAnalyzer,
@@ -16,7 +16,8 @@ pub struct Analyzer {
 
 impl Analyzer {
     pub fn new(dep_manager: Arc<DependencyManager>) -> Self {
-        let cargo_analyzer = CargoAnalyzer::new(dep_manager);
+        let crates = Arc::new(Crates::new());
+        let cargo_analyzer = CargoAnalyzer::new(crates, dep_manager);
         let rust_module_analyzer = RustModuleAnalyzer::default();
 
         Self {

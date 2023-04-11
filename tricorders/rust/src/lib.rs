@@ -8,10 +8,16 @@ pub use error::*;
 #[macro_use]
 extern crate derive_builder;
 use analysis::Analyzer;
+
 use dependencies::DependencyManager;
 use grpc::GrpcTricorder;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
+
+static RUST_TRICORDER_URL_STR: &str = "https://store.warp.build/tricorders/rust/manifest.json";
+static RUST_TRICORDER_URL: once_cell::sync::Lazy<url::Url> =
+    once_cell::sync::Lazy::new(|| url::Url::parse(RUST_TRICORDER_URL_STR).unwrap());
 
 /// The entrypoint to the Rust tricorder. This struct orchestrates the subcomponents and starts the
 /// gRPC service that implements the Tricorder protocol.
@@ -22,8 +28,11 @@ pub struct Tricorder {
 }
 
 impl Tricorder {
-    pub fn new(address: SocketAddr) -> Result<Self, TricorderError> {
-        let dep_manager = Arc::new(DependencyManager::default());
+    pub fn new<P>(address: SocketAddr, root: P) -> Result<Self, TricorderError>
+    where
+        P: AsRef<Path>,
+    {
+        let dep_manager = Arc::new(DependencyManager::new(root.as_ref()));
         let analyzer = Arc::new(Analyzer::new(dep_manager.clone()));
 
         let service = GrpcTricorder::builder()

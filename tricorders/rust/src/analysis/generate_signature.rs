@@ -2,7 +2,7 @@ use super::model::{Config, Signature, Value};
 use super::tree_splitter::TreeSplitter;
 use super::GenerateSignatureError;
 use std::path::{Path, PathBuf};
-use thiserror::*;
+
 use tokio::fs;
 
 #[derive(Default)]
