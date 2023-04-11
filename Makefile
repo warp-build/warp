@@ -35,7 +35,7 @@ bench:
 release: release.mac.intel release.mac.m1 release.linux.intel release.linux.arm
 
 release.ci:
-	cargo build --release
+	cargo build --release -p warp-cli
 	tar czf release.tar.gz -C ./target/release $(WARP_EXE)
 
 release.mac.m1:
