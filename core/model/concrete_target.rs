@@ -105,6 +105,10 @@ impl ConcreteTarget {
     pub fn goal(&self) -> Goal {
         self.goal
     }
+
+    pub fn abs_path(&self) -> PathBuf {
+        self.workspace_root.join(&self.path)
+    }
 }
 
 impl ToString for ConcreteTarget {

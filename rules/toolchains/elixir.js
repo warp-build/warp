@@ -75,7 +75,7 @@ ${elixir_path}/bin/mix local.rebar --force
   ctx.action().setPermissions({ file: iex, executable: true });
   ctx.action().setPermissions({ file: mix, executable: true });
 
-  ctx.action().declareOutputs([elixir_path]);
+  ctx.action().declareOutputs([elixir_path, MIX_HOME]);
 
   ctx.provides({ elixir, elixir, elixirc, iex, mix });
 

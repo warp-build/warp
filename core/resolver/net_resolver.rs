@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use super::{ResolverError, TargetRegistry};
 use crate::archive::ArchiveManager;
 use crate::code::CodeManager;
@@ -6,6 +8,7 @@ use crate::store::Store;
 use crate::sync::Arc;
 use crate::tricorder::{SignatureGenerationFlow, Tricorder};
 use crate::workspace::WorkspaceManager;
+use tokio::fs;
 use tracing::instrument;
 
 #[cfg_attr(doc, aquamarine::aquamarine)]
@@ -72,7 +75,11 @@ where
             .goal(task.goal())
             .target_id(task.target_id())
             .target(self.target_registry.get_target(task.target_id()))
-            .path(target.subpath().unwrap())
+            .path(if let Some(subpath) = target.subpath() {
+                subpath.to_path_buf()
+            } else {
+                PathBuf::from(".")
+            })
             .workspace_root(workspace.root())
             .build()
             .unwrap();
@@ -81,14 +88,15 @@ where
             .target_registry
             .associate_concrete_target(task.target_id(), ct);
 
-        let archive = if let Some(mut archive) = self.archive_manager.find(&target.url()).await? {
-            archive.set_final_path(workspace.root().to_path_buf());
-            archive
-        } else {
-            let archive = self.archive_manager.download(&target.url()).await?;
+        let archive = self.archive_manager.download(&target.url()).await?;
+
+        if !fs::try_exists(workspace.root().join(ct.path()))
+            .await
+            .unwrap_or_default()
+        {
             self.archive_manager
                 .extract(&archive, workspace.root())
-                .await?
+                .await?;
         };
 
         let sig = self

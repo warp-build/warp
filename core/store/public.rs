@@ -30,6 +30,10 @@ impl PublicStore {
     ) -> Result<PublicArtifactDownload, PublicStoreError> {
         let ec = self.config.event_channel();
 
+        if self.config.offline() {
+            return Err(PublicStoreError::Offline);
+        }
+
         let mut url = self.config.public_store_cdn_url().clone();
         url.set_path(&format!("{}.tar.gz", id.inner()));
 
@@ -88,6 +92,9 @@ pub enum PublicStoreError {
 
     #[error(transparent)]
     IoError(std::io::Error),
+
+    #[error("Can't download from the public store in offline mode.")]
+    Offline,
 }
 
 impl From<reqwest::Error> for PublicStoreError {

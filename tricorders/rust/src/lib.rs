@@ -7,8 +7,12 @@ pub use error::*;
 
 #[macro_use]
 extern crate derive_builder;
-use analysis::Analyzer;
 
+#[cfg(test)]
+#[macro_use]
+extern crate assert_matches;
+
+use analysis::Analyzer;
 use dependencies::DependencyManager;
 use grpc::GrpcTricorder;
 use std::net::SocketAddr;
@@ -32,7 +36,9 @@ impl Tricorder {
     where
         P: AsRef<Path>,
     {
-        let dep_manager = Arc::new(DependencyManager::new(root.as_ref()));
+        let root = root.as_ref().canonicalize()?;
+
+        let dep_manager = Arc::new(DependencyManager::new(&root));
         let analyzer = Arc::new(Analyzer::new(dep_manager.clone()));
 
         let service = GrpcTricorder::builder()

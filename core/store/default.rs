@@ -100,7 +100,9 @@ impl Store for DefaultStore {
                 // NB(@ostera): only remote targets will be available in the public store. Other
                 // local targets may also be available in a `cloud_store` that is private per
                 // organization, but we haven't included this in the Mark II yet.
-                let _ = self.public_store.try_fetch(&spec.artifact_id()).await?;
+                if !self.config.offline() {
+                    let _ = self.public_store.try_fetch(&spec.artifact_id()).await?;
+                }
                 Ok(self.local_store.get_manifest(spec.artifact_id()).await?)
             }
             manifest => Ok(manifest),

@@ -3,9 +3,7 @@ use super::proto::build::warp::symbol::Sym::{All, Named};
 use super::proto::build::warp::tricorder::{
     get_ast_response, GetAstResponse, GetAstSuccessResponse,
 };
-use super::proto::build::warp::{
-    DependencyRequirement, FileRequirement, SymbolRequirement, UrlRequirement,
-};
+use super::proto::build::warp::{FileRequirement, RemoteRequirement, SymbolRequirement};
 use super::proto::google::protobuf::value::Kind;
 use super::proto::google::protobuf::ListValue;
 use crate::analysis::model::{Ast, Config, Requirement, Signature, Symbol, Value};
@@ -58,11 +56,12 @@ impl From<Signature> for proto::build::warp::Signature {
         proto::build::warp::Signature {
             name: sig.target().to_string(),
             rule: sig.rule().to_string(),
-            deps: sig.deps().iter().map(|e| e.clone().into()).collect(),
+            deps: sig.deps().iter().cloned().map(|e| e.into()).collect(),
             runtime_deps: sig
                 .runtime_deps()
                 .iter()
-                .map(|e| e.clone().into())
+                .cloned()
+                .map(|e| e.into())
                 .collect(),
             config: Some(sig.config().into()),
         }
@@ -84,32 +83,18 @@ impl From<Requirement> for proto::build::warp::Requirement {
                     SymbolRequirement { raw, kind },
                 )),
             },
-            Requirement::Url {
-                url,
-                tricorder_url: _,
-                subpath,
-            } => proto::build::warp::Requirement {
-                requirement: Some(proto::build::warp::requirement::Requirement::Url(
-                    UrlRequirement {
-                        url: url.to_string(),
-                        subpath: subpath.unwrap().to_str().unwrap().to_string(),
-                    },
-                )),
-            },
-            Requirement::Dependency {
+            Requirement::Remote {
                 name,
-                version,
                 url,
                 tricorder,
+                subpath,
             } => proto::build::warp::Requirement {
-                requirement: Some(proto::build::warp::requirement::Requirement::Dependency(
-                    DependencyRequirement {
+                requirement: Some(proto::build::warp::requirement::Requirement::Remote(
+                    RemoteRequirement {
                         name,
-                        version,
                         url: url.to_string(),
                         tricorder_url: tricorder.to_string(),
-                        archive_resolver: "".to_string(),
-                        signature_resolver: "".to_string(),
+                        subpath: subpath.to_str().unwrap().to_string(),
                     },
                 )),
             },

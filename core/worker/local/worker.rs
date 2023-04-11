@@ -672,6 +672,8 @@ mod tests {
                         .name("test_signature")
                         .rule("dummy_rule")
                         .target(target)
+                        .deps([])
+                        .runtime_deps([])
                         .build()
                         .unwrap(),
                 )];

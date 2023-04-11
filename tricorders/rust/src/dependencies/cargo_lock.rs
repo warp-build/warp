@@ -16,10 +16,7 @@ pub struct CargoLock {
 }
 
 impl CargoLock {
-    pub async fn from_path<P>(path: P) -> Result<Self, CargoLockError>
-    where
-        P: AsRef<Path>,
-    {
+    pub async fn from_path(path: impl AsRef<Path>) -> Result<Self, CargoLockError> {
         let toml = tokio::fs::read_to_string(path.as_ref()).await?;
         Self::from_str(&toml)
     }
@@ -45,12 +42,11 @@ pub enum Version {
     V3 = 3,
 }
 
-#[derive(Default, Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Deserialize)]
 pub struct Package {
     #[serde(default)]
     name: String,
-    #[serde(default)]
-    version: String,
+    version: semver::Version,
     #[serde(default)]
     source: String,
     #[serde(default)]
@@ -64,8 +60,8 @@ impl Package {
         self.name.as_ref()
     }
 
-    pub fn version(&self) -> &str {
-        self.version.as_ref()
+    pub fn version(&self) -> &semver::Version {
+        &self.version
     }
 
     pub fn source(&self) -> &str {
@@ -189,7 +185,7 @@ dependencies = [
 
         let pkg = lockfile.packages().get(0).unwrap();
         assert_eq!(pkg.name(), "anyhow");
-        assert_eq!(pkg.version(), "1.0.68");
+        assert_eq!(pkg.version().to_string(), "1.0.68".to_string());
         assert_eq!(
             pkg.source(),
             "registry+https://github.com/rust-lang/crates.io-index"
@@ -202,7 +198,7 @@ dependencies = [
 
         let pkg = lockfile.packages().get(1).unwrap();
         assert_eq!(pkg.name(), "async-stream");
-        assert_eq!(pkg.version(), "0.3.3");
+        assert_eq!(pkg.version().to_string(), "0.3.3".to_string());
         assert_eq!(
             pkg.source(),
             "registry+https://github.com/rust-lang/crates.io-index"
@@ -227,7 +223,7 @@ dependencies = [
 
         let pkg = lockfile.packages().get(2).unwrap();
         assert_eq!(pkg.name(), "tempfile");
-        assert_eq!(pkg.version(), "3.4.0");
+        assert_eq!(pkg.version().to_string(), "3.4.0".to_string());
         assert_eq!(
             pkg.source(),
             "registry+https://github.com/rust-lang/crates.io-index"

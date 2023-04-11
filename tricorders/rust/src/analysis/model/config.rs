@@ -37,6 +37,21 @@ impl From<&str> for Value {
     }
 }
 
+impl From<PathBuf> for Value {
+    fn from(value: PathBuf) -> Self {
+        Self::File(value)
+    }
+}
+
+impl<I> From<Vec<I>> for Value
+where
+    I: Into<Value>,
+{
+    fn from(value: Vec<I>) -> Self {
+        Self::List(value.into_iter().map(|v| v.into()).collect())
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Spec {
     _inner: FxHashMap<String, Type>,
@@ -84,6 +99,10 @@ impl std::hash::Hash for Config {
 }
 
 impl Config {
+    pub fn builder() -> ConfigBuilder {
+        Default::default()
+    }
+
     pub fn new(_inner: FxHashMap<String, Value>) -> Self {
         Self { _inner }
     }
@@ -120,5 +139,21 @@ impl Config {
 
     pub fn values(&self) -> &FxHashMap<String, Value> {
         &self._inner
+    }
+}
+
+#[derive(Default)]
+pub struct ConfigBuilder {
+    config: Config,
+}
+
+impl ConfigBuilder {
+    pub fn insert(mut self, k: &str, v: impl Into<Value>) -> Self {
+        self.config.insert(k.to_string(), v.into());
+        self
+    }
+
+    pub fn build(self) -> Config {
+        self.config
     }
 }

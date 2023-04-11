@@ -86,6 +86,8 @@ impl BootstrapResolver {
                 config
             })
             .target(concrete_target)
+            .deps([])
+            .runtime_deps([])
             .build()
             .unwrap()
     }
@@ -101,6 +103,8 @@ impl BootstrapResolver {
                 config
             })
             .target(concrete_target)
+            .deps([])
+            .runtime_deps([])
             .build()
             .unwrap()
     }

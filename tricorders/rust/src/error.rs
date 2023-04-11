@@ -9,6 +9,9 @@ pub enum TricorderError {
 
     #[error(transparent)]
     GrpcTricorderError(GrpcTricorderError),
+
+    #[error(transparent)]
+    Io(std::io::Error),
 }
 
 impl From<DependencyManagerError> for TricorderError {
@@ -20,5 +23,11 @@ impl From<DependencyManagerError> for TricorderError {
 impl From<GrpcTricorderError> for TricorderError {
     fn from(value: GrpcTricorderError) -> Self {
         TricorderError::GrpcTricorderError(value)
+    }
+}
+
+impl From<std::io::Error> for TricorderError {
+    fn from(value: std::io::Error) -> Self {
+        TricorderError::Io(value)
     }
 }

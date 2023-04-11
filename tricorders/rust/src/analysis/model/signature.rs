@@ -5,8 +5,10 @@ use thiserror::*;
 #[derive(Builder, Debug, Clone)]
 #[builder(build_fn(error = "SignatureError"))]
 pub struct Signature {
+    #[builder(setter(into))]
     target: String,
 
+    #[builder(setter(into))]
     rule: String,
 
     #[builder(default)]

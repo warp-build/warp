@@ -46,34 +46,19 @@ message SymbolRequirement {
   string kind = 2;
 }
 
-message UrlRequirement {
-  string url = 1;
-  string subpath = 2;
-}
-
-message DependencyRequirement {
+message RemoteRequirement {
   string name = 1;
-  string version = 2;
-  string url = 3;
-
-  // This resolver label will be used to find out where to fetch the archive
-  // that corresponds to this dependency.
-  string archive_resolver = 4;
-
-  // this resolver label will be used to generate a signature for the contents
-  // of the archive.
-  string signature_resolver = 5;
-
-  // The URL of the Tricorder that should be used to handle this dependency.
-  string tricorder_url = 6;
+  string url = 2;
+  // The URL of the Tricorder that should be used to handle this remote requirement.
+  string tricorder_url = 3;
+  string subpath = 4;
 }
 
 message Requirement {
   oneof requirement {
     FileRequirement file = 1;
     SymbolRequirement symbol = 2;
-    UrlRequirement url = 3;
-    DependencyRequirement dependency = 4;
+    RemoteRequirement remote = 5;
   }
 }
 

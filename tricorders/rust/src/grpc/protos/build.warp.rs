@@ -55,37 +55,21 @@ pub struct SymbolRequirement {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct UrlRequirement {
+pub struct RemoteRequirement {
     #[prost(string, tag = "1")]
-    pub url: ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
+    pub url: ::prost::alloc::string::String,
+    /// The URL of the Tricorder that should be used to handle this remote requirement.
+    #[prost(string, tag = "3")]
+    pub tricorder_url: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
     pub subpath: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DependencyRequirement {
-    #[prost(string, tag = "1")]
-    pub name: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub version: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub url: ::prost::alloc::string::String,
-    /// This resolver label will be used to find out where to fetch the archive
-    /// that corresponds to this dependency.
-    #[prost(string, tag = "4")]
-    pub archive_resolver: ::prost::alloc::string::String,
-    /// this resolver label will be used to generate a signature for the contents
-    /// of the archive.
-    #[prost(string, tag = "5")]
-    pub signature_resolver: ::prost::alloc::string::String,
-    /// The URL of the Tricorder that should be used to handle this dependency.
-    #[prost(string, tag = "6")]
-    pub tricorder_url: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Requirement {
-    #[prost(oneof = "requirement::Requirement", tags = "1, 2, 3, 4")]
+    #[prost(oneof = "requirement::Requirement", tags = "1, 2, 5")]
     pub requirement: ::core::option::Option<requirement::Requirement>,
 }
 /// Nested message and enum types in `Requirement`.
@@ -97,10 +81,8 @@ pub mod requirement {
         File(super::FileRequirement),
         #[prost(message, tag = "2")]
         Symbol(super::SymbolRequirement),
-        #[prost(message, tag = "3")]
-        Url(super::UrlRequirement),
-        #[prost(message, tag = "4")]
-        Dependency(super::DependencyRequirement),
+        #[prost(message, tag = "5")]
+        Remote(super::RemoteRequirement),
     }
 }
 /// The Dependency message is used to communicate dependencies that have already

@@ -15,6 +15,7 @@ pub(crate) mod drive;
 pub mod events;
 pub(crate) mod executor;
 pub(crate) mod model;
+pub(crate) mod os;
 pub(crate) mod planner;
 pub(crate) mod resolver;
 pub(crate) mod rules;

@@ -1,6 +1,6 @@
 [package]
 name = "warp-cli"
-version = "0.0.78"
+version = "0.0.79"
 authors = ["Leandro Ostera <leandro@warp.build>"]
 description = "[beta] warp is a simple, fast, and correct build system for modern polyglot teams"
 edition = "2021"

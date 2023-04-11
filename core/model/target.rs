@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 use thiserror::*;
 use url::Url;
 
+use crate::os::PathExt;
+
 static ALIAS_ALL: &str = "@all";
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -10,12 +12,6 @@ pub enum Target {
     Alias(AliasTarget),
     Remote(RemoteTarget),
     Fs(FsTarget),
-}
-
-impl From<url::Url> for Target {
-    fn from(url: url::Url) -> Self {
-        Self::Remote(url.into())
-    }
 }
 
 impl From<String> for Target {
@@ -26,13 +22,7 @@ impl From<String> for Target {
 
 impl From<&str> for Target {
     fn from(value: &str) -> Self {
-        if value.starts_with('@') {
-            Self::Alias(value.into())
-        } else if let Ok(url) = url::Url::parse(value) {
-            Self::Remote(url.into())
-        } else {
-            Self::Fs(value.into())
-        }
+        value.parse().unwrap()
     }
 }
 
@@ -87,7 +77,9 @@ impl std::str::FromStr for Target {
         }
 
         if let Ok(url) = s.parse::<url::Url>() {
-            return Ok(url.into());
+            return Ok(Self::Remote(
+                RemoteTarget::builder().url(url).build().unwrap(),
+            ));
         }
 
         Ok(Self::Fs(FsTarget {
@@ -213,16 +205,6 @@ impl ToString for RemoteTarget {
     }
 }
 
-impl From<url::Url> for RemoteTarget {
-    fn from(url: url::Url) -> Self {
-        Self {
-            url: url.to_string(),
-            tricorder_url: None,
-            subpath: None,
-        }
-    }
-}
-
 #[derive(Builder, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct FsTarget {
     path: PathBuf,
@@ -236,21 +218,7 @@ impl FsTarget {
     pub fn normalize(mut self, root: &Path) -> Result<FsTarget, TargetError> {
         let abs_path = std::fs::canonicalize(self.path)?;
 
-        #[cfg(target_os = "macos")]
-        {
-            self.path = if let Ok(path) = abs_path.strip_prefix("/private") {
-                Path::new("/").join(path)
-            } else {
-                abs_path
-            }
-            .strip_prefix(root)?
-            .to_path_buf();
-        }
-
-        #[cfg(not(target_os = "macos"))]
-        {
-            self.path = abs_path.strip_prefix(root)?.to_path_buf();
-        }
+        self.path = abs_path.clean().strip_prefix(root)?.to_path_buf();
 
         Ok(self)
     }
