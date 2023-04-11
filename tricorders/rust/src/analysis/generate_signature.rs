@@ -1,5 +1,6 @@
 use super::model::{Config, Signature, Value};
 use super::tree_splitter::TreeSplitter;
+use super::GenerateSignatureError;
 use std::path::{Path, PathBuf};
 use thiserror::*;
 use tokio::fs;
@@ -131,16 +132,4 @@ impl GenerateSignature {
         }
         Ok(mod_files)
     }
-}
-
-#[derive(Error, Debug)]
-pub enum GenerateSignatureError {
-    #[error("Could not load file at {file:?} due to {err:?}")]
-    CouldNotReadFile { file: String, err: std::io::Error },
-
-    #[error("Missing dep {dep:?}")]
-    MissingDependency { dep: String },
-
-    #[error("Unsupported file {file:?}")]
-    UnsupportedFile { file: PathBuf },
 }

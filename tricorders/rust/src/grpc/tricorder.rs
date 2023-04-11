@@ -66,7 +66,7 @@ impl TricorderService for GrpcTricorder {
 
         let response = self
             .analyzer
-            .generate_signature(workspace_root.clone(), Path::new(&file), test_matcher)
+            .generate_signature(Path::new(&workspace_root), Path::new(&file), test_matcher)
             .await;
 
         match response {
