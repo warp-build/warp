@@ -37,6 +37,7 @@ syn = { version = "1", features = [
 ] }
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
+toml = "0.7"
 tonic = "0.8"
 tracing = { version = "0.1", features = ["log"] }
 tracing-opentelemetry = "0.17"

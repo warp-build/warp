@@ -24,7 +24,7 @@ pub struct Tricorder {
 impl Tricorder {
     pub fn new(address: SocketAddr) -> Result<Self, TricorderError> {
         let dep_manager = Arc::new(DependencyManager::default());
-        let analyzer = Arc::new(Analyzer::default());
+        let analyzer = Arc::new(Analyzer::new(dep_manager.clone()));
 
         let service = GrpcTricorder::builder()
             .dep_manager(dep_manager.clone())
