@@ -175,25 +175,33 @@ mod tests {
         // goes wrong.
         // let store_root = store_root.into_persistent();
 
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
             .warp_root(warp_root.path().to_path_buf())
-            .public_store_cdn_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mock_url.clone())
             .build()
             .unwrap();
 
         // NOTE(@ostera): this mock will be used by the public store to fetch an actual artifact
-        let _public_store_mock1 = mockito::mock("GET", "/a-hash.tar.gz")
+        let _public_store_mock1 = server
+            .mock("GET", "/a-hash.tar.gz")
             .with_status(200)
             .with_body(include_bytes!("./fixtures/sample_artifact.tar.gz"))
-            .create();
+            .create_async()
+            .await;
 
-        let _public_store_mock2 = mockito::mock("GET", "/b-hash.tar.gz")
+        let _public_store_mock2 = server
+            .mock("GET", "/b-hash.tar.gz")
             .with_status(200)
             .with_body(include_bytes!("./fixtures/sample_dependency.tar.gz"))
-            .create();
+            .create_async()
+            .await;
 
         // NOTE(@ostera): this mock will be used to download the manifest
-        let _package_manifest_mock = mockito::mock("GET", "/sample/project/manifest.json")
+        let _package_manifest_mock = server
+            .mock("GET", "/sample/project/manifest.json")
             .with_status(200)
             .with_body(
                 r#"
@@ -208,12 +216,13 @@ mod tests {
 }
                 "#,
             )
-            .create();
+            .create_async()
+            .await;
 
         let am = ArchiveManager::new(&config).into();
         let ds = DefaultStore::new(config, am);
 
-        let manifest_url = format!("{}/sample/project/manifest.json", mockito::server_url())
+        let manifest_url = format!("{}sample/project/manifest.json", mock_url)
             .parse()
             .unwrap();
         let manifest = ds.install_from_manifest_url(&manifest_url).await.unwrap();
@@ -233,20 +242,26 @@ mod tests {
         // goes wrong.
         // let store_root = store_root.into_persistent();
 
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
             .warp_root(warp_root.path().to_path_buf())
-            .public_store_cdn_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mock_url.clone())
             .build()
             .unwrap();
 
         // NOTE(@ostera): this mock will be used by the public store to fetch an actual artifact
-        let _public_store_mock1 = mockito::mock("GET", "/a-hash.tar.gz")
+        let _public_store_mock1 = server
+            .mock("GET", "/a-hash.tar.gz")
             .with_status(200)
             .with_body(include_bytes!("./fixtures/sample_artifact.tar.gz"))
-            .create();
+            .create_async()
+            .await;
 
         // NOTE(@ostera): this mock will be used to download the manifest
-        let _package_manifest_mock = mockito::mock("GET", "/sample/project/manifest.json")
+        let _package_manifest_mock = server
+            .mock("GET", "/sample/project/manifest.json")
             .with_status(200)
             .with_body(
                 r#"
@@ -261,12 +276,13 @@ mod tests {
 }
                 "#,
             )
-            .create();
+            .create_async()
+            .await;
 
         let am = ArchiveManager::new(&config).into();
         let ds = DefaultStore::new(config, am);
 
-        let manifest_url = format!("{}/sample/project/manifest.json", mockito::server_url())
+        let manifest_url = format!("{}sample/project/manifest.json", mock_url)
             .parse()
             .unwrap();
         let result = ds.install_from_manifest_url(&manifest_url).await;
@@ -288,14 +304,18 @@ mod tests {
         // goes wrong.
         // let store_root = store_root.into_persistent();
 
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
             .warp_root(warp_root.path().to_path_buf())
-            .public_store_cdn_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mock_url.clone())
             .build()
             .unwrap();
 
         // NOTE(@ostera): this mock will be used to download the manifest
-        let _package_manifest_mock = mockito::mock("GET", "/sample/project/manifest.json")
+        let _package_manifest_mock = server
+            .mock("GET", "/sample/project/manifest.json")
             .with_status(200)
             .with_body(
                 r#"
@@ -305,12 +325,13 @@ mod tests {
 }
                 "#,
             )
-            .create();
+            .create_async()
+            .await;
 
         let am = ArchiveManager::new(&config).into();
         let ds = DefaultStore::new(config, am);
 
-        let manifest_url = format!("{}/sample/project/manifest.json", mockito::server_url())
+        let manifest_url = format!("{}sample/project/manifest.json", mock_url)
             .parse()
             .unwrap();
         let result = ds.install_from_manifest_url(&manifest_url).await;

@@ -40,6 +40,7 @@ pub struct LocalSharedContext<R: Resolver, S: Store> {
     pub(crate) test_matcher_registry: Arc<TestMatcherRegistry>,
     pub(crate) workspace_manager: Arc<WorkspaceManager>,
     pub(crate) code_manager: Arc<CodeManager<S, GrpcTricorder>>,
+    pub(crate) config: Config,
 }
 
 impl<R, S> LocalSharedContext<R, S>
@@ -92,6 +93,7 @@ where
             code_manager,
             coordinator,
             event_channel: config.event_channel(),
+            config,
             resolver,
             rule_store,
             signature_registry,

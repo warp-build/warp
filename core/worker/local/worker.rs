@@ -99,6 +99,7 @@ where
     }
 
     async fn run(&mut self) -> Result<(), WorkerError> {
+        std::env::set_current_dir(self.ctx.config.workspace_root()).unwrap();
         for task in self.role.tasks() {
             let target = self.ctx.target_registry.get_target(task.target_id());
             if target.is_all() {

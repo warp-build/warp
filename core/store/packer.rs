@@ -6,6 +6,7 @@ use crate::events::event::PackerEvent;
 use crate::events::EventChannel;
 use crate::resolver::TargetRegistry;
 use crate::sync::Arc;
+use crate::util::from_file::FromFileError;
 use crate::worker::{TaskResult, TaskResults};
 use crate::Target;
 use thiserror::Error;
@@ -98,6 +99,7 @@ impl Packer {
             .main(main_archive)
             .manifest(manifest)
             .deps(dep_archives)
+            .target(target)
             .build()
             .unwrap();
 
@@ -165,10 +167,19 @@ pub enum PackerError {
     CompressError(ArchiveManagerError),
 
     #[error(transparent)]
+    CouldNotWriteManifest(FromFileError),
+
+    #[error(transparent)]
     UploadError(aws_sdk_s3::types::SdkError<aws_sdk_s3::error::PutObjectError>),
 
     #[error(transparent)]
     StoreCheckError(aws_sdk_s3::types::SdkError<aws_sdk_s3::error::HeadObjectError>),
+}
+
+impl From<FromFileError> for PackerError {
+    fn from(value: FromFileError) -> Self {
+        PackerError::CouldNotWriteManifest(value)
+    }
 }
 
 impl From<ArchiveManagerError> for PackerError {

@@ -3,17 +3,18 @@ use crate::archive::ArchiveManager;
 use crate::code::{CodeManager, CodeManagerError};
 use crate::events::event::WorkflowEvent;
 use crate::executor::local::LocalExecutor;
-use crate::model::{Goal, Target, Task, TestMatcher, UnregisteredTask};
+use crate::model::{Goal, Target, TargetError, Task, TestMatcher, UnregisteredTask};
 use crate::planner::DefaultPlanner;
 use crate::resolver::{DefaultResolver, ResolverError, SignatureRegistry, TargetRegistry};
 use crate::rules::JsRuleExecutor;
-use crate::store::{DefaultStore, Package, Packer, PackerError};
+use crate::store::{DefaultStore, Package, Packer, PackerError, UpdateManifestError};
 use crate::sync::Arc;
 use crate::testing::TestMatcherRegistry;
 use crate::tricorder::GrpcTricorder;
 use crate::worker::local::{LocalSharedContext, LocalWorker};
 use crate::worker::{TaskRegistry, TaskResults, WorkerPool, WorkerPoolError};
 use crate::workspace::{WorkspaceManager, WorkspaceManagerError};
+
 use thiserror::*;
 use tracing::{instrument, *};
 
@@ -31,7 +32,7 @@ type DefaultCtxt = LocalSharedContext<MainResolver, DefaultStore>;
 ///
 /// All results are made available via a shared reference into the `TaskResults` of the
 /// `WorkerPool`.
-///
+
 pub struct WarpDriveMarkII {
     worker_pool: WorkerPool<DefaultWorker>,
     shared_ctx: DefaultCtxt,
@@ -156,10 +157,16 @@ impl WarpDriveMarkII {
 
         self.go_to_workspace_root()?;
 
+        let targets = targets
+            .iter()
+            .cloned()
+            .map(|t| t.into().normalize(self.config.workspace_root()))
+            .collect::<Result<Vec<Target>, TargetError>>()?;
+
         let target_ids = self
             .shared_ctx
             .target_registry
-            .register_many_targets(targets);
+            .register_many_targets(&targets);
 
         let tasks: Vec<Task> = target_ids
             .into_iter()
@@ -184,11 +191,20 @@ impl WarpDriveMarkII {
     ///
     #[instrument(name = "WarpDriveMarkII::pack", skip(self))]
     pub async fn pack(&mut self, target: Target, upload: bool) -> Result<Package, WarpDriveError> {
+        self.go_to_workspace_root()?;
+
+        let target = target.normalize(self.config.workspace_root())?;
         let package = self.packer.pack(target).await?;
+
+        package
+            .update_manifest_file(&self.config.workspace_root().join("store"))
+            .await?;
 
         if upload {
             self.packer.upload_to_public_store(&package).await?;
         }
+
+        self.return_to_invocation_dir()?;
 
         Ok(package)
     }
@@ -237,6 +253,12 @@ pub enum WarpDriveError {
 
     #[error(transparent)]
     CodeManagerError(CodeManagerError),
+
+    #[error(transparent)]
+    TargetError(TargetError),
+
+    #[error(transparent)]
+    UpdateManifestError(UpdateManifestError),
 }
 
 impl From<PackerError> for WarpDriveError {
@@ -266,5 +288,17 @@ impl From<ResolverError> for WarpDriveError {
 impl From<CodeManagerError> for WarpDriveError {
     fn from(err: CodeManagerError) -> Self {
         WarpDriveError::CodeManagerError(err)
+    }
+}
+
+impl From<TargetError> for WarpDriveError {
+    fn from(err: TargetError) -> Self {
+        WarpDriveError::TargetError(err)
+    }
+}
+
+impl From<UpdateManifestError> for WarpDriveError {
+    fn from(err: UpdateManifestError) -> Self {
+        WarpDriveError::UpdateManifestError(err)
     }
 }

@@ -57,7 +57,6 @@ impl RuleExecutor for JsRuleExecutor {
                 ])
                 .state(move |state| {
                     state.put(ffi_ctx.clone());
-                    Ok(())
                 })
                 .build()
         };
@@ -304,11 +303,14 @@ mod tests {
 
         // NOTE(@ostera): This mock will be used to download a test_rule as if it was from the
         // internet.
-        let m = mockito::mock("GET", "/test_rule.js")
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url();
+        let m = server
+            .mock("GET", "/test_rule.js")
             .with_status(200)
             .with_body(
                 include_str!("./fixtures/test_rule.js")
-                    .replace("{URL}", &mockito::server_url())
+                    .replace("{URL}", &mock_url)
                     .as_bytes(),
             )
             .create();
@@ -317,7 +319,7 @@ mod tests {
 
         let config = Config::builder()
             .rule_store_root(rule_store_root.path().into())
-            .public_rule_store_url(mockito::server_url().parse::<Url>().unwrap())
+            .public_rule_store_url(mock_url.parse::<Url>().unwrap())
             .invocation_dir(invocation_dir.path().into())
             .build()
             .unwrap();
@@ -402,11 +404,14 @@ mod tests {
 
         // NOTE(@ostera): This mock will be used to download a test_rule as if it was from the
         // internet.
-        let m = mockito::mock("GET", "/test_rule.js")
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url();
+        let m = server
+            .mock("GET", "/test_rule.js")
             .with_status(200)
             .with_body(
                 include_str!("./fixtures/missing_declared_outputs.js")
-                    .replace("{URL}", &mockito::server_url())
+                    .replace("{URL}", &mock_url)
                     .as_bytes(),
             )
             .create();
@@ -415,7 +420,7 @@ mod tests {
 
         let config = Config::builder()
             .rule_store_root(rule_store_root.path().into())
-            .public_rule_store_url(mockito::server_url().parse::<Url>().unwrap())
+            .public_rule_store_url(mock_url.parse::<Url>().unwrap())
             .invocation_dir(invocation_dir.path().into())
             .build()
             .unwrap();
@@ -495,11 +500,14 @@ mod tests {
 
         // NOTE(@ostera): This mock will be used to download a test_rule as if it was from the
         // internet.
-        let m = mockito::mock("GET", "/test_rule.js")
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url();
+        let m = server
+            .mock("GET", "/test_rule.js")
             .with_status(200)
             .with_body(
                 include_str!("./fixtures/rule_with_errors.js")
-                    .replace("{URL}", &mockito::server_url())
+                    .replace("{URL}", &mock_url)
                     .as_bytes(),
             )
             .create();
@@ -508,7 +516,7 @@ mod tests {
 
         let config = Config::builder()
             .rule_store_root(rule_store_root.path().into())
-            .public_rule_store_url(mockito::server_url().parse::<Url>().unwrap())
+            .public_rule_store_url(mock_url.parse::<Url>().unwrap())
             .invocation_dir(invocation_dir.path().into())
             .build()
             .unwrap();
@@ -586,33 +594,38 @@ mod tests {
         let test_file = invocation_dir.child("file.ex");
         test_file.touch().unwrap();
 
-        let mock_url = mockito::server_url().parse::<Url>().unwrap();
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url();
 
         // NOTE(@ostera): This mock will be used to download a test_rule as if it was from the
         // internet.
-        let _m1 = mockito::mock("GET", "/rule_with_dep.js")
+        let _m1 = server
+            .mock("GET", "/rule_with_dep.js")
             .with_status(200)
             .with_body(
                 include_str!("./fixtures/rule_with_dep.js")
-                    .replace("{URL}", &mockito::server_url())
+                    .replace("{URL}", &mock_url)
                     .as_bytes(),
             )
-            .create();
+            .create_async()
+            .await;
 
-        let _m2 = mockito::mock("GET", "/dep_rule.js")
+        let _m2 = server
+            .mock("GET", "/dep_rule.js")
             .with_status(200)
             .with_body(
                 include_str!("./fixtures/dep_rule.js")
-                    .replace("{URL}", &mockito::server_url())
+                    .replace("{URL}", &mock_url)
                     .as_bytes(),
             )
-            .create();
+            .create_async()
+            .await;
 
         // 2. Configure Warp and create all the dependencies to the RuleExecutor
 
         let config = Config::builder()
             .rule_store_root(rule_store_root.path().into())
-            .public_rule_store_url(mock_url)
+            .public_rule_store_url(mock_url.parse::<Url>().unwrap())
             .invocation_dir(invocation_dir.path().into())
             .build()
             .unwrap();
@@ -696,33 +709,38 @@ mod tests {
         let test_file = invocation_dir.child("file.ex");
         test_file.touch().unwrap();
 
-        let mock_url = mockito::server_url().parse::<Url>().unwrap();
-        let mock_port = mock_url.port().unwrap().to_string();
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url();
+        let mock_host_with_port = server.host_with_port();
         // NOTE(@ostera): This mock will be used to download a test_rule as if it was from the
         // internet.
-        let _m1 = mockito::mock("GET", "/rule_with_dep.js")
+        let _m1 = server
+            .mock("GET", "/rule_with_dep.js")
             .with_status(200)
             .with_body(
                 include_str!("./fixtures/rule_with_dep.js")
-                    .replace("{URL}", &mockito::server_url())
+                    .replace("{URL}", &mock_url)
                     .as_bytes(),
             )
-            .create();
+            .create_async()
+            .await;
 
-        let _m2 = mockito::mock("GET", "/dep_rule.js")
+        let _m2 = server
+            .mock("GET", "/dep_rule.js")
             .with_status(400)
             .with_body(
                 include_str!("./fixtures/dep_rule.js")
-                    .replace("{URL}", &mockito::server_url())
+                    .replace("{URL}", &mock_url)
                     .as_bytes(),
             )
-            .create();
+            .create_async()
+            .await;
 
         // 2. Configure Warp and create all the dependencies to the RuleExecutor
 
         let config = Config::builder()
             .rule_store_root(rule_store_root.path().into())
-            .public_rule_store_url(mock_url)
+            .public_rule_store_url(mock_url.parse::<Url>().unwrap())
             .invocation_dir(invocation_dir.path().into())
             .build()
             .unwrap();
@@ -782,7 +800,7 @@ mod tests {
         let err = exec.execute(task, &env, &sig, &deps).await.unwrap_err();
 
         let expected_module_name = format!(
-            "file://{}/http/127.0.0.1:{mock_port}/rule_with_dep.js",
+            "file://{}/http/{mock_host_with_port}/rule_with_dep.js",
             rule_store_root.path().to_string_lossy(),
         );
         assert_matches!(
@@ -791,7 +809,7 @@ mod tests {
                 if module_name == expected_module_name
         );
 
-        _m1.assert();
-        _m2.assert();
+        _m1.assert_async().await;
+        _m2.assert_async().await;
     }
 }

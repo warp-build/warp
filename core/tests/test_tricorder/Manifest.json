@@ -1,6 +1,6 @@
 {
   "version": "V0",
-  "target": "https://store.warp.build/tricorder/test",
+  "target": "https://store.warp.build/tricorders/test",
   "rule_name": "",
   "hash": "a-hash",
   "store_path": "",

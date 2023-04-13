@@ -111,14 +111,18 @@ mod tests {
     async fn downloads_and_extracts_artifact() {
         let store_root = assert_fs::TempDir::new().unwrap();
 
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
             .artifact_store_root(store_root.path().to_path_buf())
-            .public_store_cdn_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mock_url.clone())
             .build()
             .unwrap();
         let ps = PublicStore::new(config);
 
-        let _m = mockito::mock("GET", "/sample_artifact.tar.gz")
+        let _m = server
+            .mock("GET", "/sample_artifact.tar.gz")
             .with_status(200)
             .with_body(include_bytes!("./fixtures/sample_artifact.tar.gz"))
             .create();
@@ -138,13 +142,17 @@ mod tests {
 
     #[tokio::test]
     async fn fails_on_non_targz_payload() {
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
-            .public_store_cdn_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mock_url)
             .build()
             .unwrap();
         let ps = PublicStore::new(config);
 
-        let _m = mockito::mock("GET", "/sample_artifact.tar.gz")
+        let _m = server
+            .mock("GET", "/sample_artifact.tar.gz")
             .with_status(200)
             .with_body("garbage data")
             .create();
@@ -157,13 +165,17 @@ mod tests {
 
     #[tokio::test]
     async fn fails_on_empty_payload() {
+        let mut server = mockito::Server::new_async().await;
+        let mock_url = server.url().parse::<Url>().unwrap();
+
         let config = Config::builder()
-            .public_store_cdn_url(mockito::server_url().parse().unwrap())
+            .public_store_cdn_url(mock_url)
             .build()
             .unwrap();
         let ps = PublicStore::new(config);
 
-        let _m = mockito::mock("GET", "/sample_artifact.tar.gz")
+        let _m = server
+            .mock("GET", "/sample_artifact.tar.gz")
             .with_status(200)
             .with_body("")
             .create();
