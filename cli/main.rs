@@ -50,6 +50,7 @@ enum Command {
     Test(TestCommand),
     Bootstrap(BootstrapCommand),
     Pack(PackCommand),
+    Fetch(FetchCommand),
 }
 
 impl Command {
@@ -61,6 +62,7 @@ impl Command {
             Command::Run(x) => x.run().await,
             Command::Setup(s) => s.run().await,
             Command::Test(x) => x.run().await,
+            Command::Fetch(x) => x.run().await,
         }
     }
 }

@@ -209,6 +209,13 @@ impl WarpDriveMarkII {
         Ok(package)
     }
 
+    #[instrument(name = "WarpDriveMarkII::fetch", skip(self))]
+    pub async fn fetch_from_public_store(&mut self, target: Target) -> Result<(), WarpDriveError> {
+        // access the Store to download files from public store
+
+        Ok(())
+    }
+
     fn go_to_workspace_root(&self) -> Result<(), WarpDriveError> {
         let current_workspace = self.shared_ctx.workspace_manager.current_workspace();
         let workspace_root = current_workspace.root();
