@@ -7,7 +7,9 @@ use crate::model::{Goal, Target, TargetError, Task, TestMatcher, UnregisteredTas
 use crate::planner::DefaultPlanner;
 use crate::resolver::{DefaultResolver, ResolverError, SignatureRegistry, TargetRegistry};
 use crate::rules::JsRuleExecutor;
-use crate::store::{DefaultStore, Package, Packer, PackerError, UpdateManifestError};
+use crate::store::{
+    DefaultStore, Fetcher, FetcherError, Package, Packer, PackerError, UpdateManifestError,
+};
 use crate::sync::Arc;
 use crate::testing::TestMatcherRegistry;
 use crate::tricorder::GrpcTricorder;
@@ -37,6 +39,7 @@ pub struct WarpDriveMarkII {
     worker_pool: WorkerPool<DefaultWorker>,
     shared_ctx: DefaultCtxt,
     config: Config,
+    fetcher: Fetcher,
     packer: Packer,
 }
 
@@ -102,6 +105,13 @@ impl WarpDriveMarkII {
 
         let worker_pool = WorkerPool::from_shared_context(config.clone(), shared_ctx.clone());
 
+        let fetcher: Fetcher = Fetcher::new(
+            archive_manager.clone(),
+            target_registry.clone(),
+            shared_ctx.task_results.clone(),
+            shared_ctx.event_channel.clone(),
+        );
+
         let packer = Packer::new(
             archive_manager,
             target_registry,
@@ -113,6 +123,7 @@ impl WarpDriveMarkII {
             config,
             shared_ctx,
             worker_pool,
+            fetcher,
             packer,
         })
     }
@@ -209,10 +220,10 @@ impl WarpDriveMarkII {
         Ok(package)
     }
 
+    /// access the Store to download files from public store
     #[instrument(name = "WarpDriveMarkII::fetch", skip(self))]
     pub async fn fetch_from_public_store(&mut self, target: Target) -> Result<(), WarpDriveError> {
-        // access the Store to download files from public store
-
+        self.fetcher.download(target).await?;
         Ok(())
     }
 
@@ -266,6 +277,15 @@ pub enum WarpDriveError {
 
     #[error(transparent)]
     UpdateManifestError(UpdateManifestError),
+
+    #[error(transparent)]
+    FetcherError(FetcherError),
+}
+
+impl From<FetcherError> for WarpDriveError {
+    fn from(err: FetcherError) -> Self {
+        Self::FetcherError(err)
+    }
 }
 
 impl From<PackerError> for WarpDriveError {

@@ -18,6 +18,7 @@ trait Reporter {
             Event::TricorderEvent(e) => self.on_tricorder_event(e),
             Event::WorkerEvent(e) => self.on_worker_event(e),
             Event::WorkflowEvent(e) => self.on_workflow_event(e),
+            Event::FetcherEvent(e) => self.on_fetcher_event(e),
         }
     }
 
@@ -28,6 +29,7 @@ trait Reporter {
     fn on_tricorder_event(&mut self, _event: TricorderEvent) {}
     fn on_worker_event(&mut self, _event: WorkerEvent) {}
     fn on_workflow_event(&mut self, _event: WorkflowEvent) {}
+    fn on_fetcher_event(&mut self, _event: FetcherEvent) {}
 }
 
 pub struct StatusReporter {
@@ -176,6 +178,24 @@ impl Reporter for StatusReporter {
                 self.pb.println(line);
                 self.pb.inc(1);
             }
+        }
+    }
+
+    fn on_fetcher_event(&mut self, event: FetcherEvent) {
+        let yellow = console::Style::new().yellow();
+        match event {
+            FetcherEvent::FetchingStarted { target } => {
+                let line = format!(
+                    "{:>12} {}",
+                    yellow.apply_to("Downloading"),
+                    target.to_string()
+                );
+                self.pb.println(line);
+                self.pb.set_length(self.pb.length() + 1);
+            }
+            FetcherEvent::FetchingCompleted { target } => todo!(),
+            FetcherEvent::FetchingSkipped { target } => todo!(),
+            FetcherEvent::FetchingFailed { target } => todo!(),
         }
     }
 

@@ -118,6 +118,14 @@ impl Target {
         }
     }
 
+    pub fn as_remote(&self) -> Option<&RemoteTarget> {
+        match self {
+            Target::Alias(_) => None,
+            Target::Remote(r) => Some(r),
+            Target::Fs(_) => None,
+        }
+    }
+
     pub fn normalize(self, root: &Path) -> Result<Target, TargetError> {
         match self {
             Target::Alias(_) => Ok(self),

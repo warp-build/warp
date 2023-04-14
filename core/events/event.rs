@@ -14,6 +14,14 @@ pub enum PackerEvent {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FetcherEvent {
+    FetchingStarted { target: Target },
+    FetchingCompleted { target: Target },
+    FetchingSkipped { target: Target },
+    FetchingFailed { target: Target },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ActionEvent {
     ActionPreparationStarted { target: String, action_count: u64 },
     ActionExecutionStarted { target: String, action: String },
@@ -166,6 +174,13 @@ pub enum Event {
     WorkerEvent(WorkerEvent),
     WorkflowEvent(WorkflowEvent),
     PackerEvent(PackerEvent),
+    FetcherEvent(FetcherEvent),
+}
+
+impl From<FetcherEvent> for Event {
+    fn from(value: FetcherEvent) -> Self {
+        Event::FetcherEvent(value)
+    }
 }
 
 impl From<PackerEvent> for Event {
