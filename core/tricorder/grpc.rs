@@ -6,8 +6,8 @@ use super::{
 use crate::archive::Archive;
 use crate::code::SourceHasher;
 use crate::model::{
-    rule, ConcreteTarget, ExecutableSpec, Requirement, Signature, SignatureError, Task,
-    TestMatcher, UnregisteredTask,
+    rule, ConcreteTarget, ExecutableSpec, RemoteTarget, Requirement, Signature, SignatureError,
+    Task, TestMatcher, UnregisteredTask,
 };
 use crate::store::ArtifactManifest;
 use crate::sync::Arc;
@@ -40,7 +40,15 @@ impl GrpcTricorder {
         for dep in deps {
             let target: Target = match dep.requirement.unwrap() {
                 proto::build::warp::requirement::Requirement::File(file) => file.path.into(),
-                proto::build::warp::requirement::Requirement::Url(url) => url.url.into(),
+                proto::build::warp::requirement::Requirement::Remote(remote) => {
+                    let remote_target = RemoteTarget::builder()
+                        .url(remote.url)
+                        .tricorder_url(remote.tricorder_url)
+                        .subpath(remote.subpath)
+                        .build()
+                        .unwrap();
+                    Target::Remote(remote_target)
+                }
                 _ => continue,
             };
 
@@ -247,12 +255,12 @@ impl Tricorder for GrpcTricorder {
 
     async fn ready_dependency(
         &mut self,
-        concrete_target: &ConcreteTarget,
+        ct: &ConcreteTarget,
         archive: &Archive,
     ) -> Result<SignatureGenerationFlow, TricorderError> {
         let request = proto::build::warp::tricorder::PrepareDependencyRequest {
-            package_name: concrete_target.name().to_string(),
-            package_root: archive.final_path().to_string_lossy().to_string(),
+            package_name: ct.name().to_string(),
+            package_root: ct.abs_path().to_string_lossy().to_string(),
             url: archive.url().to_string(),
         };
 
@@ -266,11 +274,16 @@ impl Tricorder for GrpcTricorder {
                 rule::Value::String(proto_sig.name.clone()),
             );
 
+            let deps = self.requirements_to_tasks(proto_sig.deps);
+            let runtime_deps = self.requirements_to_tasks(proto_sig.runtime_deps);
+
             let sig = Signature::builder()
                 .name(proto_sig.name)
                 .rule(proto_sig.rule)
-                .target(concrete_target.clone())
+                .target(ct.clone())
                 .config(config)
+                .deps(deps)
+                .runtime_deps(runtime_deps)
                 .build()?;
 
             signatures.push(sig);
@@ -339,7 +352,7 @@ impl From<Goal> for proto::build::warp::Goal {
 
 impl From<(url::Url, proto::build::warp::requirement::Requirement)> for Requirement {
     fn from(
-        (tricorder_url, value): (url::Url, proto::build::warp::requirement::Requirement),
+        (_tricorder_url, value): (url::Url, proto::build::warp::requirement::Requirement),
     ) -> Self {
         match value {
             proto::build::warp::requirement::Requirement::File(file) => Requirement::File {
@@ -349,19 +362,16 @@ impl From<(url::Url, proto::build::warp::requirement::Requirement)> for Requirem
                 raw: sym.raw,
                 kind: sym.kind,
             },
-            proto::build::warp::requirement::Requirement::Url(url) => Requirement::Url {
-                url: url.url.parse::<Url>().unwrap(),
-                tricorder_url,
-                subpath: Some(PathBuf::from(url.subpath)),
+            proto::build::warp::requirement::Requirement::Remote(remote) => Requirement::Remote {
+                name: remote.name,
+                url: remote.url.parse::<Url>().unwrap(),
+                tricorder_url: remote.tricorder_url.parse::<Url>().unwrap(),
+                subpath: if remote.subpath.is_empty() {
+                    None
+                } else {
+                    Some(PathBuf::from(remote.subpath))
+                },
             },
-            proto::build::warp::requirement::Requirement::Dependency(dep) => {
-                Requirement::Dependency {
-                    name: dep.name,
-                    version: dep.version,
-                    url: dep.url.parse::<Url>().unwrap(),
-                    tricorder: dep.tricorder_url.parse::<Url>().unwrap(),
-                }
-            }
         }
     }
 }

@@ -1,17 +1,18 @@
 export const RS_EXT = ".rs";
+export const RLIB_EXT = ".rlib";
 export const TOML_EXT = ".toml";
 
 const impl = (ctx) => {
   const { host } = ctx.env();
   const {
+    channel,
+    components,
     cwd,
+    sha1_linux_aarch64,
+    sha1_linux_x86_64,
     sha1_macos_aarch64,
     sha1_macos_x86_64,
-    sha1_linux_x86_64,
-    sha1_linux_aarch64,
-    toolchains,
     targets,
-    components,
   } = ctx.cfg();
 
   let arch = host.arch;
@@ -33,7 +34,7 @@ const impl = (ctx) => {
   ctx.action().download({ url, sha1, output: rustup_init });
   ctx.action().setPermissions({ file: rustup_init, executable: true });
 
-  const defaultToolchain = toolchains.find((t) => t.includes(host.triple));
+  const defaultToolchain = `${channel}-${host.triple}`;
   ctx.action().writeFile({ dst: "version", data: "0" });
   ctx.action().runShell({
     script: `
@@ -76,29 +77,26 @@ export default Warp.Toolchain({
   mnemonic: "Rust",
   impl,
   cfg: {
-    toolchains: [string()],
+    channel: string(),
+    profile: string(),
     targets: [string()],
     components: [string()],
     sha1_macos_aarch64: string(),
     sha1_macos_x86_64: string(),
     sha1_linux_aarch64: string(),
     sha1_linux_x86_64: string(),
-    profile: string(),
   },
   defaults: {
+    channel: "nightly-2023-04-11",
     profile: "default",
     sha1_macos_aarch64: "71939cab8697adf952e7021bb2e89cd61aca55cc",
     sha1_macos_x86_64: "2d31e91ea76580511281c1d5d9fac81ea42db78d",
     sha1_linux_aarch64: "5fd9e67e4fa696d35fa8393b0ad4f742267d1d52",
     sha1_linux_x86_64: "682fd896e1f0cbad9f6689ba7f8a8f3d21efb4df",
-    toolchains: [
-      "stable-aarch64-apple-darwin",
-      "stable-aarch64-unknown-linux-gnu",
-      "stable-x86_64-apple-darwin",
-      "stable-x86_64-unknown-linux-gnu",
-    ],
     targets: [
       "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
       "x86_64-unknown-linux-gnu",
     ],
     components: [

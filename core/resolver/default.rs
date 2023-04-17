@@ -134,11 +134,13 @@ impl<S: Store, T: Tricorder + Clone + 'static> Resolver for DefaultResolver<S, T
                 let mut deps = vec![];
                 for req in requirements {
                     let target: Target = match req {
+                        Requirement::Symbol { .. } => unimplemented!(),
                         Requirement::File { path } => path.into(),
-                        Requirement::Url {
+                        Requirement::Remote {
                             url,
                             tricorder_url,
                             subpath,
+                            ..
                         } => {
                             let remote_target = RemoteTarget::builder()
                                 .url(url)
@@ -147,8 +149,6 @@ impl<S: Store, T: Tricorder + Clone + 'static> Resolver for DefaultResolver<S, T
                                 .build()?;
                             Target::Remote(remote_target)
                         }
-                        Requirement::Symbol { .. } => unimplemented!(),
-                        Requirement::Dependency { url, .. } => url.into(),
                     };
                     let target_id = self.target_registry.register_target(target);
                     let unreg_task = UnregisteredTask::builder()
@@ -182,6 +182,8 @@ impl Target {
             .name(rule.clone())
             .target(target)
             .rule(rule)
+            .deps([])
+            .runtime_deps([])
             .build()
             .unwrap()
     }
@@ -403,6 +405,8 @@ mod tests {
                         .name("test_signature")
                         .target((*concrete_target).clone())
                         .rule("test_rule".to_string())
+                        .deps([])
+                        .runtime_deps([])
                         .build()
                         .unwrap()],
                 })

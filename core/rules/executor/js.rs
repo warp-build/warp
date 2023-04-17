@@ -368,6 +368,8 @@ mod tests {
             .rule("test_rule")
             .target(c_target)
             .config(config)
+            .deps([])
+            .runtime_deps([])
             .build()
             .unwrap();
 
@@ -465,6 +467,8 @@ mod tests {
             .rule("test_rule")
             .target(c_target)
             .config(config)
+            .deps([])
+            .runtime_deps([])
             .build()
             .unwrap();
 
@@ -561,6 +565,8 @@ mod tests {
             .rule("test_rule")
             .target(c_target)
             .config(config)
+            .deps([])
+            .runtime_deps([])
             .build()
             .unwrap();
 
@@ -674,6 +680,8 @@ mod tests {
             .rule("rule_with_dep")
             .target(c_target)
             .config(config)
+            .deps([])
+            .runtime_deps([])
             .build()
             .unwrap();
 
@@ -789,6 +797,8 @@ mod tests {
             .rule("rule_with_dep")
             .target(c_target)
             .config(config)
+            .deps([])
+            .runtime_deps([])
             .build()
             .unwrap();
 

@@ -117,8 +117,24 @@ impl TricorderService for GrpcTricorder {
 
     async fn prepare_dependency(
         &self,
-        _request: Request<PrepareDependencyRequest>,
+        request: Request<PrepareDependencyRequest>,
     ) -> Result<Response<PrepareDependencyResponse>, Status> {
-        Ok(Response::new(PrepareDependencyResponse::default()))
+        let request = request.into_inner();
+        let workspace_root = Path::new(&request.package_root);
+
+        let cargo_toml = workspace_root.join("Cargo.toml").canonicalize().unwrap();
+
+        let signatures = self
+            .analyzer
+            .generate_signature(workspace_root, &cargo_toml, vec![])
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|sig| sig.into())
+            .collect();
+
+        let response = PrepareDependencyResponse { signatures };
+
+        Ok(Response::new(response))
     }
 }

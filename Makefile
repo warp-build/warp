@@ -57,7 +57,7 @@ release.linux.arm:
 
 .PHONY: install
 install:
-	cargo install --debug --path cli
+	cargo install --debug --path cli --offline
 
 install.linux.arm:
 	CC=aarch64-linux-gnu-gcc cargo install --debug --path cli --target aarch64-unknown-linux-gnu
@@ -110,6 +110,7 @@ setup.local: setup
 		miri \
 		cargo-asm \
 		cargo-criterion
+	./rules/tools/link-to-warp-home
 
 .PHONY: test
 test: test.tricorder test.unit test.conc test.beam

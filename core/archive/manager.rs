@@ -22,6 +22,7 @@ use url::Url;
 pub struct ArchiveManager {
     client: reqwest::Client,
     archive_root: PathBuf,
+    offline: bool,
     force_redownload: bool,
     public_store_cdn_url: Url,
     event_channel: Arc<EventChannel>,
@@ -34,6 +35,7 @@ impl ArchiveManager {
             event_channel: config.event_channel(),
             archive_root: config.archive_root().to_path_buf(),
             force_redownload: config.force_redownload(),
+            offline: config.offline(),
             public_store_cdn_url: config.public_store_cdn_url().clone(),
         }
     }
@@ -219,6 +221,10 @@ impl ArchiveManager {
             }
         }
 
+        if self.offline {
+            return Err(ArchiveManagerError::WillNotDownload { url: url.clone() });
+        }
+
         self.event_channel
             .send(ArchiveEvent::DownloadStarted { url: url.clone() });
 
@@ -312,6 +318,9 @@ pub enum ArchiveManagerError {
 
     #[error(transparent)]
     ArchiveBuilderError(ArchiveBuilderError),
+
+    #[error("Attempted to download {url} when running in offline mode.")]
+    WillNotDownload { url: Url },
 }
 
 impl From<std::io::Error> for ArchiveManagerError {

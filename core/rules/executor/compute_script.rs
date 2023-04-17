@@ -67,8 +67,10 @@ impl ComputeScript {
                 .iter()
                 .chain(deps.transitive_runtime_deps())
                 .flat_map(|dep| task_results.get_task_result(dep))
-                .map(|tr| tr.artifact_manifest)
-                .map(|dep| {
+                .map(|tr| {
+                    let dep = tr.artifact_manifest;
+                    let config = tr.executable_spec.signature().config().clone().into();
+
                     let mut map = serde_json::Map::new();
                     map.insert(
                         "name".to_string(),
@@ -101,6 +103,7 @@ impl ComputeScript {
                                 .collect(),
                         ),
                     );
+                    map.insert("config".to_string(), config);
                     serde_json::Value::Object(map)
                 })
                 .collect(),

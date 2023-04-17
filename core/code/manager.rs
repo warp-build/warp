@@ -184,6 +184,7 @@ where
         };
 
         let sig = tricorder.ready_dependency(ct, archive).await?;
+
         Ok(sig)
     }
 

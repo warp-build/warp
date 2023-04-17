@@ -22,7 +22,7 @@ pub struct Flags {
         help = r"Never access the network, but continue working if possible.",
         long = "offline"
     )]
-    pub(crate) offline: Option<bool>,
+    pub(crate) offline: bool,
 
     #[structopt(
         help = r"The amount of workers to use to execute any necessary build tasks.",
@@ -88,7 +88,7 @@ impl From<Flags> for Config {
         let mut config = Config::builder();
 
         config
-            .offline(flags.offline.unwrap_or(false))
+            .offline(flags.offline)
             .enable_code_database(!flags.skip_db)
             .max_local_workers(flags.max_local_workers.unwrap_or_else(num_cpus::get))
             .extra_rule_dirs(flags.add_rule_dir)

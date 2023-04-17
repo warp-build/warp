@@ -17,16 +17,10 @@ pub enum Requirement {
         kind: String,
     },
 
-    Url {
+    Remote {
+        name: String,
         url: Url,
         tricorder_url: Url,
         subpath: Option<PathBuf>,
-    },
-
-    Dependency {
-        name: String,
-        version: String,
-        url: Url,
-        tricorder: Url,
     },
 }

@@ -16,10 +16,10 @@ pub struct Signature {
     #[builder(setter(into))]
     rule: RuleName,
 
-    #[builder(default, setter(into))]
+    #[builder(setter(into))]
     deps: Vec<Task>,
 
-    #[builder(default, setter(into))]
+    #[builder(setter(into))]
     runtime_deps: Vec<Task>,
 
     #[builder(default)]

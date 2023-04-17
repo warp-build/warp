@@ -30,9 +30,10 @@ impl WorkspaceFinder {
         let mut dirs = Box::pin(Self::walk_uptree(cwd.to_path_buf()).await);
         while let Some(path) = dirs.next().await {
             let here = &path.join(WARPFILE);
-            if fs::canonicalize(&here).await.is_ok() {
+            if fs::metadata(&here).await.is_ok() {
+                let root = path.canonicalize().unwrap();
                 let warpfile = WarpConfigFile::read(here).await?;
-                return Ok((path.clone(), warpfile));
+                return Ok((root, warpfile));
             }
         }
         Err(WorkspaceFinderError::WorkspaceFileNotFound)

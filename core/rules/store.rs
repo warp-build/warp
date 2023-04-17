@@ -18,6 +18,7 @@ pub struct RuleStore {
     client: reqwest::Client,
     _lock: Arc<Mutex<()>>,
     force_redownload: bool,
+    offline: bool,
     extra_rule_dirs: Vec<PathBuf>,
 }
 
@@ -29,6 +30,7 @@ impl RuleStore {
             public_rule_store_url: config.public_rule_store_url().clone(),
             client: config.http_client().clone(),
             force_redownload: config.force_redownload(),
+            offline: config.offline(),
             extra_rule_dirs: config.extra_rule_dirs().to_vec(),
             _lock: Arc::new(Mutex::new(())),
         }
@@ -63,6 +65,11 @@ impl RuleStore {
         if let Some(path) = self.find_in_rule_dirs(name).await? {
             return Ok(Some(path));
         }
+
+        if self.offline {
+            return Ok(None);
+        }
+
         self.download(name).await
     }
 

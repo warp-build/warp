@@ -7,6 +7,9 @@
     "aarch64-unknown-linux-gnu": [
       "6c6b409e9f3e03acf384e82185620369c469e5efd24a58810a362b8cbddb3a77"
     ],
-    "aarch64-apple-darwin": []
+    "aarch64-apple-darwin": [
+      "1e5c54575ccbeb28f86f10a61025fecc999a20e6910d1f5e481e984ffc709d8e",
+      "75b12bbd78cda60f9febef0f6cab1db634869a721183aefeb60523caede573a9"
+    ]
   }
 }

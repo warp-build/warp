@@ -22,6 +22,8 @@ pub use workspace_id::*;
 use std::path::PathBuf;
 use thiserror::*;
 
+use crate::os::PathExt;
+
 /// A workspace represents a particular project that you are working within.
 ///
 /// It has a `name`, and a `root`. Both of these will be used to find artifacts that belong to this
@@ -34,6 +36,7 @@ pub struct Workspace {
     name: String,
 
     /// The root of the workspace. This is an absolute path and is host-dependant.
+    #[builder(setter(custom))]
     root: PathBuf,
 }
 
@@ -48,6 +51,13 @@ impl Workspace {
 
     pub fn root(&self) -> &PathBuf {
         &self.root
+    }
+}
+
+impl WorkspaceBuilder {
+    pub fn root(&mut self, root: impl Into<PathBuf>) -> &mut Self {
+        self.root = Some(root.into().clean());
+        self
     }
 }
 

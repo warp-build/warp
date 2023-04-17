@@ -120,10 +120,12 @@ where
                         for req in requirements {
                             let target: Target = match req {
                                 Requirement::File { path } => path.into(),
-                                Requirement::Url {
+                                Requirement::Symbol { .. } => unimplemented!(),
+                                Requirement::Remote {
                                     url,
                                     tricorder_url,
                                     subpath,
+                                    ..
                                 } => {
                                     let remote_target = RemoteTarget::builder()
                                         .url(url)
@@ -133,8 +135,6 @@ where
                                         .unwrap();
                                     Target::Remote(remote_target)
                                 }
-                                Requirement::Symbol { .. } => unimplemented!(),
-                                Requirement::Dependency { url, .. } => url.into(),
                             };
                             let target_id = self.ctx.target_registry.register_target(target);
                             let unreg_task = UnregisteredTask::builder()
@@ -373,6 +373,8 @@ mod tests {
             .name("test_signature")
             .rule("test_rule")
             .target(target)
+            .deps([])
+            .runtime_deps([])
             .build()
             .unwrap();
 
@@ -450,6 +452,8 @@ mod tests {
                     .name("test_signature")
                     .target(dep_target.clone())
                     .rule("test_rule")
+                    .deps([])
+                    .runtime_deps([])
                     .build()
                     .unwrap(),
             )
@@ -472,6 +476,7 @@ mod tests {
             .rule("test_rule")
             .target(target.clone())
             .deps(vec![dep_task])
+            .runtime_deps([])
             .build()
             .unwrap();
 
@@ -550,6 +555,7 @@ mod tests {
             .rule("test_rule")
             .target(target)
             .deps(vec![dep_task])
+            .runtime_deps([])
             .build()
             .unwrap();
 

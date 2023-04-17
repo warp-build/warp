@@ -353,6 +353,8 @@ mod tests {
                             .name("test_signature")
                             .target(self.ctx.target.clone())
                             .rule("test_rule")
+                            .deps([])
+                            .runtime_deps([])
                             .build()
                             .unwrap(),
                     )

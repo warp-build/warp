@@ -8,7 +8,6 @@ edition = "2021"
 [lib]
 path = "lib.rs"
 
-
 [[bench]]
 name = "source_hashing"
 harness = false

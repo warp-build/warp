@@ -414,6 +414,8 @@ mod tests {
                     .name("test_signature")
                     .target(target)
                     .rule("test_rule")
+                    .deps([])
+                    .runtime_deps([])
                     .build()
                     .unwrap(),
             )
@@ -448,6 +450,8 @@ mod tests {
                     .name("test_signature")
                     .target(target)
                     .rule("test_rule")
+                    .deps([])
+                    .runtime_deps([])
                     .build()
                     .unwrap(),
             )
