@@ -15,6 +15,7 @@ extern crate assert_matches;
 use analysis::Analyzer;
 use dependencies::DependencyManager;
 use grpc::GrpcTricorder;
+use log::info;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
@@ -54,11 +55,15 @@ impl Tricorder {
     }
 
     pub async fn run(self) -> Result<(), TricorderError> {
+        info!("Starting tricorder...");
+
         let (server_load, server) =
             futures::future::join(self.dep_manager.prepare(), self.service.serve()).await;
 
         server_load?;
         server?;
+
+        info!("Stopping tricorder...");
 
         Ok(())
     }

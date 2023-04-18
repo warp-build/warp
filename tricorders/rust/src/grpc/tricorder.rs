@@ -48,6 +48,7 @@ impl TricorderService for GrpcTricorder {
         &self,
         _request: Request<EnsureReadyRequest>,
     ) -> Result<Response<EnsureReadyResponse>, Status> {
+        self.dep_manager.wait_until_ready().await;
         Ok(Response::new(EnsureReadyResponse::default()))
     }
     async fn generate_signature(
