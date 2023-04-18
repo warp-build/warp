@@ -5271,6 +5271,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "syn 1.0.109",
+ "tempfile",
  "thiserror",
  "tokio",
  "toml",

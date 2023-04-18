@@ -17,14 +17,12 @@ async fn t002_get_mods() {
     insta::assert_display_snapshot!(format!("{:#?}", &crates));
     insta::assert_display_snapshot!(format!("{:#?}", &ast));
 
-    let signatures = GenerateSignature::all(
-        curr_workspace.path().to_string_lossy().to_string(),
+    let signatures = GenerateSignature::build(
+        curr_workspace.path(),
         test_file
             .path()
             .strip_prefix(curr_workspace.path())
-            .unwrap()
-            .to_string_lossy()
-            .to_string(),
+            .unwrap(),
     )
     .await;
     insta::assert_display_snapshot!(format!("{:#?}", &signatures));

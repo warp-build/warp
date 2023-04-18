@@ -8,7 +8,7 @@ use super::proto::build::warp::tricorder::{
     PrepareDependencyRequest, PrepareDependencyResponse,
 };
 use super::GrpcTricorderError;
-use crate::analysis::model::{Ast, Symbol};
+use crate::analysis::model::Goal;
 use crate::analysis::Analyzer;
 use crate::dependencies::DependencyManager;
 use std::net::SocketAddr;
@@ -48,34 +48,40 @@ impl TricorderService for GrpcTricorder {
         &self,
         _request: Request<EnsureReadyRequest>,
     ) -> Result<Response<EnsureReadyResponse>, Status> {
-        self.dep_manager.wait_until_ready().await;
         Ok(Response::new(EnsureReadyResponse::default()))
     }
-
     async fn generate_signature(
         &self,
         request: Request<GenerateSignatureRequest>,
     ) -> Result<Response<GenerateSignatureResponse>, Status> {
         let request_data = request.into_inner();
-        let file = request_data.clone().file;
-        let test_matcher: Vec<String> = match request_data.test_matcher {
-            Some(matches) => matches.into(),
+        let file = request_data.file.clone();
+        let test_matcher: Vec<String> = match &request_data.test_matcher {
+            Some(matches) => matches.clone().into(),
             None => Vec::new(),
         };
-        let workspace_root = request_data.workspace_root;
+        let workspace_root = request_data.workspace_root.clone();
+        let goal = super::proto::build::warp::Goal::from_i32(request_data.goal)
+            .unwrap()
+            .into();
 
         let response = self
             .analyzer
-            .generate_signature(Path::new(&workspace_root), Path::new(&file), test_matcher)
+            .generate_signature(
+                goal,
+                Path::new(&workspace_root),
+                Path::new(&file),
+                test_matcher,
+            )
             .await;
 
         match response {
-            Ok(signature) => Ok(Response::new(GenerateSignatureResponse {
+            Ok(signatures) => Ok(Response::new(GenerateSignatureResponse {
                 response: Some(generate_signature_response::Response::Ok(
                     GenerateSignatureSuccessResponse {
                         workspace_root,
                         file,
-                        signatures: signature.iter().map(|e| e.clone().into()).collect(),
+                        signatures: signatures.iter().map(|e| e.clone().into()).collect(),
                     },
                 )),
             })),
@@ -97,21 +103,28 @@ impl TricorderService for GrpcTricorder {
         request: Request<GetAstRequest>,
     ) -> Result<Response<GetAstResponse>, Status> {
         let request = request.into_inner();
+        let workspace_root = request.workspace_root.clone();
+        let file = request.file.clone();
 
-        let sym = match request.test_matcher {
-            Some(test_matcher) if !test_matcher.raw.is_empty() => Symbol::Named {
-                name: test_matcher.raw[0].to_string(),
-            },
-            _ => Symbol::All,
+        let test_matcher: Vec<String> = if let Some(test_matcher) = request.test_matcher {
+            test_matcher.raw
+        } else {
+            vec![]
         };
 
-        let response = self.analyzer.get_ast(request.file, sym).await;
+        let response = self
+            .analyzer
+            .get_ast(Path::new(&workspace_root), Path::new(&file), test_matcher)
+            .await;
 
         match response {
-            Ok(ast) => Ok(Response::new(ast_to_success_response(ast))),
+            Ok(asts) => Ok(Response::new(ast_to_success_response(workspace_root, asts))),
             // TODO(@calin): create a proper Requirement internal model for missing deps
             // and return it properly here.
-            Err(_) => Ok(Response::new(ast_to_success_response(Ast::default()))),
+            Err(_) => Ok(Response::new(ast_to_success_response(
+                workspace_root,
+                vec![],
+            ))),
         }
     }
 
@@ -126,7 +139,7 @@ impl TricorderService for GrpcTricorder {
 
         let signatures = self
             .analyzer
-            .generate_signature(workspace_root, &cargo_toml, vec![])
+            .generate_signature(Goal::Build, workspace_root, &cargo_toml, vec![])
             .await
             .unwrap()
             .into_iter()

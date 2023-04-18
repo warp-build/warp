@@ -6,7 +6,7 @@ use thiserror::*;
 #[builder(build_fn(error = "SignatureError"))]
 pub struct Signature {
     #[builder(setter(into))]
-    target: String,
+    name: String,
 
     #[builder(setter(into))]
     rule: String,
@@ -26,12 +26,12 @@ impl Signature {
         Default::default()
     }
 
-    pub fn set_target(&mut self, target: String) {
-        self.target = target;
+    pub fn set_name(&mut self, name: String) {
+        self.name = name;
     }
 
-    pub fn target(&self) -> &str {
-        self.target.as_ref()
+    pub fn name(&self) -> &str {
+        self.name.as_ref()
     }
 
     pub fn rule(&self) -> &str {
@@ -53,7 +53,7 @@ impl Signature {
 
 impl std::fmt::Display for Signature {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        write!(fmt, "{}(\"{}\")", self.rule, self.target)
+        write!(fmt, "{}(\"{}\")", self.rule, self.name)
     }
 }
 #[derive(Error, Debug)]
@@ -74,7 +74,7 @@ impl From<derive_builder::UninitializedFieldError> for SignatureError {
 impl Default for Signature {
     fn default() -> Self {
         Self {
-            target: "".to_string(),
+            name: "".to_string(),
             rule: "".to_string(),
             deps: vec![],
             runtime_deps: vec![],

@@ -1,0 +1,1481 @@
+---
+source: tricorders/rust/tests/tree_splitter_tests.rs
+expression: ast
+---
+File {
+    shebang: None,
+    attrs: [
+        Attribute {
+            pound_token: Pound,
+            style: Inner(
+                Bang,
+            ),
+            bracket_token: Bracket,
+            path: Path {
+                leading_colon: None,
+                segments: [
+                    PathSegment {
+                        ident: Ident(
+                            feature,
+                        ),
+                        arguments: None,
+                    },
+                ],
+            },
+            tokens: TokenStream [
+                Group {
+                    delimiter: Parenthesis,
+                    stream: TokenStream [
+                        Ident {
+                            sym: prelude_import,
+                        },
+                    ],
+                },
+            ],
+        },
+        Attribute {
+            pound_token: Pound,
+            style: Inner(
+                Bang,
+            ),
+            bracket_token: Bracket,
+            path: Path {
+                leading_colon: None,
+                segments: [
+                    PathSegment {
+                        ident: Ident(
+                            no_std,
+                        ),
+                        arguments: None,
+                    },
+                ],
+            },
+            tokens: TokenStream [],
+        },
+    ],
+    items: [
+        Use(
+            ItemUse {
+                attrs: [
+                    Attribute {
+                        pound_token: Pound,
+                        style: Outer,
+                        bracket_token: Bracket,
+                        path: Path {
+                            leading_colon: None,
+                            segments: [
+                                PathSegment {
+                                    ident: Ident(
+                                        prelude_import,
+                                    ),
+                                    arguments: None,
+                                },
+                            ],
+                        },
+                        tokens: TokenStream [],
+                    },
+                ],
+                vis: Inherited,
+                use_token: Use,
+                leading_colon: Some(
+                    Colon2,
+                ),
+                tree: Path(
+                    UsePath {
+                        ident: Ident(
+                            std,
+                        ),
+                        colon2_token: Colon2,
+                        tree: Path(
+                            UsePath {
+                                ident: Ident(
+                                    prelude,
+                                ),
+                                colon2_token: Colon2,
+                                tree: Path(
+                                    UsePath {
+                                        ident: Ident(
+                                            rust_2015,
+                                        ),
+                                        colon2_token: Colon2,
+                                        tree: Glob(
+                                            UseGlob {
+                                                star_token: Star,
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ),
+                    },
+                ),
+                semi_token: Semi,
+            },
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+        Fn(
+            ItemFn {
+                attrs: [],
+                vis: Public(
+                    VisPublic {
+                        pub_token: Pub,
+                    },
+                ),
+                sig: Signature {
+                    constness: None,
+                    asyncness: None,
+                    unsafety: None,
+                    abi: None,
+                    fn_token: Fn,
+                    ident: Ident(
+                        add_two,
+                    ),
+                    generics: Generics {
+                        lt_token: None,
+                        params: [],
+                        gt_token: None,
+                        where_clause: None,
+                    },
+                    paren_token: Paren,
+                    inputs: [
+                        Typed(
+                            PatType {
+                                attrs: [],
+                                pat: Ident(
+                                    PatIdent {
+                                        attrs: [],
+                                        by_ref: None,
+                                        mutability: None,
+                                        ident: Ident(
+                                            a,
+                                        ),
+                                        subpat: None,
+                                    },
+                                ),
+                                colon_token: Colon,
+                                ty: Path(
+                                    TypePath {
+                                        qself: None,
+                                        path: Path {
+                                            leading_colon: None,
+                                            segments: [
+                                                PathSegment {
+                                                    ident: Ident(
+                                                        i32,
+                                                    ),
+                                                    arguments: None,
+                                                },
+                                            ],
+                                        },
+                                    },
+                                ),
+                            },
+                        ),
+                    ],
+                    variadic: None,
+                    output: Type(
+                        RArrow,
+                        Path(
+                            TypePath {
+                                qself: None,
+                                path: Path {
+                                    leading_colon: None,
+                                    segments: [
+                                        PathSegment {
+                                            ident: Ident(
+                                                i32,
+                                            ),
+                                            arguments: None,
+                                        },
+                                    ],
+                                },
+                            },
+                        ),
+                    ),
+                },
+                block: Block {
+                    brace_token: Brace,
+                    stmts: [
+                        Expr(
+                            Binary(
+                                ExprBinary {
+                                    attrs: [],
+                                    left: Path(
+                                        ExprPath {
+                                            attrs: [],
+                                            qself: None,
+                                            path: Path {
+                                                leading_colon: None,
+                                                segments: [
+                                                    PathSegment {
+                                                        ident: Ident(
+                                                            a,
+                                                        ),
+                                                        arguments: None,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ),
+                                    op: Add(
+                                        Add,
+                                    ),
+                                    right: Lit(
+                                        ExprLit {
+                                            attrs: [],
+                                            lit: Int(
+                                                LitInt {
+                                                    token: 2,
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                },
+                            ),
+                        ),
+                    ],
+                },
+            },
+        ),
+        Mod(
+            ItemMod {
+                attrs: [
+                    Attribute {
+                        pound_token: Pound,
+                        style: Outer,
+                        bracket_token: Bracket,
+                        path: Path {
+                            leading_colon: None,
+                            segments: [
+                                PathSegment {
+                                    ident: Ident(
+                                        cfg,
+                                    ),
+                                    arguments: None,
+                                },
+                            ],
+                        },
+                        tokens: TokenStream [
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [
+                                    Ident {
+                                        sym: test,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+                vis: Inherited,
+                mod_token: Mod,
+                ident: Ident(
+                    tests,
+                ),
+                content: Some(
+                    (
+                        Brace,
+                        [
+                            Use(
+                                ItemUse {
+                                    attrs: [],
+                                    vis: Inherited,
+                                    use_token: Use,
+                                    leading_colon: None,
+                                    tree: Path(
+                                        UsePath {
+                                            ident: Ident(
+                                                super,
+                                            ),
+                                            colon2_token: Colon2,
+                                            tree: Glob(
+                                                UseGlob {
+                                                    star_token: Star,
+                                                },
+                                            ),
+                                        },
+                                    ),
+                                    semi_token: Semi,
+                                },
+                            ),
+                            Verbatim(
+                                TokenStream [],
+                            ),
+                            Verbatim(
+                                TokenStream [],
+                            ),
+                            Verbatim(
+                                TokenStream [],
+                            ),
+                            Verbatim(
+                                TokenStream [],
+                            ),
+                            Const(
+                                ItemConst {
+                                    attrs: [
+                                        Attribute {
+                                            pound_token: Pound,
+                                            style: Outer,
+                                            bracket_token: Bracket,
+                                            path: Path {
+                                                leading_colon: None,
+                                                segments: [
+                                                    PathSegment {
+                                                        ident: Ident(
+                                                            cfg,
+                                                        ),
+                                                        arguments: None,
+                                                    },
+                                                ],
+                                            },
+                                            tokens: TokenStream [
+                                                Group {
+                                                    delimiter: Parenthesis,
+                                                    stream: TokenStream [
+                                                        Ident {
+                                                            sym: test,
+                                                        },
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                        Attribute {
+                                            pound_token: Pound,
+                                            style: Outer,
+                                            bracket_token: Bracket,
+                                            path: Path {
+                                                leading_colon: None,
+                                                segments: [
+                                                    PathSegment {
+                                                        ident: Ident(
+                                                            rustc_test_marker,
+                                                        ),
+                                                        arguments: None,
+                                                    },
+                                                ],
+                                            },
+                                            tokens: TokenStream [
+                                                Punct {
+                                                    char: '=',
+                                                    spacing: Alone,
+                                                },
+                                                Literal {
+                                                    lit: "tests::add_three_and_two",
+                                                },
+                                            ],
+                                        },
+                                    ],
+                                    vis: Public(
+                                        VisPublic {
+                                            pub_token: Pub,
+                                        },
+                                    ),
+                                    const_token: Const,
+                                    ident: Ident(
+                                        add_three_and_two,
+                                    ),
+                                    colon_token: Colon,
+                                    ty: Path(
+                                        TypePath {
+                                            qself: None,
+                                            path: Path {
+                                                leading_colon: None,
+                                                segments: [
+                                                    PathSegment {
+                                                        ident: Ident(
+                                                            test,
+                                                        ),
+                                                        arguments: None,
+                                                    },
+                                                    Colon2,
+                                                    PathSegment {
+                                                        ident: Ident(
+                                                            TestDescAndFn,
+                                                        ),
+                                                        arguments: None,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ),
+                                    eq_token: Eq,
+                                    expr: Struct(
+                                        ExprStruct {
+                                            attrs: [],
+                                            path: Path {
+                                                leading_colon: None,
+                                                segments: [
+                                                    PathSegment {
+                                                        ident: Ident(
+                                                            test,
+                                                        ),
+                                                        arguments: None,
+                                                    },
+                                                    Colon2,
+                                                    PathSegment {
+                                                        ident: Ident(
+                                                            TestDescAndFn,
+                                                        ),
+                                                        arguments: None,
+                                                    },
+                                                ],
+                                            },
+                                            brace_token: Brace,
+                                            fields: [
+                                                FieldValue {
+                                                    attrs: [],
+                                                    member: Named(
+                                                        Ident(
+                                                            desc,
+                                                        ),
+                                                    ),
+                                                    colon_token: Some(
+                                                        Colon,
+                                                    ),
+                                                    expr: Struct(
+                                                        ExprStruct {
+                                                            attrs: [],
+                                                            path: Path {
+                                                                leading_colon: None,
+                                                                segments: [
+                                                                    PathSegment {
+                                                                        ident: Ident(
+                                                                            test,
+                                                                        ),
+                                                                        arguments: None,
+                                                                    },
+                                                                    Colon2,
+                                                                    PathSegment {
+                                                                        ident: Ident(
+                                                                            TestDesc,
+                                                                        ),
+                                                                        arguments: None,
+                                                                    },
+                                                                ],
+                                                            },
+                                                            brace_token: Brace,
+                                                            fields: [
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            name,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Call(
+                                                                        ExprCall {
+                                                                            attrs: [],
+                                                                            func: Path(
+                                                                                ExprPath {
+                                                                                    attrs: [],
+                                                                                    qself: None,
+                                                                                    path: Path {
+                                                                                        leading_colon: None,
+                                                                                        segments: [
+                                                                                            PathSegment {
+                                                                                                ident: Ident(
+                                                                                                    test,
+                                                                                                ),
+                                                                                                arguments: None,
+                                                                                            },
+                                                                                            Colon2,
+                                                                                            PathSegment {
+                                                                                                ident: Ident(
+                                                                                                    StaticTestName,
+                                                                                                ),
+                                                                                                arguments: None,
+                                                                                            },
+                                                                                        ],
+                                                                                    },
+                                                                                },
+                                                                            ),
+                                                                            paren_token: Paren,
+                                                                            args: [
+                                                                                Lit(
+                                                                                    ExprLit {
+                                                                                        attrs: [],
+                                                                                        lit: Str(
+                                                                                            LitStr {
+                                                                                                token: "tests::add_three_and_two",
+                                                                                            },
+                                                                                        ),
+                                                                                    },
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            ignore,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Lit(
+                                                                        ExprLit {
+                                                                            attrs: [],
+                                                                            lit: Bool(
+                                                                                LitBool {
+                                                                                    value: false,
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            ignore_message,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Path(
+                                                                        ExprPath {
+                                                                            attrs: [],
+                                                                            qself: None,
+                                                                            path: Path {
+                                                                                leading_colon: Some(
+                                                                                    Colon2,
+                                                                                ),
+                                                                                segments: [
+                                                                                    PathSegment {
+                                                                                        ident: Ident(
+                                                                                            core,
+                                                                                        ),
+                                                                                        arguments: None,
+                                                                                    },
+                                                                                    Colon2,
+                                                                                    PathSegment {
+                                                                                        ident: Ident(
+                                                                                            option,
+                                                                                        ),
+                                                                                        arguments: None,
+                                                                                    },
+                                                                                    Colon2,
+                                                                                    PathSegment {
+                                                                                        ident: Ident(
+                                                                                            Option,
+                                                                                        ),
+                                                                                        arguments: None,
+                                                                                    },
+                                                                                    Colon2,
+                                                                                    PathSegment {
+                                                                                        ident: Ident(
+                                                                                            None,
+                                                                                        ),
+                                                                                        arguments: None,
+                                                                                    },
+                                                                                ],
+                                                                            },
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            source_file,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Lit(
+                                                                        ExprLit {
+                                                                            attrs: [],
+                                                                            lit: Str(
+                                                                                LitStr {
+                                                                                    token: "./tests/sources/t003_lib_with_tests.rs",
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            start_line,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Lit(
+                                                                        ExprLit {
+                                                                            attrs: [],
+                                                                            lit: Int(
+                                                                                LitInt {
+                                                                                    token: 15usize,
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            start_col,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Lit(
+                                                                        ExprLit {
+                                                                            attrs: [],
+                                                                            lit: Int(
+                                                                                LitInt {
+                                                                                    token: 8usize,
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            end_line,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Lit(
+                                                                        ExprLit {
+                                                                            attrs: [],
+                                                                            lit: Int(
+                                                                                LitInt {
+                                                                                    token: 15usize,
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            end_col,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Lit(
+                                                                        ExprLit {
+                                                                            attrs: [],
+                                                                            lit: Int(
+                                                                                LitInt {
+                                                                                    token: 25usize,
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            compile_fail,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Lit(
+                                                                        ExprLit {
+                                                                            attrs: [],
+                                                                            lit: Bool(
+                                                                                LitBool {
+                                                                                    value: false,
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            no_run,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Lit(
+                                                                        ExprLit {
+                                                                            attrs: [],
+                                                                            lit: Bool(
+                                                                                LitBool {
+                                                                                    value: false,
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            should_panic,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Path(
+                                                                        ExprPath {
+                                                                            attrs: [],
+                                                                            qself: None,
+                                                                            path: Path {
+                                                                                leading_colon: None,
+                                                                                segments: [
+                                                                                    PathSegment {
+                                                                                        ident: Ident(
+                                                                                            test,
+                                                                                        ),
+                                                                                        arguments: None,
+                                                                                    },
+                                                                                    Colon2,
+                                                                                    PathSegment {
+                                                                                        ident: Ident(
+                                                                                            ShouldPanic,
+                                                                                        ),
+                                                                                        arguments: None,
+                                                                                    },
+                                                                                    Colon2,
+                                                                                    PathSegment {
+                                                                                        ident: Ident(
+                                                                                            No,
+                                                                                        ),
+                                                                                        arguments: None,
+                                                                                    },
+                                                                                ],
+                                                                            },
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                                FieldValue {
+                                                                    attrs: [],
+                                                                    member: Named(
+                                                                        Ident(
+                                                                            test_type,
+                                                                        ),
+                                                                    ),
+                                                                    colon_token: Some(
+                                                                        Colon,
+                                                                    ),
+                                                                    expr: Path(
+                                                                        ExprPath {
+                                                                            attrs: [],
+                                                                            qself: None,
+                                                                            path: Path {
+                                                                                leading_colon: None,
+                                                                                segments: [
+                                                                                    PathSegment {
+                                                                                        ident: Ident(
+                                                                                            test,
+                                                                                        ),
+                                                                                        arguments: None,
+                                                                                    },
+                                                                                    Colon2,
+                                                                                    PathSegment {
+                                                                                        ident: Ident(
+                                                                                            TestType,
+                                                                                        ),
+                                                                                        arguments: None,
+                                                                                    },
+                                                                                    Colon2,
+                                                                                    PathSegment {
+                                                                                        ident: Ident(
+                                                                                            Unknown,
+                                                                                        ),
+                                                                                        arguments: None,
+                                                                                    },
+                                                                                ],
+                                                                            },
+                                                                        },
+                                                                    ),
+                                                                },
+                                                                Comma,
+                                                            ],
+                                                            dot2_token: None,
+                                                            rest: None,
+                                                        },
+                                                    ),
+                                                },
+                                                Comma,
+                                                FieldValue {
+                                                    attrs: [],
+                                                    member: Named(
+                                                        Ident(
+                                                            testfn,
+                                                        ),
+                                                    ),
+                                                    colon_token: Some(
+                                                        Colon,
+                                                    ),
+                                                    expr: Call(
+                                                        ExprCall {
+                                                            attrs: [],
+                                                            func: Path(
+                                                                ExprPath {
+                                                                    attrs: [],
+                                                                    qself: None,
+                                                                    path: Path {
+                                                                        leading_colon: None,
+                                                                        segments: [
+                                                                            PathSegment {
+                                                                                ident: Ident(
+                                                                                    test,
+                                                                                ),
+                                                                                arguments: None,
+                                                                            },
+                                                                            Colon2,
+                                                                            PathSegment {
+                                                                                ident: Ident(
+                                                                                    StaticTestFn,
+                                                                                ),
+                                                                                arguments: None,
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                },
+                                                            ),
+                                                            paren_token: Paren,
+                                                            args: [
+                                                                Closure(
+                                                                    ExprClosure {
+                                                                        attrs: [],
+                                                                        movability: None,
+                                                                        asyncness: None,
+                                                                        capture: None,
+                                                                        or1_token: Or,
+                                                                        inputs: [],
+                                                                        or2_token: Or,
+                                                                        output: Default,
+                                                                        body: Call(
+                                                                            ExprCall {
+                                                                                attrs: [],
+                                                                                func: Path(
+                                                                                    ExprPath {
+                                                                                        attrs: [],
+                                                                                        qself: None,
+                                                                                        path: Path {
+                                                                                            leading_colon: None,
+                                                                                            segments: [
+                                                                                                PathSegment {
+                                                                                                    ident: Ident(
+                                                                                                        test,
+                                                                                                    ),
+                                                                                                    arguments: None,
+                                                                                                },
+                                                                                                Colon2,
+                                                                                                PathSegment {
+                                                                                                    ident: Ident(
+                                                                                                        assert_test_result,
+                                                                                                    ),
+                                                                                                    arguments: None,
+                                                                                                },
+                                                                                            ],
+                                                                                        },
+                                                                                    },
+                                                                                ),
+                                                                                paren_token: Paren,
+                                                                                args: [
+                                                                                    Call(
+                                                                                        ExprCall {
+                                                                                            attrs: [],
+                                                                                            func: Path(
+                                                                                                ExprPath {
+                                                                                                    attrs: [],
+                                                                                                    qself: None,
+                                                                                                    path: Path {
+                                                                                                        leading_colon: None,
+                                                                                                        segments: [
+                                                                                                            PathSegment {
+                                                                                                                ident: Ident(
+                                                                                                                    add_three_and_two,
+                                                                                                                ),
+                                                                                                                arguments: None,
+                                                                                                            },
+                                                                                                        ],
+                                                                                                    },
+                                                                                                },
+                                                                                            ),
+                                                                                            paren_token: Paren,
+                                                                                            args: [],
+                                                                                        },
+                                                                                    ),
+                                                                                ],
+                                                                            },
+                                                                        ),
+                                                                    },
+                                                                ),
+                                                            ],
+                                                        },
+                                                    ),
+                                                },
+                                                Comma,
+                                            ],
+                                            dot2_token: None,
+                                            rest: None,
+                                        },
+                                    ),
+                                    semi_token: Semi,
+                                },
+                            ),
+                            Fn(
+                                ItemFn {
+                                    attrs: [],
+                                    vis: Inherited,
+                                    sig: Signature {
+                                        constness: None,
+                                        asyncness: None,
+                                        unsafety: None,
+                                        abi: None,
+                                        fn_token: Fn,
+                                        ident: Ident(
+                                            add_three_and_two,
+                                        ),
+                                        generics: Generics {
+                                            lt_token: None,
+                                            params: [],
+                                            gt_token: None,
+                                            where_clause: None,
+                                        },
+                                        paren_token: Paren,
+                                        inputs: [],
+                                        variadic: None,
+                                        output: Default,
+                                    },
+                                    block: Block {
+                                        brace_token: Brace,
+                                        stmts: [
+                                            Semi(
+                                                Match(
+                                                    ExprMatch {
+                                                        attrs: [],
+                                                        match_token: Match,
+                                                        expr: Tuple(
+                                                            ExprTuple {
+                                                                attrs: [],
+                                                                paren_token: Paren,
+                                                                elems: [
+                                                                    Reference(
+                                                                        ExprReference {
+                                                                            attrs: [],
+                                                                            and_token: And,
+                                                                            raw: Reserved,
+                                                                            mutability: None,
+                                                                            expr: Lit(
+                                                                                ExprLit {
+                                                                                    attrs: [],
+                                                                                    lit: Int(
+                                                                                        LitInt {
+                                                                                            token: 5,
+                                                                                        },
+                                                                                    ),
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                    Comma,
+                                                                    Reference(
+                                                                        ExprReference {
+                                                                            attrs: [],
+                                                                            and_token: And,
+                                                                            raw: Reserved,
+                                                                            mutability: None,
+                                                                            expr: Call(
+                                                                                ExprCall {
+                                                                                    attrs: [],
+                                                                                    func: Path(
+                                                                                        ExprPath {
+                                                                                            attrs: [],
+                                                                                            qself: None,
+                                                                                            path: Path {
+                                                                                                leading_colon: None,
+                                                                                                segments: [
+                                                                                                    PathSegment {
+                                                                                                        ident: Ident(
+                                                                                                            add_two,
+                                                                                                        ),
+                                                                                                        arguments: None,
+                                                                                                    },
+                                                                                                ],
+                                                                                            },
+                                                                                        },
+                                                                                    ),
+                                                                                    paren_token: Paren,
+                                                                                    args: [
+                                                                                        Lit(
+                                                                                            ExprLit {
+                                                                                                attrs: [],
+                                                                                                lit: Int(
+                                                                                                    LitInt {
+                                                                                                        token: 3,
+                                                                                                    },
+                                                                                                ),
+                                                                                            },
+                                                                                        ),
+                                                                                    ],
+                                                                                },
+                                                                            ),
+                                                                        },
+                                                                    ),
+                                                                ],
+                                                            },
+                                                        ),
+                                                        brace_token: Brace,
+                                                        arms: [
+                                                            Arm {
+                                                                attrs: [],
+                                                                pat: Tuple(
+                                                                    PatTuple {
+                                                                        attrs: [],
+                                                                        paren_token: Paren,
+                                                                        elems: [
+                                                                            Ident(
+                                                                                PatIdent {
+                                                                                    attrs: [],
+                                                                                    by_ref: None,
+                                                                                    mutability: None,
+                                                                                    ident: Ident(
+                                                                                        left_val,
+                                                                                    ),
+                                                                                    subpat: None,
+                                                                                },
+                                                                            ),
+                                                                            Comma,
+                                                                            Ident(
+                                                                                PatIdent {
+                                                                                    attrs: [],
+                                                                                    by_ref: None,
+                                                                                    mutability: None,
+                                                                                    ident: Ident(
+                                                                                        right_val,
+                                                                                    ),
+                                                                                    subpat: None,
+                                                                                },
+                                                                            ),
+                                                                        ],
+                                                                    },
+                                                                ),
+                                                                guard: None,
+                                                                fat_arrow_token: FatArrow,
+                                                                body: Block(
+                                                                    ExprBlock {
+                                                                        attrs: [],
+                                                                        label: None,
+                                                                        block: Block {
+                                                                            brace_token: Brace,
+                                                                            stmts: [
+                                                                                Expr(
+                                                                                    If(
+                                                                                        ExprIf {
+                                                                                            attrs: [],
+                                                                                            if_token: If,
+                                                                                            cond: Unary(
+                                                                                                ExprUnary {
+                                                                                                    attrs: [],
+                                                                                                    op: Not(
+                                                                                                        Bang,
+                                                                                                    ),
+                                                                                                    expr: Paren(
+                                                                                                        ExprParen {
+                                                                                                            attrs: [],
+                                                                                                            paren_token: Paren,
+                                                                                                            expr: Binary(
+                                                                                                                ExprBinary {
+                                                                                                                    attrs: [],
+                                                                                                                    left: Unary(
+                                                                                                                        ExprUnary {
+                                                                                                                            attrs: [],
+                                                                                                                            op: Deref(
+                                                                                                                                Star,
+                                                                                                                            ),
+                                                                                                                            expr: Path(
+                                                                                                                                ExprPath {
+                                                                                                                                    attrs: [],
+                                                                                                                                    qself: None,
+                                                                                                                                    path: Path {
+                                                                                                                                        leading_colon: None,
+                                                                                                                                        segments: [
+                                                                                                                                            PathSegment {
+                                                                                                                                                ident: Ident(
+                                                                                                                                                    left_val,
+                                                                                                                                                ),
+                                                                                                                                                arguments: None,
+                                                                                                                                            },
+                                                                                                                                        ],
+                                                                                                                                    },
+                                                                                                                                },
+                                                                                                                            ),
+                                                                                                                        },
+                                                                                                                    ),
+                                                                                                                    op: Eq(
+                                                                                                                        EqEq,
+                                                                                                                    ),
+                                                                                                                    right: Unary(
+                                                                                                                        ExprUnary {
+                                                                                                                            attrs: [],
+                                                                                                                            op: Deref(
+                                                                                                                                Star,
+                                                                                                                            ),
+                                                                                                                            expr: Path(
+                                                                                                                                ExprPath {
+                                                                                                                                    attrs: [],
+                                                                                                                                    qself: None,
+                                                                                                                                    path: Path {
+                                                                                                                                        leading_colon: None,
+                                                                                                                                        segments: [
+                                                                                                                                            PathSegment {
+                                                                                                                                                ident: Ident(
+                                                                                                                                                    right_val,
+                                                                                                                                                ),
+                                                                                                                                                arguments: None,
+                                                                                                                                            },
+                                                                                                                                        ],
+                                                                                                                                    },
+                                                                                                                                },
+                                                                                                                            ),
+                                                                                                                        },
+                                                                                                                    ),
+                                                                                                                },
+                                                                                                            ),
+                                                                                                        },
+                                                                                                    ),
+                                                                                                },
+                                                                                            ),
+                                                                                            then_branch: Block {
+                                                                                                brace_token: Brace,
+                                                                                                stmts: [
+                                                                                                    Local(
+                                                                                                        Local {
+                                                                                                            attrs: [],
+                                                                                                            let_token: Let,
+                                                                                                            pat: Ident(
+                                                                                                                PatIdent {
+                                                                                                                    attrs: [],
+                                                                                                                    by_ref: None,
+                                                                                                                    mutability: None,
+                                                                                                                    ident: Ident(
+                                                                                                                        kind,
+                                                                                                                    ),
+                                                                                                                    subpat: None,
+                                                                                                                },
+                                                                                                            ),
+                                                                                                            init: Some(
+                                                                                                                (
+                                                                                                                    Eq,
+                                                                                                                    Path(
+                                                                                                                        ExprPath {
+                                                                                                                            attrs: [],
+                                                                                                                            qself: None,
+                                                                                                                            path: Path {
+                                                                                                                                leading_colon: Some(
+                                                                                                                                    Colon2,
+                                                                                                                                ),
+                                                                                                                                segments: [
+                                                                                                                                    PathSegment {
+                                                                                                                                        ident: Ident(
+                                                                                                                                            core,
+                                                                                                                                        ),
+                                                                                                                                        arguments: None,
+                                                                                                                                    },
+                                                                                                                                    Colon2,
+                                                                                                                                    PathSegment {
+                                                                                                                                        ident: Ident(
+                                                                                                                                            panicking,
+                                                                                                                                        ),
+                                                                                                                                        arguments: None,
+                                                                                                                                    },
+                                                                                                                                    Colon2,
+                                                                                                                                    PathSegment {
+                                                                                                                                        ident: Ident(
+                                                                                                                                            AssertKind,
+                                                                                                                                        ),
+                                                                                                                                        arguments: None,
+                                                                                                                                    },
+                                                                                                                                    Colon2,
+                                                                                                                                    PathSegment {
+                                                                                                                                        ident: Ident(
+                                                                                                                                            Eq,
+                                                                                                                                        ),
+                                                                                                                                        arguments: None,
+                                                                                                                                    },
+                                                                                                                                ],
+                                                                                                                            },
+                                                                                                                        },
+                                                                                                                    ),
+                                                                                                                ),
+                                                                                                            ),
+                                                                                                            semi_token: Semi,
+                                                                                                        },
+                                                                                                    ),
+                                                                                                    Semi(
+                                                                                                        Call(
+                                                                                                            ExprCall {
+                                                                                                                attrs: [],
+                                                                                                                func: Path(
+                                                                                                                    ExprPath {
+                                                                                                                        attrs: [],
+                                                                                                                        qself: None,
+                                                                                                                        path: Path {
+                                                                                                                            leading_colon: Some(
+                                                                                                                                Colon2,
+                                                                                                                            ),
+                                                                                                                            segments: [
+                                                                                                                                PathSegment {
+                                                                                                                                    ident: Ident(
+                                                                                                                                        core,
+                                                                                                                                    ),
+                                                                                                                                    arguments: None,
+                                                                                                                                },
+                                                                                                                                Colon2,
+                                                                                                                                PathSegment {
+                                                                                                                                    ident: Ident(
+                                                                                                                                        panicking,
+                                                                                                                                    ),
+                                                                                                                                    arguments: None,
+                                                                                                                                },
+                                                                                                                                Colon2,
+                                                                                                                                PathSegment {
+                                                                                                                                    ident: Ident(
+                                                                                                                                        assert_failed,
+                                                                                                                                    ),
+                                                                                                                                    arguments: None,
+                                                                                                                                },
+                                                                                                                            ],
+                                                                                                                        },
+                                                                                                                    },
+                                                                                                                ),
+                                                                                                                paren_token: Paren,
+                                                                                                                args: [
+                                                                                                                    Path(
+                                                                                                                        ExprPath {
+                                                                                                                            attrs: [],
+                                                                                                                            qself: None,
+                                                                                                                            path: Path {
+                                                                                                                                leading_colon: None,
+                                                                                                                                segments: [
+                                                                                                                                    PathSegment {
+                                                                                                                                        ident: Ident(
+                                                                                                                                            kind,
+                                                                                                                                        ),
+                                                                                                                                        arguments: None,
+                                                                                                                                    },
+                                                                                                                                ],
+                                                                                                                            },
+                                                                                                                        },
+                                                                                                                    ),
+                                                                                                                    Comma,
+                                                                                                                    Reference(
+                                                                                                                        ExprReference {
+                                                                                                                            attrs: [],
+                                                                                                                            and_token: And,
+                                                                                                                            raw: Reserved,
+                                                                                                                            mutability: None,
+                                                                                                                            expr: Unary(
+                                                                                                                                ExprUnary {
+                                                                                                                                    attrs: [],
+                                                                                                                                    op: Deref(
+                                                                                                                                        Star,
+                                                                                                                                    ),
+                                                                                                                                    expr: Path(
+                                                                                                                                        ExprPath {
+                                                                                                                                            attrs: [],
+                                                                                                                                            qself: None,
+                                                                                                                                            path: Path {
+                                                                                                                                                leading_colon: None,
+                                                                                                                                                segments: [
+                                                                                                                                                    PathSegment {
+                                                                                                                                                        ident: Ident(
+                                                                                                                                                            left_val,
+                                                                                                                                                        ),
+                                                                                                                                                        arguments: None,
+                                                                                                                                                    },
+                                                                                                                                                ],
+                                                                                                                                            },
+                                                                                                                                        },
+                                                                                                                                    ),
+                                                                                                                                },
+                                                                                                                            ),
+                                                                                                                        },
+                                                                                                                    ),
+                                                                                                                    Comma,
+                                                                                                                    Reference(
+                                                                                                                        ExprReference {
+                                                                                                                            attrs: [],
+                                                                                                                            and_token: And,
+                                                                                                                            raw: Reserved,
+                                                                                                                            mutability: None,
+                                                                                                                            expr: Unary(
+                                                                                                                                ExprUnary {
+                                                                                                                                    attrs: [],
+                                                                                                                                    op: Deref(
+                                                                                                                                        Star,
+                                                                                                                                    ),
+                                                                                                                                    expr: Path(
+                                                                                                                                        ExprPath {
+                                                                                                                                            attrs: [],
+                                                                                                                                            qself: None,
+                                                                                                                                            path: Path {
+                                                                                                                                                leading_colon: None,
+                                                                                                                                                segments: [
+                                                                                                                                                    PathSegment {
+                                                                                                                                                        ident: Ident(
+                                                                                                                                                            right_val,
+                                                                                                                                                        ),
+                                                                                                                                                        arguments: None,
+                                                                                                                                                    },
+                                                                                                                                                ],
+                                                                                                                                            },
+                                                                                                                                        },
+                                                                                                                                    ),
+                                                                                                                                },
+                                                                                                                            ),
+                                                                                                                        },
+                                                                                                                    ),
+                                                                                                                    Comma,
+                                                                                                                    Path(
+                                                                                                                        ExprPath {
+                                                                                                                            attrs: [],
+                                                                                                                            qself: None,
+                                                                                                                            path: Path {
+                                                                                                                                leading_colon: Some(
+                                                                                                                                    Colon2,
+                                                                                                                                ),
+                                                                                                                                segments: [
+                                                                                                                                    PathSegment {
+                                                                                                                                        ident: Ident(
+                                                                                                                                            core,
+                                                                                                                                        ),
+                                                                                                                                        arguments: None,
+                                                                                                                                    },
+                                                                                                                                    Colon2,
+                                                                                                                                    PathSegment {
+                                                                                                                                        ident: Ident(
+                                                                                                                                            option,
+                                                                                                                                        ),
+                                                                                                                                        arguments: None,
+                                                                                                                                    },
+                                                                                                                                    Colon2,
+                                                                                                                                    PathSegment {
+                                                                                                                                        ident: Ident(
+                                                                                                                                            Option,
+                                                                                                                                        ),
+                                                                                                                                        arguments: None,
+                                                                                                                                    },
+                                                                                                                                    Colon2,
+                                                                                                                                    PathSegment {
+                                                                                                                                        ident: Ident(
+                                                                                                                                            None,
+                                                                                                                                        ),
+                                                                                                                                        arguments: None,
+                                                                                                                                    },
+                                                                                                                                ],
+                                                                                                                            },
+                                                                                                                        },
+                                                                                                                    ),
+                                                                                                                ],
+                                                                                                            },
+                                                                                                        ),
+                                                                                                        Semi,
+                                                                                                    ),
+                                                                                                ],
+                                                                                            },
+                                                                                            else_branch: None,
+                                                                                        },
+                                                                                    ),
+                                                                                ),
+                                                                            ],
+                                                                        },
+                                                                    },
+                                                                ),
+                                                                comma: None,
+                                                            },
+                                                        ],
+                                                    },
+                                                ),
+                                                Semi,
+                                            ),
+                                        ],
+                                    },
+                                },
+                            ),
+                            Verbatim(
+                                TokenStream [],
+                            ),
+                            Verbatim(
+                                TokenStream [],
+                            ),
+                            Verbatim(
+                                TokenStream [],
+                            ),
+                        ],
+                    ),
+                ),
+                semi: None,
+            },
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
+    ],
+}

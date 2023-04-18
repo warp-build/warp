@@ -1,4 +1,5 @@
-use super::Symbol;
+use std::path::PathBuf;
+
 use syn::parse_quote;
 use thiserror::Error;
 
@@ -7,11 +8,12 @@ use thiserror::Error;
 pub struct Ast {
     ast: syn::File,
 
-    file: String,
+    #[builder(setter(into))]
+    file: PathBuf,
 
     source: String,
 
-    symbol: Symbol,
+    test_name: String,
 }
 
 impl Ast {
@@ -23,16 +25,16 @@ impl Ast {
         self.ast.clone()
     }
 
-    pub fn file(&self) -> &str {
-        self.file.as_ref()
-    }
-
     pub fn source(&self) -> &str {
         self.source.as_ref()
     }
 
-    pub fn symbol(&self) -> &Symbol {
-        &self.symbol
+    pub fn test_name(&self) -> &str {
+        self.test_name.as_ref()
+    }
+
+    pub fn file(&self) -> &PathBuf {
+        &self.file
     }
 }
 
@@ -41,8 +43,8 @@ impl Default for Ast {
         Self {
             ast: parse_quote!(),
             source: "".to_string(),
-            file: "".to_string(),
-            symbol: Symbol::default(),
+            file: PathBuf::from(""),
+            test_name: "".to_string(),
         }
     }
 }

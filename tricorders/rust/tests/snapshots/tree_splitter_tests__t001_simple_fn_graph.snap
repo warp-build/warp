@@ -4,8 +4,117 @@ expression: ast
 ---
 File {
     shebang: None,
-    attrs: [],
+    attrs: [
+        Attribute {
+            pound_token: Pound,
+            style: Inner(
+                Bang,
+            ),
+            bracket_token: Bracket,
+            path: Path {
+                leading_colon: None,
+                segments: [
+                    PathSegment {
+                        ident: Ident(
+                            feature,
+                        ),
+                        arguments: None,
+                    },
+                ],
+            },
+            tokens: TokenStream [
+                Group {
+                    delimiter: Parenthesis,
+                    stream: TokenStream [
+                        Ident {
+                            sym: prelude_import,
+                        },
+                    ],
+                },
+            ],
+        },
+        Attribute {
+            pound_token: Pound,
+            style: Inner(
+                Bang,
+            ),
+            bracket_token: Bracket,
+            path: Path {
+                leading_colon: None,
+                segments: [
+                    PathSegment {
+                        ident: Ident(
+                            no_std,
+                        ),
+                        arguments: None,
+                    },
+                ],
+            },
+            tokens: TokenStream [],
+        },
+    ],
     items: [
+        Use(
+            ItemUse {
+                attrs: [
+                    Attribute {
+                        pound_token: Pound,
+                        style: Outer,
+                        bracket_token: Bracket,
+                        path: Path {
+                            leading_colon: None,
+                            segments: [
+                                PathSegment {
+                                    ident: Ident(
+                                        prelude_import,
+                                    ),
+                                    arguments: None,
+                                },
+                            ],
+                        },
+                        tokens: TokenStream [],
+                    },
+                ],
+                vis: Inherited,
+                use_token: Use,
+                leading_colon: Some(
+                    Colon2,
+                ),
+                tree: Path(
+                    UsePath {
+                        ident: Ident(
+                            std,
+                        ),
+                        colon2_token: Colon2,
+                        tree: Path(
+                            UsePath {
+                                ident: Ident(
+                                    prelude,
+                                ),
+                                colon2_token: Colon2,
+                                tree: Path(
+                                    UsePath {
+                                        ident: Ident(
+                                            rust_2015,
+                                        ),
+                                        colon2_token: Colon2,
+                                        tree: Glob(
+                                            UseGlob {
+                                                star_token: Star,
+                                            },
+                                        ),
+                                    },
+                                ),
+                            },
+                        ),
+                    },
+                ),
+                semi_token: Semi,
+            },
+        ),
+        Verbatim(
+            TokenStream [],
+        ),
         Verbatim(
             TokenStream [],
         ),
@@ -147,7 +256,34 @@ File {
         ),
         Fn(
             ItemFn {
-                attrs: [],
+                attrs: [
+                    Attribute {
+                        pound_token: Pound,
+                        style: Outer,
+                        bracket_token: Bracket,
+                        path: Path {
+                            leading_colon: None,
+                            segments: [
+                                PathSegment {
+                                    ident: Ident(
+                                        allow,
+                                    ),
+                                    arguments: None,
+                                },
+                            ],
+                        },
+                        tokens: TokenStream [
+                            Group {
+                                delimiter: Parenthesis,
+                                stream: TokenStream [
+                                    Ident {
+                                        sym: dead_code,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
                 vis: Inherited,
                 sig: Signature {
                     constness: None,
@@ -181,29 +317,84 @@ File {
                     brace_token: Brace,
                     stmts: [
                         Semi(
-                            Macro(
-                                ExprMacro {
+                            Block(
+                                ExprBlock {
                                     attrs: [],
-                                    mac: Macro {
-                                        path: Path {
-                                            leading_colon: None,
-                                            segments: [
-                                                PathSegment {
-                                                    ident: Ident(
-                                                        println,
-                                                    ),
-                                                    arguments: None,
-                                                },
-                                            ],
-                                        },
-                                        bang_token: Bang,
-                                        delimiter: Paren(
-                                            Paren,
-                                        ),
-                                        tokens: TokenStream [
-                                            Literal {
-                                                lit: "Hello World!",
-                                            },
+                                    label: None,
+                                    block: Block {
+                                        brace_token: Brace,
+                                        stmts: [
+                                            Semi(
+                                                Call(
+                                                    ExprCall {
+                                                        attrs: [],
+                                                        func: Path(
+                                                            ExprPath {
+                                                                attrs: [],
+                                                                qself: None,
+                                                                path: Path {
+                                                                    leading_colon: Some(
+                                                                        Colon2,
+                                                                    ),
+                                                                    segments: [
+                                                                        PathSegment {
+                                                                            ident: Ident(
+                                                                                std,
+                                                                            ),
+                                                                            arguments: None,
+                                                                        },
+                                                                        Colon2,
+                                                                        PathSegment {
+                                                                            ident: Ident(
+                                                                                io,
+                                                                            ),
+                                                                            arguments: None,
+                                                                        },
+                                                                        Colon2,
+                                                                        PathSegment {
+                                                                            ident: Ident(
+                                                                                _print,
+                                                                            ),
+                                                                            arguments: None,
+                                                                        },
+                                                                    ],
+                                                                },
+                                                            },
+                                                        ),
+                                                        paren_token: Paren,
+                                                        args: [
+                                                            Macro(
+                                                                ExprMacro {
+                                                                    attrs: [],
+                                                                    mac: Macro {
+                                                                        path: Path {
+                                                                            leading_colon: None,
+                                                                            segments: [
+                                                                                PathSegment {
+                                                                                    ident: Ident(
+                                                                                        format_args,
+                                                                                    ),
+                                                                                    arguments: None,
+                                                                                },
+                                                                            ],
+                                                                        },
+                                                                        bang_token: Bang,
+                                                                        delimiter: Paren(
+                                                                            Paren,
+                                                                        ),
+                                                                        tokens: TokenStream [
+                                                                            Literal {
+                                                                                lit: "Hello World!\n",
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                },
+                                                            ),
+                                                        ],
+                                                    },
+                                                ),
+                                                Semi,
+                                            ),
                                         ],
                                     },
                                 },
@@ -236,6 +427,131 @@ File {
                                 },
                             ),
                             Semi,
+                        ),
+                    ],
+                },
+            },
+        ),
+        Fn(
+            ItemFn {
+                attrs: [
+                    Attribute {
+                        pound_token: Pound,
+                        style: Outer,
+                        bracket_token: Bracket,
+                        path: Path {
+                            leading_colon: None,
+                            segments: [
+                                PathSegment {
+                                    ident: Ident(
+                                        rustc_main,
+                                    ),
+                                    arguments: None,
+                                },
+                            ],
+                        },
+                        tokens: TokenStream [],
+                    },
+                ],
+                vis: Public(
+                    VisPublic {
+                        pub_token: Pub,
+                    },
+                ),
+                sig: Signature {
+                    constness: None,
+                    asyncness: None,
+                    unsafety: None,
+                    abi: None,
+                    fn_token: Fn,
+                    ident: Ident(
+                        main,
+                    ),
+                    generics: Generics {
+                        lt_token: None,
+                        params: [],
+                        gt_token: None,
+                        where_clause: None,
+                    },
+                    paren_token: Paren,
+                    inputs: [],
+                    variadic: None,
+                    output: Type(
+                        RArrow,
+                        Tuple(
+                            TypeTuple {
+                                paren_token: Paren,
+                                elems: [],
+                            },
+                        ),
+                    ),
+                },
+                block: Block {
+                    brace_token: Brace,
+                    stmts: [
+                        Item(
+                            ExternCrate(
+                                ItemExternCrate {
+                                    attrs: [],
+                                    vis: Inherited,
+                                    extern_token: Extern,
+                                    crate_token: Crate,
+                                    ident: Ident(
+                                        test,
+                                    ),
+                                    rename: None,
+                                    semi_token: Semi,
+                                },
+                            ),
+                        ),
+                        Expr(
+                            Call(
+                                ExprCall {
+                                    attrs: [],
+                                    func: Path(
+                                        ExprPath {
+                                            attrs: [],
+                                            qself: None,
+                                            path: Path {
+                                                leading_colon: None,
+                                                segments: [
+                                                    PathSegment {
+                                                        ident: Ident(
+                                                            test,
+                                                        ),
+                                                        arguments: None,
+                                                    },
+                                                    Colon2,
+                                                    PathSegment {
+                                                        ident: Ident(
+                                                            test_main_static,
+                                                        ),
+                                                        arguments: None,
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ),
+                                    paren_token: Paren,
+                                    args: [
+                                        Reference(
+                                            ExprReference {
+                                                attrs: [],
+                                                and_token: And,
+                                                raw: Reserved,
+                                                mutability: None,
+                                                expr: Array(
+                                                    ExprArray {
+                                                        attrs: [],
+                                                        bracket_token: Bracket,
+                                                        elems: [],
+                                                    },
+                                                ),
+                                            },
+                                        ),
+                                    ],
+                                },
+                            ),
                         ),
                     ],
                 },

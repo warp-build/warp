@@ -132,7 +132,7 @@ impl CargoAnalyzer {
 
         let sig = Signature::builder()
             .rule(RULE_RUST_BINARY)
-            .target(target)
+            .name(target)
             .deps(deps.to_vec())
             .config(config)
             .build()?;
@@ -166,7 +166,7 @@ impl CargoAnalyzer {
 
         let sig = Signature::builder()
             .rule(RULE_RUST_LIBRARY)
-            .target(target)
+            .name(target)
             .deps(deps.to_vec())
             .config(config)
             .build()?;
@@ -298,7 +298,7 @@ checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
 
         let test_bin = signatures.get(0).unwrap();
 
-        assert_eq!(test_bin.target(), "test");
+        assert_eq!(test_bin.name(), "test");
         assert_eq!(test_bin.rule(), RULE_RUST_BINARY);
 
         assert_eq!(test_bin.deps().len(), 1);
@@ -365,7 +365,7 @@ checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
 
         let test_lib = signatures.get(0).unwrap();
 
-        assert_eq!(test_lib.target(), "test");
+        assert_eq!(test_lib.name(), "test");
         assert_eq!(test_lib.rule(), RULE_RUST_LIBRARY);
 
         assert_eq!(test_lib.deps().len(), 1);

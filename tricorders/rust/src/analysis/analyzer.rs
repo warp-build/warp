@@ -3,7 +3,7 @@ use crate::dependencies::DependencyManager;
 
 use super::ast::{GetAst, GetAstError};
 use super::cargo::CargoAnalyzer;
-use super::model::{Ast, Signature, Symbol};
+use super::model::{Ast, Goal, Signature};
 use super::rust_module::RustModuleAnalyzer;
 use super::GenerateSignatureError;
 use std::path::Path;
@@ -26,12 +26,18 @@ impl Analyzer {
         }
     }
 
-    pub async fn get_ast(&self, file: String, symbol: Symbol) -> Result<Ast, GetAstError> {
-        GetAst::get_ast(file, symbol).await
+    pub async fn get_ast(
+        &self,
+        workspace_root: &Path,
+        file: &Path,
+        test_matcher: Vec<String>,
+    ) -> Result<Vec<Ast>, GetAstError> {
+        GetAst::get_ast(&workspace_root.join(file), test_matcher).await
     }
 
     pub async fn generate_signature(
         &self,
+        goal: Goal,
         workspace_root: &Path,
         file: &Path,
         test_matcher: Vec<String>,
@@ -54,7 +60,7 @@ impl Analyzer {
             (_, "rs") => {
                 let signatures = self
                     .rust_module_analyzer
-                    .generate_signature(workspace_root, file, test_matcher)
+                    .generate_signature(goal, workspace_root, file, test_matcher)
                     .await?;
 
                 println!("Generated {} signatures", signatures.len());
@@ -124,7 +130,12 @@ checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
         let analyzer = Analyzer::new(dep_manager);
 
         let signatures = analyzer
-            .generate_signature(workspace_root.path(), cargo_toml.path(), vec![])
+            .generate_signature(
+                Goal::Build,
+                workspace_root.path(),
+                cargo_toml.path(),
+                vec![],
+            )
             .await
             .unwrap();
 
@@ -132,7 +143,7 @@ checksum = "2cb2f989d18dd141ab8ae82f64d1a8cdd37e0840f73a406896cf5e99502fab61"
 
         let test_bin = signatures.get(0).unwrap();
 
-        assert_eq!(test_bin.target(), "test");
+        assert_eq!(test_bin.name(), "test");
         assert_eq!(test_bin.rule(), RULE_RUST_BINARY);
 
         assert_eq!(test_bin.deps().len(), 1);

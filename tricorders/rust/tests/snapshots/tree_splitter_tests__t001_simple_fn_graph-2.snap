@@ -1,7 +1,12 @@
 ---
-source: tests/tree_splitter_tests.rs
-expression: "format!(\"{}\", & formatted)"
+source: tricorders/rust/tests/tree_splitter_tests.rs
+expression: "format!(\"{}\", & filtered_source)"
 ---
+#![feature(prelude_import)]
+#![no_std]
+#[prelude_import]
+use ::std::prelude::rust_2015::*;
+
 
 fn potato() -> bool {
     false
@@ -9,8 +14,16 @@ fn potato() -> bool {
 fn salad() -> bool {
     potato()
 }
+#[allow(dead_code)]
 fn main() -> () {
-    println!("Hello World!");
+    {
+        ::std::io::_print(format_args!("Hello World!\n"));
+    };
     salad();
+}
+#[rustc_main]
+pub fn main() -> () {
+    extern crate test;
+    test::test_main_static(&[])
 }
 

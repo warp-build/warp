@@ -31,3 +31,40 @@ impl<'ast> Visit<'ast> for TestVisitor {
         }
     }
 }
+
+pub struct TestFinder {
+    pub matcher: String,
+    pub tests: Vec<String>,
+}
+
+impl<'a> Visit<'a> for TestFinder {
+    fn visit_item_const(&mut self, item: &'a syn::ItemConst) {
+        if item.attrs.iter().any(|attr| attr.path.is_ident("test")) {
+            if item.ident.to_string().starts_with(&self.matcher) {
+                self.tests.push(item.ident.to_string());
+            }
+        } else if item
+            .attrs
+            .iter()
+            .any(|attr| attr.path.is_ident("cfg") && attr.tokens.to_string().contains("test"))
+            && item.ident.to_string().starts_with(&self.matcher)
+        {
+            self.tests.push(item.ident.to_string());
+        }
+        visit::visit_item_const(self, item);
+    }
+
+    fn visit_item_mod(&mut self, item: &ItemMod) {
+        if item
+            .attrs
+            .iter()
+            .any(|attr| attr.path.is_ident("cfg") && attr.tokens.to_string().contains("test"))
+        {
+            if let Some(content) = &item.content {
+                for nested_item in &content.1 {
+                    visit::visit_item(self, nested_item);
+                }
+            }
+        }
+    }
+}
