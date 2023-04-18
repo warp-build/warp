@@ -1,15 +1,15 @@
 use crate::analysis::model::{Ast, AstError};
 use crate::analysis::tree_splitter::TreeSplitter;
+use log::*;
 use std::path::Path;
 use thiserror::*;
-use tracing::*;
 
 #[derive(Default)]
 pub struct GetAst {}
 
 impl GetAst {
     pub async fn get_ast(file: &Path, test_matcher: Vec<String>) -> Result<Vec<Ast>, GetAstError> {
-        println!("Analyzing: {:?}", &file);
+        info!("Analyzing: {:?}", &file);
 
         let sources = TreeSplitter::expand_file(file.to_path_buf());
 

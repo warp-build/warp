@@ -6,6 +6,7 @@ use super::cargo::CargoAnalyzer;
 use super::model::{Ast, Goal, Signature};
 use super::rust_module::RustModuleAnalyzer;
 use super::GenerateSignatureError;
+use log::info;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -42,7 +43,7 @@ impl Analyzer {
         file: &Path,
         test_matcher: Vec<String>,
     ) -> Result<Vec<Signature>, GenerateSignatureError> {
-        println!("Analyzing: {:?}", &file);
+        info!("Analyzing: {:?}", &file);
 
         let ext = file.extension().unwrap().to_str().unwrap();
         let basename = file.file_name().unwrap().to_str().unwrap();
@@ -53,7 +54,7 @@ impl Analyzer {
                     .generate_signature(workspace_root, file)
                     .await?;
 
-                println!("Generated {} signatures", signatures.len());
+                info!("Generated {} signatures", signatures.len());
 
                 Ok(signatures)
             }
@@ -63,7 +64,7 @@ impl Analyzer {
                     .generate_signature(goal, workspace_root, file, test_matcher)
                     .await?;
 
-                println!("Generated {} signatures", signatures.len());
+                info!("Generated {} signatures", signatures.len());
 
                 Ok(signatures)
             }

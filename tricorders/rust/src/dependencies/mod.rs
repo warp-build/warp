@@ -11,9 +11,9 @@ use self::cargo_manifest::CargoManifest;
 use self::crates::Crates;
 use self::rust_toolchain::RustToolchain;
 use dashmap::DashMap;
+use log::{debug, info};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
-use tracing::{debug, info};
 
 #[derive(Default, Clone, Eq, PartialEq)]
 pub enum Status {
@@ -48,6 +48,7 @@ impl DependencyManager {
     }
 
     pub async fn prepare(&self) -> Result<(), DependencyManagerError> {
+        info!("Preparing dependencies from {:?}", &self.workspace_root);
         self.mark_as_loading();
         self.load_manifests().await?;
         self.consolidate_dependencies();
@@ -89,7 +90,7 @@ impl DependencyManager {
                     loaded += 1;
                 }
                 file => {
-                    debug!("Ignored {:?}", file);
+                    debug!("Ignored {:?}", path);
                 }
             }
         }
@@ -111,7 +112,9 @@ impl DependencyManager {
                 deps.insert(package.name().to_string(), old_pkgs);
             }
         }
-        for (name, dep) in deps {
+        for (name, mut dep) in deps {
+            dep.sort_by_cached_key(|pkg| pkg.version().clone());
+            dep.reverse();
             self.dependencies.insert(name, dep);
         }
     }

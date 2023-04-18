@@ -6,6 +6,7 @@ use crate::dependencies::crates::{Crates, CratesError};
 use crate::dependencies::DependencyManager;
 use crate::RUST_TRICORDER_URL;
 
+use log::info;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use thiserror::Error;
@@ -31,15 +32,15 @@ impl CargoAnalyzer {
         workspace_root: &Path,
         file: &Path,
     ) -> Result<Vec<Signature>, CargoAnalyzerError> {
-        println!("Generating signature for {file:?}");
+        info!("Generating signature for {file:?}");
         let mut signatures = vec![];
         let manifest_path = workspace_root.join(file);
         let manifest = CargoManifest::from_path(&manifest_path)?;
         let Some(package) = manifest.package() else { return Ok(vec![]) };
 
-        println!("Collecting requirements for {file:?}");
+        info!("Collecting requirements for {file:?}");
         let deps = self.collect_requirements(package).await?;
-        println!("Found {} requirements", deps.len());
+        info!("Found {} requirements", deps.len());
 
         let manifest_root = manifest_path.parent().unwrap();
 
@@ -77,7 +78,7 @@ impl CargoAnalyzer {
                     .iter()
                     .find(|pkg| dep.version_req().matches(pkg.version()))
                 {
-                    println!(
+                    info!(
                         "Found dep {}-{} matching {}",
                         dep.name(),
                         pkg.version(),
@@ -100,7 +101,7 @@ impl CargoAnalyzer {
                     reqs.push(req);
                     continue 'dep_loop;
                 }
-                println!("Dep {} not found", dep.name());
+                info!("Dep {} not found", dep.name());
             }
         }
 
@@ -126,8 +127,9 @@ impl CargoAnalyzer {
             .insert("cargo_name", bin.name().to_string())
             .insert("crate_name", bin.name().to_string().replace('-', "_"))
             .insert("edition", package.edition().to_string())
-            .insert("srcs", self.list_files(manifest_root)?)
             .insert("main", main)
+            .insert("required_features", bin.required_features().to_vec())
+            .insert("srcs", self.list_files(manifest_root)?)
             .build();
 
         let sig = Signature::builder()
@@ -156,12 +158,13 @@ impl CargoAnalyzer {
             .to_path_buf();
 
         let config = Config::builder()
-            .insert("edition", package.edition().to_string())
             .insert("cargo_name", lib.name().to_string())
             .insert("crate_name", lib.name().to_string().replace('-', "_"))
             .insert("crate_type", lib.crate_type().to_string())
-            .insert("srcs", self.list_files(manifest_root)?)
+            .insert("edition", package.edition().to_string())
             .insert("main", main)
+            .insert("required_features", lib.required_features().to_vec())
+            .insert("srcs", self.list_files(manifest_root)?)
             .build();
 
         let sig = Signature::builder()
