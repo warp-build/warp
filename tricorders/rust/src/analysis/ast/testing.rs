@@ -38,20 +38,20 @@ pub struct TestFinder {
 }
 
 impl<'a> Visit<'a> for TestFinder {
-    fn visit_item_const(&mut self, item: &'a syn::ItemConst) {
+    fn visit_item_fn(&mut self, item: &'a syn::ItemFn) {
         if item.attrs.iter().any(|attr| attr.path.is_ident("test")) {
-            if item.ident.to_string().starts_with(&self.matcher) {
-                self.tests.push(item.ident.to_string());
+            if item.sig.ident.to_string().starts_with(&self.matcher) {
+                self.tests.push(item.sig.ident.to_string());
             }
         } else if item
             .attrs
             .iter()
             .any(|attr| attr.path.is_ident("cfg") && attr.tokens.to_string().contains("test"))
-            && item.ident.to_string().starts_with(&self.matcher)
+            && item.sig.ident.to_string().starts_with(&self.matcher)
         {
-            self.tests.push(item.ident.to_string());
+            self.tests.push(item.sig.ident.to_string());
         }
-        visit::visit_item_const(self, item);
+        visit::visit_item_fn(self, item);
     }
 
     fn visit_item_mod(&mut self, item: &ItemMod) {

@@ -11,9 +11,11 @@ impl GetAst {
     pub async fn get_ast(file: &Path, test_matcher: Vec<String>) -> Result<Vec<Ast>, GetAstError> {
         info!("Analyzing: {:?}", &file);
 
-        let sources = TreeSplitter::expand_file(file.to_path_buf());
+        let sources = TreeSplitter::parse_file(file.to_path_buf());
 
         let matching_tests: Vec<String> = TreeSplitter::find_matching_tests(test_matcher, &sources);
+
+        let sources = TreeSplitter::expand_file(file.to_path_buf());
 
         let asts: Vec<Ast> = matching_tests
             .iter()
