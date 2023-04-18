@@ -80,7 +80,6 @@ impl GenerateSignature {
         let mod_files: Vec<PathBuf> = Self::find_mod_files(mods, file_path).await?;
         mod_paths.extend(mod_files.iter().cloned());
 
-        let source = TreeSplitter::expand_file(path.clone());
         let matching_tests = TreeSplitter::find_matching_tests(test_matcher, &source);
 
         let signatures: Vec<Signature> = matching_tests
