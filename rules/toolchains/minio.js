@@ -1,13 +1,13 @@
 const impl = (ctx) => {
   const { host } = ctx.env();
-  const { version, sha1 } = ctx.cfg();
+  const { version, sha256 } = ctx.cfg();
 
   const url =
     `https://dl.min.io/server/minio/release/${host.os}-${host.arch}/minio`;
 
   const output = "minio.zip";
 
-  ctx.action().download({ url, sha1, output });
+  ctx.action().download({ url, sha256, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -24,6 +24,6 @@ export default Warp.Toolchain({
   mnemonic: "Minio",
   impl,
   cfg: {
-    sha1: string(),
+    sha256: string(),
   },
 });

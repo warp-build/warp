@@ -3,12 +3,12 @@ export const TS_EXT = ".ts";
 
 const impl = (ctx) => {
   const { host } = ctx.env();
-  const { version, sha1_aarch64, sha1_x86_64 } = ctx.cfg();
+  const { version, sha256_aarch64, sha256_x86_64 } = ctx.cfg();
 
   let arch = host.arch;
-  let sha1 = sha1_aarch64;
+  let sha256 = sha256_aarch64;
   if (arch === "x86_64") {
-    sha1 = sha1_x86_64;
+    sha256 = sha256_x86_64;
   }
 
   const url =
@@ -16,7 +16,7 @@ const impl = (ctx) => {
 
   const output = "deno.zip";
 
-  ctx.action().download({ url, sha1, output });
+  ctx.action().download({ url, sha256, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -34,7 +34,7 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha1_aarch64: string(),
-    sha1_x86_64: string(),
+    sha256_aarch64: string(),
+    sha256_x86_64: string(),
   },
 });

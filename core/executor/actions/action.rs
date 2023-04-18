@@ -34,12 +34,16 @@ impl Action {
         Action::Copy(CopyAction { src, dst })
     }
 
-    pub fn verify_checksum(file: PathBuf, sha1: String) -> Action {
-        Action::VerifyChecksum(VerifyChecksumAction { file, sha1 })
+    pub fn verify_checksum(file: PathBuf, sha256: String) -> Action {
+        Action::VerifyChecksum(VerifyChecksumAction { file, sha256 })
     }
 
-    pub fn download(url: String, sha1: String, output: PathBuf) -> Action {
-        Action::Download(DownloadAction { url, sha1, output })
+    pub fn download(url: String, sha256: String, output: PathBuf) -> Action {
+        Action::Download(DownloadAction {
+            url,
+            sha256,
+            output,
+        })
     }
 
     pub fn extract(src: PathBuf, dst: PathBuf) -> Action {

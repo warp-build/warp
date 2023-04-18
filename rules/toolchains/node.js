@@ -1,5 +1,5 @@
 const impl = (ctx) => {
-  const { sha1, version } = ctx.cfg();
+  const { sha256, version } = ctx.cfg();
   const { host } = ctx.env();
 
   let arch = host.arch;
@@ -13,7 +13,7 @@ const impl = (ctx) => {
   const url = `https://nodejs.org/dist/v${version}/${node_path}.tar.gz`;
 
   const tempFile = "node.tar.gz";
-  ctx.action().download({ url, sha1, output: tempFile });
+  ctx.action().download({ url, sha256, output: tempFile });
   ctx.action().extract({ src: tempFile, dst: "." });
 
   ctx
@@ -39,7 +39,7 @@ export default Warp.Toolchain({
   mnemonic: "Node",
   impl,
   cfg: {
-    sha1: string(),
+    sha256: string(),
     version: string(),
   },
   toolchains: [],

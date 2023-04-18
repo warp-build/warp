@@ -71,7 +71,6 @@ regex = { workspace = true }
 reqwest = { workspace = true, features = ["stream", "json", "gzip"] }
 rexpect = { workspace = true }
 rusqlite = { workspace = true, features = ["bundled"] }
-rust-crypto = { workspace = true }
 seahash = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_derive = { workspace = true }

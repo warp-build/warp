@@ -7,7 +7,7 @@ export const RES_EXT = ".res";
 export const AST_EXT = ".ast";
 
 const impl = (ctx) => {
-  const { version, sha1 } = ctx.cfg();
+  const { version, sha256 } = ctx.cfg();
   const { host } = ctx.env();
 
   const url =
@@ -15,7 +15,7 @@ const impl = (ctx) => {
 
   const output = "rescript.tar.gz";
 
-  ctx.action().download({ url, sha1, output });
+  ctx.action().download({ url, sha256, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -39,6 +39,6 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha1: string(),
+    sha256: string(),
   },
 });

@@ -150,10 +150,10 @@ Warp.Signatures.compute = (inputSignature) => {
           data: { task, runScript, env: opts.env },
         }),
 
-      download: ({ url, sha1, output }) =>
+      download: ({ url, sha256, output }) =>
         _actions.push({
           ffi: "op_ctx_download",
-          data: { task, url, sha1, output },
+          data: { task, url, sha256, output },
         }),
 
       exec: ({ env = {}, cmd, args, cwd, needsTty = false }) =>
@@ -183,10 +183,10 @@ Warp.Signatures.compute = (inputSignature) => {
           data: { task, data, dst },
         }),
 
-      verifyChecksum: ({ file, sha1 }) =>
+      verifyChecksum: ({ file, sha256 }) =>
         _actions.push({
           ffi: "op_ctx_verify_checksum",
-          data: { task, file, sha1 },
+          data: { task, file, sha256 },
         }),
     }),
   };
