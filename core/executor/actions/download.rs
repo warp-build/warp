@@ -1,9 +1,8 @@
 use crate::model::ConcreteTarget;
 use anyhow::*;
-use crypto::digest::Digest;
-use crypto::sha1::Sha1;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::PathBuf;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
@@ -12,7 +11,7 @@ use tracing::{debug, instrument};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub struct DownloadAction {
     pub url: String,
-    pub sha1: String,
+    pub sha256: String,
     pub output: PathBuf,
 }
 
@@ -29,32 +28,27 @@ impl DownloadAction {
 
         let mut resp = reqwest::get(&self.url).await?.bytes_stream();
 
-        let mut hasher = Sha1::new();
+        let mut hasher = Sha256::new();
         while let Some(chunk) = resp.next().await {
             let mut chunk = chunk?;
             debug!("downloaded {} bytes", chunk.len());
-            hasher.input(&chunk);
+            hasher.update(&chunk);
             outfile.write_all_buf(&mut chunk).await?;
         }
 
-        let hash = hasher.result_str();
-        debug!("download hashed {} == {}", &hash, &self.sha1);
-        if hash == self.sha1 {
+        let hash = format!("{:x}", hasher.finalize());
+        debug!("download hashed {} == {}", &hash, &self.sha256);
+        if hash == self.sha256 {
             Ok(())
         } else {
             Err(anyhow!(
-                r#"The file we tried to download had a different SHA-1 than what we expected. Is the checksum wrong?
+                r#"The file we tried to download had a different SHA256 than what we expected. Is the checksum wrong?
 
 We expected "{expected_sha}"
 
 But found "{found_sha}"
-
-If this is the right SHA-1 you can fix this in your Workspace.json file
-under by changing the `sha1` key to this:
-
-sha1 = "{found_sha}"
 "#,
-                expected_sha = self.sha1,
+                expected_sha = self.sha256,
                 found_sha = hash,
             ))
         }

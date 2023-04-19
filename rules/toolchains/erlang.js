@@ -5,7 +5,8 @@ export const BEAM_EXT = ".beam";
 export const ERL_EXT = ".erl";
 
 const impl = (ctx) => {
-  const { version, sha1, configure_flags, make_flags, build_size } = ctx.cfg();
+  const { version, sha256, configure_flags, make_flags, build_size } = ctx
+    .cfg();
   const { host } = ctx.env();
 
   const output = "erlang.tar.gz";
@@ -15,7 +16,7 @@ const impl = (ctx) => {
   const url =
     `https://github.com/erlang/otp/releases/download/OTP-${version}/${prefix}.tar.gz`;
 
-  ctx.action().download({ url, sha1, output });
+  ctx.action().download({ url, sha256, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -74,12 +75,12 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha1: string(),
+    sha256: string(),
     build_size: string(),
     configure_flags: [string()],
   },
   defaults: {
-    sha1: "13f541022443d0e34021b2dca51b2541954d3e7b",
+    sha256: "13f541022443d0e34021b2dca51b2541954d3e7b",
     version: "25.3",
     build_size: "full",
     configure_flags: [

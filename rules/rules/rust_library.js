@@ -13,6 +13,7 @@ const impl = (ctx) => {
     main,
     name,
     srcs,
+    features,
     target,
   } = ctx.cfg();
 
@@ -22,11 +23,16 @@ const impl = (ctx) => {
       let rlib = dep.outs.find((out) => out.endsWith(RLIB_EXT));
       if (rlib) {
         let name = dep.config.crate_name;
-        return [`--extern ${name}=${rlib}`];
+        return [`${name}=${rlib}`];
       }
       return [];
     })
     .unique();
+
+  if (crate_type == "proc-macro") {
+    externCrates.push("proc-macro");
+  }
+  const externs = externCrates.map(crate => `--extern ${crate}`);
 
   const libs = ctx
     .transitiveDeps()
@@ -35,10 +41,17 @@ const impl = (ctx) => {
     .unique()
     .map((out) => `-L ${out}`);
 
-  const OUT_DIR = `.`;
+  if (features.length === 0) {
+    features.push("default");
+  }
+  const cfg_features = features.map((feat) => `--cfg 'feature="${feat}"'`);
+
+  const OUT_DIR = `target`;
 
   ctx.action().runShell({
     script: `
+
+mkdir -p ${OUT_DIR}
 
 rustc \\
   --edition ${edition} \\
@@ -46,8 +59,9 @@ rustc \\
   --crate-type ${crate_type} \\
   --emit asm,llvm-bc,llvm-ir,obj,metadata,link,dep-info,mir \\
   --out-dir ${OUT_DIR} \\
+  ${cfg_features.join(" \\\n  ")} \\
   ${libs.join(" \\\n  ")} \\
-  ${externCrates.join(" \\\n  ")} \\
+  ${externs.join(" \\\n  ")} \\
   ${main}
 
 `,
@@ -78,6 +92,7 @@ export default Warp.Rule({
     cargo_name: string(),
     crate_name: string(),
     crate_type: string(),
+    features: [string()],
     edition: string(),
     main: file(),
     srcs: [file()],
@@ -85,10 +100,6 @@ export default Warp.Rule({
   },
   defaults: {
     deps: [],
-    srcs: [
-      "./**/*.rs",
-      "./Cargo.*",
-    ],
   },
   toolchains: [RustToolchain],
 });

@@ -11,10 +11,10 @@ const impl = (ctx) => {
   const {
     kind,
     version,
-    sha1_macos_aarch64,
-    sha1_macos_x86_64,
-    sha1_linux_x86_64,
-    sha1_linux_aarch64,
+    sha256_macos_aarch64,
+    sha256_macos_x86_64,
+    sha256_linux_x86_64,
+    sha256_linux_aarch64,
   } = ctx.cfg();
 
   const output = "Precompiled.zip";
@@ -23,18 +23,18 @@ const impl = (ctx) => {
     ? `https://github.com/elixir-lang/elixir/archive/v${version}.tar.gz`
     : `https://github.com/elixir-lang/elixir/releases/download/v${version}/Precompiled.zip`;
 
-  let sha1 = sha1_macos_aarch64;
+  let sha256 = sha256_macos_aarch64;
   if (host.arch === "x86_64" && host.os == "darwin") {
-    sha1 = sha1_macos_x86_64;
+    sha256 = sha256_macos_x86_64;
   }
   if (host.arch === "x86_64" && host.os == "linux") {
-    sha1 = sha1_linux_x86_64;
+    sha256 = sha256_linux_x86_64;
   }
   if (host.arch === "aarch64" && host.os == "linux") {
-    sha1 = sha1_linux_aarch64;
+    sha256 = sha256_linux_aarch64;
   }
 
-  ctx.action().download({ url, sha1, output });
+  ctx.action().download({ url, sha256, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -93,18 +93,18 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha1_macos_aarch64: string(),
-    sha1_linux_aarch64: string(),
-    sha1_macos_x86_64: string(),
-    sha1_linux_x86_64: string(),
+    sha256_macos_aarch64: string(),
+    sha256_linux_aarch64: string(),
+    sha256_macos_x86_64: string(),
+    sha256_linux_x86_64: string(),
     kind: string(),
   },
   defaults: {
     kind: "source",
-    sha1_macos_aarch64: "9f754f439a0d280b0e13803eb9263d3051142b00",
-    sha1_linux_aarch64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
-    sha1_macos_x86_64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
-    sha1_linux_x86_64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
+    sha256_macos_aarch64: "9f754f439a0d280b0e13803eb9263d3051142b00",
+    sha256_linux_aarch64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
+    sha256_macos_x86_64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
+    sha256_linux_x86_64: "0c777d4fa21819b86dc55818bd5bad59e73a4167",
     version: "1.14",
   },
   toolchains: [ErlangToolchain],

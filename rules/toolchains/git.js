@@ -1,6 +1,6 @@
 const impl = (ctx) => {
   const { host } = ctx.env();
-  const { version, sha1 } = ctx.cfg();
+  const { version, sha256 } = ctx.cfg();
 
   const url =
     `https://mirrors.edge.kernel.org/pub/software/scm/git/git-${version}.tar.gz`;
@@ -8,7 +8,7 @@ const impl = (ctx) => {
   const prefix = `git-${version}`;
   const output = "git.tar.gz";
 
-  ctx.action().download({ url, sha1, output });
+  ctx.action().download({ url, sha256, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -45,11 +45,11 @@ export default Warp.Toolchain({
   mnemonic: "Git",
   impl,
   cfg: {
-    sha1: string(),
+    sha256: string(),
     version: string(),
   },
   defaults: {
-    sha1: "fc5107c0cc41fc7ee870c360d67517cd0ee26d17",
+    sha256: "fc5107c0cc41fc7ee870c360d67517cd0ee26d17",
     version: "2.38.1",
   },
 });

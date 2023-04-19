@@ -1,5 +1,5 @@
 const impl = (ctx) => {
-  const { version, sha1, build_flags } = ctx.cfg();
+  const { version, sha256, build_flags } = ctx.cfg();
   const { host } = ctx.env();
 
   const output = "openssl.tar.gz";
@@ -8,7 +8,7 @@ const impl = (ctx) => {
 
   const url = `https://github.com/openssl/openssl/archive/${version}.tar.gz`;
 
-  ctx.action().download({ url, sha1, output });
+  ctx.action().download({ url, sha256, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -52,10 +52,10 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha1: string(),
+    sha256: string(),
   },
   defaults: {
     version: "OpenSSL_1_1_1q",
-    sha1: "73118336c58ece2e3b87f1f933f8ba446e2bdc26",
+    sha256: "73118336c58ece2e3b87f1f933f8ba446e2bdc26",
   },
 });

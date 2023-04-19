@@ -13,6 +13,6 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha1: string(),
+    sha256: string(),
   },
 });

@@ -10,9 +10,9 @@ const impl = (ctx) => {
     arch = "aarch_64";
   }
 
-  let sha1 = cfg.sha1_aarch_64;
+  let sha256 = cfg.sha256_aarch_64;
   if (arch == "x86_64") {
-    sha1 = cfg.sha1_x86_64;
+    sha256 = cfg.sha256_x86_64;
   }
 
   trace(env.host.arch);
@@ -27,7 +27,7 @@ const impl = (ctx) => {
 
   const output = `protoc-${cfg.version}.zip`;
 
-  ctx.action().download({ url, sha1, output });
+  ctx.action().download({ url, sha256, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -43,7 +43,7 @@ export default Warp.Toolchain({
   impl,
   cfg: {
     version: string(),
-    sha1_aarch64: string(),
-    sha1_x86_64: string(),
+    sha256_aarch64: string(),
+    sha256_x86_64: string(),
   },
 });

@@ -1,7 +1,7 @@
 import ErlangToolchain from "https://rules.warp.build/toolchains/erlang.js";
 
 const impl = (ctx) => {
-  const { version, release_date, sha1 } = ctx.cfg();
+  const { version, release_date, sha256 } = ctx.cfg();
   const { host } = ctx.env();
 
   const output = "firefly.tar.gz";
@@ -17,7 +17,7 @@ const impl = (ctx) => {
   const url =
     `https://github.com/GetFirefly/firefly/releases/download/${version}-${release_date}/lumen-${version}-nightly-${platform}.tar.gz`;
 
-  ctx.action().download({ url, sha1, output });
+  ctx.action().download({ url, sha256, output });
 
   ctx.action().extract({ src: output, dst: "." });
 
@@ -45,7 +45,7 @@ export default Warp.Toolchain({
   cfg: {
     version: string(),
     release_date: string(),
-    sha1: string(),
+    sha256: string(),
   },
   toolchains: [ErlangToolchain],
 });

@@ -302,7 +302,7 @@ pub fn op_ctx_extract(state: &mut OpState, args: Extract) -> Result<(), AnyError
 pub struct VerifyChecksum {
     task: TaskId,
     file: PathBuf,
-    sha1: String,
+    sha256: String,
 }
 
 #[op]
@@ -311,7 +311,7 @@ pub fn op_ctx_verify_checksum(state: &mut OpState, args: VerifyChecksum) -> Resu
     let action_map = &ctx.action_map;
 
     let task = args.task;
-    let action = Action::verify_checksum(args.file, args.sha1);
+    let action = Action::verify_checksum(args.file, args.sha256);
     let new_actions = if let Some(entry) = action_map.get(&task) {
         let last_actions = entry.value();
         let mut new_actions = vec![];
@@ -332,7 +332,7 @@ pub fn op_ctx_verify_checksum(state: &mut OpState, args: VerifyChecksum) -> Resu
 pub struct Download {
     task: TaskId,
     url: String,
-    sha1: String,
+    sha256: String,
     output: PathBuf,
 }
 
@@ -342,7 +342,7 @@ pub fn op_ctx_download(state: &mut OpState, args: Download) -> Result<(), AnyErr
     let action_map = &ctx.action_map;
 
     let task = args.task;
-    let action = Action::download(args.url, args.sha1, args.output);
+    let action = Action::download(args.url, args.sha256, args.output);
     let new_actions = if let Some(entry) = action_map.get(&task) {
         let last_actions = entry.value();
         let mut new_actions = vec![];

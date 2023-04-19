@@ -109,10 +109,6 @@ where
             .collect();
 
         shell_env.insert("LANG".to_string(), env_locale);
-        shell_env.insert(
-            "WARP_TRICORDER_LOG".to_string(),
-            std::env::var("WARP_TRICORDER_LOG").unwrap_or_default(),
-        );
 
         let workspace_root = self.config.workspace_root().to_string_lossy().to_string();
 
