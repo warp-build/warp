@@ -2,6 +2,7 @@
 
 * [What is Warp?](README.md)
 * [Changelog](changelog.md)
+* [Supported Platforms](supported_platforms.md)
 
 ## Use Cases
 
