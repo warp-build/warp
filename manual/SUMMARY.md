@@ -2,6 +2,7 @@
 
 * [What is Warp?](README.md)
 * [Changelog](changelog.md)
+* [Blog](blog/)
 
 ## Use Cases
 
