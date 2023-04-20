@@ -2,7 +2,7 @@
 
 [Warp](https://warp.build) is a friendly, fast, and correct, zero-configuration build system designed to build and test your monorepo. You can think of it as a smart layer above your tools that will save you thousands of hours.
 
-Keep reading to learn more, or get started now.
+Keep reading to learn more, or get [started now](fundamentals/getting-started/installation.md).
 
 ## Why Warp?
 

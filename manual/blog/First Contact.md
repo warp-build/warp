@@ -5,11 +5,9 @@ authors: [leostera]
 tags: [warp, devtools, intro, software-lifecycle]
 ---
 
-It's been 46 years since the original release of Make, and the ways in which we
-build, test, and ship software are fundamentally unchanged.
+It's been 46 years since the original release of Make, and the ways in which we build, test, and ship software are fundamentally unchanged.
 
-You change some text files, find the right tool for the combination of ecosystem
-and task you want to run, then you run your tool.
+You change some text files, find the right tool for the combination of ecosystem and task you want to run, then you run your tool.
 
 It checks for timestamps, maybe writes some intermediary files, and spits out a
 report. You had an error. On a good day, it says OK! and you can push to Github.
@@ -21,12 +19,9 @@ available to developer tooling to make them transcend the ways of Make.
 
 ### There's too many damn tools
 
-We've followed the UNIX philosophy for better or worse, and we've come up with
-thousands of tiny tools that we need to remember how to pipe and stitch and run
-in the right order.
+We've followed the UNIX philosophy for better or worse, and we've come up with thousands of tiny tools that we need to remember how to pipe and stitch and run in the right order.
 
-We use brew, nix, pacman, aptitutde, and choco to install system level
-dependencies. Everything that is normally "below your application" is installed
+We use brew, nix, pacman, aptitude, and choco to install system level dependencies. Everything that is normally "below your application" is installed
 with this. Sometimes globally, sometimes in sandboxes. Here we install Elixir,
 and OpenJDK, and Python, and Postgres, and Kubernetes.
 
@@ -63,7 +58,7 @@ versions of tools they need.
 ### From Tasks to Goals
 
 Just like we moved from Imperative to Declarative programming because it helped
-us focus on _what_ we wanted to accomplish (which was way easier to think about)
+us focus on _what_ we wanted to accomplish (which was way easier to think about) rather
 than _how_ it was going to happen, I think its time we move up this ladder in
 the software build cycle.
 
@@ -111,8 +106,8 @@ that nobody maintains them.
 
 I'm a trekkie, and like Zefram Cochrane's first Warp drive design, I expect the
 right technological development to push us to an entire new age. For us software
-developers at least, tho I don't see any Vulcan's greeting your team anytime
-soon.
+developers at least (I don't see any Vulcan's greeting your team anytime
+soon).
 
 So I set out to build the equivalent engine but for the whole software
 lifecycle, and I am calling it (drumroll 🥁): **warp**.
@@ -125,14 +120,11 @@ once. This means that everything from low-level dependencies all the way up to
 the definition of custom high-level goals is handled within the same tool.
 
 **warp** treats source code like one big semantic database, borrowing from the
-Smalltalk line of software development. We have so much room to explore here
-what it really means for a code database to be semantic, and what we can do with
-it. Right now it allows us to answer with incredible granularity questions like
+Smalltalk line of software development. We have so much room to explore what it really means for a code database to be semantic, and what we can do with it. Right now it allows us to answer with incredible granularity questions like
 "should I run this test?" and "what is the impact of this refactor?".
 
 It is built to help teams start fast and _continue_ fast while they grow. From a
-founding team of 3 people up to an org of 100, the principles that we're
-building on scale with your entire team.
+founding team of 3 people up to an org of 100, the principles that we're building on scale with your entire team.
 
 ### Join us!
 
@@ -143,11 +135,9 @@ But as we approach the end of Q1 2023, the team and I are absolutely thrilled to
 welcome y'all to our <a
 href="https://warp.build/discord">community server</a>!
 
-Expect a small email every now and then with some updates on how things are
-going :)
+Expect a small email every now and then with some updates on how things are going :)
 
-We are starting this journey to faster-than-light builds for the Erlang and
-Elixir ecosystem so we are more than happy to hear what you've got to say!
+We are starting this journey to faster-than-light builds for the Erlang and Elixir ecosystem so we are more than happy to hear what you've got to say!
 
 First Contact is near.
 
