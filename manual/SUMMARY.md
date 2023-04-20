@@ -2,7 +2,6 @@
 
 * [What is Warp?](README.md)
 * [Changelog](changelog.md)
-* [Blog](blog/)
 
 ## Use Cases
 
@@ -21,3 +20,7 @@
 
 * [🧱 Contributing](references/contributing/README.md)
   * [Building \`warp\` from source](references/contributing/building-warp-from-source.md)
+
+## Blog
+
+* [First Contact](blog/First%20Contact.md)
