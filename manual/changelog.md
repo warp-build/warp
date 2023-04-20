@@ -72,7 +72,7 @@ More about this soon on our to-be-released docs page!
 
 #### 📜 **Hinting**
 
-Ssometimes the analyzers and Warp's heuristics can't figure out how to build something. Turns out, builds are hard 🙃. For example, Warp can detect Erlang tests and dependencies across all your source files, but it can't figure out what fixtures you are going to read from disk. To figure this out, we'll need to run your tests and instrument them (spoiler alert: check back on this later).
+Sometimes the analyzers and Warp's heuristics can't figure out how to build something. Turns out, builds are hard 🙃. For example, Warp can detect Erlang tests and dependencies across all your source files, but it can't figure out what fixtures you are going to read from disk. To figure this out, we'll need to run your tests and instrument them (spoiler alert: check back on this later).
 
 So for now we allow a small .warp file to be dropped near whichever file you want to add more dependencies (or runtime dependencies) to. Like this:
 
@@ -170,7 +170,7 @@ deps = ["./lib/users:lib"]
 
 ## v0.0.22 (2022/09/22)
 
-Small change that caches the rules based on the URLs (treating the URLs as uinque enough) rather than hashing the URL paths. This means that inspecting and tinkering with them becomes a lot easier :star\_struck:
+Small change that caches the rules based on the URLs (treating the URLs as unique enough) rather than hashing the URL paths. This means that inspecting and tinkering with them becomes a lot easier :star\_struck:
 
 For example, before you had to go to `/warp/rules/6d79d7a9670467d52e84da7cd1011fe958572011d5872be4fc62d05a1a40081e-pkgs.warp.build/node.js` to find the `node.js` toolchain.
 
