@@ -12,7 +12,7 @@
 
 ## Fundamentals
 
-* [🛠 Getting started](fundamentals/getting-started/installation.md)
+* [🛠 Getting started](fundamentals/getting-started/README.md)
   * [Installation](fundamentals/getting-started/installation.md)
 * [🔭 Learning Warp](fundamentals/learning-warp/README.md)
   * [Concepts](fundamentals/learning-warp/concepts.md)
