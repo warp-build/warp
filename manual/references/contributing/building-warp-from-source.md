@@ -15,9 +15,9 @@ git clone https://github.com/warp-build/warp.git
 warp requires a few toolchains:
 
 * the latest stable release of Rust
-* `deno` version `v1.32` or newed
+* `deno` version `v1.32` or newer
 * `elixir` version `1.14` with OTP 25
-* a `protoc` compiler version `3.20` or newed
+* a `protoc` compiler version `3.20` or newer
 
 ## Building warp
 
