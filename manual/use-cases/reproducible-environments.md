@@ -2,22 +2,19 @@
 
 
 
-{% hint style="info" %}
-**Good to know:** depending on the product you're building, it can be useful to explicitly document use cases. Got a product that can be used by a bunch of people in different ways? Maybe consider splitting it out!
-{% endhint %}
+## ⚡️ Zero Configuration Builds
 
-## Figma Integrations
+Warp enables **fully zero-config builds**. This is made possible through a concept we're calling Warp Signatures (🖖). 
 
-{% tabs %}
-{% tab title="Installing" %}
-{% embed url="https://www.figma.com/community/plugin/950514102619019349/Automater" %}
-{% endtab %}
+A Warp Signature is a unique recipe for building a piece of source code at a point in time, that can be derived statically from analyzing the repository, and is updated automatically as the file changes.
 
-{% tab title="Configuring" %}
-Maecenas faucibus mollis interdum. Donec id elit non mi porta gravida at eget metus. Donec ullamcorper nulla non metus auctor fringilla. Donec sed odio dui. Donec ullamcorper nulla non metus auctor fringilla.
-{% endtab %}
+Since warps build engine is fully deterministic we can ensure that every project is built **exactly** the same every time, on every machine.
 
-{% tab title="Customizing" %}
+Onboarding a new engineer becomes as simple as running a couple of warp commans.
 
-{% endtab %}
-{% endtabs %}
+```console
+warp init
+warp build
+```
+
+And off you go, ensign, you're onboarded.

@@ -122,7 +122,7 @@ Lastly, you will find that the lifters write into a file called .warp/Dependenci
 
 📜 **Fewer Files, and all JSON**
 
-**W**while not a feature, we have moved away from TOML and onto JSON. All future configuration will happen with a variant of JSON that supports comments in it.
+While not a feature, we have moved away from TOML and onto JSON. All future configuration will happen with a variant of JSON that supports comments in it.
 
 We are also working towards moving away from Build files to provide an even cleaner experience. More news soon!
 

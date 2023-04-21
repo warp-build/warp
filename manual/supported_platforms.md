@@ -3,7 +3,7 @@ sidebar_position: 2
 ---
 
 # Supported Architectures
-We currently support the targets below, that we explicitly compile for. You can find binaries for these targets [here](https://github.com/warp-build/warp/releases)
+We currently support the targets below, that we explicitly compile for. You can find binaries for these targets on [github releases](https://github.com/warp-build/warp/releases).
 
 | OS          | Architecture| Target                    |
 | ----------- | ----------- | ------------------------- |

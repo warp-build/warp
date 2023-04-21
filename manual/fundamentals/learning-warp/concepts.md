@@ -49,6 +49,13 @@ Here are some example targets:
   * `warp build https://github.com/warp-build/warp`
 
 ### Signatures
+When you ask Warp to build something, Warp needs to understand how to build it. But writing Build files (in whatever format) is a drag: Makefiles get messy, BUILD.bazel files go out of date. This is why the team at warp believes strongly in **fully zero-config builds**, which we make possible through a concept we're calling Warp Signatures (yes, we like Star Trek 🖖, sue us).
+
+A Warp Signature is a unique recipe for building a piece of source code at a point in time, that can be derived statically from analyzing the repository, and is updated automatically as the file changes.
+
+Make a code change? No problem.
+
+Warp understands how to update the build graph based on the semantics of your change. New import? New dependency. Removed call to library? Removed dependency.
 
 ### Rules
 
