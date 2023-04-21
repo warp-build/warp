@@ -3,6 +3,7 @@
 * [What is Warp?](README.md)
 * [Changelog](changelog.md)
 * [Supported Platforms](supported_platforms.md)
+* [Roadmap](roadmap.md)
 
 ## Use Cases
 
@@ -21,6 +22,7 @@
 
 * [🧱 Contributing](references/contributing/README.md)
   * [Building \`warp\` from source](references/contributing/building-warp-from-source.md)
+  * []
 
 ## Blog
 
