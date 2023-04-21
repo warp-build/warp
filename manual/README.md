@@ -4,6 +4,10 @@
 
 Keep reading to learn more, or get [started now](fundamentals/getting-started/installation.md).
 
+{% hint style="warning" %}
+**Warp is currently in Alpha.** We appreciate your support and feedback while we work on making it ready for everyone!
+{% endhint %}
+
 ## Why Warp?
 
 ⚡️ **Faster-than-light.** Never do any work twice. Always get incremental build and test feedback within milliseconds.

@@ -17,12 +17,12 @@
   * [Installation](fundamentals/getting-started/installation.md)
 * [🔭 Learning Warp](fundamentals/learning-warp/README.md)
   * [Concepts](fundamentals/learning-warp/concepts.md)
-
+  * [Commands](fundamentals/learning-warp/commands.md)
 ## References
 
 * [🧱 Contributing](references/contributing/README.md)
   * [Building \`warp\` from source](references/contributing/building-warp-from-source.md)
-  * []
+
 
 ## Blog
 
