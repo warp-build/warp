@@ -1,7 +1,6 @@
 # 🎁 Reproducible Environments
 
 
-
 ## ⚡️ Zero Configuration Builds
 
 Warp enables **fully zero-config builds**. This is made possible through a concept we're calling Warp Signatures (🖖). 
@@ -13,7 +12,7 @@ Since warps build engine is fully deterministic we can ensure that every project
 Onboarding a new engineer becomes as simple as running a couple of warp commans.
 
 ```console
-warp init
+warp setup
 warp build
 ```
 

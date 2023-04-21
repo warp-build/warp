@@ -58,5 +58,25 @@ Make a code change? No problem.
 Warp understands how to update the build graph based on the semantics of your change. New import? New dependency. Removed call to library? Removed dependency.
 
 ### Rules
+Warp's collection of Rules and Toolchains implements support for several tools (like git) and teaches Warp how to do new things.
+
+Example:
+```js
+const impl = (ctx) => {
+  ctx.action().declareOutputs([]);
+};
+
+export default Warp.Rule({
+  name: "https://rules.warp.build/rules/dummy",
+  mnemonic: "Dummy",
+  impl,
+  cfg: {
+    name: target(),
+  },
+  toolchains: [],
+});
+
+```
 
 ### Tricorders
+To make interfacing with new ecosystems easier in the long run, we're using a protocol that will allow us to plug in different LSPs directly into Warp for analysis of build targets. This is currently implemented as a gRPC/Protobuf service interface, and it powers Warp's dependency resolution and signature generation processes.
