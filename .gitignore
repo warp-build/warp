@@ -1,4 +1,4 @@
-warp-*
+/warp-*
 .terraform*
 3rdparty
 node_modules
