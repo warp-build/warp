@@ -4,5 +4,4 @@ expression: deps
 ---
 [
     "add_two",
-    "assert_failed",
 ]

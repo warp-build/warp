@@ -1,6 +1,6 @@
 use std::collections::HashSet;
+use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 
 use crate::analysis::ast::*;
 use crate::analysis::dependency::*;
@@ -8,27 +8,14 @@ pub struct TreeSplitter {}
 
 impl TreeSplitter {
     pub fn expand_file(file_path: PathBuf) -> String {
-        let cmd_out = Command::new("rustc")
-            .arg("-Z")
-            .arg("unpretty=expanded")
-            .arg("--test")
-            .arg(file_path)
-            .output()
-            .unwrap();
-
-        String::from_utf8(cmd_out.stdout).unwrap()
+        // `rustc -Z unpretty` is a nightly-only interface. The tricorder only
+        // needs a parseable source tree, so keep analysis independent of a
+        // compiler-specific expansion format and the nightly toolchain.
+        fs::read_to_string(file_path).unwrap()
     }
 
     pub fn parse_file(file_path: PathBuf) -> String {
-        let cmd_out = Command::new("rustc")
-            .arg("-Z")
-            .arg("unpretty=normal")
-            .arg("--test")
-            .arg(file_path)
-            .output()
-            .unwrap();
-
-        String::from_utf8(cmd_out.stdout).unwrap()
+        fs::read_to_string(file_path).unwrap()
     }
 
     pub fn get_deps_all(sources: &str) -> (Vec<String>, Vec<String>) {

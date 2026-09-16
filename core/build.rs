@@ -1,4 +1,4 @@
-use deno_core::{JsRuntime, RuntimeOptions};
+use deno_core::{JsRuntimeForSnapshot, RuntimeOptions};
 
 use std::env;
 use std::path::PathBuf;
@@ -6,11 +6,8 @@ use std::path::PathBuf;
 fn main() -> Result<(), anyhow::Error> {
     let o = PathBuf::from(env::var_os("OUT_DIR").unwrap());
     let snapshot_path = o.join("JS_SNAPSHOT.bin");
-    let options = RuntimeOptions {
-        will_snapshot: true,
-        ..Default::default()
-    };
-    let isolate = JsRuntime::new(options);
+    let options = RuntimeOptions::default();
+    let isolate = JsRuntimeForSnapshot::new(options);
 
     let snapshot = isolate.snapshot();
     let snapshot_slice: &[u8] = &snapshot;

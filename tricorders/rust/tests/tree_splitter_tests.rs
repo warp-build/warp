@@ -1,10 +1,13 @@
 use std::path::PathBuf;
 use tricorder::analysis::tree_splitter::TreeSplitter;
 
+fn source_path(name: &str) -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/sources").join(name)
+}
+
 #[test]
 fn t001_simple_fn_graph() {
-    let source =
-        TreeSplitter::expand_file(PathBuf::from("./tests/sources/t001_simple_fn_graph.rs"));
+    let source = TreeSplitter::expand_file(source_path("t001_simple_fn_graph.rs"));
 
     let test_name = "main".to_string();
 
@@ -15,19 +18,18 @@ fn t001_simple_fn_graph() {
 
 #[test]
 fn t002_has_tests() {
-    let source =
-        TreeSplitter::expand_file(PathBuf::from("./tests/sources/t001_simple_fn_graph.rs"));
+    let source = TreeSplitter::expand_file(source_path("t001_simple_fn_graph.rs"));
     let has_tests = TreeSplitter::has_tests(&source);
     insta::assert_debug_snapshot!(has_tests);
 
-    let source = TreeSplitter::expand_file(PathBuf::from("./tests/sources/t003_lib_with_tests.rs"));
+    let source = TreeSplitter::expand_file(source_path("t003_lib_with_tests.rs"));
     let has_tests = TreeSplitter::has_tests(&source);
     insta::assert_debug_snapshot!(has_tests);
 }
 
 #[test]
 fn t003_get_ast_on_tests_inside_of_mods() {
-    let source = TreeSplitter::expand_file(PathBuf::from("./tests/sources/t003_lib_with_tests.rs"));
+    let source = TreeSplitter::expand_file(source_path("t003_lib_with_tests.rs"));
 
     let test_matcher = vec!["one".to_string()];
     let matching_tests = TreeSplitter::find_matching_tests(test_matcher, &source);
@@ -46,7 +48,7 @@ fn t003_get_ast_on_tests_inside_of_mods() {
 
 #[test]
 fn t004_get_ast_on_tests_inside_of_mods() {
-    let source = TreeSplitter::expand_file(PathBuf::from("./tests/sources/t003_lib_with_tests.rs"));
+    let source = TreeSplitter::expand_file(source_path("t003_lib_with_tests.rs"));
 
     let ast = syn::parse_file(&source).unwrap();
     let test_matcher = vec!["add_three_and_two".to_string()];

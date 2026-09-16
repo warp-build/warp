@@ -1,5 +1,5 @@
 use syn::visit::{self, Visit};
-use syn::{ItemFn, ItemMod};
+use syn::{ItemConst, ItemFn, ItemMod};
 
 pub struct TestVisitor {
     pub has_test: bool,
@@ -7,7 +7,9 @@ pub struct TestVisitor {
 
 impl<'ast> Visit<'ast> for TestVisitor {
     fn visit_item_fn(&mut self, item: &'ast ItemFn) {
-        if item.attrs.iter().any(|attr| attr.path.is_ident("test")) {
+        if item.attrs.iter().any(|attr| {
+            attr.path.is_ident("test") || attr.path.is_ident("rustc_test_marker")
+        }) {
             self.has_test = true;
         } else if item
             .attrs
@@ -17,6 +19,17 @@ impl<'ast> Visit<'ast> for TestVisitor {
             self.has_test = true;
         }
         visit::visit_item_fn(self, item);
+    }
+
+    fn visit_item_const(&mut self, item: &'ast ItemConst) {
+        if item
+            .attrs
+            .iter()
+            .any(|attr| attr.path.is_ident("rustc_test_marker"))
+        {
+            self.has_test = true;
+        }
+        visit::visit_item_const(self, item);
     }
 
     fn visit_item_mod(&mut self, item: &'ast ItemMod) {
@@ -39,7 +52,9 @@ pub struct TestFinder {
 
 impl<'a> Visit<'a> for TestFinder {
     fn visit_item_fn(&mut self, item: &'a syn::ItemFn) {
-        if item.attrs.iter().any(|attr| attr.path.is_ident("test")) {
+        if item.attrs.iter().any(|attr| {
+            attr.path.is_ident("test") || attr.path.is_ident("rustc_test_marker")
+        }) {
             if item.sig.ident.to_string().starts_with(&self.matcher) {
                 self.tests.push(item.sig.ident.to_string());
             }
@@ -54,17 +69,21 @@ impl<'a> Visit<'a> for TestFinder {
         visit::visit_item_fn(self, item);
     }
 
-    fn visit_item_mod(&mut self, item: &ItemMod) {
+    fn visit_item_const(&mut self, item: &'a ItemConst) {
         if item
             .attrs
             .iter()
-            .any(|attr| attr.path.is_ident("cfg") && attr.tokens.to_string().contains("test"))
+            .any(|attr| attr.path.is_ident("rustc_test_marker"))
+            && item.ident.to_string().starts_with(&self.matcher)
         {
-            if let Some(content) = &item.content {
-                for nested_item in &content.1 {
-                    visit::visit_item(self, nested_item);
-                }
-            }
+            self.tests.push(item.ident.to_string());
         }
+        visit::visit_item_const(self, item);
+    }
+
+    fn visit_item_mod(&mut self, item: &ItemMod) {
+        // Expanded test modules no longer retain their `#[cfg(test)]` attribute;
+        // traverse every inline module so marker constants remain discoverable.
+        visit::visit_item_mod(self, item);
     }
 }

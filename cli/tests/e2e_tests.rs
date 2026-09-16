@@ -11,6 +11,7 @@ macro_rules! assert_in_store {
 }
 
 #[test]
+#[ignore = "requires privileged /warp volume setup"]
 fn verl_build() {
     let cwd = current_dir().unwrap();
 

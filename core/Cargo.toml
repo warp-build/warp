@@ -93,7 +93,6 @@ tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4", "fast-rng", "macro-diagnostics"] }
-v8 = { workspace = true }
 whoami = { workspace = true }
 
 [build-dependencies]

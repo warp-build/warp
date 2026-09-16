@@ -9,21 +9,24 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::*;
 
-#[op]
-pub fn op_env_var(var: String) -> Result<String, AnyError> {
+#[op2]
+#[string]
+pub fn op_env_var(#[string] var: String) -> Result<String, AnyError> {
     Ok(std::env::var(var).unwrap_or_default())
 }
 
-#[op]
-pub fn op_target_dir(state: &mut OpState, task: TaskId) -> Result<String, AnyError> {
+#[op2]
+#[string]
+pub fn op_target_dir(state: &mut OpState, #[serde] task: TaskId) -> Result<String, AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let task = ctx.task_registry.get(task);
     let target = ctx.target_registry.get_concrete_target(task.target_id());
     Ok(target.dir().to_str().unwrap().to_string())
 }
 
-#[op]
-pub fn op_target_path(state: &mut OpState, task: TaskId) -> Result<String, AnyError> {
+#[op2]
+#[string]
+pub fn op_target_path(state: &mut OpState, #[serde] task: TaskId) -> Result<String, AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let task = ctx.task_registry.get(task);
     let target = ctx.target_registry.get_concrete_target(task.target_id());
@@ -41,16 +44,18 @@ pub fn op_target_path(state: &mut OpState, task: TaskId) -> Result<String, AnyEr
     })
 }
 
-#[op]
-pub fn op_target_name(state: &mut OpState, task: TaskId) -> Result<String, AnyError> {
+#[op2]
+#[string]
+pub fn op_target_name(state: &mut OpState, #[serde] task: TaskId) -> Result<String, AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let task = ctx.task_registry.get(task);
     let target = ctx.target_registry.get_concrete_target(task.target_id());
     Ok(target.name().to_string())
 }
 
-#[op]
-pub fn op_file_parent(filepath: String) -> Result<String, AnyError> {
+#[op2]
+#[string]
+pub fn op_file_parent(#[string] filepath: String) -> Result<String, AnyError> {
     let path = PathBuf::from(filepath);
     let parent = path
         .parent()
@@ -64,8 +69,9 @@ pub fn op_file_parent(filepath: String) -> Result<String, AnyError> {
     })
 }
 
-#[op]
-pub fn op_file_filename(filepath: String) -> Result<String, AnyError> {
+#[op2]
+#[string]
+pub fn op_file_filename(#[string] filepath: String) -> Result<String, AnyError> {
     let path = PathBuf::from(filepath);
     let file_name = path.file_name().unwrap().to_str().unwrap();
     Ok(file_name.to_string())
@@ -78,8 +84,9 @@ pub struct FileWithExtension {
     ext: String,
 }
 
-#[op]
-pub fn op_file_with_extension(args: FileWithExtension) -> Result<String, AnyError> {
+#[op2]
+#[string]
+pub fn op_file_with_extension(#[serde] args: FileWithExtension) -> Result<String, AnyError> {
     let path = PathBuf::from(args.path);
     let final_path = path.with_extension(args.ext.strip_prefix('.').unwrap());
     Ok(final_path.to_str().unwrap().to_string())
@@ -93,10 +100,10 @@ pub struct DeclareTestRunner {
     env: HashMap<String, String>,
 }
 
-#[op]
+#[op2]
 pub fn op_ctx_actions_declare_test_runner(
     state: &mut OpState,
-    args: DeclareTestRunner,
+    #[serde] args: DeclareTestRunner,
 ) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let test_runner_map = &ctx.test_runner_map;
@@ -124,10 +131,10 @@ pub struct DeclareRunScript {
     env: HashMap<String, String>,
 }
 
-#[op]
+#[op2]
 pub fn op_ctx_actions_declare_run_script(
     state: &mut OpState,
-    args: DeclareRunScript,
+    #[serde] args: DeclareRunScript,
 ) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let run_script_map = &ctx.run_script_map;
@@ -154,10 +161,10 @@ pub struct DeclareOutputs {
     outs: Vec<String>,
 }
 
-#[op]
+#[op2]
 pub fn op_ctx_actions_declare_outputs(
     state: &mut OpState,
-    args: DeclareOutputs,
+    #[serde] args: DeclareOutputs,
 ) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let output_map = &ctx.output_map;
@@ -185,8 +192,8 @@ pub struct DeclareEnv {
     env: FxHashMap<String, String>,
 }
 
-#[op]
-pub fn op_ctx_declare_env(state: &mut OpState, args: DeclareEnv) -> Result<(), AnyError> {
+#[op2]
+pub fn op_ctx_declare_env(state: &mut OpState, #[serde] args: DeclareEnv) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let env_map = &ctx.shell_env_map;
 
@@ -203,8 +210,8 @@ pub struct DeclareProvides {
     provides: FxHashMap<String, String>,
 }
 
-#[op]
-pub fn op_ctx_declare_provides(state: &mut OpState, args: DeclareProvides) -> Result<(), AnyError> {
+#[op2]
+pub fn op_ctx_declare_provides(state: &mut OpState, #[serde] args: DeclareProvides) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let provides_map = &ctx.provides_map;
 
@@ -219,10 +226,11 @@ pub struct FetchProvides {
     task: TaskId,
 }
 
-#[op]
+#[op2]
+#[serde]
 pub fn op_ctx_fetch_provides(
     state: &mut OpState,
-    args: FetchProvides,
+    #[serde] args: FetchProvides,
 ) -> Result<FxHashMap<String, String>, AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let provides_map = &ctx.provides_map;
@@ -245,8 +253,8 @@ pub struct SetPermissions {
     executable: bool,
 }
 
-#[op]
-pub fn op_ctx_set_permissions(state: &mut OpState, args: SetPermissions) -> Result<(), AnyError> {
+#[op2]
+pub fn op_ctx_set_permissions(state: &mut OpState, #[serde] args: SetPermissions) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
@@ -275,8 +283,8 @@ pub struct Extract {
     dst: PathBuf,
 }
 
-#[op]
-pub fn op_ctx_extract(state: &mut OpState, args: Extract) -> Result<(), AnyError> {
+#[op2]
+pub fn op_ctx_extract(state: &mut OpState, #[serde] args: Extract) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
@@ -305,8 +313,8 @@ pub struct VerifyChecksum {
     sha256: String,
 }
 
-#[op]
-pub fn op_ctx_verify_checksum(state: &mut OpState, args: VerifyChecksum) -> Result<(), AnyError> {
+#[op2]
+pub fn op_ctx_verify_checksum(state: &mut OpState, #[serde] args: VerifyChecksum) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
@@ -336,8 +344,8 @@ pub struct Download {
     output: PathBuf,
 }
 
-#[op]
-pub fn op_ctx_download(state: &mut OpState, args: Download) -> Result<(), AnyError> {
+#[op2]
+pub fn op_ctx_download(state: &mut OpState, #[serde] args: Download) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
@@ -367,8 +375,8 @@ pub struct RunShell {
     needs_tty: bool,
 }
 
-#[op]
-pub fn op_ctx_actions_run_shell(state: &mut OpState, args: RunShell) -> Result<(), AnyError> {
+#[op2]
+pub fn op_ctx_actions_run_shell(state: &mut OpState, #[serde] args: RunShell) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
@@ -397,8 +405,8 @@ pub struct WriteFile {
     dst: String,
 }
 
-#[op]
-pub fn op_ctx_actions_write_file(state: &mut OpState, args: WriteFile) -> Result<(), AnyError> {
+#[op2]
+pub fn op_ctx_actions_write_file(state: &mut OpState, #[serde] args: WriteFile) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
@@ -427,8 +435,8 @@ pub struct CopyFile {
     dst: String,
 }
 
-#[op]
-pub fn op_ctx_actions_copy(state: &mut OpState, args: CopyFile) -> Result<(), AnyError> {
+#[op2]
+pub fn op_ctx_actions_copy(state: &mut OpState, #[serde] args: CopyFile) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
@@ -459,8 +467,8 @@ pub struct Exec {
     needs_tty: bool,
 }
 
-#[op]
-pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyError> {
+#[op2]
+pub fn op_ctx_actions_exec(state: &mut OpState, #[serde] args: Exec) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
     let action_map = &ctx.action_map;
 
@@ -487,8 +495,8 @@ pub fn op_ctx_actions_exec(state: &mut OpState, args: Exec) -> Result<(), AnyErr
     Ok(())
 }
 
-#[op]
-pub fn op_rule_new(state: &mut OpState, rule: Rule) -> Result<(), AnyError> {
+#[op2]
+pub fn op_rule_new(state: &mut OpState, #[serde] rule: Rule) -> Result<(), AnyError> {
     let ctx = state.borrow::<FfiContext>();
 
     debug!("Registering rule: {}", &rule.name());

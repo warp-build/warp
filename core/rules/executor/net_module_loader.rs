@@ -2,7 +2,8 @@ use crate::rules::RuleStore;
 use crate::sync::*;
 use anyhow::{bail, Error};
 use deno_core::{
-    resolve_import, ModuleLoader, ModuleSource, ModuleSourceFuture, ModuleSpecifier, ModuleType,
+    resolve_import, ModuleLoader, ModuleSource, ModuleSourceCode, ModuleSourceFuture,
+    ModuleSpecifier, ModuleType,
 };
 use futures::FutureExt;
 use std::pin::Pin;
@@ -33,7 +34,7 @@ impl ModuleLoader for NetModuleLoader {
     fn load(
         &self,
         module_specifier: &ModuleSpecifier,
-        _maybe_referrer: Option<ModuleSpecifier>,
+        _maybe_referrer: Option<&ModuleSpecifier>,
         _is_dyn_import: bool,
     ) -> Pin<Box<ModuleSourceFuture>> {
         let rule_store = self.rule_store.clone();
@@ -63,14 +64,13 @@ impl ModuleLoader for NetModuleLoader {
             } else {
                 bytes
             }
-            .into_boxed_slice();
+            ;
 
-            let module = ModuleSource {
-                code,
-                module_type: ModuleType::JavaScript,
-                module_url_specified: string_specifier.clone(),
-                module_url_found: string_specifier.to_string(),
-            };
+            let module = ModuleSource::new(
+                ModuleType::JavaScript,
+                ModuleSourceCode::String(String::from_utf8(code)?.into()),
+                &module_specifier,
+            );
 
             Ok(module)
         }

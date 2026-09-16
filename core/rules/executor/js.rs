@@ -5,7 +5,7 @@ use crate::model::{Dependencies, ExecutionEnvironment, Rule, RunScript, Signatur
 use crate::rules::executor::compute_script::ComputeScript;
 use crate::rules::ExecutionResult;
 use async_trait::async_trait;
-use deno_core::Extension;
+use deno_core::{Extension, PollEventLoopOptions};
 use fxhash::{FxHashMap, FxHashSet};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -67,13 +67,13 @@ impl RuleExecutor for JsRuleExecutor {
                 rule_store: ctx.rule_store.clone(),
             })),
             // v8_platform: Some(v8::Platform::new_single_threaded(true).make_shared()),
-            extensions: vec![extension, deno_console::init()],
+            extensions: vec![extension],
             ..Default::default()
         };
         let mut js_runtime = deno_core::JsRuntime::new(rt_options);
 
         js_runtime
-            .execute_script("<prelude>", include_str!("prelude.js"))
+            .execute_script("<prelude>", deno_core::FastString::from_static(include_str!("prelude.js")))
             .map_err(RuleExecutorError::DenoExecutionError)?;
 
         Ok(Self { ctx, js_runtime })
@@ -104,10 +104,8 @@ impl RuleExecutor for JsRuleExecutor {
 
         trace!("Executing: {}", compute_program);
 
-        let script_name = format!("<sig: {:?}>", &sig.target().to_string());
-
         self.js_runtime
-            .execute_script(&script_name, &compute_program)
+            .execute_script("<signature>", compute_program.into())
             .map_err(|err| RuleExecutorError::ExecutionError {
                 err,
                 target: (*sig.target().original_target()).clone().into(),
@@ -241,7 +239,7 @@ impl JsRuleExecutor {
 
         let mod_id = self
             .js_runtime
-            .load_side_module(&mod_specifier, module_code)
+            .load_side_module(&mod_specifier, module_code.map(Into::into))
             .await
             .map_err(|reason| RuleExecutorError::ModuleResolutionError {
                 module_name: module_name.to_string(),
@@ -251,7 +249,7 @@ impl JsRuleExecutor {
         let eval_future = self.js_runtime.mod_evaluate(mod_id);
 
         self.js_runtime
-            .run_event_loop(false)
+            .run_event_loop(PollEventLoopOptions::default())
             .await
             .map_err(|reason| RuleExecutorError::ModuleEvaluationError {
                 module_name: module_name.to_string(),
