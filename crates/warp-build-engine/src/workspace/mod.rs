@@ -3,6 +3,7 @@ use crate::error::{Result, WarpError};
 use crate::graph::{ActionPlan, GraphExecutor, Plan, TaskId, TaskProvider};
 use crate::request::{rustc_flags, target_environment_name};
 use crate::{default_cache_directory, status_tag, BuildProfile, CompilationTargetTriple};
+use ignore::WalkBuilder;
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -20,6 +21,7 @@ mod build_intent;
 mod build_node;
 mod build_runtime;
 mod build_target;
+mod hashing;
 mod label;
 mod scan;
 #[cfg(unix)]
@@ -41,6 +43,7 @@ pub use build_intent::{BuildIntent, BuildScope};
 use build_node::BuildNode;
 use build_runtime::BuildRuntime;
 pub use build_target::BuildTarget;
+use hashing::HashPool;
 pub use label::Label;
 
 static NEXT_WORK: AtomicU64 = AtomicU64::new(0);
@@ -322,7 +325,7 @@ struct Workspace {
     roots: Vec<TaskId>,
     excluded_directories: Vec<String>,
     external_artifacts: Mutex<HashMap<String, PathBuf>>,
-    artifact_digests: Mutex<HashMap<PathBuf, Arc<Mutex<Option<String>>>>>,
+    hash_pool: HashPool,
 }
 
 struct WorkspaceBuildContext<'a> {
@@ -615,7 +618,7 @@ impl Workspace {
             roots,
             excluded_directories: excluded_directories.to_vec(),
             external_artifacts: Mutex::new(HashMap::new()),
-            artifact_digests: Mutex::new(HashMap::new()),
+            hash_pool: HashPool::new()?,
         })
     }
 
@@ -660,39 +663,16 @@ impl Workspace {
             .map_err(|error| WarpError::new(error.clone()))
     }
 
-    /// Hashes each immutable artifact once per build invocation, then reuses its actual digest.
     fn artifact_digest(&self, path: &Path) -> Result<String> {
-        let cell = self.artifact_digest_cell(path)?;
-        let mut digest = cell
-            .lock()
-            .map_err(|_| WarpError::new("artifact digest entry poisoned"))?;
-        if let Some(digest) = digest.as_ref() {
-            return Ok(digest.clone());
-        }
-        let computed = hash_file(path)?;
-        *digest = Some(computed.clone());
-        Ok(computed)
+        self.hash_pool.hash_file(path)
+    }
+
+    fn artifact_digests(&self, paths: &[PathBuf]) -> Result<Vec<String>> {
+        self.hash_pool.hash_files(paths)
     }
 
     fn remember_artifact_digest(&self, path: &Path, digest: &str) -> Result<()> {
-        *self
-            .artifact_digest_cell(path)?
-            .lock()
-            .map_err(|_| WarpError::new("artifact digest entry poisoned"))? =
-            Some(digest.to_owned());
-        Ok(())
-    }
-
-    fn artifact_digest_cell(&self, path: &Path) -> Result<Arc<Mutex<Option<String>>>> {
-        self.artifact_digests
-            .lock()
-            .map_err(|_| WarpError::new("artifact digest cache poisoned"))
-            .map(|mut digests| {
-                digests
-                    .entry(path.to_path_buf())
-                    .or_insert_with(|| Arc::new(Mutex::new(None)))
-                    .clone()
-            })
+        self.hash_pool.remember(path, digest)
     }
 
     fn external_artifact(&self, package_id: &str, artifact: &ExternalArtifact) -> Result<PathBuf> {
@@ -739,20 +719,44 @@ impl Workspace {
         native_directories.dedup();
 
         let mut hasher = blake3::Hasher::new();
+        write_field(&mut hasher, b"warp-global-fingerprint-v2");
         write_field(&mut hasher, RUST_TARGET_RULE.as_bytes());
         write_field(&mut hasher, self.compilation_target.as_str().as_bytes());
         write_field(&mut hasher, self.profile.as_str().as_bytes());
-        for path in [
+        let mut input_files = [
             self.root.join("Cargo.toml"),
             self.root.join("Cargo.lock"),
             self.root.join("rust-toolchain.toml"),
             self.root.join(".cargo/config.toml"),
             self.root.join(".cargo/config"),
-        ] {
-            if path.is_file() {
-                hash_path_into(&mut hasher, &path, &self.root)?;
+        ]
+        .into_iter()
+        .filter(|path| path.is_file())
+        .collect::<Vec<_>>();
+        let mut ignore_files = HashSet::new();
+        for target in self.targets.values() {
+            let mut directory = target.package_root.as_path();
+            loop {
+                let ignore_file = directory.join(".gitignore");
+                if ignore_file.is_file() {
+                    ignore_files.insert(ignore_file);
+                }
+                if directory == self.root {
+                    break;
+                }
+                let Some(parent) = directory
+                    .parent()
+                    .filter(|parent| parent.starts_with(&self.root))
+                else {
+                    break;
+                };
+                directory = parent;
             }
         }
+        input_files.extend(ignore_files);
+        input_files.sort();
+        input_files.dedup();
+        hash_paths_into(&mut hasher, &self.root, &input_files, &self.hash_pool)?;
         for directory in &native_directories {
             let relative = directory
                 .strip_prefix(&self.cargo_target_directory)
@@ -763,7 +767,12 @@ impl Workspace {
                 &mut hasher,
                 relative.to_string_lossy().replace('\\', "/").as_bytes(),
             );
-            hash_tree_into(&mut hasher, directory, &self.excluded_directories)?;
+            hash_tree_into(
+                &mut hasher,
+                directory,
+                &self.excluded_directories,
+                &self.hash_pool,
+            )?;
         }
         for name in ["RUSTFLAGS", "CARGO_ENCODED_RUSTFLAGS", "CARGO_TARGET_DIR"] {
             if let Some(value) = std::env::var_os(name) {
@@ -1262,7 +1271,11 @@ impl WorkspaceProvider {
         }
     }
 
-    fn ensure_source_fingerprint(&self, target: &BuildTarget) -> std::result::Result<(), String> {
+    fn ensure_source_fingerprint(
+        &self,
+        target: &BuildTarget,
+        hash_pool: &HashPool,
+    ) -> std::result::Result<(), String> {
         let started = Instant::now();
         let result = target
             .source_fingerprint
@@ -1271,6 +1284,7 @@ impl WorkspaceProvider {
                     &target.package_root,
                     &target.source_root,
                     &self.context.intent.client.excluded_directories,
+                    hash_pool,
                 )
                 .map_err(|error| error.to_string())
             })
@@ -1376,7 +1390,7 @@ impl TaskProvider for WorkspaceProvider {
                     .targets
                     .get(task)
                     .ok_or_else(|| format!("unknown workspace task {task}"))?;
-                self.ensure_source_fingerprint(target)?;
+                self.ensure_source_fingerprint(target, &runtime.workspace.hash_pool)?;
                 if self.context.intent.verbose {
                     eprintln!(
                         "[graph] planned {} with {} discovered dependencies",
@@ -1496,6 +1510,16 @@ impl WorkspaceProvider {
             }
             None => None,
         };
+        if self.context.intent.verbose {
+            let hashes = workspace.hash_pool.stats();
+            eprintln!(
+                "[profile] content hashing files={} bytes={} workers={} summed={}ms",
+                hashes.files_hashed,
+                hashes.bytes_hashed,
+                hashes.thread_count,
+                hashes.elapsed.as_millis()
+            );
+        }
         self.context.set_output(promoted_output);
         Ok(())
     }
@@ -1822,7 +1846,7 @@ fn target_action_key(
     compiler_version: &str,
 ) -> Result<String> {
     let mut hasher = blake3::Hasher::new();
-    write_field(&mut hasher, b"warp-cargo-package-action-v1");
+    write_field(&mut hasher, b"warp-cargo-package-action-v2");
     write_field(&mut hasher, workspace.global_fingerprint()?.as_bytes());
     let effective_target = if target.kind == TargetKind::ProcMacro {
         &workspace.host_triple
@@ -1865,10 +1889,14 @@ fn target_action_key(
     }
     let mut dependencies = dependencies.to_vec();
     dependencies.sort_by(|left, right| left.0.cmp(&right.0));
-    for (alias, package_id, path) in dependencies {
+    let paths = dependencies
+        .iter()
+        .map(|(_, _, path)| path.clone())
+        .collect::<Vec<_>>();
+    let digests = workspace.artifact_digests(&paths)?;
+    for ((alias, package_id, _), digest) in dependencies.iter().zip(digests) {
         write_field(&mut hasher, alias.as_bytes());
         write_field(&mut hasher, package_id.as_bytes());
-        let digest = workspace.artifact_digest(&path)?;
         write_field(&mut hasher, digest.as_bytes());
     }
     Ok(format!("blake3:{}", hasher.finalize().to_hex()))
@@ -1878,13 +1906,16 @@ fn copy_and_fingerprint_tree(
     source: &Path,
     destination: &Path,
     excluded_directories: &[String],
+    hash_pool: &HashPool,
 ) -> Result<String> {
     fs::create_dir_all(destination)
         .map_err(|error| WarpError::io("create workspace source snapshot", error))?;
     let mut files = Vec::new();
-    collect_files(source, source, &mut files, excluded_directories)?;
+    collect_files(source, &mut files, excluded_directories, true)?;
     files.sort();
     let mut hasher = blake3::Hasher::new();
+    write_field(&mut hasher, b"warp-source-fingerprint-v2");
+    let mut snapshot_paths = Vec::with_capacity(files.len());
     for relative in files {
         let source_path = source.join(&relative);
         let destination_path = destination.join(&relative);
@@ -1894,50 +1925,56 @@ fn copy_and_fingerprint_tree(
         }
         fs::copy(&source_path, &destination_path)
             .map_err(|error| WarpError::io("copy package source into immutable snapshot", error))?;
-        write_field(
-            &mut hasher,
-            relative.to_string_lossy().replace('\\', "/").as_bytes(),
-        );
-        hash_path_into(&mut hasher, &destination_path, destination)?;
+        snapshot_paths.push(destination_path);
     }
+    hash_paths_into(&mut hasher, destination, &snapshot_paths, hash_pool)?;
     Ok(hasher.finalize().to_hex().to_string())
 }
 
 fn collect_files(
     root: &Path,
-    directory: &Path,
     files: &mut Vec<PathBuf>,
     excluded_directories: &[String],
+    respect_gitignore: bool,
 ) -> Result<()> {
-    let entries = fs::read_dir(directory)
-        .map_err(|error| WarpError::io("scan workspace package sources", error))?;
-    for entry in entries {
-        let path = entry
-            .map_err(|error| WarpError::io("read workspace source directory entry", error))?
-            .path();
-        let kind = fs::symlink_metadata(&path)
-            .map_err(|error| WarpError::io("inspect workspace source path", error))?
-            .file_type();
-        if kind.is_dir()
-            && path
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| {
-                    name == GENERATED_OUTPUT_DIRECTORY
-                        || excluded_directories.iter().any(|excluded| excluded == name)
-                })
-        {
+    let mut walker = WalkBuilder::new(root);
+    let excluded_directories = excluded_directories.to_vec();
+    walker
+        .standard_filters(false)
+        .hidden(false)
+        .parents(respect_gitignore)
+        .ignore(false)
+        .git_ignore(respect_gitignore)
+        .git_global(false)
+        .git_exclude(false)
+        .follow_links(false)
+        .filter_entry(move |entry| {
+            let is_directory = entry.file_type().is_some_and(|kind| kind.is_dir());
+            entry.depth() == 0
+                || !is_directory
+                || !scan::should_skip_directory(entry.path(), &excluded_directories)
+        });
+
+    for result in walker.build() {
+        let entry = result
+            .map_err(|error| WarpError::new(format!("walk workspace package sources: {error}")))?;
+        if entry.depth() == 0 {
             continue;
         }
+        let path = entry.path();
+        let kind = entry.file_type().ok_or_else(|| {
+            WarpError::new(format!(
+                "could not inspect workspace source path: {}",
+                path.display()
+            ))
+        })?;
         if kind.is_symlink() {
             return Err(WarpError::new(format!(
                 "workspace package contains a symbolic link that Warp will not follow: {}",
                 path.display()
             )));
         }
-        if kind.is_dir() {
-            collect_files(root, &path, files, excluded_directories)?;
-        } else if kind.is_file() {
+        if kind.is_file() {
             files.push(
                 path.strip_prefix(root)
                     .map_err(|_| WarpError::new("workspace source escaped its package root"))?
@@ -1952,17 +1989,37 @@ fn hash_tree_into(
     hasher: &mut blake3::Hasher,
     root: &Path,
     excluded_directories: &[String],
+    hash_pool: &HashPool,
 ) -> Result<()> {
     let mut files = Vec::new();
-    collect_files(root, root, &mut files, excluded_directories)?;
+    collect_files(root, &mut files, excluded_directories, false)?;
     files.sort();
-    for relative in files {
-        hash_path_into(hasher, &root.join(relative), root)?;
+    let paths = files
+        .iter()
+        .map(|relative| root.join(relative))
+        .collect::<Vec<_>>();
+    hash_paths_into(hasher, root, &paths, hash_pool)
+}
+
+fn hash_paths_into(
+    hasher: &mut blake3::Hasher,
+    root: &Path,
+    paths: &[PathBuf],
+    hash_pool: &HashPool,
+) -> Result<()> {
+    let digests = hash_pool.hash_files(paths)?;
+    for (path, digest) in paths.iter().zip(&digests) {
+        hash_path_digest_into(hasher, path, root, digest)?;
     }
     Ok(())
 }
 
-fn hash_path_into(hasher: &mut blake3::Hasher, path: &Path, root: &Path) -> Result<()> {
+fn hash_path_digest_into(
+    hasher: &mut blake3::Hasher,
+    path: &Path,
+    root: &Path,
+    digest: &str,
+) -> Result<()> {
     let relative = path
         .strip_prefix(root)
         .map_err(|_| WarpError::new("workspace fingerprint input escaped its root"))?;
@@ -1975,29 +2032,8 @@ fn hash_path_into(hasher: &mut blake3::Hasher, path: &Path, root: &Path) -> Resu
         .len()
         .to_le_bytes();
     write_field(hasher, &length);
-    hasher
-        .update_mmap(path)
-        .map_err(|error| WarpError::io("hash workspace fingerprint input", error))?;
+    write_field(hasher, digest.as_bytes());
     Ok(())
-}
-
-fn hash_file(path: &Path) -> Result<String> {
-    const PARALLEL_HASH_THRESHOLD: u64 = 1024 * 1024;
-
-    let length = fs::metadata(path)
-        .map_err(|error| WarpError::io("inspect build artifact", error))?
-        .len();
-    let mut hasher = blake3::Hasher::new();
-    if length >= PARALLEL_HASH_THRESHOLD {
-        hasher
-            .update_mmap_rayon(path)
-            .map_err(|error| WarpError::io("hash build artifact", error))?;
-    } else {
-        hasher
-            .update_mmap(path)
-            .map_err(|error| WarpError::io("hash build artifact", error))?;
-    }
-    Ok(hasher.finalize().to_hex().to_string())
 }
 
 fn path_argument(path: &Path) -> Result<String> {
@@ -2190,6 +2226,7 @@ mod tests {
                 .as_nanos()
         ));
         fs::create_dir_all(&test_root).unwrap();
+        let hash_pool = HashPool::new().unwrap();
 
         for (name, bytes) in [
             ("small", vec![17; 64 * 1024]),
@@ -2198,10 +2235,60 @@ mod tests {
             let path = test_root.join(name);
             fs::write(&path, &bytes).unwrap();
             assert_eq!(
-                hash_file(&path).unwrap(),
+                hash_pool.hash_file(&path).unwrap(),
                 blake3::hash(&bytes).to_hex().to_string()
             );
         }
+
+        fs::remove_dir_all(test_root).unwrap();
+    }
+
+    #[test]
+    fn source_snapshots_honor_nested_gitignore_rules_and_hard_exclusions() {
+        let test_root = std::env::temp_dir().join(format!(
+            "warp-gitignore-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let source = test_root.join("source");
+        let snapshot = test_root.join("snapshot");
+        fs::create_dir_all(source.join("nested")).unwrap();
+        fs::create_dir_all(source.join("ignored-dir")).unwrap();
+        fs::create_dir_all(source.join("_build")).unwrap();
+        fs::create_dir_all(source.join(".git/objects")).unwrap();
+        fs::write(
+            source.join(".gitignore"),
+            "*.log\n!important.log\nignored-dir/*\n!ignored-dir/keep.rs\n_build/\n!_build/\n!_build/keep.rs\n",
+        )
+        .unwrap();
+        fs::write(source.join("main.rs"), "fn main() {}\n").unwrap();
+        fs::write(source.join(".secret"), "keep hidden inputs\n").unwrap();
+        fs::write(source.join("ignored.log"), "ignored\n").unwrap();
+        fs::write(source.join("important.log"), "included by negation\n").unwrap();
+        fs::write(source.join("ignored-dir/drop.rs"), "ignored\n").unwrap();
+        fs::write(source.join("ignored-dir/keep.rs"), "included by negation\n").unwrap();
+        fs::write(source.join("nested/.gitignore"), "*.tmp\n!keep.tmp\n").unwrap();
+        fs::write(source.join("nested/drop.tmp"), "ignored\n").unwrap();
+        fs::write(source.join("nested/keep.tmp"), "included by negation\n").unwrap();
+        fs::write(source.join("_build/keep.rs"), "always ignored\n").unwrap();
+        fs::write(source.join(".git/objects/metadata"), "always ignored\n").unwrap();
+
+        copy_and_fingerprint_tree(&source, &snapshot, &[], &HashPool::new().unwrap()).unwrap();
+
+        assert!(snapshot.join(".gitignore").is_file());
+        assert!(snapshot.join("main.rs").is_file());
+        assert!(snapshot.join(".secret").is_file());
+        assert!(snapshot.join("important.log").is_file());
+        assert!(snapshot.join("ignored-dir/keep.rs").is_file());
+        assert!(snapshot.join("nested/keep.tmp").is_file());
+        assert!(!snapshot.join("ignored.log").exists());
+        assert!(!snapshot.join("ignored-dir/drop.rs").exists());
+        assert!(!snapshot.join("nested/drop.tmp").exists());
+        assert!(!snapshot.join("_build/keep.rs").exists());
+        assert!(!snapshot.join(".git").exists());
 
         fs::remove_dir_all(test_root).unwrap();
     }

@@ -19,10 +19,11 @@ Warp places workspace outputs under `_build/<compilation-target-triple>/<profile
 mirroring package paths. A selected executable is promoted to that build
 directory's `bin/` folder. Client-specific choices live in the workspace's
 `warp.toml`; this repository selects its `warp` binary by default, and
-`--bin` overrides that choice. `exclude-directories` controls workspace discovery
-and source snapshots. The default action/CAS cache is per-user and uses the operating
-system's cache directory (on macOS,
-`~/Library/Caches/warp`). `--cache` and `--output` override the cache and
+`--bin` overrides that choice. Workspace discovery and source snapshots honor
+nested `.gitignore` patterns; `_build` and `.git` are always excluded, and
+`exclude-directories` adds client-specific directory exclusions. The default
+action/CAS cache is per-user and uses the operating system's cache directory
+(on macOS, `~/Library/Caches/warp`). `--cache` and `--output` override the cache and
 promoted executable paths. Builds print a `Building` line, per-target `OK` or
 `ERR` events (including elapsed time for cache hits), and a final elapsed-time
 summary. Status labels are green/red in an interactive terminal and respect

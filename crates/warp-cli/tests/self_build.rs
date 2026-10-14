@@ -212,6 +212,11 @@ fn cargo_built_warp_builds_warp_and_then_reuses_the_workspace_cache() {
     let directory = TestDirectory::new();
     let output = directory.0.join("debug/warp");
     let cache = directory.0.join("cache");
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("warp-cli should be two levels below the workspace root");
+    let cargo_target_directory = workspace_root.join("_build/cargo/stable");
     let cargo_built_warp = env!("CARGO_BIN_EXE_warp");
     let rustc = Command::new("rustup")
         .args(["which", "rustc", "--toolchain", "stable"])
@@ -221,17 +226,20 @@ fn cargo_built_warp_builds_warp_and_then_reuses_the_workspace_cache() {
     let rustc = String::from_utf8(rustc.stdout).unwrap();
     let stable_cargo_build = Command::new("rustup")
         .args(["run", "stable", "cargo", "build", "--workspace", "--locked"])
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .current_dir(workspace_root)
         .env("RUSTC", rustc.trim())
-        .env(
-            "CARGO_TARGET_DIR",
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("_build/cargo/stable"),
-        )
+        .env("CARGO_TARGET_DIR", &cargo_target_directory)
         .output()
         .unwrap();
     assert_success(&stable_cargo_build);
 
-    let first_bootstrap = run_warp(cargo_built_warp, &output, &cache);
+    let first_bootstrap = run_warp(
+        cargo_built_warp,
+        &output,
+        &cache,
+        workspace_root,
+        &cargo_target_directory,
+    );
     assert_success(&first_bootstrap);
     assert!(
         output_text(&first_bootstrap).contains("Building ")
@@ -242,7 +250,13 @@ fn cargo_built_warp_builds_warp_and_then_reuses_the_workspace_cache() {
     assert!(output.is_file());
     assert_success(&Command::new(&output).arg("--version").output().unwrap());
 
-    let warp_built_warp = run_warp(&output, &output, &cache);
+    let warp_built_warp = run_warp(
+        &output,
+        &output,
+        &cache,
+        workspace_root,
+        &cargo_target_directory,
+    );
     assert_success(&warp_built_warp);
     assert!(
         output_text(&warp_built_warp).contains("OK warp-cli::warp ")
@@ -250,13 +264,20 @@ fn cargo_built_warp_builds_warp_and_then_reuses_the_workspace_cache() {
         "{}",
         output_text(&warp_built_warp)
     );
-    assert!(output_text(&warp_built_warp).contains("FINISHED 6 targets"));
+    assert!(output_text(&warp_built_warp).contains("FINISHED 7 targets"));
     assert_success(&Command::new(&output).arg("--version").output().unwrap());
 }
 
-fn run_warp(binary: impl AsRef<Path>, output: &Path, cache: &Path) -> Output {
+fn run_warp(
+    binary: impl AsRef<Path>,
+    output: &Path,
+    cache: &Path,
+    workspace_root: &Path,
+    cargo_target_directory: &Path,
+) -> Output {
     Command::new(binary.as_ref())
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .current_dir(workspace_root)
+        .env("CARGO_TARGET_DIR", cargo_target_directory)
         .arg("build")
         .arg("--output")
         .arg(output)

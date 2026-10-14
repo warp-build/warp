@@ -1,6 +1,6 @@
 use super::GENERATED_OUTPUT_DIRECTORY;
 use crate::error::{Result, WarpError};
-use std::fs;
+use ignore::WalkBuilder;
 use std::path::{Path, PathBuf};
 
 pub(super) fn discover_directory(
@@ -10,34 +10,49 @@ pub(super) fn discover_directory(
     let canonical = path
         .canonicalize()
         .map_err(|error| WarpError::io("resolve workspace scan directory", error))?;
-    let mut children = Vec::new();
-    for entry in fs::read_dir(&canonical)
-        .map_err(|error| WarpError::io("scan workspace directory", error))?
-    {
-        let entry =
-            entry.map_err(|error| WarpError::io("read workspace directory entry", error))?;
-        let file_type = entry
-            .file_type()
-            .map_err(|error| WarpError::io("inspect workspace directory entry", error))?;
-        if !file_type.is_dir() {
-            continue;
-        }
+    let mut walker = WalkBuilder::new(&canonical);
+    let excluded_directories = excluded_directories.to_vec();
+    walker
+        .max_depth(Some(1))
+        .hidden(false)
+        .parents(true)
+        .ignore(false)
+        .git_ignore(true)
+        .git_global(false)
+        .git_exclude(false)
+        .follow_links(false)
+        .filter_entry(move |entry| {
+            entry.depth() == 0 || !should_skip_directory(entry.path(), &excluded_directories)
+        });
 
-        let child = entry.path();
-        if should_skip(&child, excluded_directories) {
+    let mut has_manifest = false;
+    let mut children = Vec::new();
+    for result in walker.build() {
+        let entry =
+            result.map_err(|error| WarpError::new(format!("walk workspace directory: {error}")))?;
+        if entry.depth() != 1 {
             continue;
         }
-        children.push(child);
+        let is_manifest = entry.file_name() == "Cargo.toml"
+            && entry.file_type().is_some_and(|kind| kind.is_file());
+        let is_directory = entry.file_type().is_some_and(|kind| kind.is_dir());
+        let path = entry.into_path();
+        if is_manifest {
+            has_manifest = true;
+        } else if is_directory {
+            children.push(path);
+        }
     }
     children.sort();
-    Ok((canonical.join("Cargo.toml").is_file(), children))
+    Ok((has_manifest, children))
 }
 
-fn should_skip(path: &Path, excluded_directories: &[String]) -> bool {
+pub(super) fn should_skip_directory(path: &Path, excluded_directories: &[String]) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
         .is_some_and(|name| {
             name == GENERATED_OUTPUT_DIRECTORY
+                || name == ".git"
                 || excluded_directories.iter().any(|excluded| excluded == name)
         })
 }
@@ -45,6 +60,7 @@ fn should_skip(path: &Path, excluded_directories: &[String]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT_TEST: AtomicU64 = AtomicU64::new(0);
@@ -56,24 +72,32 @@ mod tests {
             std::env::temp_dir().join(format!("warp-workspace-scan-{}-{id}", std::process::id()));
         fs::create_dir_all(root.join("crates/example")).unwrap();
         fs::create_dir_all(root.join("_build/generated")).unwrap();
+        fs::create_dir_all(root.join(".git/objects")).unwrap();
         fs::create_dir_all(root.join("excluded-cache/generated")).unwrap();
         fs::create_dir_all(root.join("excluded-sources/old")).unwrap();
         fs::write(root.join("Cargo.toml"), "[workspace]").unwrap();
         fs::write(root.join("crates/example/Cargo.toml"), "[package]").unwrap();
         fs::write(root.join("_build/generated/Cargo.toml"), "[package]").unwrap();
+        fs::write(root.join(".git/objects/Cargo.toml"), "[package]").unwrap();
         fs::write(
             root.join("excluded-cache/generated/Cargo.toml"),
             "[package]",
         )
         .unwrap();
         fs::write(root.join("excluded-sources/old/Cargo.toml"), "[package]").unwrap();
+        fs::write(
+            root.join(".gitignore"),
+            "excluded-cache/\n!excluded-cache/generated/\n_build/\n!_build/\n!_build/generated/\n",
+        )
+        .unwrap();
 
-        let excludes = vec!["excluded-cache".to_string(), "excluded-sources".to_string()];
+        let excludes = vec!["excluded-sources".to_string()];
         let (has_manifest, children) = discover_directory(&root, &excludes).unwrap();
 
         assert!(has_manifest);
         assert!(children.iter().any(|path| path.ends_with("crates")));
         assert!(!children.iter().any(|path| path.ends_with("_build")));
+        assert!(!children.iter().any(|path| path.ends_with(".git")));
         assert!(!children.iter().any(|path| path.ends_with("excluded-cache")));
         assert!(!children
             .iter()
