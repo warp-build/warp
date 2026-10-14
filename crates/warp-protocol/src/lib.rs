@@ -4,8 +4,8 @@
 //! schedulers, and language-specific tricorders. Those components exchange
 //! these values across local and remote boundaries.
 
+use blake3::Hasher;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 pub const PROTOCOL_VERSION: &str = "warp.protocol/v1";
 
@@ -47,8 +47,9 @@ pub struct VerifiedBlueprint {
 impl VerifiedBlueprint {
     pub fn digest(&self) -> CasRef {
         let bytes = serde_json::to_vec(self).expect("verified blueprint must serialize");
-        let digest = Sha256::digest(bytes);
-        CasRef(format!("sha256:{}", hex_encode(&digest)))
+        let mut digest = Hasher::new();
+        digest.update(&bytes);
+        CasRef(format!("blake3:{}", digest.finalize().to_hex()))
     }
 }
 
@@ -107,16 +108,6 @@ pub struct TraceRefs {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
 pub struct CasRef(pub String);
 
-fn hex_encode(bytes: &[u8]) -> String {
-    const HEX: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        output.push(HEX[(byte >> 4) as usize] as char);
-        output.push(HEX[(byte & 0x0f) as usize] as char);
-    }
-    output
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,6 +137,6 @@ mod tests {
         };
 
         assert_eq!(blueprint.digest(), blueprint.digest());
-        assert!(blueprint.digest().0.starts_with("sha256:"));
+        assert!(blueprint.digest().0.starts_with("blake3:"));
     }
 }

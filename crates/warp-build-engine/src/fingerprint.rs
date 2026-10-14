@@ -1,9 +1,8 @@
-use crate::cli::{crate_name, BuildRequest};
-use crate::digest::sha256_with;
 use crate::error::{Result, WarpError};
+use crate::{crate_name, BuildRequest};
 use std::ffi::OsString;
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -62,16 +61,17 @@ pub fn action_key(
     let mut environment: Vec<(OsString, OsString)> = std::env::vars_os().collect();
     environment.sort();
 
-    sha256_with(|writer| {
-        write_field(writer, b"warp-rust-action-v1")?;
-        write_field(writer, compiler.to_string_lossy().as_bytes())?;
-        write_field(writer, compiler_version.as_bytes())?;
-        write_field(writer, request.edition.as_str().as_bytes())?;
-        write_field(writer, crate_name.as_bytes())?;
-        write_field(writer, std::env::consts::OS.as_bytes())?;
-        write_field(writer, std::env::consts::ARCH.as_bytes())?;
+    let mut hasher = blake3::Hasher::new();
+    {
+        write_field(&mut hasher, b"warp-rust-action-v1")?;
+        write_field(&mut hasher, compiler.to_string_lossy().as_bytes())?;
+        write_field(&mut hasher, compiler_version.as_bytes())?;
+        write_field(&mut hasher, request.edition.as_str().as_bytes())?;
+        write_field(&mut hasher, crate_name.as_bytes())?;
+        write_field(&mut hasher, std::env::consts::OS.as_bytes())?;
+        write_field(&mut hasher, std::env::consts::ARCH.as_bytes())?;
         write_field(
-            writer,
+            &mut hasher,
             source_tree
                 .entry
                 .strip_prefix(&source_tree.root)
@@ -81,8 +81,8 @@ pub fn action_key(
         )?;
 
         for (name, value) in environment {
-            write_field(writer, name.to_string_lossy().as_bytes())?;
-            write_field(writer, value.to_string_lossy().as_bytes())?;
+            write_field(&mut hasher, name.to_string_lossy().as_bytes())?;
+            write_field(&mut hasher, value.to_string_lossy().as_bytes())?;
         }
 
         for relative in files {
@@ -90,7 +90,7 @@ pub fn action_key(
                 .to_str()
                 .ok_or_else(|| WarpError::new("source paths must be valid UTF-8"))?
                 .replace('\\', "/");
-            write_field(writer, relative_name.as_bytes())?;
+            write_field(&mut hasher, relative_name.as_bytes())?;
             let path = source_tree.root.join(relative);
             let mut file = File::open(&path)
                 .map_err(|error| WarpError::io("read source snapshot file", error))?;
@@ -99,12 +99,20 @@ pub fn action_key(
                 .map_err(|error| WarpError::io("inspect source snapshot file", error))?
                 .len()
                 .to_le_bytes();
-            write_field(writer, &length)?;
-            std::io::copy(&mut file, writer)
-                .map_err(|error| WarpError::io("fingerprint source snapshot file", error))?;
+            write_field(&mut hasher, &length)?;
+            let mut buffer = [0; 32 * 1024];
+            loop {
+                let count = file
+                    .read(&mut buffer)
+                    .map_err(|error| WarpError::io("read source snapshot file", error))?;
+                if count == 0 {
+                    break;
+                }
+                hasher.update(&buffer[..count]);
+            }
         }
-        Ok(())
-    })
+    }
+    Ok(format!("blake3:{}", hasher.finalize().to_hex()))
 }
 
 pub fn rustc() -> Result<(PathBuf, String)> {
@@ -190,19 +198,18 @@ fn collect_files(root: &Path) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-fn write_field(writer: &mut dyn Write, bytes: &[u8]) -> Result<()> {
+fn write_field(hasher: &mut blake3::Hasher, bytes: &[u8]) -> Result<()> {
     let length =
         u64::try_from(bytes.len()).map_err(|_| WarpError::new("fingerprint field is too large"))?;
-    writer
-        .write_all(&length.to_le_bytes())
-        .and_then(|()| writer.write_all(bytes))
-        .map_err(|error| WarpError::io("write action fingerprint", error))
+    hasher.update(&length.to_le_bytes());
+    hasher.update(bytes);
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::Edition;
+    use crate::Edition;
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);

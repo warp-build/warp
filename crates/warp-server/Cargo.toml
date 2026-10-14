@@ -1,0 +1,9 @@
+[package]
+name = "warp-server"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+warp-protocol = { path = "../warp-protocol" }
+warp-store = { path = "../warp-store" }

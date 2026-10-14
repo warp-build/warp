@@ -1,0 +1,13 @@
+[package]
+name = "warp-cli"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "warp"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true }
+warp-build-engine = { path = "../warp-build-engine" }

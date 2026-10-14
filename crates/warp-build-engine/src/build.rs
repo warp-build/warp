@@ -1,11 +1,12 @@
-use crate::cache;
-use crate::cli::{crate_name, BuildRequest};
+use crate::action_cache::ActionCache;
 use crate::error::{Result, WarpError};
 use crate::fingerprint::{action_key, rustc, SourceTree};
+use crate::{crate_name, BuildRequest};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
+use warp_store::Cas;
 
 static NEXT_WORK: AtomicU64 = AtomicU64::new(0);
 
@@ -57,20 +58,59 @@ pub fn build(request: &BuildRequest) -> Result<BuildOutcome> {
         .file_name()
         .ok_or_else(|| WarpError::new("output path must name a file"))?;
     let output = output_parent.join(output_name);
+    let action_cache = ActionCache::new(cache_root.join("actions"))?;
+    let cas = Cas::new(cache_root.join("cas"))
+        .map_err(|error| WarpError::new(format!("open content store: {error}")))?;
     let work = WorkDirectory::create(&cache_root)?;
     let source_tree = SourceTree::capture(request, &work.path.join("source"))?;
     let (compiler, compiler_version) = rustc()?;
     let key = action_key(request, &source_tree, &compiler, &compiler_version)?;
 
-    if cache::restore(&cache_root, &key, &output)? {
-        return Ok(BuildOutcome::CacheHit { key });
+    if let Some(blob) = action_cache.lookup(&key)? {
+        if restore_executable(&cas, &blob, &output)? {
+            return Ok(BuildOutcome::CacheHit { key });
+        }
     }
 
     let compiled_artifact = compile(request, &source_tree, &work.path.join("output"), &compiler)?;
-    cache::store(&cache_root, &key, &compiled_artifact)?;
-    cache::copy_atomically(&compiled_artifact, &output)?;
+    let blob = cas
+        .put_file(&compiled_artifact)
+        .map_err(|error| WarpError::new(format!("store compiled artifact: {error}")))?;
+    action_cache.insert(&key, &blob)?;
+    if !restore_executable(&cas, &blob, &output)? {
+        return Err(WarpError::new(
+            "CAS lost a blob immediately after storing it",
+        ));
+    }
 
     Ok(BuildOutcome::Compiled { key })
+}
+
+fn restore_executable(cas: &Cas, blob: &warp_store::BlobDigest, output: &Path) -> Result<bool> {
+    let restored = cas
+        .get_file(blob, output)
+        .map_err(|error| WarpError::new(format!("materialize compiled artifact: {error}")))?;
+    if restored {
+        mark_executable(output)?;
+    }
+    Ok(restored)
+}
+
+#[cfg(unix)]
+fn mark_executable(path: &Path) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut permissions = fs::metadata(path)
+        .map_err(|error| WarpError::io("inspect compiled artifact permissions", error))?
+        .permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(path, permissions)
+        .map_err(|error| WarpError::io("make compiled artifact executable", error))
+}
+
+#[cfg(not(unix))]
+fn mark_executable(_path: &Path) -> Result<()> {
+    Ok(())
 }
 
 fn compile(
@@ -158,7 +198,7 @@ impl Drop for WorkDirectory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cli::Edition;
+    use crate::Edition;
     use std::fs;
     use std::sync::atomic::{AtomicU64, Ordering};
 

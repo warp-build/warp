@@ -1,14 +1,11 @@
-mod build;
-mod cache;
 mod cli;
-mod digest;
-mod error;
-mod fingerprint;
 
+use clap::Parser;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
-    match cli::run(std::env::args_os().skip(1)) {
+    let cli = cli::Cli::parse();
+    match cli.run() {
         Ok(message) => {
             println!("{message}");
             ExitCode::SUCCESS
