@@ -1,5 +1,5 @@
 use crate::error::{Result, WarpError};
-use crate::{crate_name, BuildRequest, TargetTriple};
+use crate::{crate_name, BuildRequest, CompilationTargetTriple, RustToolchainChannel};
 use std::ffi::OsString;
 use std::fs::{self, File};
 use std::io::Read;
@@ -67,7 +67,7 @@ pub fn action_key(
         write_field(&mut hasher, compiler.to_string_lossy().as_bytes())?;
         write_field(&mut hasher, compiler_version.as_bytes())?;
         write_field(&mut hasher, request.edition.as_str().as_bytes())?;
-        write_field(&mut hasher, request.target.as_str().as_bytes())?;
+        write_field(&mut hasher, request.compilation_target.as_str().as_bytes())?;
         write_field(&mut hasher, request.profile.as_str().as_bytes())?;
         write_field(&mut hasher, crate_name.as_bytes())?;
         write_field(&mut hasher, std::env::consts::OS.as_bytes())?;
@@ -117,14 +117,39 @@ pub fn action_key(
     Ok(format!("blake3:{}", hasher.finalize().to_hex()))
 }
 
-pub fn host_target() -> Result<TargetTriple> {
+pub fn host_triple() -> Result<CompilationTargetTriple> {
     let host = guess_host_triple::guess_host_triple()
         .ok_or_else(|| WarpError::new("could not detect the host target triple"))?;
-    TargetTriple::parse(host)
+    CompilationTargetTriple::parse(host)
 }
 
 pub fn rustc() -> Result<(PathBuf, String)> {
-    let requested = std::env::var_os("RUSTC").unwrap_or_else(|| OsString::from("rustc"));
+    rustc_for_toolchain(None)
+}
+
+pub fn rustc_for_toolchain(toolchain: Option<&RustToolchainChannel>) -> Result<(PathBuf, String)> {
+    let requested = match toolchain {
+        Some(toolchain) => {
+            let output = Command::new("rustup")
+                .args(["which", "rustc", "--toolchain", toolchain.as_str()])
+                .output()
+                .map_err(|error| WarpError::io("resolve configured Rust toolchain", error))?;
+            if !output.status.success() {
+                return Err(WarpError::new(format!(
+                    "rustup could not resolve Rust toolchain {toolchain}: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                )));
+            }
+            OsString::from(
+                String::from_utf8(output.stdout)
+                    .map_err(|error| {
+                        WarpError::new(format!("rustup returned invalid UTF-8: {error}"))
+                    })?
+                    .trim(),
+            )
+        }
+        None => std::env::var_os("RUSTC").unwrap_or_else(|| OsString::from("rustc")),
+    };
     let path = find_executable(&requested)?;
     let output = Command::new(&path)
         .arg("-vV")
@@ -217,7 +242,7 @@ fn write_field(hasher: &mut blake3::Hasher, bytes: &[u8]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{host_target, BuildProfile, Edition, TargetTriple};
+    use crate::{host_triple, BuildProfile, CompilationTargetTriple, Edition};
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -246,7 +271,8 @@ mod tests {
             output: directory.join("out/warp"),
             cache: Some(directory.join("cache")),
             edition: Edition::E2021,
-            target: host_target().unwrap(),
+            compilation_target: host_triple().unwrap(),
+            rust_toolchain: None,
             profile: BuildProfile::Debug,
         }
     }
@@ -272,7 +298,8 @@ mod tests {
         assert_eq!(first_key, second_key);
 
         let mut different_target = first_request.clone();
-        different_target.target = TargetTriple::parse("wasm32-wasip1").unwrap();
+        different_target.compilation_target =
+            CompilationTargetTriple::parse("wasm32-wasip1").unwrap();
         assert_ne!(
             first_key,
             action_key(&different_target, &first_tree, compiler, "rustc test").unwrap()

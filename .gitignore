@@ -1,5 +1,6 @@
 vendor/*
 /warp-*
+!/warp-toolchains.toml
 .terraform*
 3rdparty
 node_modules

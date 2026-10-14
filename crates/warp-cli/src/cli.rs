@@ -4,9 +4,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 use warp_build_engine::{
-    build, build_workspace, crate_name, host_target, rustc_output_filename, status_tag,
+    build, build_workspace, crate_name, host_triple, rustc_output_filename, status_tag,
     stdout_status_tag, BuildClientConfig, BuildIntent, BuildOutcome, BuildProfile, BuildRequest,
-    BuildScope, Edition, TargetTriple,
+    BuildScope, CompilationTargetTriple, Edition, Label, RustToolchainChannel,
 };
 
 #[derive(Debug, Parser)]
@@ -22,14 +22,14 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Build a workspace, selected Cargo package, or standalone Rust source file.
+    /// Build the workspace or selected build targets.
     Build(BuildArgs),
 }
 
 #[derive(Debug, Args)]
 struct BuildArgs {
-    /// Build a Rust source file or a Cargo package directory/Cargo.toml. Without it, build the workspace.
-    path: Option<PathBuf>,
+    /// Build targets identified by Cargo package paths, package names, or package::target labels.
+    targets: Vec<String>,
 
     /// Promoted executable path. Defaults to the selected client-configured binary path.
     #[arg(long)]
@@ -43,9 +43,9 @@ struct BuildArgs {
     #[arg(long)]
     cache: Option<PathBuf>,
 
-    /// Rust target triple. Defaults to this machine's host target.
-    #[arg(long)]
-    target: Option<String>,
+    /// Compilation target triple (or configured platform alias). Defaults to the host triple.
+    #[arg(short = 'x', long = "target-triple", alias = "target")]
+    compilation_target: Option<String>,
 
     /// Build profile.
     #[arg(long, default_value = "debug", value_parser = ["debug", "release"])]
@@ -64,39 +64,54 @@ impl Cli {
     pub fn run(self) -> Result<String, String> {
         match self.command {
             Command::Build(args) => {
-                let target = match args.target.as_deref() {
-                    Some(target) => {
-                        TargetTriple::parse(target).map_err(|error| error.to_string())?
-                    }
-                    None => host_target().map_err(|error| error.to_string())?,
-                };
-                let profile =
-                    BuildProfile::parse(&args.profile).map_err(|error| error.to_string())?;
+                let BuildArgs {
+                    targets,
+                    output,
+                    bin,
+                    cache,
+                    compilation_target,
+                    profile,
+                    edition,
+                    verbose,
+                } = args;
+                let root = std::env::current_dir()
+                    .map_err(|error| format!("cannot determine current directory: {error}"))?;
+                let toolchains = load_toolchain_settings(&root)?;
+                let compilation_target =
+                    resolve_compilation_target(compilation_target.as_deref(), &toolchains)?;
+                let profile = BuildProfile::parse(&profile).map_err(|error| error.to_string())?;
+                let labels = targets
+                    .into_iter()
+                    .map(Label::parse)
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|error| error.to_string())?;
 
-                match args.path {
-                    Some(entry) if is_standalone_source(&entry) => {
-                        if args.bin.is_some() {
-                            return Err("--bin applies only to Cargo workspace builds".into());
-                        }
-                        run_standalone_build(
-                            entry,
-                            args.output,
-                            args.cache,
-                            args.edition,
-                            target,
-                            profile,
-                        )
+                if labels.len() == 1
+                    && is_standalone_source(PathBuf::from(labels[0].as_str()).as_path())
+                {
+                    if bin.is_some() {
+                        return Err("--bin applies only to Cargo workspace builds".into());
                     }
-                    selection => run_workspace_build(
-                        selection,
-                        args.output,
-                        args.cache,
-                        target,
+                    return run_standalone_build(
+                        PathBuf::from(labels[0].as_str()),
+                        output,
+                        cache,
+                        edition,
+                        compilation_target,
+                        toolchains.rust_channel,
                         profile,
-                        args.verbose,
-                        args.bin,
-                    ),
+                    );
                 }
+                run_workspace_build(WorkspaceBuildOptions {
+                    labels,
+                    output,
+                    cache,
+                    compilation_target,
+                    rust_toolchain: toolchains.rust_channel,
+                    profile,
+                    verbose,
+                    binary_override: bin,
+                })
             }
         }
     }
@@ -111,13 +126,14 @@ fn run_standalone_build(
     output: Option<PathBuf>,
     cache: Option<PathBuf>,
     edition: String,
-    target: TargetTriple,
+    compilation_target: CompilationTargetTriple,
+    rust_toolchain: Option<RustToolchainChannel>,
     profile: BuildProfile,
 ) -> Result<String, String> {
     let edition = Edition::parse(&edition).map_err(|error| error.to_string())?;
     let output = match output {
         Some(output) => output,
-        None => default_standalone_output(&target, profile, &entry)?,
+        None => default_standalone_output(&compilation_target, profile, &entry)?,
     };
     let label = crate_name(&entry).map_err(|error| error.to_string())?;
     let request = BuildRequest {
@@ -125,7 +141,8 @@ fn run_standalone_build(
         output,
         cache,
         edition,
-        target,
+        compilation_target,
+        rust_toolchain,
         profile,
     };
     let started = Instant::now();
@@ -168,30 +185,47 @@ fn run_standalone_build(
     ))
 }
 
-fn run_workspace_build(
-    selection: Option<PathBuf>,
+struct WorkspaceBuildOptions {
+    labels: Vec<Label>,
     output: Option<PathBuf>,
     cache: Option<PathBuf>,
-    target: TargetTriple,
+    compilation_target: CompilationTargetTriple,
+    rust_toolchain: Option<RustToolchainChannel>,
     profile: BuildProfile,
     verbose: bool,
     binary_override: Option<String>,
-) -> Result<String, String> {
+}
+
+fn run_workspace_build(options: WorkspaceBuildOptions) -> Result<String, String> {
+    let WorkspaceBuildOptions {
+        labels,
+        output,
+        cache,
+        compilation_target,
+        rust_toolchain,
+        profile,
+        verbose,
+        binary_override,
+    } = options;
     let root = std::env::current_dir()
         .map_err(|error| format!("cannot determine current directory: {error}"))?;
     let mut client = load_client_config(&root)?;
-    if binary_override.is_some() {
-        client.default_binary = binary_override;
+    if let Some(binary_override) = binary_override {
+        client.default_binary =
+            Some(Label::parse(binary_override).map_err(|error| error.to_string())?);
     }
-    let scope = selection
-        .map(|path| BuildScope::Scoped(vec![path]))
-        .unwrap_or(BuildScope::All);
+    let scope = if labels.is_empty() {
+        BuildScope::All
+    } else {
+        BuildScope::Labels(labels)
+    };
     let intent = BuildIntent {
         root,
         scope,
         output,
         cache,
-        target,
+        compilation_target,
+        rust_toolchain,
         profile,
         verbose,
         client,
@@ -224,6 +258,118 @@ struct ClientBuildConfig {
     exclude_directories: Vec<String>,
 }
 
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct ToolchainsFile {
+    toolchains: ToolchainsSection,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct ToolchainsSection {
+    targets: Vec<String>,
+    rust: Option<RustToolchainFile>,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default, rename_all = "kebab-case")]
+struct RustToolchainFile {
+    channel: Option<String>,
+}
+
+#[derive(Default)]
+struct ToolchainSettings {
+    targets: Vec<CompilationTargetTriple>,
+    rust_channel: Option<RustToolchainChannel>,
+}
+
+fn load_toolchain_settings(root: &std::path::Path) -> Result<ToolchainSettings, String> {
+    let path = root.join("warp-toolchains.toml");
+    let source = match fs::read_to_string(&path) {
+        Ok(source) => source,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(ToolchainSettings::default());
+        }
+        Err(error) => return Err(format!("read {}: {error}", path.display())),
+    };
+    let file: ToolchainsFile =
+        toml::from_str(&source).map_err(|error| format!("parse {}: {error}", path.display()))?;
+    let mut targets = Vec::new();
+    for target in file.toolchains.targets {
+        let target = CompilationTargetTriple::parse(&target)
+            .map_err(|error| format!("parse {}: {error}", path.display()))?;
+        if targets.contains(&target) {
+            return Err(format!(
+                "parse {}: duplicate compilation target triple {target}",
+                path.display()
+            ));
+        }
+        targets.push(target);
+    }
+    let rust_channel = file
+        .toolchains
+        .rust
+        .and_then(|rust| rust.channel)
+        .map(RustToolchainChannel::parse)
+        .transpose()
+        .map_err(|error| format!("parse {}: {error}", path.display()))?;
+    Ok(ToolchainSettings {
+        targets,
+        rust_channel,
+    })
+}
+
+fn resolve_compilation_target(
+    requested: Option<&str>,
+    settings: &ToolchainSettings,
+) -> Result<CompilationTargetTriple, String> {
+    let host = host_triple().map_err(|error| error.to_string())?;
+    let Some(requested) = requested else {
+        return Ok(host);
+    };
+    if let Ok(target) = CompilationTargetTriple::parse(requested) {
+        if !settings.targets.is_empty() && !settings.targets.contains(&target) {
+            return Err(format!(
+                "compilation target {target} is not listed in warp-toolchains.toml"
+            ));
+        }
+        return Ok(target);
+    }
+
+    let family = match requested.to_ascii_lowercase().as_str() {
+        "macos" | "mac" | "darwin" => "apple-darwin",
+        "linux" => "linux",
+        "windows" | "win" => "windows",
+        _ => return Err(format!("unknown compilation target alias {requested:?}")),
+    };
+    let candidates = settings
+        .targets
+        .iter()
+        .filter(|target| target.as_str().contains(family))
+        .collect::<Vec<_>>();
+    let host_architecture = host.as_str().split('-').next().unwrap_or_default();
+    let host_match = candidates.iter().copied().find(|candidate| {
+        candidate
+            .as_str()
+            .starts_with(&format!("{host_architecture}-"))
+    });
+    let selected = match (host_match, candidates.as_slice()) {
+        (Some(target), _) => target,
+        (None, [target]) => *target,
+        (None, []) => {
+            return Err(format!(
+                "no {requested} compilation target is configured in warp-toolchains.toml"
+            ));
+        }
+        (None, _) => {
+            return Err(format!(
+                "compilation target alias {requested:?} is ambiguous; pass a full triple"
+            ));
+        }
+    };
+    Ok(selected.clone())
+}
+
 fn load_client_config(root: &std::path::Path) -> Result<BuildClientConfig, String> {
     let path = root.join("warp.toml");
     let source = match fs::read_to_string(&path) {
@@ -235,25 +381,31 @@ fn load_client_config(root: &std::path::Path) -> Result<BuildClientConfig, Strin
     };
     let config: ClientConfigFile =
         toml::from_str(&source).map_err(|error| format!("parse {}: {error}", path.display()))?;
+    let default_binary = config
+        .build
+        .default_binary
+        .map(Label::parse)
+        .transpose()
+        .map_err(|error| format!("parse {}: {error}", path.display()))?;
     Ok(BuildClientConfig {
-        default_binary: config.build.default_binary,
+        default_binary,
         excluded_directories: config.build.exclude_directories,
     })
 }
 
 fn default_standalone_output(
-    target: &TargetTriple,
+    compilation_target: &CompilationTargetTriple,
     profile: BuildProfile,
     entry: &std::path::Path,
 ) -> Result<PathBuf, String> {
     let crate_name = crate_name(entry).map_err(|error| error.to_string())?;
-    let output_name =
-        rustc_output_filename(target, &crate_name, "bin").map_err(|error| error.to_string())?;
+    let output_name = rustc_output_filename(compilation_target, &crate_name, "bin")
+        .map_err(|error| error.to_string())?;
     let root = std::env::current_dir()
         .map_err(|error| format!("cannot determine current directory: {error}"))?;
     Ok(root
         .join("_build")
-        .join(target.as_str())
+        .join(compilation_target.as_str())
         .join(profile.as_str())
         .join("bin")
         .join(output_name))
@@ -264,9 +416,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn clap_parses_default_bootstrap_target() {
+    fn clap_parses_default_build_and_multiple_labels_with_target_alias() {
         let cli = Cli::try_parse_from(["warp", "build"]).unwrap();
         assert!(matches!(cli.command, Command::Build(_)));
+
+        let cli = Cli::try_parse_from([
+            "warp",
+            "build",
+            "./crates/warp-rules",
+            "./crates/warp-cli",
+            "-x",
+            "macos",
+        ])
+        .unwrap();
+        let Command::Build(args) = cli.command;
+        assert_eq!(
+            args.targets,
+            vec![
+                "./crates/warp-rules".to_string(),
+                "./crates/warp-cli".to_string()
+            ]
+        );
+        assert_eq!(args.compilation_target.as_deref(), Some("macos"));
+
+        let settings = ToolchainSettings {
+            targets: ["aarch64-apple-darwin", "x86_64-apple-darwin"]
+                .into_iter()
+                .map(|target| CompilationTargetTriple::parse(target).unwrap())
+                .collect(),
+            rust_channel: None,
+        };
+        let host_arch = host_triple().unwrap();
+        let resolved = resolve_compilation_target(Some("macos"), &settings).unwrap();
+        assert!(resolved
+            .as_str()
+            .starts_with(host_arch.as_str().split('-').next().unwrap()));
     }
 
     #[test]
@@ -279,7 +463,7 @@ mod tests {
 
     #[test]
     fn output_path_mirrors_target_and_profile() {
-        let target = TargetTriple::parse("wasm32-wasip1").unwrap();
+        let target = CompilationTargetTriple::parse("wasm32-wasip1").unwrap();
         let entry = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/cli.rs");
         let output = default_standalone_output(&target, BuildProfile::Release, &entry).unwrap();
         assert!(output.ends_with("_build/wasm32-wasip1/release/bin/cli.wasm"));

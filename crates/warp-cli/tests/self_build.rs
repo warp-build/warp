@@ -92,7 +92,7 @@ common = { path = "../common" }
         .unwrap();
     assert_success(&lockfile);
 
-    let target = warp_build_engine::host_target().unwrap();
+    let target = warp_build_engine::host_triple().unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_warp"))
         .current_dir(&project)
         .args(["build", "./crates/warp-store", "--target"])
@@ -149,7 +149,7 @@ edition = "2021"
         .unwrap();
     assert_success(&lockfile);
 
-    let target = warp_build_engine::host_target().unwrap();
+    let target = warp_build_engine::host_triple().unwrap();
     let warp = env!("CARGO_BIN_EXE_warp");
     let build = |binary: &str| {
         Command::new(binary)
@@ -213,6 +213,23 @@ fn cargo_built_warp_builds_warp_and_then_reuses_the_workspace_cache() {
     let output = directory.0.join("debug/warp");
     let cache = directory.0.join("cache");
     let cargo_built_warp = env!("CARGO_BIN_EXE_warp");
+    let rustc = Command::new("rustup")
+        .args(["which", "rustc", "--toolchain", "stable"])
+        .output()
+        .unwrap();
+    assert_success(&rustc);
+    let rustc = String::from_utf8(rustc.stdout).unwrap();
+    let stable_cargo_build = Command::new("rustup")
+        .args(["run", "stable", "cargo", "build", "--workspace", "--locked"])
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .env("RUSTC", rustc.trim())
+        .env(
+            "CARGO_TARGET_DIR",
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("_build/cargo/stable"),
+        )
+        .output()
+        .unwrap();
+    assert_success(&stable_cargo_build);
 
     let first_bootstrap = run_warp(cargo_built_warp, &output, &cache);
     assert_success(&first_bootstrap);

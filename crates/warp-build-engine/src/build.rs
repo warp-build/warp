@@ -1,6 +1,6 @@
 use crate::action_cache::ActionCache;
 use crate::error::{Result, WarpError};
-use crate::fingerprint::{action_key, rustc, SourceTree};
+use crate::fingerprint::{action_key, rustc_for_toolchain, SourceTree};
 use crate::request::{rustc_flags, rustc_output_filename};
 use crate::{crate_name, default_cache_directory, BuildRequest};
 use std::fs;
@@ -67,7 +67,7 @@ pub fn build(request: &BuildRequest) -> Result<BuildOutcome> {
         .map_err(|error| WarpError::new(format!("open content store: {error}")))?;
     let work = WorkDirectory::create(&cache_root)?;
     let source_tree = SourceTree::capture(request, &work.path.join("source"))?;
-    let (compiler, compiler_version) = rustc()?;
+    let (compiler, compiler_version) = rustc_for_toolchain(request.rust_toolchain.as_ref())?;
     let key = action_key(request, &source_tree, &compiler, &compiler_version)?;
 
     if let Some(blob) = action_cache.lookup(&key)? {
@@ -126,7 +126,7 @@ fn compile(
     fs::create_dir_all(output_directory)
         .map_err(|error| WarpError::io("create rustc output directory", error))?;
     let name = crate_name(&request.entry)?;
-    let artifact_name = rustc_output_filename(compiler, &request.target, &name, "bin")?;
+    let artifact_name = rustc_output_filename(compiler, &request.compilation_target, &name, "bin")?;
     let mut command = Command::new(compiler);
     command
         .current_dir(&source_tree.root)
@@ -137,9 +137,9 @@ fn compile(
         .arg("--edition")
         .arg(request.edition.as_str())
         .arg("--target")
-        .arg(request.target.as_str())
+        .arg(request.compilation_target.as_str())
         .args(request.profile.rustc_arguments())
-        .args(rustc_flags(&request.target))
+        .args(rustc_flags(&request.compilation_target))
         .arg("--emit=link")
         .arg("--out-dir")
         .arg(output_directory)
@@ -198,7 +198,7 @@ impl Drop for WorkDirectory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{host_target, BuildProfile, Edition};
+    use crate::{host_triple, BuildProfile, Edition};
     use std::fs;
     use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -228,7 +228,8 @@ mod tests {
             output: directory.join("out/hello"),
             cache: Some(directory.join("cache")),
             edition: Edition::E2021,
-            target: host_target().unwrap(),
+            compilation_target: host_triple().unwrap(),
+            rust_toolchain: None,
             profile: BuildProfile::Debug,
         }
     }

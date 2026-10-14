@@ -8,30 +8,34 @@ pub mod request;
 mod workspace;
 
 pub use build::{build, BuildOutcome};
-pub use fingerprint::host_target;
+pub use fingerprint::host_triple;
 pub use graph::{
     ActionPlan, ExecutionReport, GraphError, GraphExecutor, Plan, TaskId, TaskProvider,
 };
 pub use progress::{status_tag, stdout_status_tag};
-pub use request::{default_cache_directory, BuildProfile, BuildRequest, Edition, TargetTriple};
+pub use request::{
+    default_cache_directory, BuildProfile, BuildRequest, CompilationTargetTriple, Edition,
+    RustToolchainChannel,
+};
 
 pub fn rustc_info() -> Result<(std::path::PathBuf, String)> {
     fingerprint::rustc()
 }
 pub use error::{Result, WarpError};
 pub use workspace::{
-    build_workspace, BuildClientConfig, BuildCtx, BuildIntent, BuildScope, WorkspaceReport,
+    build_workspace, BuildClientConfig, BuildCtx, BuildIntent, BuildScope, BuildTarget, Label,
+    WorkspaceReport,
 };
 
 use std::path::Path;
 
 pub fn rustc_output_filename(
-    target: &TargetTriple,
+    compilation_target: &CompilationTargetTriple,
     crate_name: &str,
     crate_type: &str,
 ) -> Result<String> {
     let (compiler, _) = fingerprint::rustc()?;
-    request::rustc_output_filename(&compiler, target, crate_name, crate_type)
+    request::rustc_output_filename(&compiler, compilation_target, crate_name, crate_type)
 }
 
 pub fn crate_name(entry: &Path) -> Result<String> {

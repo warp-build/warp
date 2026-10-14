@@ -1,4 +1,5 @@
 use crate::error::{Result, WarpError};
+use std::fmt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -14,7 +15,8 @@ pub struct BuildRequest {
     pub output: PathBuf,
     pub cache: Option<PathBuf>,
     pub edition: Edition,
-    pub target: TargetTriple,
+    pub compilation_target: CompilationTargetTriple,
+    pub rust_toolchain: Option<RustToolchainChannel>,
     pub profile: BuildProfile,
 }
 
@@ -90,11 +92,11 @@ impl BuildProfile {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct TargetTriple(String);
+pub struct CompilationTargetTriple(String);
 
-impl TargetTriple {
+impl CompilationTargetTriple {
     pub fn parse(value: &str) -> Result<Self> {
-        let valid = !value.is_empty()
+        let valid = value.contains('-')
             && value
                 .bytes()
                 .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
@@ -119,9 +121,46 @@ impl TargetTriple {
     }
 }
 
-pub fn rustc_flags(target: &TargetTriple) -> Vec<String> {
+impl fmt::Display for CompilationTargetTriple {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RustToolchainChannel(String);
+
+impl RustToolchainChannel {
+    pub fn parse(value: impl Into<String>) -> Result<Self> {
+        let value = value.into();
+        let valid = !value.is_empty()
+            && value != "."
+            && value != ".."
+            && value
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'));
+        if !valid {
+            return Err(WarpError::new(
+                "Rust toolchain channel must be a non-empty token",
+            ));
+        }
+        Ok(Self(value))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for RustToolchainChannel {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+pub fn rustc_flags(compilation_target: &CompilationTargetTriple) -> Vec<String> {
     let mut arguments = Vec::new();
-    if let Some(linker) = std::env::var_os(target_environment_name(target, "LINKER")) {
+    if let Some(linker) = std::env::var_os(target_environment_name(compilation_target, "LINKER")) {
         arguments.extend([
             "-C".to_string(),
             format!("linker={}", linker.to_string_lossy()),
@@ -143,7 +182,8 @@ pub fn rustc_flags(target: &TargetTriple) -> Vec<String> {
                 .map(str::to_owned),
         );
     }
-    if let Some(flags) = std::env::var_os(target_environment_name(target, "RUSTFLAGS")) {
+    if let Some(flags) = std::env::var_os(target_environment_name(compilation_target, "RUSTFLAGS"))
+    {
         arguments.extend(
             flags
                 .to_string_lossy()
@@ -156,7 +196,7 @@ pub fn rustc_flags(target: &TargetTriple) -> Vec<String> {
 
 pub fn rustc_output_filename(
     compiler: &Path,
-    target: &TargetTriple,
+    compilation_target: &CompilationTargetTriple,
     crate_name: &str,
     crate_type: &str,
 ) -> Result<String> {
@@ -170,7 +210,7 @@ pub fn rustc_output_filename(
             crate_type,
         ])
         .arg("--target")
-        .arg(target.as_str())
+        .arg(compilation_target.as_str())
         .arg("-")
         .stdin(std::process::Stdio::null())
         .output()
@@ -178,7 +218,7 @@ pub fn rustc_output_filename(
     if !output.status.success() {
         return Err(WarpError::new(format!(
             "rustc could not determine the artifact name for target {}: {}",
-            target.as_str(),
+            compilation_target.as_str(),
             String::from_utf8_lossy(&output.stderr)
         )));
     }
@@ -203,8 +243,11 @@ pub fn rustc_output_filename(
     Ok(filename.to_string())
 }
 
-pub fn target_environment_name(target: &TargetTriple, suffix: &str) -> String {
-    let target = target
+pub fn target_environment_name(
+    compilation_target: &CompilationTargetTriple,
+    suffix: &str,
+) -> String {
+    let target = compilation_target
         .as_str()
         .replace(['-', '.'], "_")
         .to_ascii_uppercase();
@@ -218,13 +261,23 @@ mod tests {
     #[test]
     fn target_triples_are_safe_path_components() {
         assert_eq!(
-            TargetTriple::parse("aarch64-apple-darwin")
+            CompilationTargetTriple::parse("aarch64-apple-darwin")
                 .unwrap()
                 .as_str(),
             "aarch64-apple-darwin"
         );
-        for invalid in ["", "-aarch64", "aarch64-", "../target", "aarch64 darwin"] {
-            assert!(TargetTriple::parse(invalid).is_err(), "{invalid:?}");
+        for invalid in [
+            "",
+            "macos",
+            "-aarch64",
+            "aarch64-",
+            "../target",
+            "aarch64 darwin",
+        ] {
+            assert!(
+                CompilationTargetTriple::parse(invalid).is_err(),
+                "{invalid:?}"
+            );
         }
     }
 
@@ -254,7 +307,7 @@ mod tests {
     #[test]
     fn rustc_provides_target_specific_binary_suffixes() {
         let (compiler, _) = crate::fingerprint::rustc().unwrap();
-        let target = TargetTriple::parse("wasm32-wasip1").unwrap();
+        let target = CompilationTargetTriple::parse("wasm32-wasip1").unwrap();
         assert_eq!(
             rustc_output_filename(&compiler, &target, "tiny_tool", "bin").unwrap(),
             "tiny_tool.wasm"

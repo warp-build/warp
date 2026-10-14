@@ -2,7 +2,7 @@ use crate::action_cache::ActionCache;
 use crate::error::{Result, WarpError};
 use crate::graph::{ActionPlan, GraphExecutor, Plan, TaskId, TaskProvider};
 use crate::request::{rustc_flags, target_environment_name};
-use crate::{default_cache_directory, status_tag, BuildProfile, TargetTriple};
+use crate::{default_cache_directory, status_tag, BuildProfile, CompilationTargetTriple};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
@@ -20,6 +20,8 @@ mod build_ctx;
 mod build_intent;
 mod build_node;
 mod build_runtime;
+mod build_target;
+mod label;
 mod scan;
 #[cfg(unix)]
 mod unix;
@@ -39,6 +41,8 @@ pub use build_ctx::BuildCtx;
 pub use build_intent::{BuildIntent, BuildScope};
 use build_node::BuildNode;
 use build_runtime::BuildRuntime;
+pub use build_target::BuildTarget;
+pub use label::Label;
 
 static NEXT_WORK: AtomicU64 = AtomicU64::new(0);
 
@@ -89,30 +93,25 @@ fn initialize_runtime(intent: &BuildIntent) -> Result<BuildRuntime> {
         .map_err(|error| WarpError::io("resolve workspace root", error))?;
     let scope = match &intent.scope {
         BuildScope::All => BuildScope::All,
-        BuildScope::Scoped(paths) if paths.is_empty() => {
-            return Err(WarpError::new("a scoped build needs at least one path"));
+        BuildScope::Labels(labels) if labels.is_empty() => {
+            return Err(WarpError::new(
+                "a scoped build needs at least one target label",
+            ));
         }
-        BuildScope::Scoped(paths) => BuildScope::Scoped(
-            paths
-                .iter()
-                .map(|path| {
-                    let path = if path.is_absolute() {
-                        path.clone()
-                    } else {
-                        root.join(path)
-                    };
-                    path.canonicalize().map_err(|error| {
-                        WarpError::io("resolve requested Cargo package path", error)
-                    })
-                })
-                .collect::<Result<Vec<_>>>()?,
-        ),
+        BuildScope::Labels(labels) => BuildScope::Labels(labels.clone()),
     };
-    let metadata = load_metadata(&root, &intent.target)?;
+    let metadata = load_metadata(
+        &root,
+        &intent.compilation_target,
+        intent
+            .rust_toolchain
+            .as_ref()
+            .map(|channel| channel.as_str()),
+    )?;
     let root = metadata.workspace_root.clone();
     let build_directory = root
         .join(GENERATED_OUTPUT_DIRECTORY)
-        .join(intent.target.as_str())
+        .join(intent.compilation_target.as_str())
         .join(intent.profile.as_str());
     fs::create_dir_all(&build_directory)
         .map_err(|error| WarpError::io("create target/profile build directory", error))?;
@@ -158,25 +157,38 @@ fn initialize_runtime(intent: &BuildIntent) -> Result<BuildRuntime> {
             root: &root,
             work_root: &work.path,
             build_directory: &build_directory,
-            target_triple: intent.target.clone(),
+            compilation_target: intent.compilation_target.clone(),
             profile: intent.profile,
             scope: &scope,
             excluded_directories: &intent.client.excluded_directories,
         },
     )?;
 
-    Ok(BuildRuntime {
+    Ok(BuildRuntime::new(
         workspace,
-        _work: work,
-        compiler: OnceLock::new(),
+        work,
         action_cache,
         cas,
-    })
+        intent.rust_toolchain.clone(),
+    ))
 }
 
-fn load_metadata(root: &Path, target: &TargetTriple) -> Result<CargoMetadata> {
-    let output = Command::new("cargo")
-        .current_dir(root)
+fn load_metadata(
+    root: &Path,
+    compilation_target: &CompilationTargetTriple,
+    rust_toolchain: Option<&str>,
+) -> Result<CargoMetadata> {
+    let mut command = Command::new("cargo");
+    command.current_dir(root);
+    if let Some(toolchain) = rust_toolchain {
+        command.env("RUSTUP_TOOLCHAIN", toolchain).env(
+            "CARGO_TARGET_DIR",
+            root.join(GENERATED_OUTPUT_DIRECTORY)
+                .join("cargo")
+                .join(toolchain),
+        );
+    }
+    let output = command
         .args([
             "metadata",
             "--locked",
@@ -184,7 +196,7 @@ fn load_metadata(root: &Path, target: &TargetTriple) -> Result<CargoMetadata> {
             "1",
             "--filter-platform",
         ])
-        .arg(target.as_str())
+        .arg(compilation_target.as_str())
         .output()
         .map_err(|error| {
             WarpError::io(
@@ -276,31 +288,6 @@ struct RustCompilerAction {
 
 const RUST_TARGET_RULE: &str = warp_rules::RUST_TARGET_RULE;
 
-struct TargetBuild {
-    id: TaskId,
-    package_id: String,
-    package_name: String,
-    package_version: String,
-    package_root: PathBuf,
-    source_root: PathBuf,
-    source_fingerprint: Arc<OnceLock<std::result::Result<String, String>>>,
-    source_file: PathBuf,
-    target_name: String,
-    crate_name: String,
-    edition: String,
-    features: Vec<String>,
-    kind: TargetKind,
-    dependencies: Vec<BuildDependency>,
-    compiler_artifact_name: String,
-    output: PathBuf,
-}
-
-impl TargetBuild {
-    fn label(&self) -> String {
-        format!("{}::{}", self.package_name, self.target_name)
-    }
-}
-
 #[derive(Clone)]
 struct BuildDependency {
     alias: String,
@@ -329,10 +316,10 @@ struct Workspace {
     target_native_directories: OnceLock<std::result::Result<Vec<PathBuf>, String>>,
     host_native_directories: OnceLock<std::result::Result<Vec<PathBuf>, String>>,
     global_fingerprint: OnceLock<std::result::Result<String, String>>,
-    target: TargetTriple,
-    host_target: TargetTriple,
+    compilation_target: CompilationTargetTriple,
+    host_triple: CompilationTargetTriple,
     profile: BuildProfile,
-    targets: HashMap<TaskId, TargetBuild>,
+    targets: HashMap<TaskId, BuildTarget>,
     roots: Vec<TaskId>,
     excluded_directories: Vec<String>,
     external_artifacts: Mutex<HashMap<String, PathBuf>>,
@@ -342,7 +329,7 @@ struct WorkspaceBuildContext<'a> {
     root: &'a Path,
     work_root: &'a Path,
     build_directory: &'a Path,
-    target_triple: TargetTriple,
+    compilation_target: CompilationTargetTriple,
     profile: BuildProfile,
     scope: &'a BuildScope,
     excluded_directories: &'a [String],
@@ -354,7 +341,7 @@ impl Workspace {
             root,
             work_root,
             build_directory,
-            target_triple,
+            compilation_target,
             profile,
             scope,
             excluded_directories,
@@ -374,37 +361,20 @@ impl Workspace {
             .into_iter()
             .map(|node| (node.id.clone(), node))
             .collect();
-        let selected_package_ids = match scope {
-            BuildScope::All => {
-                select_workspace_packages(&packages, &workspace_member_ids, root, None)?
-            }
-            BuildScope::Scoped(paths) => {
-                if paths.is_empty() {
-                    return Err(WarpError::new("a scoped build needs at least one path"));
-                }
-                let mut selected = HashSet::new();
-                for path in paths {
-                    selected.extend(select_workspace_packages(
-                        &packages,
-                        &workspace_member_ids,
-                        root,
-                        Some(path),
-                    )?);
-                }
-                selected
-            }
-        };
+        let selected_targets =
+            select_workspace_targets(scope, &packages, &workspace_member_ids, root)?;
+        let selected_package_ids = selected_targets.keys().cloned().collect::<HashSet<_>>();
         let active_package_ids =
             reachable_workspace_packages(&selected_package_ids, &workspace_member_ids, &nodes);
         let host = guess_host_triple::guess_host_triple()
             .ok_or_else(|| WarpError::new("could not detect the host target triple"))?;
-        let host_target = TargetTriple::parse(host)?;
+        let host_triple = CompilationTargetTriple::parse(host)?;
         let host_profile_directory = metadata.target_directory.join(profile.as_str());
         let target_profile_directory = metadata
             .target_directory
-            .join(target_triple.as_str())
+            .join(compilation_target.as_str())
             .join(profile.as_str());
-        let target_profile_directories = if target_triple == host_target {
+        let target_profile_directories = if compilation_target == host_triple {
             vec![
                 target_profile_directory.clone(),
                 host_profile_directory.clone(),
@@ -470,7 +440,11 @@ impl Workspace {
                     task_by_package_library.insert(package_id.clone(), id.clone());
                 }
                 target_ids.insert((package_id.clone(), target.name.clone()), id.clone());
-                if selected_package_ids.contains(package_id) {
+                if selected_targets.get(package_id).is_some_and(|selection| {
+                    selection
+                        .as_ref()
+                        .is_none_or(|target_names| target_names.contains(&target.name))
+                }) {
                     roots.push(id);
                 }
             }
@@ -575,9 +549,9 @@ impl Workspace {
                     })?;
                 let source_root = work_root.join("sources").join(short_hash(package_id));
                 let effective_target = if *kind == TargetKind::ProcMacro {
-                    &host_target
+                    &host_triple
                 } else {
-                    &target_triple
+                    &compilation_target
                 };
                 let (output, compiler_artifact_name) = artifact_output(
                     *kind,
@@ -588,7 +562,8 @@ impl Workspace {
                 )?;
                 targets.insert(
                     id.clone(),
-                    TargetBuild {
+                    BuildTarget {
+                        label: Label::parse(format!("{}::{}", package.name, target.name))?,
                         id,
                         package_id: package_id.clone(),
                         package_name: package.name.clone(),
@@ -633,8 +608,8 @@ impl Workspace {
             target_native_directories: OnceLock::new(),
             host_native_directories: OnceLock::new(),
             global_fingerprint: OnceLock::new(),
-            target: target_triple,
-            host_target,
+            compilation_target,
+            host_triple,
             profile,
             targets,
             roots,
@@ -701,12 +676,13 @@ impl Workspace {
         };
         let path = find_external_artifact(ExternalArtifactRequest {
             profile_directories,
+            cargo_target_directory: &self.cargo_target_directory,
             package_name: &artifact.package_name,
             version: &artifact.version,
             crate_name: &artifact.crate_name,
             proc_macro: artifact.proc_macro,
             features: &artifact.features,
-            target: &self.target,
+            compilation_target: &self.compilation_target,
             profile: self.profile,
         })?;
         self.external_artifacts
@@ -728,7 +704,7 @@ impl Workspace {
 
         let mut hasher = blake3::Hasher::new();
         write_field(&mut hasher, RUST_TARGET_RULE.as_bytes());
-        write_field(&mut hasher, self.target.as_str().as_bytes());
+        write_field(&mut hasher, self.compilation_target.as_str().as_bytes());
         write_field(&mut hasher, self.profile.as_str().as_bytes());
         for path in [
             self.root.join("Cargo.toml"),
@@ -759,7 +735,7 @@ impl Workspace {
                 write_field(&mut hasher, value.to_string_lossy().as_bytes());
             }
         }
-        for effective_target in [&self.target, &self.host_target] {
+        for effective_target in [&self.compilation_target, &self.host_triple] {
             for suffix in ["LINKER", "RUSTFLAGS"] {
                 let name = target_environment_name(effective_target, suffix);
                 if let Some(value) = std::env::var_os(&name) {
@@ -842,6 +818,127 @@ fn select_workspace_packages(
     )))
 }
 
+fn select_workspace_targets(
+    scope: &BuildScope,
+    packages: &HashMap<String, CargoPackage>,
+    workspace_members: &HashSet<String>,
+    workspace_root: &Path,
+) -> Result<HashMap<String, Option<HashSet<String>>>> {
+    let mut selected = HashMap::new();
+    match scope {
+        BuildScope::All => {
+            for package_id in workspace_members {
+                selected.insert(package_id.clone(), None);
+            }
+        }
+        BuildScope::Labels(labels) => {
+            if labels.is_empty() {
+                return Err(WarpError::new(
+                    "a scoped build needs at least one target label",
+                ));
+            }
+            for label in labels {
+                select_label(
+                    label,
+                    packages,
+                    workspace_members,
+                    workspace_root,
+                    &mut selected,
+                )?;
+            }
+        }
+    }
+    Ok(selected)
+}
+
+fn select_label(
+    label: &Label,
+    packages: &HashMap<String, CargoPackage>,
+    workspace_members: &HashSet<String>,
+    workspace_root: &Path,
+    selected: &mut HashMap<String, Option<HashSet<String>>>,
+) -> Result<()> {
+    let value = label.as_str();
+    if let Some((package_name, target_name)) = value.split_once("::") {
+        let (package_id, package) = workspace_members
+            .iter()
+            .filter_map(|package_id| {
+                packages
+                    .get(package_id)
+                    .map(|package| (package_id, package))
+            })
+            .find(|(_, package)| package.name == package_name)
+            .ok_or_else(|| WarpError::new(format!("no build target matches label {label}")))?;
+        if !package
+            .targets
+            .iter()
+            .any(|target| target.name == target_name)
+        {
+            return Err(WarpError::new(format!(
+                "package {package_name:?} has no Cargo target named {target_name:?}"
+            )));
+        }
+        include_selected_target(selected, package_id, Some(target_name));
+        return Ok(());
+    }
+
+    if let Some(package_id) = workspace_members.iter().find(|package_id| {
+        packages
+            .get(*package_id)
+            .is_some_and(|package| package.name == value)
+    }) {
+        include_selected_target(selected, package_id, None);
+        return Ok(());
+    }
+
+    let path = Path::new(value);
+    let looks_like_path =
+        path.is_absolute() || value.starts_with('.') || value.contains('/') || value.contains('\\');
+    if !looks_like_path {
+        return Err(WarpError::new(format!(
+            "no build target matches label {label}"
+        )));
+    }
+    let requested_path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        workspace_root.join(path)
+    };
+    let requested_path = requested_path
+        .canonicalize()
+        .map_err(|error| WarpError::io("resolve build-target label", error))?;
+    let package_ids = select_workspace_packages(
+        packages,
+        workspace_members,
+        workspace_root,
+        Some(&requested_path),
+    )?;
+    for package_id in package_ids {
+        include_selected_target(selected, &package_id, None);
+    }
+    Ok(())
+}
+
+fn include_selected_target(
+    selected: &mut HashMap<String, Option<HashSet<String>>>,
+    package_id: &str,
+    target_name: Option<&str>,
+) {
+    match target_name {
+        None => {
+            selected.insert(package_id.to_string(), None);
+        }
+        Some(target_name) => {
+            let selection = selected
+                .entry(package_id.to_string())
+                .or_insert_with(|| Some(HashSet::new()));
+            if let Some(target_names) = selection {
+                target_names.insert(target_name.to_string());
+            }
+        }
+    }
+}
+
 fn reachable_workspace_packages(
     selected: &HashSet<String>,
     workspace_members: &HashSet<String>,
@@ -866,24 +963,26 @@ fn reachable_workspace_packages(
 
 struct ExternalArtifactRequest<'a> {
     profile_directories: &'a [PathBuf],
+    cargo_target_directory: &'a Path,
     package_name: &'a str,
     version: &'a str,
     crate_name: &'a str,
     proc_macro: bool,
     features: &'a [String],
-    target: &'a TargetTriple,
+    compilation_target: &'a CompilationTargetTriple,
     profile: BuildProfile,
 }
 
 fn find_external_artifact(request: ExternalArtifactRequest<'_>) -> Result<PathBuf> {
     let ExternalArtifactRequest {
         profile_directories,
+        cargo_target_directory,
         package_name,
         version,
         crate_name,
         proc_macro,
         features,
-        target,
+        compilation_target,
         profile,
     } = request;
     let extension = if proc_macro {
@@ -955,9 +1054,10 @@ fn find_external_artifact(request: ExternalArtifactRequest<'_>) -> Result<PathBu
             BuildProfile::Release => "cargo build --release",
         };
         WarpError::new(format!(
-            "no prebuilt Cargo artifact for {package_name} {version} ({crate_name}) and target {}; run `{cargo_profile} --target {}` first",
-            target.as_str(),
-            target.as_str()
+            "no prebuilt Cargo artifact for {package_name} {version} ({crate_name}) and compilation target {}; build dependencies with Cargo using the same Rust toolchain and target directory {} (`{cargo_profile} --target {}`)",
+            compilation_target.as_str(),
+            cargo_target_directory.display(),
+            compilation_target.as_str()
         ))
     })
 }
@@ -1045,11 +1145,11 @@ impl WorkspaceProvider {
                 }
                 self.register_node(BuildNode::ScanDirectory(self.context.intent.root.clone()))
             }
-            BuildScope::Scoped(paths) => {
+            BuildScope::Labels(labels) => {
                 if self.context.intent.verbose {
                     eprintln!(
-                        "[graph] BuildIntent resolves {} scoped path(s)",
-                        paths.len()
+                        "[graph] BuildIntent resolves {} target label(s)",
+                        labels.len()
                     );
                 }
                 TaskId::new(BUILD_SCOPE_TASK).map_err(|error| error.to_string())
@@ -1124,7 +1224,7 @@ impl WorkspaceProvider {
         }
     }
 
-    fn ensure_source_fingerprint(&self, target: &TargetBuild) -> std::result::Result<(), String> {
+    fn ensure_source_fingerprint(&self, target: &BuildTarget) -> std::result::Result<(), String> {
         target
             .source_fingerprint
             .get_or_init(|| {
@@ -1171,7 +1271,7 @@ impl TaskProvider for WorkspaceProvider {
                     .roots
                     .iter()
                     .filter_map(|root| runtime.workspace.targets.get(root))
-                    .map(TargetBuild::label)
+                    .map(|target| target.label().to_string())
                     .collect::<Vec<_>>();
                 eprintln!("Building {}", building.join(" "));
             }
@@ -1197,7 +1297,7 @@ impl TaskProvider for WorkspaceProvider {
                         .roots
                         .iter()
                         .filter_map(|root| runtime.workspace.targets.get(root))
-                        .map(TargetBuild::label)
+                        .map(|target| target.label().to_string())
                         .collect::<Vec<_>>();
                     eprintln!("Building {}", building.join(" "));
                 }
@@ -1267,7 +1367,7 @@ impl TaskProvider for WorkspaceProvider {
             .workspace
             .targets
             .get(task)
-            .map(TargetBuild::label)
+            .map(|target| target.label().to_string())
             .unwrap_or_else(|| task.to_string());
         let result = self.execute_target(task);
         match &result {
@@ -1308,7 +1408,7 @@ impl WorkspaceProvider {
         let workspace = &runtime.workspace;
         let selected_binary = selected_binary(
             workspace,
-            self.context.intent.client.default_binary.as_deref(),
+            self.context.intent.client.default_binary.as_ref(),
         )?;
         let promoted_output = match selected_binary {
             Some(selected_binary) => {
@@ -1406,7 +1506,7 @@ impl WorkspaceProvider {
     fn resolve_dependencies(
         &self,
         runtime: &BuildRuntime,
-        target: &TargetBuild,
+        target: &BuildTarget,
     ) -> Result<Vec<(String, String, PathBuf)>> {
         target
             .dependencies
@@ -1451,7 +1551,7 @@ impl WorkspaceProvider {
         &self,
         runtime: &BuildRuntime,
         blob: &BlobDigest,
-        target: &TargetBuild,
+        target: &BuildTarget,
     ) -> Result<bool> {
         let restored = runtime
             .cas
@@ -1467,8 +1567,8 @@ impl WorkspaceProvider {
 
 fn selected_binary<'a>(
     workspace: &'a Workspace,
-    selector: Option<&str>,
-) -> std::result::Result<Option<&'a TargetBuild>, String> {
+    selector: Option<&Label>,
+) -> std::result::Result<Option<&'a BuildTarget>, String> {
     let mut matches = workspace
         .roots
         .iter()
@@ -1476,7 +1576,7 @@ fn selected_binary<'a>(
         .filter(|target| {
             target.kind == TargetKind::Binary
                 && selector.is_none_or(|selector| {
-                    target.target_name == selector || target.label() == selector
+                    target.target_name == selector.as_str() || target.label() == selector
                 })
         });
     let selected = matches.next();
@@ -1493,7 +1593,7 @@ fn selected_binary<'a>(
 
 fn compile_target(
     workspace: &Workspace,
-    target: &TargetBuild,
+    target: &BuildTarget,
     dependencies: &[(String, String, PathBuf)],
     compiler: &Path,
     output_directory: &Path,
@@ -1501,9 +1601,9 @@ fn compile_target(
     fs::create_dir_all(output_directory)
         .map_err(|error| WarpError::io("create rustc output directory", error))?;
     let effective_target = if target.kind == TargetKind::ProcMacro {
-        &workspace.host_target
+        &workspace.host_triple
     } else {
-        &workspace.target
+        &workspace.compilation_target
     };
     let mut compiler_arguments = vec![
         "--target".to_string(),
@@ -1629,7 +1729,7 @@ fn add_host_native_loader_paths(command: &mut Command, directories: &[PathBuf]) 
 
 fn target_action_key(
     workspace: &Workspace,
-    target: &TargetBuild,
+    target: &BuildTarget,
     dependencies: &[(String, String, PathBuf)],
     compiler: &Path,
     compiler_version: &str,
@@ -1638,9 +1738,9 @@ fn target_action_key(
     write_field(&mut hasher, b"warp-cargo-package-action-v1");
     write_field(&mut hasher, workspace.global_fingerprint()?.as_bytes());
     let effective_target = if target.kind == TargetKind::ProcMacro {
-        &workspace.host_target
+        &workspace.host_triple
     } else {
-        &workspace.target
+        &workspace.compilation_target
     };
     write_field(&mut hasher, effective_target.as_str().as_bytes());
     write_field(&mut hasher, workspace.profile.as_str().as_bytes());
@@ -1841,12 +1941,12 @@ fn artifact_output(
     target_name: &str,
     package_relative: &Path,
     build_directory: &Path,
-    target: &TargetTriple,
+    compilation_target: &CompilationTargetTriple,
 ) -> Result<(PathBuf, String)> {
     let crate_name = normalize_crate_name(target_name);
     let (filename, compiler_artifact_name) = match kind {
         TargetKind::Binary => {
-            let suffix = binary_suffix(target);
+            let suffix = binary_suffix(compilation_target);
             (
                 format!("{target_name}{suffix}"),
                 format!("{crate_name}{suffix}"),
@@ -1872,10 +1972,10 @@ fn artifact_output(
     ))
 }
 
-fn binary_suffix(target: &TargetTriple) -> &'static str {
-    if target.as_str().contains("windows") {
+fn binary_suffix(compilation_target: &CompilationTargetTriple) -> &'static str {
+    if compilation_target.as_str().contains("windows") {
         ".exe"
-    } else if target.as_str().starts_with("wasm32-") {
+    } else if compilation_target.as_str().starts_with("wasm32-") {
         ".wasm"
     } else {
         ""
@@ -1951,10 +2051,58 @@ mod tests {
     use super::*;
 
     #[test]
+    fn labels_resolve_packages_and_individual_build_targets() {
+        let id = "path+file:///example/demo#0.1.0".to_string();
+        let workspace_root =
+            std::env::temp_dir().join(format!("warp-labels-{}", std::process::id()));
+        let package_root = workspace_root.join("crates/demo");
+        fs::create_dir_all(package_root.join("src")).unwrap();
+        fs::write(package_root.join("Cargo.toml"), "[package]").unwrap();
+        let package = CargoPackage {
+            id: id.clone(),
+            name: "demo".into(),
+            version: "0.1.0".into(),
+            manifest_path: package_root.join("Cargo.toml"),
+            edition: "2021".into(),
+            targets: vec![CargoTarget {
+                name: "demo-bin".into(),
+                kind: vec!["bin".into()],
+                src_path: package_root.join("src/main.rs"),
+                required_features: Vec::new(),
+            }],
+        };
+        let packages = HashMap::from([(id.clone(), package)]);
+        let members = HashSet::from([id.clone()]);
+        let workspace_root = workspace_root.canonicalize().unwrap();
+
+        let target_selection = select_workspace_targets(
+            &BuildScope::Labels(vec![Label::parse("demo::demo-bin").unwrap()]),
+            &packages,
+            &members,
+            &workspace_root,
+        )
+        .unwrap();
+        assert_eq!(
+            target_selection.get(&id),
+            Some(&Some(HashSet::from(["demo-bin".to_string()])))
+        );
+
+        let package_selection = select_workspace_targets(
+            &BuildScope::Labels(vec![Label::parse("./crates/demo").unwrap()]),
+            &packages,
+            &members,
+            &workspace_root,
+        )
+        .unwrap();
+        assert_eq!(package_selection.get(&id), Some(&None));
+        fs::remove_dir_all(workspace_root).unwrap();
+    }
+
+    #[test]
     fn package_artifacts_mirror_workspace_paths() {
         let build_directory = Path::new("/workspace/_build/aarch64-apple-darwin/release");
         let package = Path::new("crates/warp-store");
-        let target = crate::host_target().unwrap();
+        let target = crate::host_triple().unwrap();
         let (library, _) = artifact_output(
             TargetKind::Library,
             "warp-store",
