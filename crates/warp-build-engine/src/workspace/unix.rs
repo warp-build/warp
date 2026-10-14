@@ -29,6 +29,9 @@ pub fn mark_executable(path: &Path) -> io::Result<()> {
     use std::os::unix::fs::PermissionsExt;
 
     let mut permissions = std::fs::metadata(path)?.permissions();
+    if permissions.mode() & 0o111 == 0o111 {
+        return Ok(());
+    }
     permissions.set_mode(0o755);
     std::fs::set_permissions(path, permissions)
 }

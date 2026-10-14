@@ -5,8 +5,7 @@ use crate::request::{rustc_flags, target_environment_name};
 use crate::{default_cache_directory, status_tag, BuildProfile, CompilationTargetTriple};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
-use std::fs::{self, File};
-use std::io::Read;
+use std::fs;
 use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -323,6 +322,7 @@ struct Workspace {
     roots: Vec<TaskId>,
     excluded_directories: Vec<String>,
     external_artifacts: Mutex<HashMap<String, PathBuf>>,
+    artifact_digests: Mutex<HashMap<PathBuf, Arc<Mutex<Option<String>>>>>,
 }
 
 struct WorkspaceBuildContext<'a> {
@@ -615,6 +615,7 @@ impl Workspace {
             roots,
             excluded_directories: excluded_directories.to_vec(),
             external_artifacts: Mutex::new(HashMap::new()),
+            artifact_digests: Mutex::new(HashMap::new()),
         })
     }
 
@@ -657,6 +658,41 @@ impl Workspace {
             .as_ref()
             .map(String::as_str)
             .map_err(|error| WarpError::new(error.clone()))
+    }
+
+    /// Hashes each immutable artifact once per build invocation, then reuses its actual digest.
+    fn artifact_digest(&self, path: &Path) -> Result<String> {
+        let cell = self.artifact_digest_cell(path)?;
+        let mut digest = cell
+            .lock()
+            .map_err(|_| WarpError::new("artifact digest entry poisoned"))?;
+        if let Some(digest) = digest.as_ref() {
+            return Ok(digest.clone());
+        }
+        let computed = hash_file(path)?;
+        *digest = Some(computed.clone());
+        Ok(computed)
+    }
+
+    fn remember_artifact_digest(&self, path: &Path, digest: &str) -> Result<()> {
+        *self
+            .artifact_digest_cell(path)?
+            .lock()
+            .map_err(|_| WarpError::new("artifact digest entry poisoned"))? =
+            Some(digest.to_owned());
+        Ok(())
+    }
+
+    fn artifact_digest_cell(&self, path: &Path) -> Result<Arc<Mutex<Option<String>>>> {
+        self.artifact_digests
+            .lock()
+            .map_err(|_| WarpError::new("artifact digest cache poisoned"))
+            .map(|mut digests| {
+                digests
+                    .entry(path.to_path_buf())
+                    .or_insert_with(|| Arc::new(Mutex::new(None)))
+                    .clone()
+            })
     }
 
     fn external_artifact(&self, package_id: &str, artifact: &ExternalArtifact) -> Result<PathBuf> {
@@ -1172,6 +1208,7 @@ impl WorkspaceProvider {
             return Ok(dependencies);
         }
 
+        let scan_started = Instant::now();
         let directory = directory
             .canonicalize()
             .map_err(|error| format!("resolve scan path {}: {error}", directory.display()))?;
@@ -1180,10 +1217,11 @@ impl WorkspaceProvider {
                 .map_err(|error| error.to_string())?;
         if self.context.intent.verbose {
             eprintln!(
-                "[graph] scanned {} (manifest: {}, child directories: {})",
+                "[graph] scanned {} (manifest: {}, child directories: {}, {}ms)",
                 directory.display(),
                 has_manifest,
-                child_directories.len()
+                child_directories.len(),
+                scan_started.elapsed().as_millis()
             );
         }
         let mut dependencies = Vec::new();
@@ -1225,7 +1263,8 @@ impl WorkspaceProvider {
     }
 
     fn ensure_source_fingerprint(&self, target: &BuildTarget) -> std::result::Result<(), String> {
-        target
+        let started = Instant::now();
+        let result = target
             .source_fingerprint
             .get_or_init(|| {
                 copy_and_fingerprint_tree(
@@ -1237,7 +1276,15 @@ impl WorkspaceProvider {
             })
             .as_ref()
             .map(|_| ())
-            .map_err(Clone::clone)
+            .map_err(Clone::clone);
+        if self.context.intent.verbose {
+            eprintln!(
+                "[profile] source snapshot {}={}ms",
+                target.label(),
+                started.elapsed().as_millis()
+            );
+        }
+        result
     }
 }
 
@@ -1460,25 +1507,51 @@ impl WorkspaceProvider {
             .targets
             .get(task)
             .ok_or_else(|| format!("unknown workspace task {task}"))?;
+        let dependencies_started = Instant::now();
         let dependencies = self
             .resolve_dependencies(runtime, target)
             .map_err(|error| error.to_string())?;
+        let dependencies_elapsed = dependencies_started.elapsed();
         let (compiler, compiler_version) = runtime.compiler()?;
+        let key_started = Instant::now();
         let key = target_action_key(workspace, target, &dependencies, compiler, compiler_version)
             .map_err(|error| error.to_string())?;
-
-        if let Some(blob) = runtime
+        let key_elapsed = key_started.elapsed();
+        let lookup_started = Instant::now();
+        let cached_blob = runtime
             .action_cache
             .lookup(&key)
-            .map_err(|error| error.to_string())?
-        {
+            .map_err(|error| error.to_string())?;
+        let lookup_elapsed = lookup_started.elapsed();
+
+        if let Some(blob) = cached_blob {
+            let restore_started = Instant::now();
             if self
                 .restore(runtime, &blob, target)
                 .map_err(|error| error.to_string())?
             {
+                if self.context.intent.verbose {
+                    eprintln!(
+                        "[profile] {} cache-hit deps={}ms key={}ms lookup={}ms restore={}ms",
+                        target.label(),
+                        dependencies_elapsed.as_millis(),
+                        key_elapsed.as_millis(),
+                        lookup_elapsed.as_millis(),
+                        restore_started.elapsed().as_millis()
+                    );
+                }
                 self.cached.fetch_add(1, Ordering::Relaxed);
                 return Ok(TargetOutcome::Cached);
             }
+        }
+        if self.context.intent.verbose {
+            eprintln!(
+                "[profile] {} cache-miss deps={}ms key={}ms lookup={}ms",
+                target.label(),
+                dependencies_elapsed.as_millis(),
+                key_elapsed.as_millis(),
+                lookup_elapsed.as_millis()
+            );
         }
 
         let work = WorkDirectory::create(&workspace.work_directory.join("outputs"))
@@ -1553,6 +1626,15 @@ impl WorkspaceProvider {
         blob: &BlobDigest,
         target: &BuildTarget,
     ) -> Result<bool> {
+        if target.output.is_file()
+            && runtime.workspace.artifact_digest(&target.output)? == blob.as_str()
+        {
+            if target.kind == TargetKind::Binary {
+                platform::mark_executable(&target.output)
+                    .map_err(|error| WarpError::io("set workspace artifact permissions", error))?;
+            }
+            return Ok(true);
+        }
         let restored = runtime
             .cas
             .get_file(blob, &target.output)
@@ -1560,6 +1642,11 @@ impl WorkspaceProvider {
         if restored && target.kind == TargetKind::Binary {
             platform::mark_executable(&target.output)
                 .map_err(|error| WarpError::io("set workspace artifact permissions", error))?;
+        }
+        if restored {
+            runtime
+                .workspace
+                .remember_artifact_digest(&target.output, blob.as_str())?;
         }
         Ok(restored)
     }
@@ -1781,7 +1868,7 @@ fn target_action_key(
     for (alias, package_id, path) in dependencies {
         write_field(&mut hasher, alias.as_bytes());
         write_field(&mut hasher, package_id.as_bytes());
-        let digest = hash_file(&path)?;
+        let digest = workspace.artifact_digest(&path)?;
         write_field(&mut hasher, digest.as_bytes());
     }
     Ok(format!("blake3:{}", hasher.finalize().to_hex()))
@@ -1883,46 +1970,40 @@ fn hash_path_into(hasher: &mut blake3::Hasher, path: &Path, root: &Path) -> Resu
         hasher,
         relative.to_string_lossy().replace('\\', "/").as_bytes(),
     );
-    let mut file = File::open(path)
-        .map_err(|error| WarpError::io("read workspace fingerprint input", error))?;
-    let length = file
-        .metadata()
+    let length = fs::metadata(path)
         .map_err(|error| WarpError::io("inspect workspace fingerprint input", error))?
         .len()
         .to_le_bytes();
     write_field(hasher, &length);
-    let mut buffer = [0; 32 * 1024];
-    loop {
-        let count = file
-            .read(&mut buffer)
-            .map_err(|error| WarpError::io("read workspace fingerprint input", error))?;
-        if count == 0 {
-            return Ok(());
-        }
-        hasher.update(&buffer[..count]);
+    hasher
+        .update_mmap(path)
+        .map_err(|error| WarpError::io("hash workspace fingerprint input", error))?;
+    Ok(())
+}
+
+fn hash_file(path: &Path) -> Result<String> {
+    const PARALLEL_HASH_THRESHOLD: u64 = 1024 * 1024;
+
+    let length = fs::metadata(path)
+        .map_err(|error| WarpError::io("inspect build artifact", error))?
+        .len();
+    let mut hasher = blake3::Hasher::new();
+    if length >= PARALLEL_HASH_THRESHOLD {
+        hasher
+            .update_mmap_rayon(path)
+            .map_err(|error| WarpError::io("hash build artifact", error))?;
+    } else {
+        hasher
+            .update_mmap(path)
+            .map_err(|error| WarpError::io("hash build artifact", error))?;
     }
+    Ok(hasher.finalize().to_hex().to_string())
 }
 
 fn path_argument(path: &Path) -> Result<String> {
     path.to_str()
         .map(str::to_owned)
         .ok_or_else(|| WarpError::new(format!("rustc path is not valid UTF-8: {}", path.display())))
-}
-
-fn hash_file(path: &Path) -> Result<String> {
-    let mut file =
-        File::open(path).map_err(|error| WarpError::io("read dependency artifact", error))?;
-    let mut hasher = blake3::Hasher::new();
-    let mut buffer = [0; 64 * 1024];
-    loop {
-        let count = file
-            .read(&mut buffer)
-            .map_err(|error| WarpError::io("hash dependency artifact", error))?;
-        if count == 0 {
-            return Ok(hasher.finalize().to_hex().to_string());
-        }
-        hasher.update(&buffer[..count]);
-    }
 }
 
 fn write_field(hasher: &mut blake3::Hasher, value: &[u8]) {
@@ -2096,6 +2177,33 @@ mod tests {
         .unwrap();
         assert_eq!(package_selection.get(&id), Some(&None));
         fs::remove_dir_all(workspace_root).unwrap();
+    }
+
+    #[test]
+    fn memory_mapped_artifact_hash_matches_blake3_for_small_and_large_files() {
+        let test_root = std::env::temp_dir().join(format!(
+            "warp-hash-test-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&test_root).unwrap();
+
+        for (name, bytes) in [
+            ("small", vec![17; 64 * 1024]),
+            ("large", vec![29; 2 * 1024 * 1024]),
+        ] {
+            let path = test_root.join(name);
+            fs::write(&path, &bytes).unwrap();
+            assert_eq!(
+                hash_file(&path).unwrap(),
+                blake3::hash(&bytes).to_hex().to_string()
+            );
+        }
+
+        fs::remove_dir_all(test_root).unwrap();
     }
 
     #[test]

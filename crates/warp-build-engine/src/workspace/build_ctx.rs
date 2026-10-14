@@ -26,7 +26,17 @@ impl BuildCtx {
         initialize: impl FnOnce() -> crate::error::Result<BuildRuntime>,
     ) -> std::result::Result<&BuildRuntime, String> {
         self.runtime
-            .get_or_init(|| initialize().map_err(|error| error.to_string()))
+            .get_or_init(|| {
+                let started = Instant::now();
+                let result = initialize().map_err(|error| error.to_string());
+                if self.intent.verbose {
+                    eprintln!(
+                        "[profile] workspace runtime initialization={}ms",
+                        started.elapsed().as_millis()
+                    );
+                }
+                result
+            })
             .as_ref()
             .map_err(Clone::clone)
     }
