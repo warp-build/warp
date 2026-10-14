@@ -1,10 +1,12 @@
 use clap::{Args, Parser, Subcommand};
+use serde::Deserialize;
+use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 use warp_build_engine::{
     build, build_workspace, crate_name, host_target, rustc_output_filename, status_tag,
-    stdout_status_tag, BuildOutcome, BuildProfile, BuildRequest, Edition, TargetTriple,
-    WorkspaceRequest,
+    stdout_status_tag, BuildClientConfig, BuildIntent, BuildOutcome, BuildProfile, BuildRequest,
+    BuildScope, Edition, TargetTriple,
 };
 
 #[derive(Debug, Parser)]
@@ -29,9 +31,13 @@ struct BuildArgs {
     /// Build a Rust source file or a Cargo package directory/Cargo.toml. Without it, build the workspace.
     path: Option<PathBuf>,
 
-    /// Promoted executable path. Defaults to _build/<target>/<profile>/bin/<name>.
+    /// Promoted executable path. Defaults to the selected client-configured binary path.
     #[arg(long)]
     output: Option<PathBuf>,
+
+    /// Binary target to promote instead of the client-configured default.
+    #[arg(long)]
+    bin: Option<String>,
 
     /// Override the per-user global content and action cache directory.
     #[arg(long)]
@@ -48,6 +54,10 @@ struct BuildArgs {
     /// Rust language edition for standalone source builds.
     #[arg(long, default_value = "2021", value_parser = ["2015", "2018", "2021", "2024"])]
     edition: String,
+
+    /// Show build graph planning details.
+    #[arg(short, long)]
+    verbose: bool,
 }
 
 impl Cli {
@@ -64,17 +74,28 @@ impl Cli {
                     BuildProfile::parse(&args.profile).map_err(|error| error.to_string())?;
 
                 match args.path {
-                    Some(entry) if is_standalone_source(&entry) => run_standalone_build(
-                        entry,
+                    Some(entry) if is_standalone_source(&entry) => {
+                        if args.bin.is_some() {
+                            return Err("--bin applies only to Cargo workspace builds".into());
+                        }
+                        run_standalone_build(
+                            entry,
+                            args.output,
+                            args.cache,
+                            args.edition,
+                            target,
+                            profile,
+                        )
+                    }
+                    selection => run_workspace_build(
+                        selection,
                         args.output,
                         args.cache,
-                        args.edition,
                         target,
                         profile,
+                        args.verbose,
+                        args.bin,
                     ),
-                    selection => {
-                        run_workspace_build(selection, args.output, args.cache, target, profile)
-                    }
                 }
             }
         }
@@ -153,18 +174,29 @@ fn run_workspace_build(
     cache: Option<PathBuf>,
     target: TargetTriple,
     profile: BuildProfile,
+    verbose: bool,
+    binary_override: Option<String>,
 ) -> Result<String, String> {
     let root = std::env::current_dir()
         .map_err(|error| format!("cannot determine current directory: {error}"))?;
-    let request = WorkspaceRequest {
+    let mut client = load_client_config(&root)?;
+    if binary_override.is_some() {
+        client.default_binary = binary_override;
+    }
+    let scope = selection
+        .map(|path| BuildScope::Scoped(vec![path]))
+        .unwrap_or(BuildScope::All);
+    let intent = BuildIntent {
         root,
-        selection,
+        scope,
         output,
         cache,
         target,
         profile,
+        verbose,
+        client,
     };
-    let report = build_workspace(&request).map_err(|error| error.to_string())?;
+    let report = build_workspace(&intent).map_err(|error| error.to_string())?;
     let status = format!(
         "{} {} targets in {:.2}s ({} built, {} cached)",
         stdout_status_tag("FINISHED", true),
@@ -176,6 +208,36 @@ fn run_workspace_build(
     Ok(match report.output {
         Some(output) => format!("{status}: {}", output.display()),
         None => status,
+    })
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default)]
+struct ClientConfigFile {
+    build: ClientBuildConfig,
+}
+
+#[derive(Default, Deserialize)]
+#[serde(default, rename_all = "kebab-case")]
+struct ClientBuildConfig {
+    default_binary: Option<String>,
+    exclude_directories: Vec<String>,
+}
+
+fn load_client_config(root: &std::path::Path) -> Result<BuildClientConfig, String> {
+    let path = root.join("warp.toml");
+    let source = match fs::read_to_string(&path) {
+        Ok(source) => source,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(BuildClientConfig::default());
+        }
+        Err(error) => return Err(format!("read {}: {error}", path.display())),
+    };
+    let config: ClientConfigFile =
+        toml::from_str(&source).map_err(|error| format!("parse {}: {error}", path.display()))?;
+    Ok(BuildClientConfig {
+        default_binary: config.build.default_binary,
+        excluded_directories: config.build.exclude_directories,
     })
 }
 

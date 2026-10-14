@@ -1,0 +1,3 @@
+[build]
+default-binary = "warp"
+exclude-directories = [".git", "_legacy", "target", "vendor", "node_modules"]

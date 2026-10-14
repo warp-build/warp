@@ -1,3 +1,4 @@
+use deno_ast::{MediaType, ParseParams, TranspileModuleOptions, TranspileOptions};
 use deno_core::{op2, JsRuntime, OpState, RuntimeOptions};
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuleError {
@@ -45,9 +46,10 @@ deno_core::extension!(
     state = |state| state.put(EmittedPlan::default())
 );
 
-/// Evaluate a synchronous JavaScript build rule in a runtime without host I/O.
-/// The rule must call `Warp.emit(plan)` exactly once.
+/// Transpile the supported TypeScript subset and evaluate a synchronous build rule without host I/O.
+/// The rule must call `Warp.emit(plan)` exactly once. This transpiles syntax but does not type-check it.
 pub fn evaluate(source: &str) -> Result<serde_json::Value, RuleError> {
+    let source = transpile_typescript(source)?;
     let mut runtime = JsRuntime::new(RuntimeOptions {
         extensions: vec![warp_rules::init()],
         ..Default::default()
@@ -56,7 +58,7 @@ pub fn evaluate(source: &str) -> Result<serde_json::Value, RuleError> {
         .execute_script("<warp-rule-prelude>", PRELUDE)
         .map_err(|error| RuleError::Evaluation(error.to_string()))?;
     runtime
-        .execute_script("<warp-rule>", source.to_string())
+        .execute_script("<warp-rule>", source)
         .map_err(|error| RuleError::Evaluation(error.to_string()))?;
 
     let state = runtime.op_state();
@@ -76,20 +78,120 @@ pub fn evaluate(source: &str) -> Result<serde_json::Value, RuleError> {
     Ok(plan)
 }
 
+fn transpile_typescript(source: &str) -> Result<String, RuleError> {
+    let specifier = deno_core::ModuleSpecifier::parse("file:///warp-rule.ts")
+        .expect("static TypeScript rule specifier is valid");
+    let parsed = deno_ast::parse_module(ParseParams {
+        specifier,
+        text: source.to_string().into(),
+        media_type: MediaType::TypeScript,
+        capture_tokens: false,
+        scope_analysis: false,
+        maybe_syntax: None,
+    })
+    .map_err(|error| RuleError::Evaluation(error.to_string()))?;
+    let transpiled = parsed
+        .transpile(
+            &TranspileOptions::default(),
+            &TranspileModuleOptions { module_kind: None },
+            &deno_ast::EmitOptions::default(),
+        )
+        .map_err(|error| RuleError::Evaluation(error.to_string()))?;
+    Ok(transpiled.into_source().text)
+}
+
 const PRELUDE: &str = r#"
-Object.defineProperty(globalThis, "Warp", {
-  configurable: false,
-  enumerable: true,
-  writable: false,
-  value: Object.freeze({
-    emit(plan) {
-      const json = JSON.stringify(plan);
-      if (typeof json !== "string") {
-        throw new TypeError("Warp.emit requires a JSON-serializable plan");
-      }
-      Deno.core.ops.op_warp_emit_plan(json);
-    },
-  }),
+const fail = (message) => { throw new TypeError(message); };
+const string = () => "string";
+const file = () => "file";
+const target = () => "target";
+
+const matches = (value, type) => {
+  if (Array.isArray(type)) {
+    return type.length === 1 && Array.isArray(value) &&
+      value.every((element) => matches(element, type[0]));
+  }
+  if (type === "string" || type === "file" || type === "target") {
+    return typeof value === "string";
+  }
+  return false;
+};
+
+const describe = (type) => Array.isArray(type)
+  ? `list of ${describe(type[0])}`
+  : type;
+
+const resolveConfig = (schema, defaults, input) => {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    fail("Warp.Rule configuration must be an object");
+  }
+  const config = {};
+  for (const [key, type] of Object.entries(schema)) {
+    const value = Object.hasOwn(input, key) ? input[key] : defaults[key];
+    if (value === undefined) fail(`missing required rule config '${key}'`);
+    if (!matches(value, type)) {
+      fail(`rule config '${key}' must be ${describe(type)}`);
+    }
+    config[key] = value;
+  }
+  return config;
+};
+
+const Warp = Object.freeze({
+  emit(plan) {
+    const json = JSON.stringify(plan);
+    if (typeof json !== "string") {
+      throw new TypeError("Warp.emit requires a JSON-serializable plan");
+    }
+    Deno.core.ops.op_warp_emit_plan(json);
+  },
+  Rule(spec) {
+    if (typeof spec.name !== "string" || spec.name.length === 0) {
+      fail("Warp.Rule requires a non-empty name");
+    }
+    if (typeof spec.mnemonic !== "string" || spec.mnemonic.length === 0) {
+      fail(`rule '${spec.name}' requires a mnemonic`);
+    }
+    if (typeof spec.impl !== "function") fail(`rule '${spec.name}' requires impl(ctx)`);
+    if (spec.cfg === null || typeof spec.cfg !== "object" || Array.isArray(spec.cfg)) {
+      fail(`rule '${spec.name}' requires a cfg schema`);
+    }
+    const defaults = spec.defaults ?? {};
+    const toolchains = (spec.toolchains ?? []).map((toolchain) =>
+      typeof toolchain === "string" ? toolchain : toolchain.name
+    );
+
+    return Object.freeze({
+      name: spec.name,
+      mnemonic: spec.mnemonic,
+      toolchains,
+      plan(input) {
+        const config = resolveConfig(spec.cfg, defaults, input);
+        let execution;
+        let outputs;
+        const action = Object.freeze({
+          exec({ program, args, env = {}, cwd = null }) {
+            if (execution !== undefined) fail("a Warp rule may declare only one exec action");
+            if (typeof program !== "string" || !Array.isArray(args) ||
+                !args.every((argument) => typeof argument === "string")) {
+              fail("exec requires a program and a string[] args");
+            }
+            execution = { program, arguments: args, env, cwd };
+          },
+          declareOutputs(value) {
+            if (!Array.isArray(value) || !value.every((path) => typeof path === "string")) {
+              fail("declareOutputs requires a string[]");
+            }
+            outputs = value;
+          },
+        });
+        spec.impl(Object.freeze({ cfg: () => config, action: () => action }));
+        if (execution === undefined) fail(`rule '${spec.name}' did not declare an exec action`);
+        if (outputs === undefined) fail(`rule '${spec.name}' did not declare outputs`);
+        return { ...execution, outputs, toolchains };
+      },
+    });
+  },
 });
 
 const NativeDate = Date;
@@ -131,6 +233,46 @@ mod tests {
         .unwrap();
         assert_eq!(plan["targets"][0]["name"], "warp");
         assert_eq!(plan["targets"][1]["name"], "engine");
+    }
+
+    #[test]
+    fn transpiles_typescript_rule_annotations_before_evaluation() {
+        let plan = evaluate(
+            r#"
+              type Inputs = { name: string };
+              const label = (inputs: Inputs): string => inputs.name;
+              Warp.emit({ label: label({ name: "rust" }) });
+            "#,
+        )
+        .unwrap();
+        assert_eq!(plan["label"], "rust");
+    }
+
+    #[test]
+    fn legacy_shaped_rule_schema_builds_an_action_plan() {
+        let plan = evaluate(
+            r#"
+              interface Config { name: string; sources: string[] }
+              const rule = Warp.Rule<Config>({
+                name: "example",
+                mnemonic: "Example",
+                cfg: { name: string(), sources: [file()] },
+                defaults: { sources: ["main.rs"] },
+                toolchains: ["rustc"],
+                impl(ctx) {
+                  const config = ctx.cfg();
+                  ctx.action().exec({ program: "rustc", args: config.sources });
+                  ctx.action().declareOutputs([config.name]);
+                },
+              });
+              Warp.emit(rule.plan({ name: "example.out" }));
+            "#,
+        )
+        .unwrap();
+        assert_eq!(plan["program"], "rustc");
+        assert_eq!(plan["arguments"][0], "main.rs");
+        assert_eq!(plan["outputs"][0], "example.out");
+        assert_eq!(plan["toolchains"][0], "rustc");
     }
 
     #[test]

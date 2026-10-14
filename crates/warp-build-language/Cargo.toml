@@ -5,6 +5,7 @@ edition = "2021"
 publish = false
 
 [dependencies]
+deno_ast = { workspace = true }
 deno_core = { workspace = true }
 deno_error = { workspace = true }
 serde_json = { workspace = true }

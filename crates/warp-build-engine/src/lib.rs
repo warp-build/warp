@@ -1,10 +1,10 @@
-mod action_cache;
+pub mod action_cache;
 mod build;
-mod error;
+pub mod error;
 mod fingerprint;
 pub mod graph;
 mod progress;
-mod request;
+pub mod request;
 mod workspace;
 
 pub use build::{build, BuildOutcome};
@@ -14,9 +14,15 @@ pub use graph::{
 };
 pub use progress::{status_tag, stdout_status_tag};
 pub use request::{default_cache_directory, BuildProfile, BuildRequest, Edition, TargetTriple};
-pub use workspace::{build_workspace, WorkspaceReport, WorkspaceRequest};
 
-use crate::error::{Result, WarpError};
+pub fn rustc_info() -> Result<(std::path::PathBuf, String)> {
+    fingerprint::rustc()
+}
+pub use error::{Result, WarpError};
+pub use workspace::{
+    build_workspace, BuildClientConfig, BuildCtx, BuildIntent, BuildScope, WorkspaceReport,
+};
+
 use std::path::Path;
 
 pub fn rustc_output_filename(

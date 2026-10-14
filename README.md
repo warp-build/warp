@@ -13,9 +13,12 @@ cargo build --bin warp
 ```
 
 Warp places workspace outputs under `_build/<target-triple>/<profile>/`,
-mirroring package paths. The selected executable is also promoted to that
-build directory's `bin/` folder. The default action/CAS cache is per-user and
-uses the operating system's cache directory (on macOS,
+mirroring package paths. A selected executable is promoted to that build
+directory's `bin/` folder. Client-specific choices live in the workspace's
+`warp.toml`; this repository selects its `warp` binary by default, and
+`--bin` overrides that choice. `exclude-directories` in that file controls workspace discovery and source
+snapshots. The default action/CAS cache is per-user and uses the operating
+system's cache directory (on macOS,
 `~/Library/Caches/warp`). `--cache` and `--output` override the cache and
 promoted executable paths. Builds print a `Building` line, per-target `OK` or
 `ERR` events (including elapsed time for cache hits), and a final elapsed-time

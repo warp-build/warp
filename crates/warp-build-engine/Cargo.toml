@@ -11,5 +11,6 @@ guess_host_triple = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 warp-build-language = { path = "../warp-build-language" }
+warp-rules = { path = "../warp-rules" }
 warp-protocol = { path = "../warp-protocol" }
 warp-store = { path = "../warp-store" }

@@ -119,7 +119,7 @@ impl TargetTriple {
     }
 }
 
-pub(crate) fn rustc_flags(target: &TargetTriple) -> Vec<String> {
+pub fn rustc_flags(target: &TargetTriple) -> Vec<String> {
     let mut arguments = Vec::new();
     if let Some(linker) = std::env::var_os(target_environment_name(target, "LINKER")) {
         arguments.extend([
@@ -154,7 +154,7 @@ pub(crate) fn rustc_flags(target: &TargetTriple) -> Vec<String> {
     arguments
 }
 
-pub(crate) fn rustc_output_filename(
+pub fn rustc_output_filename(
     compiler: &Path,
     target: &TargetTriple,
     crate_name: &str,
@@ -203,7 +203,7 @@ pub(crate) fn rustc_output_filename(
     Ok(filename.to_string())
 }
 
-pub(crate) fn target_environment_name(target: &TargetTriple, suffix: &str) -> String {
+pub fn target_environment_name(target: &TargetTriple, suffix: &str) -> String {
     let target = target
         .as_str()
         .replace(['-', '.'], "_")
