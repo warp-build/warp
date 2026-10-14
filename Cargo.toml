@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/warp-protocol"]
+members = ["crates/warp-protocol", "crates/warp"]
 resolver = "2"
 
 [workspace.dependencies]
