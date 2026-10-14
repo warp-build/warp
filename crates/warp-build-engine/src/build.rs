@@ -1,7 +1,8 @@
 use crate::action_cache::ActionCache;
 use crate::error::{Result, WarpError};
 use crate::fingerprint::{action_key, rustc, SourceTree};
-use crate::{crate_name, BuildRequest};
+use crate::request::{rustc_flags, rustc_output_filename};
+use crate::{crate_name, default_cache_directory, BuildRequest};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -25,10 +26,13 @@ pub fn build(request: &BuildRequest) -> Result<BuildOutcome> {
         .parent()
         .ok_or_else(|| WarpError::new("Rust entry point has no source directory"))?;
 
-    fs::create_dir_all(&request.cache)
+    let requested_cache = match &request.cache {
+        Some(path) => path.clone(),
+        None => default_cache_directory()?,
+    };
+    fs::create_dir_all(&requested_cache)
         .map_err(|error| WarpError::io("create build cache directory", error))?;
-    let cache_root = request
-        .cache
+    let cache_root = requested_cache
         .canonicalize()
         .map_err(|error| WarpError::io("resolve build cache directory", error))?;
     if cache_root.starts_with(source_root) {
@@ -122,6 +126,7 @@ fn compile(
     fs::create_dir_all(output_directory)
         .map_err(|error| WarpError::io("create rustc output directory", error))?;
     let name = crate_name(&request.entry)?;
+    let artifact_name = rustc_output_filename(compiler, &request.target, &name, "bin")?;
     let mut command = Command::new(compiler);
     command
         .current_dir(&source_tree.root)
@@ -131,6 +136,10 @@ fn compile(
         .arg("bin")
         .arg("--edition")
         .arg(request.edition.as_str())
+        .arg("--target")
+        .arg(request.target.as_str())
+        .args(request.profile.rustc_arguments())
+        .args(rustc_flags(&request.target))
         .arg("--emit=link")
         .arg("--out-dir")
         .arg(output_directory)
@@ -152,8 +161,7 @@ fn compile(
         )));
     }
 
-    let executable = executable_name(&name);
-    let artifact = output_directory.join(executable);
+    let artifact = output_directory.join(artifact_name);
     if !artifact.is_file() {
         return Err(WarpError::new(format!(
             "rustc succeeded but did not produce expected executable {}",
@@ -161,14 +169,6 @@ fn compile(
         )));
     }
     Ok(artifact)
-}
-
-fn executable_name(crate_name: &str) -> String {
-    if cfg!(windows) {
-        format!("{crate_name}.exe")
-    } else {
-        crate_name.to_string()
-    }
 }
 
 struct WorkDirectory {
@@ -198,7 +198,7 @@ impl Drop for WorkDirectory {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Edition;
+    use crate::{host_target, BuildProfile, Edition};
     use std::fs;
     use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -226,8 +226,10 @@ mod tests {
         BuildRequest {
             entry: directory.join("src/main.rs"),
             output: directory.join("out/hello"),
-            cache: directory.join("cache"),
+            cache: Some(directory.join("cache")),
             edition: Edition::E2021,
+            target: host_target().unwrap(),
+            profile: BuildProfile::Debug,
         }
     }
 

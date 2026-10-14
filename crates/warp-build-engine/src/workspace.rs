@@ -2,6 +2,8 @@ use crate::action_cache::ActionCache;
 use crate::error::{Result, WarpError};
 use crate::fingerprint::rustc;
 use crate::graph::{ActionPlan, GraphExecutor, Plan, TaskId, TaskProvider};
+use crate::request::{rustc_flags, rustc_output_filename, target_environment_name};
+use crate::{default_cache_directory, status_tag, BuildProfile, TargetTriple};
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
@@ -11,6 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use warp_store::{BlobDigest, Cas};
 
 static NEXT_WORK: AtomicU64 = AtomicU64::new(0);
@@ -18,36 +21,92 @@ static NEXT_WORK: AtomicU64 = AtomicU64::new(0);
 #[derive(Clone, Debug)]
 pub struct WorkspaceRequest {
     pub root: PathBuf,
-    pub output: PathBuf,
-    pub cache: PathBuf,
+    pub selection: Option<PathBuf>,
+    pub output: Option<PathBuf>,
+    pub cache: Option<PathBuf>,
+    pub target: TargetTriple,
+    pub profile: BuildProfile,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorkspaceReport {
-    pub output: PathBuf,
+    pub output: Option<PathBuf>,
     pub built: usize,
     pub cached: usize,
+    pub targets: usize,
+    pub elapsed: Duration,
 }
 
 pub fn build_workspace(request: &WorkspaceRequest) -> Result<WorkspaceReport> {
+    let started = Instant::now();
+    let result = build_workspace_inner(request, started);
+    if result.is_err() {
+        eprintln!(
+            "{} build failed in {:.2}s",
+            status_tag("FINISHED", false),
+            started.elapsed().as_secs_f64()
+        );
+    }
+    result
+}
+
+fn build_workspace_inner(request: &WorkspaceRequest, started: Instant) -> Result<WorkspaceReport> {
     let root = request
         .root
         .canonicalize()
         .map_err(|error| WarpError::io("resolve workspace root", error))?;
-    let metadata = load_metadata(&root)?;
+    let selection = request
+        .selection
+        .as_ref()
+        .map(|path| {
+            let path = if path.is_absolute() {
+                path.clone()
+            } else {
+                root.join(path)
+            };
+            path.canonicalize()
+                .map_err(|error| WarpError::io("resolve requested Cargo package path", error))
+        })
+        .transpose()?;
+    let metadata = load_metadata(&root, &request.target)?;
     let root = metadata.workspace_root.clone();
+    let build_directory = root
+        .join("_build")
+        .join(request.target.as_str())
+        .join(request.profile.as_str());
+    fs::create_dir_all(&build_directory)
+        .map_err(|error| WarpError::io("create target/profile build directory", error))?;
 
-    let output_parent = output_parent(&request.output)?;
-    let output_name = request
-        .output
-        .file_name()
-        .ok_or_else(|| WarpError::new("workspace output path must name a file"))?;
-    let main_output = output_parent.join(output_name);
-    let dependency_output = output_parent.join("deps");
-    fs::create_dir_all(&dependency_output)
-        .map_err(|error| WarpError::io("create workspace output directory", error))?;
-
-    let cache_root = absolute_directory(&request.cache, "create workspace cache")?;
+    let requested_cache = match &request.cache {
+        Some(path) => path.clone(),
+        None => default_cache_directory()?,
+    };
+    let cache_root = absolute_directory(&requested_cache, "create workspace cache")?;
+    if request.cache.is_some() && cache_root.starts_with(&root) {
+        return Err(WarpError::new(
+            "workspace cache override must be outside the workspace source tree",
+        ));
+    }
+    if let Some(output) = &request.output {
+        let output = if output.is_absolute() {
+            output.clone()
+        } else {
+            root.join(output)
+        };
+        let parent = output.parent().unwrap_or(&root);
+        fs::create_dir_all(parent)
+            .map_err(|error| WarpError::io("create promoted binary parent", error))?;
+        let parent = parent
+            .canonicalize()
+            .map_err(|error| WarpError::io("resolve promoted binary parent", error))?;
+        if parent.starts_with(&cache_root)
+            || (parent.starts_with(&root) && !parent.starts_with(&build_directory))
+        {
+            return Err(WarpError::new(
+                "promoted binary must be outside source and cache directories, except under _build",
+            ));
+        }
+    }
     let action_cache = Arc::new(ActionCache::new(cache_root.join("actions"))?);
     let cas = Arc::new(
         Cas::new(cache_root.join("cas"))
@@ -55,9 +114,19 @@ pub fn build_workspace(request: &WorkspaceRequest) -> Result<WorkspaceReport> {
     );
 
     let work = WorkDirectory::create(&cache_root)?;
-    let workspace =
-        Workspace::from_metadata(metadata, &root, &work.path, &output_parent, &main_output)?;
     let (compiler, compiler_version) = rustc()?;
+    let workspace = Workspace::from_metadata(
+        metadata,
+        WorkspaceBuildContext {
+            root: &root,
+            work_root: &work.path,
+            build_directory: &build_directory,
+            target_triple: request.target.clone(),
+            profile: request.profile,
+            compiler: &compiler,
+            selection: selection.as_deref(),
+        },
+    )?;
     let provider = WorkspaceProvider {
         workspace: Arc::new(workspace),
         compiler,
@@ -68,25 +137,78 @@ pub fn build_workspace(request: &WorkspaceRequest) -> Result<WorkspaceReport> {
         cached: AtomicU64::new(0),
     };
 
+    let building = provider
+        .workspace
+        .roots
+        .iter()
+        .filter_map(|task| provider.workspace.targets.get(task))
+        .map(TargetBuild::label)
+        .collect::<Vec<_>>();
+    eprintln!("Building {}", building.join(" "));
+
     let workers = std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN);
     let graph = GraphExecutor::new(workers);
-    graph
+    let execution = graph
         .execute(&provider, provider.workspace.roots.clone())
         .map_err(|error| WarpError::new(format!("workspace graph failed: {error}")))?;
 
+    let promoted_output = match &provider.workspace.main_binary {
+        Some(task) => {
+            let selected_binary = provider
+                .workspace
+                .targets
+                .get(task)
+                .expect("selected workspace binary exists");
+            let output = request
+                .output
+                .as_ref()
+                .map(|path| {
+                    if path.is_absolute() {
+                        path.clone()
+                    } else {
+                        root.join(path)
+                    }
+                })
+                .unwrap_or_else(|| {
+                    build_directory.join("bin").join(
+                        selected_binary
+                            .output
+                            .file_name()
+                            .expect("binary artifact has a filename"),
+                    )
+                });
+            promote_binary(&selected_binary.output, &output)?;
+            Some(output)
+        }
+        None if request.output.is_some() => {
+            return Err(WarpError::new(
+                "workspace has no binary target to write to the requested output path",
+            ));
+        }
+        None => None,
+    };
     let built = provider.built.load(Ordering::Relaxed) as usize;
     let cached = provider.cached.load(Ordering::Relaxed) as usize;
     Ok(WorkspaceReport {
-        output: main_output,
+        output: promoted_output,
         built,
         cached,
+        targets: execution.completed.len(),
+        elapsed: started.elapsed(),
     })
 }
 
-fn load_metadata(root: &Path) -> Result<CargoMetadata> {
+fn load_metadata(root: &Path, target: &TargetTriple) -> Result<CargoMetadata> {
     let output = Command::new("cargo")
         .current_dir(root)
-        .args(["metadata", "--locked", "--format-version", "1"])
+        .args([
+            "metadata",
+            "--locked",
+            "--format-version",
+            "1",
+            "--filter-platform",
+        ])
+        .arg(target.as_str())
         .output()
         .map_err(|error| {
             WarpError::io(
@@ -159,7 +281,6 @@ struct CargoResolvedDependency {
 #[derive(Deserialize)]
 struct CargoDependencyKind {
     kind: Option<String>,
-    target: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -186,12 +307,20 @@ struct TargetBuild {
     source_root: PathBuf,
     source_fingerprint: String,
     source_file: PathBuf,
+    target_name: String,
     crate_name: String,
     edition: String,
     features: Vec<String>,
     kind: TargetKind,
     dependencies: Vec<BuildDependency>,
+    compiler_artifact_name: String,
     output: PathBuf,
+}
+
+impl TargetBuild {
+    fn label(&self) -> String {
+        format!("{}::{}", self.package_name, self.target_name)
+    }
 }
 
 #[derive(Clone)]
@@ -203,23 +332,40 @@ struct BuildDependency {
 }
 
 struct Workspace {
-    target_directory: PathBuf,
-    dependency_directory: PathBuf,
-    cargo_dependency_directory: PathBuf,
-    native_directories: Vec<PathBuf>,
+    work_directory: PathBuf,
+    dependency_directories: Vec<PathBuf>,
+    target_native_directories: Vec<PathBuf>,
+    host_native_directories: Vec<PathBuf>,
     global_fingerprint: String,
+    target: TargetTriple,
+    host_target: TargetTriple,
+    profile: BuildProfile,
     targets: HashMap<TaskId, TargetBuild>,
     roots: Vec<TaskId>,
+    main_binary: Option<TaskId>,
+}
+
+struct WorkspaceBuildContext<'a> {
+    root: &'a Path,
+    work_root: &'a Path,
+    build_directory: &'a Path,
+    target_triple: TargetTriple,
+    profile: BuildProfile,
+    compiler: &'a Path,
+    selection: Option<&'a Path>,
 }
 
 impl Workspace {
-    fn from_metadata(
-        metadata: CargoMetadata,
-        root: &Path,
-        work_root: &Path,
-        output_directory: &Path,
-        main_output: &Path,
-    ) -> Result<Self> {
+    fn from_metadata(metadata: CargoMetadata, context: WorkspaceBuildContext<'_>) -> Result<Self> {
+        let WorkspaceBuildContext {
+            root,
+            work_root,
+            build_directory,
+            target_triple,
+            profile,
+            compiler,
+            selection,
+        } = context;
         let resolve = metadata.resolve.ok_or_else(|| {
             WarpError::new("cargo metadata did not return a resolved dependency graph")
         })?;
@@ -235,9 +381,30 @@ impl Workspace {
             .into_iter()
             .map(|node| (node.id.clone(), node))
             .collect();
+        let selected_package_ids =
+            select_workspace_packages(&packages, &workspace_member_ids, root, selection)?;
+        let active_package_ids =
+            reachable_workspace_packages(&selected_package_ids, &workspace_member_ids, &nodes);
+        let host = guess_host_triple::guess_host_triple()
+            .ok_or_else(|| WarpError::new("could not detect the host target triple"))?;
+        let host_target = TargetTriple::parse(host)?;
+        let host_profile_directory = metadata.target_directory.join(profile.as_str());
+        let target_profile_directory = metadata
+            .target_directory
+            .join(target_triple.as_str())
+            .join(profile.as_str());
+        let target_profile_directories = if target_triple == host_target {
+            vec![
+                target_profile_directory.clone(),
+                host_profile_directory.clone(),
+            ]
+        } else {
+            vec![target_profile_directory.clone()]
+        };
+        let host_profile_directories = vec![host_profile_directory.clone()];
 
         let mut package_targets = HashMap::<String, Vec<(CargoTarget, TargetKind)>>::new();
-        for package_id in &workspace_member_ids {
+        for package_id in &active_package_ids {
             let package = packages.get(package_id).ok_or_else(|| {
                 WarpError::new(format!(
                     "Cargo metadata omitted workspace package {package_id}"
@@ -285,14 +452,16 @@ impl Workspace {
         let mut task_by_package_library = HashMap::new();
         let mut target_ids = HashMap::new();
         let mut roots = Vec::new();
-        for package_id in &workspace_member_ids {
+        for package_id in &active_package_ids {
             for (target, kind) in &package_targets[package_id] {
                 let id = task_id(package_id, &target.name)?;
                 if *kind == TargetKind::Library || *kind == TargetKind::ProcMacro {
                     task_by_package_library.insert(package_id.clone(), id.clone());
                 }
                 target_ids.insert((package_id.clone(), target.name.clone()), id.clone());
-                roots.push(id);
+                if selected_package_ids.contains(package_id) {
+                    roots.push(id);
+                }
             }
         }
         roots.sort();
@@ -300,7 +469,7 @@ impl Workspace {
         let mut external_artifacts = HashMap::<String, PathBuf>::new();
         let mut targets = HashMap::new();
         let mut external_packages = HashSet::new();
-        for package_id in &workspace_member_ids {
+        for package_id in &active_package_ids {
             let package = packages.get(package_id).unwrap();
             let node = nodes.get(package_id).ok_or_else(|| {
                 WarpError::new(format!(
@@ -308,7 +477,7 @@ impl Workspace {
                     package.name
                 ))
             })?;
-            for dependency in normal_dependencies(&node.deps)? {
+            for dependency in normal_dependencies(&node.deps) {
                 if !workspace_member_ids.contains(&dependency.pkg) {
                     external_packages.insert(dependency.pkg.clone());
                 }
@@ -318,7 +487,7 @@ impl Workspace {
             let package = packages.get(&external_id).ok_or_else(|| {
                 WarpError::new(format!("Cargo metadata omitted package {external_id}"))
             })?;
-            let target = package
+            let crate_target = package
                 .targets
                 .iter()
                 .find(|target| {
@@ -337,26 +506,38 @@ impl Workspace {
                 .get(&external_id)
                 .map(|node| node.features.as_slice())
                 .unwrap_or(&[]);
-            let artifact = find_external_artifact(
-                &metadata.target_directory,
-                &package.name,
-                &package.version,
-                &target.name,
-                target.kind.iter().any(|kind| kind == "proc-macro"),
+            let is_proc_macro = crate_target.kind.iter().any(|kind| kind == "proc-macro");
+            let artifact_directories = if is_proc_macro {
+                &host_profile_directories
+            } else {
+                &target_profile_directories
+            };
+            let artifact = find_external_artifact(ExternalArtifactRequest {
+                profile_directories: artifact_directories,
+                package_name: &package.name,
+                version: &package.version,
+                crate_name: &crate_target.name,
+                proc_macro: is_proc_macro,
                 features,
-            )?;
+                target: &target_triple,
+                profile,
+            })?;
             external_artifacts.insert(external_id, artifact);
         }
 
-        for package_id in &workspace_member_ids {
+        for package_id in &active_package_ids {
             let package = packages.get(package_id).unwrap();
             let package_root = package
                 .manifest_path
                 .parent()
                 .ok_or_else(|| WarpError::new("Cargo manifest path has no parent"))?
                 .to_path_buf();
+            let package_relative = package_root
+                .strip_prefix(root)
+                .map_err(|_| WarpError::new("Cargo package is outside the workspace root"))?
+                .to_path_buf();
             let node = nodes.get(package_id).unwrap();
-            let dependencies = normal_dependencies(&node.deps)?
+            let dependencies = normal_dependencies(&node.deps)
                 .into_iter()
                 .map(|dependency| {
                     if workspace_member_ids.contains(&dependency.pkg) {
@@ -407,13 +588,19 @@ impl Workspace {
                         ))
                     })?;
                 let source_root = work_root.join("sources").join(short_hash(package_id));
-                let output = artifact_output(
+                let effective_target = if *kind == TargetKind::ProcMacro {
+                    &host_target
+                } else {
+                    &target_triple
+                };
+                let (output, compiler_artifact_name) = artifact_output(
                     *kind,
                     &target.name,
-                    package_id,
-                    output_directory,
-                    main_output,
-                );
+                    &package_relative,
+                    build_directory,
+                    effective_target,
+                    compiler,
+                )?;
                 targets.insert(
                     id.clone(),
                     TargetBuild {
@@ -425,21 +612,46 @@ impl Workspace {
                         source_root: source_root.clone(),
                         source_fingerprint: source_fingerprint.clone(),
                         source_file: source_root.join(relative_source),
+                        target_name: target.name.clone(),
                         crate_name: normalize_crate_name(&target.name),
                         edition: package.edition.clone(),
                         features: features.clone(),
                         kind: *kind,
                         dependencies: dependencies.clone(),
+                        compiler_artifact_name,
                         output,
                     },
                 );
             }
         }
 
-        let native_directories =
-            collect_native_directories(&metadata.target_directory.join("debug/build"))?;
+        let mut target_native_directories = Vec::new();
+        for profile_directory in &target_profile_directories {
+            target_native_directories.extend(collect_native_directories(
+                &profile_directory.join("build"),
+            )?);
+        }
+        target_native_directories.sort();
+        target_native_directories.dedup();
+        let mut host_native_directories = Vec::new();
+        for profile_directory in &host_profile_directories {
+            host_native_directories.extend(collect_native_directories(
+                &profile_directory.join("build"),
+            )?);
+        }
+        host_native_directories.sort();
+        host_native_directories.dedup();
+        let mut native_directories = target_native_directories
+            .iter()
+            .chain(&host_native_directories)
+            .cloned()
+            .collect::<Vec<_>>();
+        native_directories.sort();
+        native_directories.dedup();
         let mut global_hasher = blake3::Hasher::new();
         write_field(&mut global_hasher, RUST_TARGET_RULE.as_bytes());
+        write_field(&mut global_hasher, target_triple.as_str().as_bytes());
+        write_field(&mut global_hasher, profile.as_str().as_bytes());
         for path in [
             root.join("Cargo.toml"),
             root.join("Cargo.lock"),
@@ -469,17 +681,53 @@ impl Workspace {
                 write_field(&mut global_hasher, value.to_string_lossy().as_bytes());
             }
         }
+        for effective_target in [&target_triple, &host_target] {
+            for suffix in ["LINKER", "RUSTFLAGS"] {
+                let name = target_environment_name(effective_target, suffix);
+                if let Some(value) = std::env::var_os(&name) {
+                    write_field(&mut global_hasher, name.as_bytes());
+                    write_field(&mut global_hasher, value.to_string_lossy().as_bytes());
+                }
+            }
+        }
         let global_fingerprint = global_hasher.finalize().to_hex().to_string();
-        let dependency_directory = output_directory.join("deps");
-        let cargo_dependency_directory = metadata.target_directory.join("debug/deps");
+        let mut dependency_directories = target_profile_directories
+            .iter()
+            .chain(host_profile_directories.iter())
+            .map(|directory| directory.join("deps"))
+            .collect::<Vec<_>>();
+        dependency_directories.extend(
+            targets
+                .values()
+                .filter_map(|target| target.output.parent().map(Path::to_path_buf)),
+        );
+        dependency_directories.sort();
+        dependency_directories.dedup();
+        let mut binaries = roots
+            .iter()
+            .filter_map(|task| targets.get(task))
+            .filter(|target| target.kind == TargetKind::Binary)
+            .collect::<Vec<_>>();
+        binaries.sort_by(|left, right| {
+            let left_preference = usize::from(left.target_name != "warp");
+            let right_preference = usize::from(right.target_name != "warp");
+            left_preference
+                .cmp(&right_preference)
+                .then(left.id.cmp(&right.id))
+        });
+        let main_binary = binaries.first().map(|target| target.id.clone());
         Ok(Self {
-            target_directory: metadata.target_directory,
-            dependency_directory,
-            cargo_dependency_directory,
-            native_directories,
+            work_directory: work_root.to_path_buf(),
+            dependency_directories,
+            target_native_directories,
+            host_native_directories,
             global_fingerprint,
+            target: target_triple,
+            host_target,
+            profile,
             targets,
             roots,
+            main_binary,
         })
     }
 }
@@ -490,40 +738,114 @@ struct NormalDependency {
     pkg: String,
 }
 
-fn normal_dependencies(dependencies: &[CargoResolvedDependency]) -> Result<Vec<NormalDependency>> {
+fn normal_dependencies(dependencies: &[CargoResolvedDependency]) -> Vec<NormalDependency> {
     dependencies
         .iter()
-        .filter_map(|dependency| {
-            let normal = dependency.dep_kinds.iter().any(|kind| kind.kind.is_none());
-            if !normal {
-                return None;
-            }
-            Some((dependency, dependency.dep_kinds.iter().find(|kind| kind.kind.is_none())))
-        })
-        .map(|(dependency, kind)| {
-            if let Some(target) = kind.and_then(|kind| kind.target.as_deref()) {
-                return Err(WarpError::new(format!(
-                    "target-specific dependency {} ({target}) is not supported by this host-only bootstrap",
-                    dependency.name
-                )));
-            }
-            Ok(NormalDependency {
-                name: dependency.name.clone(),
-                pkg: dependency.pkg.clone(),
-            })
+        .filter(|dependency| dependency.dep_kinds.iter().any(|kind| kind.kind.is_none()))
+        .map(|dependency| NormalDependency {
+            name: dependency.name.clone(),
+            pkg: dependency.pkg.clone(),
         })
         .collect()
 }
 
-fn find_external_artifact(
-    target_directory: &Path,
-    package_name: &str,
-    version: &str,
-    crate_name: &str,
+fn select_workspace_packages(
+    packages: &HashMap<String, CargoPackage>,
+    workspace_members: &HashSet<String>,
+    workspace_root: &Path,
+    selection: Option<&Path>,
+) -> Result<HashSet<String>> {
+    let Some(selection) = selection else {
+        return Ok(workspace_members.clone());
+    };
+    let package_root = if selection.is_dir() {
+        selection
+    } else if selection
+        .file_name()
+        .is_some_and(|name| name == "Cargo.toml")
+    {
+        selection
+            .parent()
+            .ok_or_else(|| WarpError::new("Cargo.toml selection has no parent directory"))?
+    } else {
+        return Err(WarpError::new(format!(
+            "build path {} must be a Cargo package directory or Cargo.toml",
+            selection.display()
+        )));
+    };
+
+    if package_root == workspace_root {
+        return Ok(workspace_members.clone());
+    }
+
+    for package_id in workspace_members {
+        let package = packages.get(package_id).ok_or_else(|| {
+            WarpError::new(format!(
+                "Cargo metadata omitted workspace package {package_id}"
+            ))
+        })?;
+        let package_path = package
+            .manifest_path
+            .parent()
+            .ok_or_else(|| WarpError::new("Cargo manifest path has no parent"))?
+            .canonicalize()
+            .map_err(|error| WarpError::io("resolve Cargo package directory", error))?;
+        if package_path == package_root {
+            return Ok(std::iter::once(package_id.clone()).collect());
+        }
+    }
+
+    Err(WarpError::new(format!(
+        "{} is not a Cargo package in workspace {}",
+        package_root.display(),
+        workspace_root.display()
+    )))
+}
+
+fn reachable_workspace_packages(
+    selected: &HashSet<String>,
+    workspace_members: &HashSet<String>,
+    nodes: &HashMap<String, CargoNode>,
+) -> HashSet<String> {
+    let mut reachable = selected.clone();
+    let mut pending = selected.iter().cloned().collect::<Vec<_>>();
+    while let Some(package_id) = pending.pop() {
+        let Some(node) = nodes.get(&package_id) else {
+            continue;
+        };
+        for dependency in normal_dependencies(&node.deps) {
+            if workspace_members.contains(&dependency.pkg)
+                && reachable.insert(dependency.pkg.clone())
+            {
+                pending.push(dependency.pkg);
+            }
+        }
+    }
+    reachable
+}
+
+struct ExternalArtifactRequest<'a> {
+    profile_directories: &'a [PathBuf],
+    package_name: &'a str,
+    version: &'a str,
+    crate_name: &'a str,
     proc_macro: bool,
-    features: &[String],
-) -> Result<PathBuf> {
-    let dependencies = target_directory.join("debug/deps");
+    features: &'a [String],
+    target: &'a TargetTriple,
+    profile: BuildProfile,
+}
+
+fn find_external_artifact(request: ExternalArtifactRequest<'_>) -> Result<PathBuf> {
+    let ExternalArtifactRequest {
+        profile_directories,
+        package_name,
+        version,
+        crate_name,
+        proc_macro,
+        features,
+        target,
+        profile,
+    } = request;
     let extension = if proc_macro {
         if cfg!(target_os = "macos") {
             "dylib"
@@ -535,61 +857,75 @@ fn find_external_artifact(
     } else {
         "rlib"
     };
-    let prefix = format!("lib{}-", normalize_crate_name(crate_name));
-    let source_marker = format!("/{}-{}/", package_name, version);
+    let crate_name = normalize_crate_name(crate_name);
+    let prefix = if proc_macro {
+        format!("{}-", dynamic_library_prefix(&crate_name))
+    } else {
+        format!("lib{crate_name}-")
+    };
+    let source_marker = format!("/{package_name}-{version}/");
     let mut candidates = Vec::new();
-    for entry in fs::read_dir(&dependencies)
-        .map_err(|error| WarpError::io("read Cargo dependency artifacts", error))?
-    {
-        let path = entry
-            .map_err(|error| WarpError::io("read Cargo dependency artifact entry", error))?
-            .path();
-        if path.extension().and_then(|extension| extension.to_str()) != Some(extension) {
-            continue;
-        }
-        let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-            continue;
+    for profile_directory in profile_directories {
+        let dependencies = profile_directory.join("deps");
+        let entries = match fs::read_dir(&dependencies) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(WarpError::io("read Cargo dependency artifacts", error)),
         };
-        if !file_name.starts_with(&prefix) {
-            continue;
-        }
-        let Some(hash) = file_name
-            .strip_prefix(&prefix)
-            .and_then(|name| name.strip_suffix(&format!(".{extension}")))
-        else {
-            continue;
-        };
-        let dep_info = dependencies.join(format!("{}-{hash}.d", normalize_crate_name(crate_name)));
-        let Ok(dep_info) = fs::read_to_string(dep_info) else {
-            continue;
-        };
-        if !dep_info.replace('\\', "/").contains(&source_marker) {
-            continue;
-        }
+        for entry in entries {
+            let path = entry
+                .map_err(|error| WarpError::io("read Cargo dependency artifact entry", error))?
+                .path();
+            if path.extension().and_then(|extension| extension.to_str()) != Some(extension) {
+                continue;
+            }
+            let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            if !file_name.starts_with(&prefix) {
+                continue;
+            }
+            let Some(hash) = file_name
+                .strip_prefix(&prefix)
+                .and_then(|name| name.strip_suffix(&format!(".{extension}")))
+            else {
+                continue;
+            };
+            let dep_info = dependencies.join(format!("{crate_name}-{hash}.d"));
+            let Ok(dep_info) = fs::read_to_string(dep_info) else {
+                continue;
+            };
+            if !dep_info.replace('\\', "/").contains(&source_marker) {
+                continue;
+            }
 
-        let fingerprint = target_directory
-            .join("debug/.fingerprint")
-            .join(format!("{}-{hash}", normalize_crate_name(crate_name)))
-            .join(format!("lib-{}.json", normalize_crate_name(crate_name)));
-        let feature_match = fingerprint_features(&fingerprint)
-            .map(|built_features| feature_match_score(features, &built_features))
-            .unwrap_or_default();
-        let modified = path
-            .metadata()
-            .and_then(|metadata| metadata.modified())
-            .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-        candidates.push((feature_match, modified, path));
+            let fingerprint = profile_directory
+                .join(".fingerprint")
+                .join(format!("{crate_name}-{hash}"))
+                .join(format!("lib-{crate_name}.json"));
+            let feature_match = fingerprint_features(&fingerprint)
+                .map(|built_features| feature_match_score(features, &built_features))
+                .unwrap_or_default();
+            let modified = path
+                .metadata()
+                .and_then(|metadata| metadata.modified())
+                .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+            candidates.push((feature_match, modified, path));
+        }
     }
 
     candidates.sort_by(|left, right| left.0.cmp(&right.0).then(left.1.cmp(&right.1)));
-    candidates
-        .pop()
-        .map(|(_, _, path)| path)
-        .ok_or_else(|| {
-            WarpError::new(format!(
-                "no prebuilt Cargo artifact for {package_name} {version} ({crate_name}); run `cargo build` first"
-            ))
-        })
+    candidates.pop().map(|(_, _, path)| path).ok_or_else(|| {
+        let cargo_profile = match profile {
+            BuildProfile::Debug => "cargo build",
+            BuildProfile::Release => "cargo build --release",
+        };
+        WarpError::new(format!(
+            "no prebuilt Cargo artifact for {package_name} {version} ({crate_name}) and target {}; run `{cargo_profile} --target {}` first",
+            target.as_str(),
+            target.as_str()
+        ))
+    })
 }
 
 fn fingerprint_features(path: &Path) -> Option<Vec<String>> {
@@ -665,6 +1001,48 @@ impl TaskProvider for WorkspaceProvider {
     }
 
     fn execute(&self, task: &TaskId, _action: &ActionPlan) -> std::result::Result<(), String> {
+        let started = Instant::now();
+        let label = self
+            .workspace
+            .targets
+            .get(task)
+            .map(TargetBuild::label)
+            .unwrap_or_else(|| task.to_string());
+        let result = self.execute_target(task);
+        match &result {
+            Ok(TargetOutcome::Built) => {
+                eprintln!(
+                    "{} {label} {:.2}s",
+                    status_tag("OK", true),
+                    started.elapsed().as_secs_f64()
+                );
+            }
+            Ok(TargetOutcome::Cached) => eprintln!(
+                "{} {label} {:.2}s (cached)",
+                status_tag("OK", true),
+                started.elapsed().as_secs_f64()
+            ),
+            Err(error) => {
+                let detail = error.lines().next().unwrap_or(error).trim();
+                eprintln!(
+                    "{} {label} {:.2}s {detail}",
+                    status_tag("ERR", false),
+                    started.elapsed().as_secs_f64()
+                );
+            }
+        }
+        result.map(|_| ())
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TargetOutcome {
+    Built,
+    Cached,
+}
+
+impl WorkspaceProvider {
+    fn execute_target(&self, task: &TaskId) -> std::result::Result<TargetOutcome, String> {
         let target = self
             .workspace
             .targets
@@ -674,7 +1052,7 @@ impl TaskProvider for WorkspaceProvider {
             .resolve_dependencies(target)
             .map_err(|error| error.to_string())?;
         let key = target_action_key(
-            &self.workspace.global_fingerprint,
+            &self.workspace,
             target,
             &dependencies,
             &self.compiler,
@@ -692,11 +1070,11 @@ impl TaskProvider for WorkspaceProvider {
                 .map_err(|error| error.to_string())?
             {
                 self.cached.fetch_add(1, Ordering::Relaxed);
-                return Ok(());
+                return Ok(TargetOutcome::Cached);
             }
         }
 
-        let work = WorkDirectory::create(&self.workspace.target_directory.join("warp-work"))
+        let work = WorkDirectory::create(&self.workspace.work_directory.join("outputs"))
             .map_err(|error| error.to_string())?;
         let artifact = compile_target(
             &self.workspace,
@@ -720,11 +1098,9 @@ impl TaskProvider for WorkspaceProvider {
             return Err(format!("CAS lost compiled workspace artifact for {task}"));
         }
         self.built.fetch_add(1, Ordering::Relaxed);
-        Ok(())
+        Ok(TargetOutcome::Built)
     }
-}
 
-impl WorkspaceProvider {
     fn resolve_dependencies(&self, target: &TargetBuild) -> Result<Vec<(String, String, PathBuf)>> {
         target
             .dependencies
@@ -782,36 +1158,42 @@ fn compile_target(
 ) -> Result<PathBuf> {
     fs::create_dir_all(output_directory)
         .map_err(|error| WarpError::io("create rustc output directory", error))?;
+    let effective_target = if target.kind == TargetKind::ProcMacro {
+        &workspace.host_target
+    } else {
+        &workspace.target
+    };
     let mut compiler_arguments = vec![
+        "--target".to_string(),
+        effective_target.as_str().to_string(),
         "--out-dir".to_string(),
         path_argument(output_directory)?,
         "--remap-path-prefix".to_string(),
         format!("{}=/warp-source", path_argument(&target.source_root)?),
         "--remap-path-prefix".to_string(),
         format!("{}=/warp-output", path_argument(output_directory)?),
-        "-L".to_string(),
-        format!(
-            "dependency={}",
-            path_argument(&workspace.cargo_dependency_directory)?
-        ),
-        "-L".to_string(),
-        format!(
-            "dependency={}",
-            path_argument(&workspace.dependency_directory)?
-        ),
     ];
-    for directory in &workspace.native_directories {
+    compiler_arguments.extend(
+        workspace
+            .profile
+            .rustc_arguments()
+            .iter()
+            .map(|argument| argument.to_string()),
+    );
+    for directory in &workspace.dependency_directories {
+        compiler_arguments.push("-L".to_string());
+        compiler_arguments.push(format!("dependency={}", path_argument(directory)?));
+    }
+    let native_directories = if target.kind == TargetKind::ProcMacro {
+        &workspace.host_native_directories
+    } else {
+        &workspace.target_native_directories
+    };
+    for directory in native_directories {
         compiler_arguments.push("-L".to_string());
         compiler_arguments.push(format!("native={}", path_argument(directory)?));
     }
-    if let Some(flags) = std::env::var_os("RUSTFLAGS") {
-        compiler_arguments.extend(
-            flags
-                .to_string_lossy()
-                .split_whitespace()
-                .map(str::to_owned),
-        );
-    }
+    compiler_arguments.extend(rustc_flags(effective_target));
 
     let rule_configuration = serde_json::json!({
         "crate_name": target.crate_name,
@@ -844,6 +1226,9 @@ fn compile_target(
     }
 
     let mut command = Command::new(compiler);
+    if target.kind != TargetKind::ProcMacro {
+        add_host_native_loader_paths(&mut command, &workspace.host_native_directories)?;
+    }
     command
         .current_dir(&target.source_root)
         .args(action.arguments)
@@ -864,15 +1249,7 @@ fn compile_target(
         )));
     }
 
-    let artifact = match target.kind {
-        TargetKind::Library => output_directory.join(format!("lib{}.rlib", target.crate_name)),
-        TargetKind::Binary => output_directory.join(executable_name(&target.crate_name)),
-        TargetKind::ProcMacro => output_directory.join(format!(
-            "{}{}",
-            dynamic_library_prefix(&target.crate_name),
-            dynamic_library_suffix(&target.crate_name)
-        )),
-    };
+    let artifact = output_directory.join(&target.compiler_artifact_name);
     if !artifact.is_file() {
         return Err(WarpError::new(format!(
             "rustc succeeded but did not produce expected artifact {}",
@@ -882,8 +1259,29 @@ fn compile_target(
     Ok(artifact)
 }
 
+fn add_host_native_loader_paths(command: &mut Command, directories: &[PathBuf]) -> Result<()> {
+    if directories.is_empty() {
+        return Ok(());
+    }
+    let variable = if cfg!(target_os = "macos") {
+        "DYLD_LIBRARY_PATH"
+    } else if cfg!(windows) {
+        "PATH"
+    } else {
+        "LD_LIBRARY_PATH"
+    };
+    let mut paths = directories.to_vec();
+    if let Some(existing) = std::env::var_os(variable) {
+        paths.extend(std::env::split_paths(&existing));
+    }
+    let joined = std::env::join_paths(paths)
+        .map_err(|error| WarpError::new(format!("compose {variable} for host tools: {error}")))?;
+    command.env(variable, joined);
+    Ok(())
+}
+
 fn target_action_key(
-    global_fingerprint: &str,
+    workspace: &Workspace,
     target: &TargetBuild,
     dependencies: &[(String, String, PathBuf)],
     compiler: &Path,
@@ -891,7 +1289,17 @@ fn target_action_key(
 ) -> Result<String> {
     let mut hasher = blake3::Hasher::new();
     write_field(&mut hasher, b"warp-cargo-package-action-v1");
-    write_field(&mut hasher, global_fingerprint.as_bytes());
+    write_field(&mut hasher, workspace.global_fingerprint.as_bytes());
+    let effective_target = if target.kind == TargetKind::ProcMacro {
+        &workspace.host_target
+    } else {
+        &workspace.target
+    };
+    write_field(&mut hasher, effective_target.as_str().as_bytes());
+    write_field(&mut hasher, workspace.profile.as_str().as_bytes());
+    for argument in rustc_flags(effective_target) {
+        write_field(&mut hasher, argument.as_bytes());
+    }
     write_field(&mut hasher, target.package_id.as_bytes());
     write_field(&mut hasher, target.package_version.as_bytes());
     write_field(&mut hasher, target.crate_name.as_bytes());
@@ -961,6 +1369,13 @@ fn collect_files(root: &Path, directory: &Path, files: &mut Vec<PathBuf>) -> Res
         let kind = fs::symlink_metadata(&path)
             .map_err(|error| WarpError::io("inspect workspace source path", error))?
             .file_type();
+        if kind.is_dir()
+            && path
+                .file_name()
+                .is_some_and(|name| matches!(name.to_str(), Some(".git" | "target" | "_build")))
+        {
+            continue;
+        }
         if kind.is_symlink() {
             return Err(WarpError::new(format!(
                 "workspace package contains a symbolic link that Warp will not follow: {}",
@@ -1045,18 +1460,6 @@ fn write_field(hasher: &mut blake3::Hasher, value: &[u8]) {
     hasher.update(value);
 }
 
-fn output_parent(output: &Path) -> Result<PathBuf> {
-    let parent = output
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    fs::create_dir_all(parent)
-        .map_err(|error| WarpError::io("create workspace output parent", error))?;
-    parent
-        .canonicalize()
-        .map_err(|error| WarpError::io("resolve workspace output parent", error))
-}
-
 fn absolute_directory(path: &Path, action: &str) -> Result<PathBuf> {
     fs::create_dir_all(path).map_err(|error| WarpError::io(action, error))?;
     path.canonicalize()
@@ -1066,25 +1469,40 @@ fn absolute_directory(path: &Path, action: &str) -> Result<PathBuf> {
 fn artifact_output(
     kind: TargetKind,
     target_name: &str,
-    package_id: &str,
-    output_directory: &Path,
-    main_output: &Path,
-) -> PathBuf {
-    match kind {
-        TargetKind::Binary if target_name == "warp" => main_output.to_path_buf(),
-        TargetKind::Binary => output_directory
-            .join("bin")
-            .join(executable_name(target_name)),
-        TargetKind::Library | TargetKind::ProcMacro => output_directory.join("deps").join(format!(
-            "lib{}-{}.{}",
-            normalize_crate_name(target_name),
-            short_hash(package_id),
-            match kind {
-                TargetKind::ProcMacro => dynamic_library_extension(),
-                _ => "rlib",
-            }
-        )),
-    }
+    package_relative: &Path,
+    build_directory: &Path,
+    target: &TargetTriple,
+    compiler: &Path,
+) -> Result<(PathBuf, String)> {
+    let crate_name = normalize_crate_name(target_name);
+    let (filename, compiler_artifact_name) = match kind {
+        TargetKind::Binary => {
+            let compiler_name = rustc_output_filename(compiler, target, &crate_name, "bin")?;
+            let suffix = compiler_name.strip_prefix(&crate_name).ok_or_else(|| {
+                WarpError::new(format!(
+                    "rustc artifact name {compiler_name:?} does not begin with crate name {crate_name:?}"
+                ))
+            })?;
+            (format!("{target_name}{suffix}"), compiler_name)
+        }
+        TargetKind::Library => {
+            let name = format!("lib{crate_name}.rlib");
+            (name.clone(), name)
+        }
+        TargetKind::ProcMacro => {
+            let name = format!(
+                "{}{}{}",
+                dynamic_library_prefix(&crate_name),
+                crate_name,
+                dynamic_library_suffix(&crate_name)
+            );
+            (name.clone(), name)
+        }
+    };
+    Ok((
+        build_directory.join(package_relative).join(filename),
+        compiler_artifact_name,
+    ))
 }
 
 fn task_id(package_id: &str, target_name: &str) -> Result<TaskId> {
@@ -1098,14 +1516,6 @@ fn normalize_crate_name(name: &str) -> String {
 
 fn short_hash(value: &str) -> String {
     blake3::hash(value.as_bytes()).to_hex()[..12].to_string()
-}
-
-fn executable_name(name: &str) -> String {
-    if cfg!(windows) {
-        format!("{name}.exe")
-    } else {
-        name.to_string()
-    }
 }
 
 fn dynamic_library_prefix(name: &str) -> String {
@@ -1126,14 +1536,31 @@ fn dynamic_library_suffix(_name: &str) -> String {
     }
 }
 
-fn dynamic_library_extension() -> &'static str {
-    if cfg!(target_os = "macos") {
-        "dylib"
-    } else if cfg!(windows) {
-        "dll"
-    } else {
-        "so"
+fn promote_binary(source: &Path, output: &Path) -> Result<()> {
+    if source == output {
+        return Ok(());
     }
+    let parent = output
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    fs::create_dir_all(parent)
+        .map_err(|error| WarpError::io("create promoted binary directory", error))?;
+    let temporary = output.with_file_name(format!(
+        ".{}.{}.tmp",
+        output
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("warp"),
+        std::process::id()
+    ));
+    fs::copy(source, &temporary).map_err(|error| WarpError::io("copy promoted binary", error))?;
+    mark_executable(&temporary)?;
+    #[cfg(windows)]
+    if output.exists() {
+        fs::remove_file(output).map_err(|error| WarpError::io("replace promoted binary", error))?;
+    }
+    fs::rename(&temporary, output).map_err(|error| WarpError::io("publish promoted binary", error))
 }
 
 #[cfg(unix)]
@@ -1175,5 +1602,49 @@ impl WorkDirectory {
 impl Drop for WorkDirectory {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.path);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn package_artifacts_mirror_workspace_paths() {
+        let build_directory = Path::new("/workspace/_build/aarch64-apple-darwin/release");
+        let package = Path::new("crates/warp-store");
+        let (compiler, _) = rustc().unwrap();
+        let target = crate::host_target().unwrap();
+        let (library, _) = artifact_output(
+            TargetKind::Library,
+            "warp-store",
+            package,
+            build_directory,
+            &target,
+            &compiler,
+        )
+        .unwrap();
+        assert_eq!(
+            library,
+            build_directory
+                .join("crates/warp-store")
+                .join("libwarp_store.rlib")
+        );
+        let (binary, compiler_name) = artifact_output(
+            TargetKind::Binary,
+            "tiny-tool",
+            package,
+            build_directory,
+            &target,
+            &compiler,
+        )
+        .unwrap();
+        let suffix = compiler_name.strip_prefix("tiny_tool").unwrap();
+        assert_eq!(
+            binary,
+            build_directory
+                .join("crates/warp-store")
+                .join(format!("tiny-tool{suffix}"))
+        );
     }
 }

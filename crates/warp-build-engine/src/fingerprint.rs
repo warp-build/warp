@@ -1,5 +1,5 @@
 use crate::error::{Result, WarpError};
-use crate::{crate_name, BuildRequest};
+use crate::{crate_name, BuildRequest, TargetTriple};
 use std::ffi::OsString;
 use std::fs::{self, File};
 use std::io::Read;
@@ -67,6 +67,8 @@ pub fn action_key(
         write_field(&mut hasher, compiler.to_string_lossy().as_bytes())?;
         write_field(&mut hasher, compiler_version.as_bytes())?;
         write_field(&mut hasher, request.edition.as_str().as_bytes())?;
+        write_field(&mut hasher, request.target.as_str().as_bytes())?;
+        write_field(&mut hasher, request.profile.as_str().as_bytes())?;
         write_field(&mut hasher, crate_name.as_bytes())?;
         write_field(&mut hasher, std::env::consts::OS.as_bytes())?;
         write_field(&mut hasher, std::env::consts::ARCH.as_bytes())?;
@@ -113,6 +115,12 @@ pub fn action_key(
         }
     }
     Ok(format!("blake3:{}", hasher.finalize().to_hex()))
+}
+
+pub fn host_target() -> Result<TargetTriple> {
+    let host = guess_host_triple::guess_host_triple()
+        .ok_or_else(|| WarpError::new("could not detect the host target triple"))?;
+    TargetTriple::parse(host)
 }
 
 pub fn rustc() -> Result<(PathBuf, String)> {
@@ -209,7 +217,7 @@ fn write_field(hasher: &mut blake3::Hasher, bytes: &[u8]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Edition;
+    use crate::{host_target, BuildProfile, Edition, TargetTriple};
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -236,8 +244,10 @@ mod tests {
         BuildRequest {
             entry: directory.join("src/main.rs"),
             output: directory.join("out/warp"),
-            cache: directory.join("cache"),
+            cache: Some(directory.join("cache")),
             edition: Edition::E2021,
+            target: host_target().unwrap(),
+            profile: BuildProfile::Debug,
         }
     }
 
@@ -260,6 +270,19 @@ mod tests {
         let first_key = action_key(&first_request, &first_tree, compiler, "rustc test").unwrap();
         let second_key = action_key(&second_request, &second_tree, compiler, "rustc test").unwrap();
         assert_eq!(first_key, second_key);
+
+        let mut different_target = first_request.clone();
+        different_target.target = TargetTriple::parse("wasm32-wasip1").unwrap();
+        assert_ne!(
+            first_key,
+            action_key(&different_target, &first_tree, compiler, "rustc test").unwrap()
+        );
+        let mut different_profile = first_request.clone();
+        different_profile.profile = BuildProfile::Release;
+        assert_ne!(
+            first_key,
+            action_key(&different_profile, &first_tree, compiler, "rustc test").unwrap()
+        );
 
         fs::write(second_tree.root.join("config.txt"), "disabled\n").unwrap();
         let changed_key =

@@ -3,18 +3,30 @@ mod build;
 mod error;
 mod fingerprint;
 pub mod graph;
+mod progress;
 mod request;
 mod workspace;
 
 pub use build::{build, BuildOutcome};
+pub use fingerprint::host_target;
 pub use graph::{
     ActionPlan, ExecutionReport, GraphError, GraphExecutor, Plan, TaskId, TaskProvider,
 };
-pub use request::{BuildRequest, Edition};
+pub use progress::{status_tag, stdout_status_tag};
+pub use request::{default_cache_directory, BuildProfile, BuildRequest, Edition, TargetTriple};
 pub use workspace::{build_workspace, WorkspaceReport, WorkspaceRequest};
 
 use crate::error::{Result, WarpError};
 use std::path::Path;
+
+pub fn rustc_output_filename(
+    target: &TargetTriple,
+    crate_name: &str,
+    crate_type: &str,
+) -> Result<String> {
+    let (compiler, _) = fingerprint::rustc()?;
+    request::rustc_output_filename(&compiler, target, crate_name, crate_type)
+}
 
 pub fn crate_name(entry: &Path) -> Result<String> {
     let stem = entry
