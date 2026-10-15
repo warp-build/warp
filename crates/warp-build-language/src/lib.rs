@@ -1,5 +1,6 @@
 use deno_ast::{MediaType, ParseParams, TranspileModuleOptions, TranspileOptions};
 use deno_core::{op2, JsRuntime, OpState, RuntimeOptions};
+use std::cell::RefCell;
 #[derive(Debug, PartialEq, Eq)]
 pub enum RuleError {
     Evaluation(String),
@@ -50,32 +51,84 @@ deno_core::extension!(
 /// The rule must call `Warp.emit(plan)` exactly once. This transpiles syntax but does not type-check it.
 pub fn evaluate(source: &str) -> Result<serde_json::Value, RuleError> {
     let source = transpile_typescript(source)?;
-    let mut runtime = JsRuntime::new(RuntimeOptions {
-        extensions: vec![warp_rules::init()],
-        ..Default::default()
-    });
-    runtime
-        .execute_script("<warp-rule-prelude>", PRELUDE)
-        .map_err(|error| RuleError::Evaluation(error.to_string()))?;
-    runtime
-        .execute_script("<warp-rule>", source)
-        .map_err(|error| RuleError::Evaluation(error.to_string()))?;
+    RULE_RUNTIME.with(|runtime| {
+        let mut runtime = runtime.try_borrow_mut().map_err(|_| {
+            RuleError::Evaluation("rule runtime is already evaluating a rule".to_string())
+        })?;
+        if runtime.is_none() {
+            *runtime = Some(RuleRuntime::new()?);
+        }
+        runtime
+            .as_mut()
+            .expect("rule runtime was initialized")
+            .evaluate(&source)
+    })
+}
 
-    let state = runtime.op_state();
-    let plan = state
-        .borrow_mut()
-        .borrow_mut::<EmittedPlan>()
-        .0
-        .take()
-        .ok_or(RuleError::MissingPlan)?;
-    let plan: serde_json::Value =
-        serde_json::from_str(&plan).map_err(|error| RuleError::InvalidPlan(error.to_string()))?;
-    if !plan.is_object() {
-        return Err(RuleError::InvalidPlan(
-            "the top-level value must be an object".to_string(),
-        ));
+thread_local! {
+    static RULE_RUNTIME: RefCell<Option<RuleRuntime>> = const { RefCell::new(None) };
+}
+
+struct RuleRuntime {
+    tokio_runtime: tokio::runtime::Runtime,
+    javascript: Option<JsRuntime>,
+}
+
+impl RuleRuntime {
+    fn new() -> Result<Self, RuleError> {
+        let tokio_runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .map_err(|error| RuleError::Evaluation(format!("create rule runtime: {error}")))?;
+        let _tokio_guard = tokio_runtime.enter();
+        let mut javascript = JsRuntime::new(RuntimeOptions {
+            extensions: vec![warp_rules::init()],
+            ..Default::default()
+        });
+        javascript
+            .execute_script("<warp-rule-prelude>", PRELUDE)
+            .map_err(|error| RuleError::Evaluation(error.to_string()))?;
+        Ok(Self {
+            tokio_runtime,
+            javascript: Some(javascript),
+        })
     }
-    Ok(plan)
+
+    fn evaluate(&mut self, source: &str) -> Result<serde_json::Value, RuleError> {
+        let _tokio_guard = self.tokio_runtime.enter();
+        let javascript = self
+            .javascript
+            .as_mut()
+            .expect("JavaScript runtime is present until RuleRuntime is dropped");
+        let state = javascript.op_state();
+        state.borrow_mut().borrow_mut::<EmittedPlan>().0 = None;
+        let source = format!("(() => {{\n{source}\n}})();");
+        javascript
+            .execute_script("<warp-rule>", source)
+            .map_err(|error| RuleError::Evaluation(error.to_string()))?;
+
+        let state = javascript.op_state();
+        let plan = state
+            .borrow_mut()
+            .borrow_mut::<EmittedPlan>()
+            .0
+            .take()
+            .ok_or(RuleError::MissingPlan)?;
+        let plan: serde_json::Value = serde_json::from_str(&plan)
+            .map_err(|error| RuleError::InvalidPlan(error.to_string()))?;
+        if !plan.is_object() {
+            return Err(RuleError::InvalidPlan(
+                "the top-level value must be an object".to_string(),
+            ));
+        }
+        Ok(plan)
+    }
+}
+
+impl Drop for RuleRuntime {
+    fn drop(&mut self) {
+        self.javascript.take();
+    }
 }
 
 fn transpile_typescript(source: &str) -> Result<String, RuleError> {
@@ -138,6 +191,32 @@ const resolveConfig = (schema, defaults, input) => {
 };
 
 const Warp = Object.freeze({
+  Toolchain(spec) {
+    if (spec === null || typeof spec !== "object" || Array.isArray(spec)) {
+      fail("Warp.Toolchain requires a specification object");
+    }
+    if (typeof spec.name !== "string" || spec.name.length === 0) {
+      fail("Warp.Toolchain requires a non-empty name");
+    }
+    if (typeof spec.program !== "string" || spec.program.length === 0) {
+      fail(`toolchain '${spec.name}' requires a program`);
+    }
+    const versionArgs = spec.versionArgs ?? ["--version"];
+    if (!Array.isArray(versionArgs) || !versionArgs.every((arg) => typeof arg === "string")) {
+      fail(`toolchain '${spec.name}' versionArgs must be string[]`);
+    }
+    const config = spec.config ?? {};
+    if (config === null || typeof config !== "object" || Array.isArray(config)) {
+      fail(`toolchain '${spec.name}' config must be an object`);
+    }
+    return Object.freeze({
+      __warpToolchain: true,
+      name: spec.name,
+      program: spec.program,
+      versionArgs: Object.freeze([...versionArgs]),
+      config,
+    });
+  },
   emit(plan) {
     const json = JSON.stringify(plan);
     if (typeof json !== "string") {
@@ -157,9 +236,18 @@ const Warp = Object.freeze({
       fail(`rule '${spec.name}' requires a cfg schema`);
     }
     const defaults = spec.defaults ?? {};
-    const toolchains = (spec.toolchains ?? []).map((toolchain) =>
-      typeof toolchain === "string" ? toolchain : toolchain.name
-    );
+    const toolchains = (spec.toolchains ?? []).map((toolchain) => {
+      if (toolchain === null || typeof toolchain !== "object" ||
+          toolchain.__warpToolchain !== true) {
+        fail(`rule '${spec.name}' toolchains must be Warp.Toolchain values`);
+      }
+      return {
+        name: toolchain.name,
+        program: toolchain.program,
+        version_args: toolchain.versionArgs,
+        config: toolchain.config,
+      };
+    });
 
     return Object.freeze({
       name: spec.name,
@@ -167,16 +255,22 @@ const Warp = Object.freeze({
       toolchains,
       plan(input) {
         const config = resolveConfig(spec.cfg, defaults, input);
-        let execution;
+        const executions = [];
         let outputs;
         const action = Object.freeze({
           exec({ program, args, env = {}, cwd = null }) {
-            if (execution !== undefined) fail("a Warp rule may declare only one exec action");
             if (typeof program !== "string" || !Array.isArray(args) ||
                 !args.every((argument) => typeof argument === "string")) {
               fail("exec requires a program and a string[] args");
             }
-            execution = { program, arguments: args, env, cwd };
+            if (env === null || typeof env !== "object" || Array.isArray(env) ||
+                !Object.values(env).every((value) => typeof value === "string")) {
+              fail("exec env must be a string-to-string object");
+            }
+            if (cwd !== null && typeof cwd !== "string") {
+              fail("exec cwd must be a string or null");
+            }
+            executions.push({ program, arguments: args, env, cwd });
           },
           declareOutputs(value) {
             if (!Array.isArray(value) || !value.every((path) => typeof path === "string")) {
@@ -186,9 +280,9 @@ const Warp = Object.freeze({
           },
         });
         spec.impl(Object.freeze({ cfg: () => config, action: () => action }));
-        if (execution === undefined) fail(`rule '${spec.name}' did not declare an exec action`);
+        if (executions.length === 0) fail(`rule '${spec.name}' did not declare an exec action`);
         if (outputs === undefined) fail(`rule '${spec.name}' did not declare outputs`);
-        return { ...execution, outputs, toolchains };
+        return { executions, outputs, toolchains };
       },
     });
   },
@@ -236,6 +330,27 @@ mod tests {
     }
 
     #[test]
+    fn independent_rules_evaluate_concurrently_with_tokio_contexts() {
+        let workers = (0..4)
+            .map(|worker| {
+                std::thread::spawn(move || {
+                    for index in 0..4 {
+                        let plan = evaluate(&format!(
+                            "Warp.emit({{ worker: {worker}, index: {index} }});"
+                        ))
+                        .unwrap();
+                        assert_eq!(plan["worker"], worker);
+                        assert_eq!(plan["index"], index);
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        for worker in workers {
+            worker.join().unwrap();
+        }
+    }
+
+    #[test]
     fn transpiles_typescript_rule_annotations_before_evaluation() {
         let plan = evaluate(
             r#"
@@ -253,12 +368,13 @@ mod tests {
         let plan = evaluate(
             r#"
               interface Config { name: string; sources: string[] }
+              const Rustc = Warp.Toolchain({ name: "rustc", program: "rustc" });
               const rule = Warp.Rule<Config>({
                 name: "example",
                 mnemonic: "Example",
                 cfg: { name: string(), sources: [file()] },
                 defaults: { sources: ["main.rs"] },
-                toolchains: ["rustc"],
+                toolchains: [Rustc],
                 impl(ctx) {
                   const config = ctx.cfg();
                   ctx.action().exec({ program: "rustc", args: config.sources });
@@ -269,10 +385,61 @@ mod tests {
             "#,
         )
         .unwrap();
-        assert_eq!(plan["program"], "rustc");
-        assert_eq!(plan["arguments"][0], "main.rs");
+        assert_eq!(plan["executions"][0]["program"], "rustc");
+        assert_eq!(plan["executions"][0]["arguments"][0], "main.rs");
         assert_eq!(plan["outputs"][0], "example.out");
-        assert_eq!(plan["toolchains"][0], "rustc");
+        assert_eq!(plan["toolchains"][0]["name"], "rustc");
+        assert_eq!(plan["toolchains"][0]["program"], "rustc");
+        assert_eq!(plan["toolchains"][0]["version_args"][0], "--version");
+    }
+
+    #[test]
+    fn rules_can_declare_ordered_commands_for_multi_step_toolchains() {
+        let plan = evaluate(
+            r#"
+              const Bun = Warp.Toolchain({ name: "bun", program: "bun" });
+              const rule = Warp.Rule({
+                name: "multi-step",
+                mnemonic: "MultiStep",
+                cfg: { root: string() },
+                toolchains: [Bun],
+                impl(ctx) {
+                  const root = ctx.cfg().root;
+                  ctx.action().exec({ program: "bun", args: ["install"], cwd: root });
+                  ctx.action().exec({ program: "bun", args: ["run", "build"], cwd: root });
+                  ctx.action().declareOutputs(["dist"]);
+                },
+              });
+              Warp.emit(rule.plan({ root: "/workspace/site" }));
+            "#,
+        )
+        .unwrap();
+        assert_eq!(plan["executions"].as_array().unwrap().len(), 2);
+        assert_eq!(plan["executions"][0]["arguments"][0], "install");
+        assert_eq!(plan["executions"][1]["arguments"][1], "build");
+        assert_eq!(plan["executions"][1]["cwd"], "/workspace/site");
+        assert_eq!(plan["toolchains"][0]["name"], "bun");
+    }
+
+    #[test]
+    fn rejects_string_toolchains_without_a_toolchain_declaration() {
+        let error = evaluate(
+            r#"
+              const rule = Warp.Rule({
+                name: "bad-toolchain",
+                mnemonic: "BadToolchain",
+                cfg: { root: string() },
+                toolchains: ["bun"],
+                impl(ctx) {
+                  ctx.action().exec({ program: "bun", args: ["run", "build"] });
+                  ctx.action().declareOutputs(["dist"]);
+                },
+              });
+              Warp.emit(rule.plan({ root: "/workspace/site" }));
+            "#,
+        )
+        .unwrap_err();
+        assert!(matches!(error, RuleError::Evaluation(_)));
     }
 
     #[test]

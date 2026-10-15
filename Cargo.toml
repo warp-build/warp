@@ -20,6 +20,7 @@ deno_core = "0.411.0"
 deno_ast = { version = "0.53.3", features = ["transpiling"] }
 deno_error = "0.7.1"
 directories = "5.0.1"
+tokio = { version = "1.53.3", features = ["rt", "time"] }
 guess_host_triple = "0.1.5"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

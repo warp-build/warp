@@ -3367,6 +3367,7 @@ dependencies = [
  "deno_core",
  "deno_error",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

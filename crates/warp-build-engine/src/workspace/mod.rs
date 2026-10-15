@@ -1,7 +1,7 @@
 use crate::action_cache::ActionCache;
 use crate::error::{Result, WarpError};
 use crate::graph::{ActionPlan, GraphExecutor, Plan, TaskId, TaskProvider};
-use crate::request::{rustc_flags, target_environment_name};
+use crate::request::target_environment_name;
 use crate::{default_cache_directory, status_tag, BuildProfile, CompilationTargetTriple};
 use ignore::WalkBuilder;
 use serde::Deserialize;
@@ -21,6 +21,9 @@ mod build_intent;
 mod build_node;
 mod build_runtime;
 mod build_target;
+mod bun;
+mod bun_target;
+mod bundle;
 mod hashing;
 mod label;
 mod scan;
@@ -43,6 +46,7 @@ pub use build_intent::{BuildIntent, BuildScope};
 use build_node::BuildNode;
 use build_runtime::BuildRuntime;
 pub use build_target::BuildTarget;
+use bun_target::BunBuildTarget;
 use hashing::HashPool;
 pub use label::Label;
 
@@ -61,8 +65,9 @@ const BUILD_INTENT_TASK: &str = "warp:build-intent";
 const BUILD_SCOPE_TASK: &str = "warp:resolve-scope";
 
 pub fn build_workspace(intent: &BuildIntent) -> Result<WorkspaceReport> {
+    let rules = WorkspaceRules::load(intent)?;
     let context = Arc::new(BuildCtx::new(intent.clone()));
-    let provider = WorkspaceProvider::new(context.clone());
+    let provider = WorkspaceProvider::new(context.clone(), rules);
     let root = TaskId::new(BUILD_INTENT_TASK).map_err(|error| WarpError::new(error.to_string()))?;
     let workers = std::thread::available_parallelism().unwrap_or(NonZeroUsize::MIN);
     let graph = GraphExecutor::new(workers);
@@ -88,7 +93,7 @@ pub fn build_workspace(intent: &BuildIntent) -> Result<WorkspaceReport> {
     }
 }
 
-fn initialize_runtime(intent: &BuildIntent) -> Result<BuildRuntime> {
+fn initialize_runtime(intent: &BuildIntent, rules: &WorkspaceRules) -> Result<BuildRuntime> {
     let root = intent
         .root
         .canonicalize()
@@ -102,21 +107,6 @@ fn initialize_runtime(intent: &BuildIntent) -> Result<BuildRuntime> {
         }
         BuildScope::Labels(labels) => BuildScope::Labels(labels.clone()),
     };
-    let metadata = load_metadata(
-        &root,
-        &intent.compilation_target,
-        intent
-            .rust_toolchain
-            .as_ref()
-            .map(|channel| channel.as_str()),
-    )?;
-    let root = metadata.workspace_root.clone();
-    let build_directory = root
-        .join(GENERATED_OUTPUT_DIRECTORY)
-        .join(intent.compilation_target.as_str())
-        .join(intent.profile.as_str());
-    fs::create_dir_all(&build_directory)
-        .map_err(|error| WarpError::io("create target/profile build directory", error))?;
 
     let requested_cache = match &intent.cache {
         Some(path) => path.clone(),
@@ -128,6 +118,31 @@ fn initialize_runtime(intent: &BuildIntent) -> Result<BuildRuntime> {
             "workspace cache override must be outside the workspace source tree",
         ));
     }
+    let work = WorkDirectory::create(&cache_root)?;
+
+    let metadata = if is_bun_only_scope(&scope, &root, &work.path, rules)? {
+        WorkspaceDescription {
+            workspace_root: root.clone(),
+            artifact_directory: root.join(GENERATED_OUTPUT_DIRECTORY),
+            workspace_members: Vec::new(),
+            packages: Vec::new(),
+        }
+    } else {
+        load_workspace_description(&root, rules)?
+    };
+    let root = metadata.workspace_root.clone();
+    if intent.cache.is_some() && cache_root.starts_with(&root) {
+        return Err(WarpError::new(
+            "workspace cache override must be outside the workspace source tree",
+        ));
+    }
+    let build_directory = root
+        .join(GENERATED_OUTPUT_DIRECTORY)
+        .join(intent.compilation_target.as_str())
+        .join(intent.profile.as_str());
+    fs::create_dir_all(&build_directory)
+        .map_err(|error| WarpError::io("create target/profile build directory", error))?;
+
     if let Some(output) = &intent.output {
         let output = if output.is_absolute() {
             output.clone()
@@ -151,8 +166,6 @@ fn initialize_runtime(intent: &BuildIntent) -> Result<BuildRuntime> {
     let action_cache = ActionCache::new(cache_root.join("actions"))?;
     let cas = Cas::new(cache_root.join("cas"))
         .map_err(|error| WarpError::new(format!("open content store: {error}")))?;
-
-    let work = WorkDirectory::create(&cache_root)?;
     let workspace = Workspace::from_metadata(
         metadata,
         WorkspaceBuildContext {
@@ -164,6 +177,7 @@ fn initialize_runtime(intent: &BuildIntent) -> Result<BuildRuntime> {
             scope: &scope,
             excluded_directories: &intent.client.excluded_directories,
         },
+        rules,
     )?;
 
     Ok(BuildRuntime::new(
@@ -175,102 +189,269 @@ fn initialize_runtime(intent: &BuildIntent) -> Result<BuildRuntime> {
     ))
 }
 
-fn load_metadata(
+fn is_bun_only_scope(
+    scope: &BuildScope,
     root: &Path,
-    compilation_target: &CompilationTargetTriple,
-    rust_toolchain: Option<&str>,
-) -> Result<CargoMetadata> {
-    let mut command = Command::new("cargo");
-    command.current_dir(root);
-    if let Some(toolchain) = rust_toolchain {
-        command.env("RUSTUP_TOOLCHAIN", toolchain).env(
-            "CARGO_TARGET_DIR",
-            root.join(GENERATED_OUTPUT_DIRECTORY)
-                .join("cargo")
-                .join(toolchain),
-        );
+    work_root: &Path,
+    rules: &WorkspaceRules,
+) -> Result<bool> {
+    let BuildScope::Labels(labels) = scope else {
+        return Ok(false);
+    };
+    if labels.is_empty() {
+        return Ok(false);
     }
-    let output = command
-        .args([
-            "metadata",
-            "--locked",
-            "--format-version",
-            "1",
-            "--filter-platform",
-        ])
-        .arg(compilation_target.as_str())
+    for label in labels {
+        if BunBuildTarget::for_path_label(
+            label,
+            root,
+            work_root,
+            &rules.discovery.manifest_file,
+            &rules.bun.package_manifest,
+            &rules.bun.lockfiles,
+            &rules.bun.cloudflare_config,
+        )?
+        .is_none()
+        {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+fn load_workspace_description(root: &Path, rules: &WorkspaceRules) -> Result<WorkspaceDescription> {
+    let command = &rules.discovery.discovery_command;
+    let output = Command::new(&command.program)
+        .current_dir(root)
+        .args(&command.arguments)
+        .envs(&command.env)
         .output()
         .map_err(|error| {
             WarpError::io(
-                "run cargo metadata (Cargo is required to resolve the workspace)",
+                "run workspace discovery command (Cargo is required to resolve the workspace)",
                 error,
             )
         })?;
     if !output.status.success() {
         return Err(WarpError::new(format!(
-            "cargo metadata failed with {}\n{}{}",
+            "workspace discovery command failed with {}\n{}{}",
             output.status,
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         )));
     }
-    serde_json::from_slice(&output.stdout)
-        .map_err(|error| WarpError::new(format!("parse cargo metadata output: {error}")))
+    let metadata_json = String::from_utf8(output.stdout).map_err(|error| {
+        WarpError::new(format!(
+            "workspace discovery emitted invalid UTF-8: {error}"
+        ))
+    })?;
+    normalize_workspace_metadata(&metadata_json)
+}
+
+fn normalize_workspace_metadata(metadata_json: &str) -> Result<WorkspaceDescription> {
+    let configuration = serde_json::json!({ "metadata_json": metadata_json });
+    let source = format!(
+        "const configuration = {configuration};\n{}",
+        CARGO_WORKSPACE_RULE
+    );
+    let plan = warp_build_language::evaluate(&source)
+        .map_err(|error| WarpError::new(format!("evaluate workspace discovery rule: {error}")))?;
+    serde_json::from_value(plan)
+        .map_err(|error| WarpError::new(format!("parse workspace description: {error}")))
 }
 
 #[derive(Deserialize)]
-struct CargoMetadata {
+struct WorkspaceDiscovery {
+    manifest_file: String,
+    workspace_inputs: Vec<String>,
+    discovery_command: RuleCommand,
+}
+
+#[derive(Deserialize)]
+struct BunToolchainSettings {
+    package_manifest: String,
+    lockfiles: Vec<String>,
+    cloudflare_config: String,
+}
+
+#[derive(Deserialize)]
+struct DeclaredToolchains {
+    cargo: ToolchainRequirement,
+    bun: ToolchainRequirement,
+}
+
+struct WorkspaceRules {
+    cargo_toolchain_version: String,
+    cargo_toolchain_fingerprint: String,
+    discovery: WorkspaceDiscovery,
+    bun: BunToolchainSettings,
+}
+
+impl WorkspaceRules {
+    fn load(intent: &BuildIntent) -> Result<Self> {
+        let root = intent
+            .root
+            .canonicalize()
+            .map_err(|error| WarpError::io("resolve workspace root", error))?;
+        let rust_toolchain = intent
+            .rust_toolchain
+            .as_ref()
+            .map(|channel| channel.as_str())
+            .unwrap_or_default();
+        let cargo_target_directory = if rust_toolchain.is_empty() {
+            String::new()
+        } else {
+            root.join(GENERATED_OUTPUT_DIRECTORY)
+                .join("cargo")
+                .join(rust_toolchain)
+                .to_string_lossy()
+                .into_owned()
+        };
+        let cargo_configuration = serde_json::json!({
+            "compilation_target": intent.compilation_target.as_str(),
+            "rust_toolchain": rust_toolchain,
+            "cargo_target_directory": cargo_target_directory,
+        });
+        let bun_configuration = serde_json::json!({ "bun": "bun" });
+        let source = format!(
+            "const cargoConfiguration = {cargo_configuration};\
+             const bunConfiguration = {bun_configuration};\n{}\n{}\n\
+             Warp.emit({{ cargo: cargoToolchain(cargoConfiguration), bun: bunToolchain(bunConfiguration) }});",
+            CARGO_TOOLCHAIN_RULE,
+            BUN_TOOLCHAIN_RULE,
+        );
+        let declared: DeclaredToolchains = warp_build_language::evaluate(&source)
+            .map_err(|error| WarpError::new(format!("evaluate ecosystem toolchain rules: {error}")))
+            .and_then(|plan| {
+                serde_json::from_value(plan).map_err(|error| {
+                    WarpError::new(format!("parse ecosystem toolchain rules: {error}"))
+                })
+            })?;
+        let cargo_toolchain = declared.cargo;
+        let bun_toolchain = declared.bun;
+        validate_toolchain_identity(&cargo_toolchain, "cargo", "cargo")?;
+        let discovery: WorkspaceDiscovery = serde_json::from_value(cargo_toolchain.config.clone())
+            .map_err(|error| {
+                WarpError::new(format!("parse workspace discovery declaration: {error}"))
+            })?;
+        if discovery.manifest_file.is_empty() || discovery.workspace_inputs.is_empty() {
+            return Err(WarpError::new(
+                "workspace toolchain must declare a manifest and workspace inputs",
+            ));
+        }
+        if discovery.discovery_command.program != cargo_toolchain.program {
+            return Err(WarpError::new(
+                "workspace discovery command must use its declaring toolchain",
+            ));
+        }
+        let cargo_toolchain_version =
+            probe_toolchain_version(&cargo_toolchain, &root, &discovery.discovery_command.env)?;
+        let cargo_toolchain_fingerprint =
+            serde_json::to_string(&cargo_toolchain.config).map_err(|error| {
+                WarpError::new(format!("serialize Cargo toolchain config: {error}"))
+            })?;
+
+        validate_toolchain_identity(&bun_toolchain, "bun", "bun")?;
+        let bun: BunToolchainSettings = serde_json::from_value(bun_toolchain.config.clone())
+            .map_err(|error| WarpError::new(format!("parse Bun toolchain settings: {error}")))?;
+        if bun.package_manifest.is_empty() || bun.lockfiles.is_empty() {
+            return Err(WarpError::new(
+                "Bun toolchain must declare a package manifest and at least one lockfile",
+            ));
+        }
+
+        Ok(Self {
+            cargo_toolchain_version,
+            cargo_toolchain_fingerprint,
+            discovery,
+            bun,
+        })
+    }
+}
+
+fn validate_toolchain_identity(
+    toolchain: &ToolchainRequirement,
+    expected_name: &str,
+    expected_program: &str,
+) -> Result<()> {
+    if toolchain.name != expected_name || toolchain.program != expected_program {
+        return Err(WarpError::new(format!(
+            "toolchain rule declared unexpected identity {:?} ({:?})",
+            toolchain.name, toolchain.program
+        )));
+    }
+    Ok(())
+}
+
+fn probe_toolchain_version(
+    toolchain: &ToolchainRequirement,
+    directory: &Path,
+    environment: &HashMap<String, String>,
+) -> Result<String> {
+    let output = Command::new(&toolchain.program)
+        .args(&toolchain.version_args)
+        .envs(environment)
+        .current_dir(directory)
+        .output()
+        .map_err(|error| WarpError::io("probe declared toolchain version", error))?;
+    if !output.status.success() {
+        return Err(WarpError::new(format!(
+            "toolchain {:?} version command failed with {}\\n{}{}",
+            toolchain.name,
+            output.status,
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+    Ok(format!(
+        "{}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    ))
+}
+
+#[derive(Deserialize)]
+struct WorkspaceDescription {
     workspace_root: PathBuf,
-    target_directory: PathBuf,
+    artifact_directory: PathBuf,
     workspace_members: Vec<String>,
-    packages: Vec<CargoPackage>,
-    resolve: Option<CargoResolve>,
+    packages: Vec<WorkspacePackage>,
 }
 
 #[derive(Deserialize)]
-struct CargoPackage {
+struct WorkspacePackage {
     id: String,
     name: String,
     version: String,
     manifest_path: PathBuf,
     edition: String,
-    targets: Vec<CargoTarget>,
+    features: Vec<String>,
+    targets: Vec<WorkspaceTarget>,
+    dependencies: Vec<WorkspaceDependency>,
 }
 
 #[derive(Clone, Deserialize)]
-struct CargoTarget {
+struct WorkspaceTarget {
     name: String,
-    kind: Vec<String>,
-    src_path: PathBuf,
-    #[serde(default, rename = "required-features")]
+    kind: DiscoveredTargetKind,
+    source_path: PathBuf,
     required_features: Vec<String>,
 }
 
-#[derive(Deserialize)]
-struct CargoResolve {
-    nodes: Vec<CargoNode>,
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum DiscoveredTargetKind {
+    Library,
+    Binary,
+    ProcMacro,
+    CustomBuild,
+    Other,
 }
 
-#[derive(Deserialize)]
-struct CargoNode {
-    id: String,
-    #[serde(default)]
-    features: Vec<String>,
-    #[serde(default)]
-    deps: Vec<CargoResolvedDependency>,
-}
-
-#[derive(Deserialize)]
-struct CargoResolvedDependency {
-    name: String,
-    pkg: String,
-    #[serde(default)]
-    dep_kinds: Vec<CargoDependencyKind>,
-}
-
-#[derive(Deserialize)]
-struct CargoDependencyKind {
-    kind: Option<String>,
+#[derive(Clone, Deserialize)]
+struct WorkspaceDependency {
+    alias: String,
+    package_id: String,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -281,14 +462,37 @@ enum TargetKind {
 }
 
 #[derive(Deserialize)]
-struct RustCompilerAction {
-    program: String,
-    arguments: Vec<String>,
+struct RuleAction {
+    executions: Vec<RuleCommand>,
     outputs: Vec<String>,
-    toolchains: Vec<String>,
+    toolchains: Vec<ToolchainRequirement>,
 }
 
+#[derive(Deserialize)]
+struct ToolchainRequirement {
+    name: String,
+    program: String,
+    #[serde(alias = "versionArgs")]
+    version_args: Vec<String>,
+    #[serde(default)]
+    config: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+struct RuleCommand {
+    program: String,
+    arguments: Vec<String>,
+    #[serde(default)]
+    env: HashMap<String, String>,
+    cwd: Option<String>,
+}
+
+const BUN_TARGET_RULE: &str = warp_rules::BUN_TARGET_RULE;
+const BUN_TOOLCHAIN_RULE: &str = warp_rules::BUN_TOOLCHAIN_RULE;
+const CARGO_TOOLCHAIN_RULE: &str = warp_rules::CARGO_TOOLCHAIN_RULE;
+const CARGO_WORKSPACE_RULE: &str = warp_rules::CARGO_WORKSPACE_RULE;
 const RUST_TARGET_RULE: &str = warp_rules::RUST_TARGET_RULE;
+const RUST_TOOLCHAIN_RULE: &str = warp_rules::RUST_TOOLCHAIN_RULE;
 
 #[derive(Clone)]
 struct BuildDependency {
@@ -322,6 +526,13 @@ struct Workspace {
     host_triple: CompilationTargetTriple,
     profile: BuildProfile,
     targets: HashMap<TaskId, BuildTarget>,
+    bun_targets: Mutex<HashMap<TaskId, BunBuildTarget>>,
+    bun_manifest_file: String,
+    bun_lockfiles: Vec<String>,
+    cloudflare_config_file: String,
+    cargo_toolchain_version: String,
+    cargo_toolchain_fingerprint: String,
+    global_input_files: Vec<String>,
     roots: Vec<TaskId>,
     excluded_directories: Vec<String>,
     external_artifacts: Mutex<HashMap<String, PathBuf>>,
@@ -339,7 +550,13 @@ struct WorkspaceBuildContext<'a> {
 }
 
 impl Workspace {
-    fn from_metadata(metadata: CargoMetadata, context: WorkspaceBuildContext<'_>) -> Result<Self> {
+    fn from_metadata(
+        metadata: WorkspaceDescription,
+        context: WorkspaceBuildContext<'_>,
+        rules: &WorkspaceRules,
+    ) -> Result<Self> {
+        let cargo_manifest_file = rules.discovery.manifest_file.clone();
+        let global_input_files = rules.discovery.workspace_inputs.clone();
         let WorkspaceBuildContext {
             root,
             work_root,
@@ -349,32 +566,35 @@ impl Workspace {
             scope,
             excluded_directories,
         } = context;
-        let resolve = metadata.resolve.ok_or_else(|| {
-            WarpError::new("cargo metadata did not return a resolved dependency graph")
-        })?;
-        let packages: HashMap<String, CargoPackage> = metadata
+        let packages: HashMap<String, WorkspacePackage> = metadata
             .packages
             .into_iter()
             .map(|package| (package.id.clone(), package))
             .collect();
         let workspace_member_ids: HashSet<String> =
             metadata.workspace_members.into_iter().collect();
-        let nodes: HashMap<String, CargoNode> = resolve
-            .nodes
-            .into_iter()
-            .map(|node| (node.id.clone(), node))
-            .collect();
-        let selected_targets =
-            select_workspace_targets(scope, &packages, &workspace_member_ids, root)?;
+        let (cargo_scope, bun_targets) = select_bun_targets(scope, root, work_root, rules)?;
+        let selected_targets = match &cargo_scope {
+            BuildScope::Labels(labels) if labels.is_empty() && !bun_targets.is_empty() => {
+                HashMap::new()
+            }
+            _ => select_workspace_targets(
+                &cargo_scope,
+                &packages,
+                &workspace_member_ids,
+                root,
+                &cargo_manifest_file,
+            )?,
+        };
         let selected_package_ids = selected_targets.keys().cloned().collect::<HashSet<_>>();
         let active_package_ids =
-            reachable_workspace_packages(&selected_package_ids, &workspace_member_ids, &nodes);
+            reachable_workspace_packages(&selected_package_ids, &workspace_member_ids, &packages);
         let host = guess_host_triple::guess_host_triple()
             .ok_or_else(|| WarpError::new("could not detect the host target triple"))?;
         let host_triple = CompilationTargetTriple::parse(host)?;
-        let host_profile_directory = metadata.target_directory.join(profile.as_str());
+        let host_profile_directory = metadata.artifact_directory.join(profile.as_str());
         let target_profile_directory = metadata
-            .target_directory
+            .artifact_directory
             .join(compilation_target.as_str())
             .join(profile.as_str());
         let target_profile_directories = if compilation_target == host_triple {
@@ -387,7 +607,7 @@ impl Workspace {
         };
         let host_profile_directories = vec![host_profile_directory.clone()];
 
-        let mut package_targets = HashMap::<String, Vec<(CargoTarget, TargetKind)>>::new();
+        let mut package_targets = HashMap::<String, Vec<(WorkspaceTarget, TargetKind)>>::new();
         for package_id in &active_package_ids {
             let package = packages.get(package_id).ok_or_else(|| {
                 WarpError::new(format!(
@@ -397,17 +617,15 @@ impl Workspace {
             if package
                 .targets
                 .iter()
-                .any(|target| target.kind.iter().any(|kind| kind == "custom-build"))
+                .any(|target| matches!(target.kind, DiscoveredTargetKind::CustomBuild))
             {
                 return Err(WarpError::new(format!(
                     "workspace package {} has a build script; Warp's direct rustc rules do not support build.rs yet",
                     package.name
                 )));
             }
-            let enabled_features: HashSet<&str> = nodes
-                .get(package_id)
-                .map(|node| node.features.iter().map(String::as_str).collect())
-                .unwrap_or_default();
+            let enabled_features: HashSet<&str> =
+                package.features.iter().map(String::as_str).collect();
             let targets = package
                 .targets
                 .iter()
@@ -418,15 +636,14 @@ impl Workspace {
                         .all(|feature| enabled_features.contains(feature.as_str()))
                 })
                 .filter_map(|target| {
-                    let kind = if target.kind.iter().any(|kind| kind == "proc-macro") {
-                        Some(TargetKind::ProcMacro)
-                    } else if target.kind.iter().any(|kind| kind == "lib") {
-                        Some(TargetKind::Library)
-                    } else if target.kind.iter().any(|kind| kind == "bin") {
-                        Some(TargetKind::Binary)
-                    } else {
-                        None
-                    }?;
+                    let kind = match target.kind {
+                        DiscoveredTargetKind::Library => TargetKind::Library,
+                        DiscoveredTargetKind::Binary => TargetKind::Binary,
+                        DiscoveredTargetKind::ProcMacro => TargetKind::ProcMacro,
+                        DiscoveredTargetKind::CustomBuild | DiscoveredTargetKind::Other => {
+                            return None;
+                        }
+                    };
                     Some((target.clone(), kind))
                 })
                 .collect::<Vec<_>>();
@@ -452,11 +669,13 @@ impl Workspace {
                 }
             }
         }
+        roots.extend(bun_targets.values().map(|target| target.id.clone()));
         roots.sort();
+        roots.dedup();
 
-        if target_ids.is_empty() {
+        if target_ids.is_empty() && bun_targets.is_empty() {
             return Err(WarpError::new(
-                "selected packages have no supported Rust targets",
+                "selected packages have no supported Rust or Bun targets",
             ));
         }
         let mut targets = HashMap::new();
@@ -472,40 +691,42 @@ impl Workspace {
                 .strip_prefix(root)
                 .map_err(|_| WarpError::new("Cargo package is outside the workspace root"))?
                 .to_path_buf();
-            let node = nodes.get(package_id).unwrap();
-            let dependencies = normal_dependencies(&node.deps)
-                .into_iter()
+            let dependencies = package
+                .dependencies
+                .iter()
+                .cloned()
                 .map(|dependency| {
-                    if workspace_member_ids.contains(&dependency.pkg) {
+                    if workspace_member_ids.contains(&dependency.package_id) {
                         let dependency_task = task_by_package_library
-                            .get(&dependency.pkg)
+                            .get(&dependency.package_id)
                             .ok_or_else(|| {
-                                WarpError::new(format!(
-                                    "workspace dependency {} has no library target",
-                                    dependency.pkg
-                                ))
-                            })?;
+                            WarpError::new(format!(
+                                "workspace dependency {} has no library target",
+                                dependency.package_id
+                            ))
+                        })?;
                         Ok(BuildDependency {
-                            alias: normalize_crate_name(&dependency.name),
-                            package_id: dependency.pkg,
+                            alias: normalize_crate_name(&dependency.alias),
+                            package_id: dependency.package_id,
                             internal_task: Some(dependency_task.clone()),
                             external_artifact: None,
                         })
                     } else {
-                        let external_package = packages.get(&dependency.pkg).ok_or_else(|| {
-                            WarpError::new(format!(
-                                "Cargo metadata omitted package {}",
-                                dependency.pkg
-                            ))
-                        })?;
+                        let external_package =
+                            packages.get(&dependency.package_id).ok_or_else(|| {
+                                WarpError::new(format!(
+                                    "workspace description omitted dependency package {}",
+                                    dependency.package_id
+                                ))
+                            })?;
                         let crate_target = external_package
                             .targets
                             .iter()
                             .find(|target| {
-                                target
-                                    .kind
-                                    .iter()
-                                    .any(|kind| kind == "lib" || kind == "proc-macro")
+                                matches!(
+                                    target.kind,
+                                    DiscoveredTargetKind::Library | DiscoveredTargetKind::ProcMacro
+                                )
                             })
                             .ok_or_else(|| {
                                 WarpError::new(format!(
@@ -513,29 +734,25 @@ impl Workspace {
                                     external_package.name
                                 ))
                             })?;
-                        let external_features = nodes
-                            .get(&dependency.pkg)
-                            .map(|node| node.features.clone())
-                            .unwrap_or_default();
                         Ok(BuildDependency {
-                            alias: normalize_crate_name(&dependency.name),
-                            package_id: dependency.pkg,
+                            alias: normalize_crate_name(&dependency.alias),
+                            package_id: dependency.package_id,
                             internal_task: None,
                             external_artifact: Some(ExternalArtifact {
                                 package_name: external_package.name.clone(),
                                 version: external_package.version.clone(),
                                 crate_name: crate_target.name.clone(),
-                                proc_macro: crate_target
-                                    .kind
-                                    .iter()
-                                    .any(|kind| kind == "proc-macro"),
-                                features: external_features,
+                                proc_macro: matches!(
+                                    crate_target.kind,
+                                    DiscoveredTargetKind::ProcMacro
+                                ),
+                                features: external_package.features.clone(),
                             }),
                         })
                     }
                 })
                 .collect::<Result<Vec<_>>>()?;
-            let features = node.features.clone();
+            let features = package.features.clone();
             let source_fingerprint = source_fingerprints
                 .entry(package_id.clone())
                 .or_insert_with(|| Arc::new(OnceLock::new()))
@@ -543,13 +760,16 @@ impl Workspace {
             for (target, kind) in &package_targets[package_id] {
                 let id = target_ids[&(package_id.clone(), target.name.clone())].clone();
                 let relative_source =
-                    target.src_path.strip_prefix(&package_root).map_err(|_| {
-                        WarpError::new(format!(
-                            "target source {} is outside package {}",
-                            target.src_path.display(),
-                            package.name
-                        ))
-                    })?;
+                    target
+                        .source_path
+                        .strip_prefix(&package_root)
+                        .map_err(|_| {
+                            WarpError::new(format!(
+                                "target source {} is outside package {}",
+                                target.source_path.display(),
+                                package.name
+                            ))
+                        })?;
                 let source_root = work_root.join("sources").join(short_hash(package_id));
                 let effective_target = if *kind == TargetKind::ProcMacro {
                     &host_triple
@@ -605,7 +825,7 @@ impl Workspace {
             build_directory: build_directory.to_path_buf(),
             work_directory: work_root.to_path_buf(),
             dependency_directories,
-            cargo_target_directory: metadata.target_directory,
+            cargo_target_directory: metadata.artifact_directory,
             target_profile_directories,
             host_profile_directories,
             target_native_directories: OnceLock::new(),
@@ -615,11 +835,86 @@ impl Workspace {
             host_triple,
             profile,
             targets,
+            bun_targets: Mutex::new(bun_targets),
+            bun_manifest_file: rules.bun.package_manifest.clone(),
+            bun_lockfiles: rules.bun.lockfiles.clone(),
+            cloudflare_config_file: rules.bun.cloudflare_config.clone(),
+            cargo_toolchain_version: rules.cargo_toolchain_version.clone(),
+            cargo_toolchain_fingerprint: rules.cargo_toolchain_fingerprint.clone(),
+            global_input_files,
             roots,
             excluded_directories: excluded_directories.to_vec(),
             external_artifacts: Mutex::new(HashMap::new()),
             hash_pool: HashPool::new()?,
         })
+    }
+
+    fn register_bun_target(&self, package_root: &Path) -> Result<TaskId> {
+        let package_root = package_root
+            .canonicalize()
+            .map_err(|error| WarpError::io("resolve Bun package directory", error))?;
+        let mut targets = self
+            .bun_targets
+            .lock()
+            .map_err(|_| WarpError::new("Bun target registry poisoned"))?;
+        if let Some(target) = targets
+            .values()
+            .find(|target| target.package_root == package_root)
+        {
+            return Ok(target.id.clone());
+        }
+        let target = BunBuildTarget::from_directory(
+            &package_root,
+            &self.root,
+            &self.work_directory,
+            &self.bun_manifest_file,
+            &self.bun_lockfiles,
+            &self.cloudflare_config_file,
+        )?;
+        let id = target.id.clone();
+        targets.insert(id.clone(), target);
+        Ok(id)
+    }
+
+    fn bun_target(&self, id: &TaskId) -> Result<Option<BunBuildTarget>> {
+        self.bun_targets
+            .lock()
+            .map(|targets| targets.get(id).cloned())
+            .map_err(|_| WarpError::new("Bun target registry poisoned"))
+    }
+
+    fn bun_roots_at(&self, package_root: &Path) -> Result<Vec<TaskId>> {
+        let targets = self
+            .bun_targets
+            .lock()
+            .map_err(|_| WarpError::new("Bun target registry poisoned"))?;
+        Ok(targets
+            .values()
+            .filter(|target| target.package_root == package_root)
+            .map(|target| target.id.clone())
+            .collect())
+    }
+
+    fn root_labels(&self) -> Result<Vec<String>> {
+        let mut labels = self
+            .roots
+            .iter()
+            .filter_map(|root| self.targets.get(root))
+            .map(|target| target.label().to_string())
+            .collect::<Vec<_>>();
+        let bun_targets = self
+            .bun_targets
+            .lock()
+            .map_err(|_| WarpError::new("Bun target registry poisoned"))?;
+        labels.extend(
+            self.roots
+                .iter()
+                .filter_map(|root| bun_targets.get(root))
+                .map(|target| target.label.to_string()),
+        );
+        labels.sort();
+        labels.dedup();
+        Ok(labels)
     }
 
     fn native_directories(&self, for_host: bool) -> Result<&[PathBuf]> {
@@ -720,19 +1015,20 @@ impl Workspace {
 
         let mut hasher = blake3::Hasher::new();
         write_field(&mut hasher, b"warp-global-fingerprint-v2");
+        write_field(&mut hasher, CARGO_TOOLCHAIN_RULE.as_bytes());
+        write_field(&mut hasher, CARGO_WORKSPACE_RULE.as_bytes());
+        write_field(&mut hasher, self.cargo_toolchain_version.as_bytes());
+        write_field(&mut hasher, self.cargo_toolchain_fingerprint.as_bytes());
+        write_field(&mut hasher, RUST_TOOLCHAIN_RULE.as_bytes());
         write_field(&mut hasher, RUST_TARGET_RULE.as_bytes());
         write_field(&mut hasher, self.compilation_target.as_str().as_bytes());
         write_field(&mut hasher, self.profile.as_str().as_bytes());
-        let mut input_files = [
-            self.root.join("Cargo.toml"),
-            self.root.join("Cargo.lock"),
-            self.root.join("rust-toolchain.toml"),
-            self.root.join(".cargo/config.toml"),
-            self.root.join(".cargo/config"),
-        ]
-        .into_iter()
-        .filter(|path| path.is_file())
-        .collect::<Vec<_>>();
+        let mut input_files = self
+            .global_input_files
+            .iter()
+            .map(|relative| self.root.join(relative))
+            .filter(|path| path.is_file())
+            .collect::<Vec<_>>();
         let mut ignore_files = HashSet::new();
         for target in self.targets.values() {
             let mut directory = target.package_root.as_path();
@@ -793,27 +1089,11 @@ impl Workspace {
     }
 }
 
-#[derive(Clone)]
-struct NormalDependency {
-    name: String,
-    pkg: String,
-}
-
-fn normal_dependencies(dependencies: &[CargoResolvedDependency]) -> Vec<NormalDependency> {
-    dependencies
-        .iter()
-        .filter(|dependency| dependency.dep_kinds.iter().any(|kind| kind.kind.is_none()))
-        .map(|dependency| NormalDependency {
-            name: dependency.name.clone(),
-            pkg: dependency.pkg.clone(),
-        })
-        .collect()
-}
-
 fn select_workspace_packages(
-    packages: &HashMap<String, CargoPackage>,
+    packages: &HashMap<String, WorkspacePackage>,
     workspace_members: &HashSet<String>,
     workspace_root: &Path,
+    manifest_file: &str,
     selection: Option<&Path>,
 ) -> Result<HashSet<String>> {
     let Some(selection) = selection else {
@@ -823,14 +1103,14 @@ fn select_workspace_packages(
         selection
     } else if selection
         .file_name()
-        .is_some_and(|name| name == "Cargo.toml")
+        .is_some_and(|name| name == manifest_file)
     {
-        selection
-            .parent()
-            .ok_or_else(|| WarpError::new("Cargo.toml selection has no parent directory"))?
+        selection.parent().ok_or_else(|| {
+            WarpError::new(format!("{manifest_file} selection has no parent directory"))
+        })?
     } else {
         return Err(WarpError::new(format!(
-            "build path {} must be a Cargo package directory or Cargo.toml",
+            "build path {} must be a package directory or {manifest_file}",
             selection.display()
         )));
     };
@@ -863,11 +1143,41 @@ fn select_workspace_packages(
     )))
 }
 
+fn select_bun_targets(
+    scope: &BuildScope,
+    workspace_root: &Path,
+    work_root: &Path,
+    rules: &WorkspaceRules,
+) -> Result<(BuildScope, HashMap<TaskId, BunBuildTarget>)> {
+    let BuildScope::Labels(labels) = scope else {
+        return Ok((scope.clone(), HashMap::new()));
+    };
+    let mut cargo_labels = Vec::new();
+    let mut bun_targets = HashMap::new();
+    for label in labels {
+        if let Some(target) = BunBuildTarget::for_path_label(
+            label,
+            workspace_root,
+            work_root,
+            &rules.discovery.manifest_file,
+            &rules.bun.package_manifest,
+            &rules.bun.lockfiles,
+            &rules.bun.cloudflare_config,
+        )? {
+            bun_targets.insert(target.id.clone(), target);
+        } else {
+            cargo_labels.push(label.clone());
+        }
+    }
+    Ok((BuildScope::Labels(cargo_labels), bun_targets))
+}
+
 fn select_workspace_targets(
     scope: &BuildScope,
-    packages: &HashMap<String, CargoPackage>,
+    packages: &HashMap<String, WorkspacePackage>,
     workspace_members: &HashSet<String>,
     workspace_root: &Path,
+    manifest_file: &str,
 ) -> Result<HashMap<String, Option<HashSet<String>>>> {
     let mut selected = HashMap::new();
     match scope {
@@ -888,6 +1198,7 @@ fn select_workspace_targets(
                     packages,
                     workspace_members,
                     workspace_root,
+                    manifest_file,
                     &mut selected,
                 )?;
             }
@@ -898,9 +1209,10 @@ fn select_workspace_targets(
 
 fn select_label(
     label: &Label,
-    packages: &HashMap<String, CargoPackage>,
+    packages: &HashMap<String, WorkspacePackage>,
     workspace_members: &HashSet<String>,
     workspace_root: &Path,
+    manifest_file: &str,
     selected: &mut HashMap<String, Option<HashSet<String>>>,
 ) -> Result<()> {
     let value = label.as_str();
@@ -956,6 +1268,7 @@ fn select_label(
         packages,
         workspace_members,
         workspace_root,
+        manifest_file,
         Some(&requested_path),
     )?;
     for package_id in package_ids {
@@ -987,19 +1300,19 @@ fn include_selected_target(
 fn reachable_workspace_packages(
     selected: &HashSet<String>,
     workspace_members: &HashSet<String>,
-    nodes: &HashMap<String, CargoNode>,
+    packages: &HashMap<String, WorkspacePackage>,
 ) -> HashSet<String> {
     let mut reachable = selected.clone();
     let mut pending = selected.iter().cloned().collect::<Vec<_>>();
     while let Some(package_id) = pending.pop() {
-        let Some(node) = nodes.get(&package_id) else {
+        let Some(package) = packages.get(&package_id) else {
             continue;
         };
-        for dependency in normal_dependencies(&node.deps) {
-            if workspace_members.contains(&dependency.pkg)
-                && reachable.insert(dependency.pkg.clone())
+        for dependency in &package.dependencies {
+            if workspace_members.contains(&dependency.package_id)
+                && reachable.insert(dependency.package_id.clone())
             {
-                pending.push(dependency.pkg);
+                pending.push(dependency.package_id.clone());
             }
         }
     }
@@ -1142,6 +1455,7 @@ fn collect_native_directories(build_directory: &Path) -> Result<Vec<PathBuf>> {
 
 struct WorkspaceProvider {
     context: Arc<BuildCtx>,
+    rules: WorkspaceRules,
     announced: std::sync::atomic::AtomicBool,
     nodes: Mutex<HashMap<TaskId, BuildNode>>,
     scan_dependencies: Mutex<HashMap<TaskId, Vec<TaskId>>>,
@@ -1150,9 +1464,10 @@ struct WorkspaceProvider {
 }
 
 impl WorkspaceProvider {
-    fn new(context: Arc<BuildCtx>) -> Self {
+    fn new(context: Arc<BuildCtx>, rules: WorkspaceRules) -> Self {
         Self {
             context,
+            rules,
             announced: std::sync::atomic::AtomicBool::new(false),
             nodes: Mutex::new(HashMap::new()),
             scan_dependencies: Mutex::new(HashMap::new()),
@@ -1163,7 +1478,7 @@ impl WorkspaceProvider {
 
     fn runtime(&self) -> std::result::Result<&BuildRuntime, String> {
         self.context
-            .runtime(|| initialize_runtime(&self.context.intent))
+            .runtime(|| initialize_runtime(&self.context.intent, &self.rules))
     }
 
     fn register_node(&self, node: BuildNode) -> std::result::Result<TaskId, String> {
@@ -1221,9 +1536,27 @@ impl WorkspaceProvider {
         let directory = directory
             .canonicalize()
             .map_err(|error| format!("resolve scan path {}: {error}", directory.display()))?;
-        let (has_manifest, child_directories) =
-            scan::discover_directory(&directory, &self.context.intent.client.excluded_directories)
+        let (has_cargo_manifest, has_bun_manifest, child_directories) = scan::discover_directory(
+            &directory,
+            &self.context.intent.client.excluded_directories,
+            &self.rules.discovery.manifest_file,
+            &self.rules.bun.package_manifest,
+        )
+        .map_err(|error| error.to_string())?;
+        let has_manifest = has_cargo_manifest || has_bun_manifest;
+        if has_bun_manifest
+            && self
+                .rules
+                .bun
+                .lockfiles
+                .iter()
+                .any(|lockfile| directory.join(lockfile).is_file())
+        {
+            self.runtime()?
+                .workspace
+                .register_bun_target(&directory)
                 .map_err(|error| error.to_string())?;
+        }
         if self.context.intent.verbose {
             eprintln!(
                 "[graph] scanned {} (manifest: {}, child directories: {}, {}ms)",
@@ -1269,6 +1602,36 @@ impl WorkspaceProvider {
         } else {
             Ok(Plan::NeedsDependencies(missing))
         }
+    }
+
+    fn ensure_bun_source_fingerprint(
+        &self,
+        target: &BunBuildTarget,
+        hash_pool: &HashPool,
+    ) -> std::result::Result<(), String> {
+        let started = Instant::now();
+        let result = target
+            .source_fingerprint
+            .get_or_init(|| {
+                copy_and_fingerprint_tree(
+                    &target.package_root,
+                    &target.source_root,
+                    &self.context.intent.client.excluded_directories,
+                    hash_pool,
+                )
+                .map_err(|error| error.to_string())
+            })
+            .as_ref()
+            .map(|_| ())
+            .map_err(Clone::clone);
+        if self.context.intent.verbose {
+            eprintln!(
+                "[profile] source snapshot {}={}ms",
+                target.label,
+                started.elapsed().as_millis()
+            );
+        }
+        result
     }
 
     fn ensure_source_fingerprint(
@@ -1329,11 +1692,8 @@ impl TaskProvider for WorkspaceProvider {
             if !self.announced.swap(true, Ordering::Relaxed) {
                 let building = runtime
                     .workspace
-                    .roots
-                    .iter()
-                    .filter_map(|root| runtime.workspace.targets.get(root))
-                    .map(|target| target.label().to_string())
-                    .collect::<Vec<_>>();
+                    .root_labels()
+                    .map_err(|error| error.to_string())?;
                 eprintln!("Building {}", building.join(" "));
             }
             return self.plan_children(task, &runtime.workspace.roots, completed_dependencies);
@@ -1355,18 +1715,15 @@ impl TaskProvider for WorkspaceProvider {
                 if !self.announced.swap(true, Ordering::Relaxed) {
                     let building = runtime
                         .workspace
-                        .roots
-                        .iter()
-                        .filter_map(|root| runtime.workspace.targets.get(root))
-                        .map(|target| target.label().to_string())
-                        .collect::<Vec<_>>();
+                        .root_labels()
+                        .map_err(|error| error.to_string())?;
                     eprintln!("Building {}", building.join(" "));
                 }
                 let path = path
                     .canonicalize()
-                    .map_err(|error| format!("resolve Cargo package path: {error}"))?;
+                    .map_err(|error| format!("resolve build package path: {error}"))?;
                 let workspace = &runtime.workspace;
-                let roots = if path == workspace.root {
+                let mut roots = if path == workspace.root {
                     workspace.roots.clone()
                 } else {
                     workspace
@@ -1381,29 +1738,48 @@ impl TaskProvider for WorkspaceProvider {
                         .cloned()
                         .collect()
                 };
+                roots.extend(
+                    workspace
+                        .bun_roots_at(&path)
+                        .map_err(|error| error.to_string())?,
+                );
+                roots.sort();
+                roots.dedup();
                 self.plan_children(task, &roots, completed_dependencies)
             }
             None => {
                 let runtime = self.runtime()?;
-                let target = runtime
+                let dependencies = if let Some(target) = runtime.workspace.targets.get(task) {
+                    self.ensure_source_fingerprint(target, &runtime.workspace.hash_pool)?;
+                    if self.context.intent.verbose {
+                        eprintln!(
+                            "[graph] planned {} with {} discovered dependencies",
+                            target.label(),
+                            target.dependencies.len()
+                        );
+                    }
+                    target
+                        .dependencies
+                        .iter()
+                        .filter_map(|dependency| dependency.internal_task.as_ref())
+                        .cloned()
+                        .collect::<Vec<_>>()
+                } else if let Some(target) = runtime
                     .workspace
-                    .targets
-                    .get(task)
-                    .ok_or_else(|| format!("unknown workspace task {task}"))?;
-                self.ensure_source_fingerprint(target, &runtime.workspace.hash_pool)?;
-                if self.context.intent.verbose {
-                    eprintln!(
-                        "[graph] planned {} with {} discovered dependencies",
-                        target.label(),
-                        target.dependencies.len()
-                    );
-                }
-                let dependencies = target
-                    .dependencies
-                    .iter()
-                    .filter_map(|dependency| dependency.internal_task.as_ref())
-                    .cloned()
-                    .collect::<Vec<_>>();
+                    .bun_target(task)
+                    .map_err(|error| error.to_string())?
+                {
+                    self.ensure_bun_source_fingerprint(&target, &runtime.workspace.hash_pool)?;
+                    if self.context.intent.verbose {
+                        eprintln!(
+                            "[graph] planned {} with 0 discovered dependencies",
+                            target.label
+                        );
+                    }
+                    Vec::new()
+                } else {
+                    return Err(format!("unknown workspace task {task}"));
+                };
                 self.plan_children(task, &dependencies, completed_dependencies)
             }
         }
@@ -1423,13 +1799,17 @@ impl TaskProvider for WorkspaceProvider {
             return Ok(());
         }
         let started = Instant::now();
-        let label = self
-            .runtime()?
-            .workspace
-            .targets
-            .get(task)
-            .map(|target| target.label().to_string())
-            .unwrap_or_else(|| task.to_string());
+        let runtime = self.runtime()?;
+        let label = if let Some(target) = runtime.workspace.targets.get(task) {
+            target.label().to_string()
+        } else {
+            runtime
+                .workspace
+                .bun_target(task)
+                .map_err(|error| error.to_string())?
+                .map(|target| target.label.to_string())
+                .unwrap_or_else(|| task.to_string())
+        };
         let result = self.execute_target(task);
         match &result {
             Ok(TargetOutcome::Built) => {
@@ -1526,11 +1906,23 @@ impl WorkspaceProvider {
 
     fn execute_target(&self, task: &TaskId) -> std::result::Result<TargetOutcome, String> {
         let runtime = self.runtime()?;
-        let workspace = &runtime.workspace;
-        let target = workspace
-            .targets
-            .get(task)
+        if let Some(target) = runtime.workspace.targets.get(task) {
+            return self.execute_rust_target(runtime, target);
+        }
+        let target = runtime
+            .workspace
+            .bun_target(task)
+            .map_err(|error| error.to_string())?
             .ok_or_else(|| format!("unknown workspace task {task}"))?;
+        self.execute_bun_target(runtime, &target)
+    }
+
+    fn execute_rust_target(
+        &self,
+        runtime: &BuildRuntime,
+        target: &BuildTarget,
+    ) -> std::result::Result<TargetOutcome, String> {
+        let workspace = &runtime.workspace;
         let dependencies_started = Instant::now();
         let dependencies = self
             .resolve_dependencies(runtime, target)
@@ -1594,8 +1986,97 @@ impl WorkspaceProvider {
             .restore(runtime, &blob, target)
             .map_err(|error| error.to_string())?
         {
-            return Err(format!("CAS lost compiled workspace artifact for {task}"));
+            return Err(format!(
+                "CAS lost compiled workspace artifact for {}",
+                target.id
+            ));
         }
+        self.built.fetch_add(1, Ordering::Relaxed);
+        Ok(TargetOutcome::Built)
+    }
+
+    fn execute_bun_target(
+        &self,
+        runtime: &BuildRuntime,
+        target: &BunBuildTarget,
+    ) -> std::result::Result<TargetOutcome, String> {
+        let workspace = &runtime.workspace;
+        let bun = runtime.bun_toolchain()?;
+        let action = evaluate_bun_rule(target, bun).map_err(|error| error.to_string())?;
+        let output_path = single_directory_output(&action).map_err(|error| error.to_string())?;
+        let source_fingerprint = target
+            .source_fingerprint
+            .get()
+            .ok_or_else(|| "Bun target source was not fingerprinted by its graph node".to_string())?
+            .as_ref()
+            .map_err(Clone::clone)?;
+        let key_started = Instant::now();
+        let key = bun_target_action_key(workspace, target, bun, source_fingerprint, &action)
+            .map_err(|error| error.to_string())?;
+        let key_elapsed = key_started.elapsed();
+        let lookup_started = Instant::now();
+        let cached_blob = runtime
+            .action_cache
+            .lookup(&key)
+            .map_err(|error| error.to_string())?;
+        let lookup_elapsed = lookup_started.elapsed();
+
+        if let Some(blob) = cached_blob {
+            let restore_started = Instant::now();
+            if self
+                .restore_bun(runtime, &blob, target, &output_path)
+                .map_err(|error| error.to_string())?
+            {
+                if self.context.intent.verbose {
+                    eprintln!(
+                        "[profile] {} cache-hit key={}ms lookup={}ms restore={}ms",
+                        target.label,
+                        key_elapsed.as_millis(),
+                        lookup_elapsed.as_millis(),
+                        restore_started.elapsed().as_millis()
+                    );
+                }
+                self.cached.fetch_add(1, Ordering::Relaxed);
+                return Ok(TargetOutcome::Cached);
+            }
+        }
+        if self.context.intent.verbose {
+            eprintln!(
+                "[profile] {} cache-miss key={}ms lookup={}ms",
+                target.label,
+                key_elapsed.as_millis(),
+                lookup_elapsed.as_millis()
+            );
+        }
+
+        let work = WorkDirectory::create(&workspace.work_directory.join("outputs"))
+            .map_err(|error| error.to_string())?;
+        let bundle_path = work.path.join("bun-output.warp-tree");
+        execute_rule_commands(&action, &target.label, &target.source_root)
+            .map_err(|error| error.to_string())?;
+        let output_directory = target.source_root.join(&output_path);
+        if !output_directory.is_dir() {
+            return Err(format!(
+                "{} succeeded but did not produce declared output directory {}",
+                target.label,
+                output_directory.display()
+            ));
+        }
+        bundle::pack_directory(&output_directory, &bundle_path)
+            .map_err(|error| error.to_string())?;
+        let blob = runtime
+            .cas
+            .put_file(&bundle_path)
+            .map_err(|error| error.to_string())?;
+        runtime
+            .action_cache
+            .insert(&key, &blob)
+            .map_err(|error| error.to_string())?;
+        let destination = workspace
+            .build_directory
+            .join(&target.package_relative)
+            .join(&output_path);
+        bundle::restore_directory(&bundle_path, &destination).map_err(|error| error.to_string())?;
         self.built.fetch_add(1, Ordering::Relaxed);
         Ok(TargetOutcome::Built)
     }
@@ -1644,6 +2125,30 @@ impl WorkspaceProvider {
             .collect()
     }
 
+    fn restore_bun(
+        &self,
+        runtime: &BuildRuntime,
+        blob: &BlobDigest,
+        target: &BunBuildTarget,
+        output_path: &Path,
+    ) -> Result<bool> {
+        let work = WorkDirectory::create(&runtime.workspace.work_directory.join("restores"))?;
+        let bundle_path = work.path.join("cached-bun-output.warp-tree");
+        let restored = runtime
+            .cas
+            .get_file(blob, &bundle_path)
+            .map_err(|error| WarpError::new(format!("materialize cached Bun output: {error}")))?;
+        if restored {
+            let destination = runtime
+                .workspace
+                .build_directory
+                .join(&target.package_relative)
+                .join(output_path);
+            bundle::restore_directory(&bundle_path, &destination)?;
+        }
+        Ok(restored)
+    }
+
     fn restore(
         &self,
         runtime: &BuildRuntime,
@@ -1674,6 +2179,199 @@ impl WorkspaceProvider {
         }
         Ok(restored)
     }
+}
+
+struct ResolvedToolchain<'a> {
+    name: &'a str,
+    program: &'a Path,
+}
+
+fn validate_toolchain_requirements(
+    action: &RuleAction,
+    resolved: &[ResolvedToolchain<'_>],
+) -> Result<()> {
+    for requirement in &action.toolchains {
+        let toolchain = resolved
+            .iter()
+            .find(|toolchain| toolchain.name == requirement.name)
+            .ok_or_else(|| {
+                WarpError::new(format!(
+                    "rule requires unavailable toolchain {:?}",
+                    requirement.name
+                ))
+            })?;
+        if Path::new(&requirement.program) != toolchain.program
+            || requirement.version_args != ["--version"]
+        {
+            return Err(WarpError::new(format!(
+                "rule's {:?} toolchain declaration does not match the resolved executable",
+                requirement.name
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn evaluate_bun_rule(target: &BunBuildTarget, bun: &bun::BunToolchain) -> Result<RuleAction> {
+    let configuration = serde_json::json!({
+        "bun": bun.executable,
+        "bun_version": bun.version,
+        "package_json": target.package_manifest.to_string(),
+        "lockfile": target.lockfile,
+        "cloudflare_config": target.cloudflare_config,
+        "source_directory": target.source_root.to_string_lossy(),
+    });
+    let rule_source = format!(
+        "const configuration = {configuration};\n\
+         const Bun = bunToolchain({{ bun: configuration.bun }});\n{}\n{}",
+        BUN_TOOLCHAIN_RULE, BUN_TARGET_RULE
+    );
+    let plan = warp_build_language::evaluate(&rule_source)
+        .map_err(|error| WarpError::new(format!("evaluate Bun build rule: {error}")))?;
+    let action: RuleAction = serde_json::from_value(plan)
+        .map_err(|error| WarpError::new(format!("parse Bun build rule action: {error}")))?;
+    validate_toolchain_requirements(
+        &action,
+        &[ResolvedToolchain {
+            name: "bun",
+            program: &bun.executable,
+        }],
+    )?;
+    Ok(action)
+}
+
+fn single_directory_output(action: &RuleAction) -> Result<PathBuf> {
+    if action.outputs.len() != 1 {
+        return Err(WarpError::new(format!(
+            "this executor requires one directory output, but the rule declared {}",
+            action.outputs.len()
+        )));
+    }
+    let path = Path::new(&action.outputs[0]);
+    if path.is_absolute()
+        || path
+            .components()
+            .any(|component| !matches!(component, std::path::Component::Normal(_)))
+    {
+        return Err(WarpError::new(format!(
+            "rule declared an unsafe output path {:?}",
+            action.outputs[0]
+        )));
+    }
+    Ok(path.to_path_buf())
+}
+
+fn execute_rule_commands(
+    action: &RuleAction,
+    label: &Label,
+    default_directory: &Path,
+) -> Result<()> {
+    if action.executions.is_empty() {
+        return Err(WarpError::new("rule declared no commands to execute"));
+    }
+    for (index, execution) in action.executions.iter().enumerate() {
+        if !action
+            .toolchains
+            .iter()
+            .any(|toolchain| toolchain.program == execution.program)
+        {
+            return Err(WarpError::new(format!(
+                "rule command {} uses undeclared program {:?}",
+                index + 1,
+                execution.program
+            )));
+        }
+        let directory = execution
+            .cwd
+            .as_deref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| default_directory.to_path_buf());
+        let output = Command::new(&execution.program)
+            .args(&execution.arguments)
+            .envs(&execution.env)
+            .current_dir(directory)
+            .output()
+            .map_err(|error| WarpError::io("run rule command", error))?;
+        if !output.status.success() {
+            return Err(WarpError::new(format!(
+                "rule command {} for {label} failed with {}\n{}{}",
+                index + 1,
+                output.status,
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn bun_target_action_key(
+    workspace: &Workspace,
+    target: &BunBuildTarget,
+    bun: &bun::BunToolchain,
+    source_fingerprint: &str,
+    action: &RuleAction,
+) -> Result<String> {
+    let mut hasher = blake3::Hasher::new();
+    write_field(&mut hasher, b"warp-rule-action-v1");
+    write_field(&mut hasher, BUN_TOOLCHAIN_RULE.as_bytes());
+    write_field(&mut hasher, BUN_TARGET_RULE.as_bytes());
+    write_field(&mut hasher, target.package_name.as_bytes());
+    write_field(&mut hasher, target.package_version.as_bytes());
+    write_field(
+        &mut hasher,
+        target.package_root.to_string_lossy().as_bytes(),
+    );
+    for output in &action.outputs {
+        write_field(&mut hasher, output.as_bytes());
+    }
+    for toolchain in &action.toolchains {
+        write_field(&mut hasher, toolchain.name.as_bytes());
+        write_field(&mut hasher, toolchain.program.as_bytes());
+        for argument in &toolchain.version_args {
+            write_field(&mut hasher, argument.as_bytes());
+        }
+        write_field(
+            &mut hasher,
+            &serde_json::to_vec(&toolchain.config)
+                .map_err(|error| WarpError::new(format!("serialize toolchain config: {error}")))?,
+        );
+    }
+    for execution in &action.executions {
+        write_field(&mut hasher, execution.program.as_bytes());
+        for argument in &execution.arguments {
+            write_field(&mut hasher, argument.as_bytes());
+        }
+        let mut environment = execution.env.iter().collect::<Vec<_>>();
+        environment.sort_by(|left, right| left.0.cmp(right.0));
+        for (name, value) in environment {
+            write_field(&mut hasher, name.as_bytes());
+            write_field(&mut hasher, value.as_bytes());
+        }
+    }
+    write_field(&mut hasher, source_fingerprint.as_bytes());
+    write_field(
+        &mut hasher,
+        workspace.compilation_target.as_str().as_bytes(),
+    );
+    write_field(&mut hasher, workspace.profile.as_str().as_bytes());
+    write_field(&mut hasher, bun.executable.to_string_lossy().as_bytes());
+    write_field(&mut hasher, bun.version.as_bytes());
+    // Bun scripts inherit the process environment, so every variable participates in the action key.
+    let mut environment = std::env::vars_os()
+        .map(|(name, value)| {
+            (
+                name.to_string_lossy().into_owned(),
+                value.to_string_lossy().into_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    environment.sort();
+    for (name, value) in environment {
+        write_field(&mut hasher, name.as_bytes());
+        write_field(&mut hasher, value.as_bytes());
+    }
+    Ok(format!("blake3:{}", hasher.finalize().to_hex()))
 }
 
 fn selected_binary<'a>(
@@ -1711,42 +2409,24 @@ fn compile_target(
 ) -> Result<PathBuf> {
     fs::create_dir_all(output_directory)
         .map_err(|error| WarpError::io("create rustc output directory", error))?;
-    let effective_target = if target.kind == TargetKind::ProcMacro {
-        &workspace.host_triple
-    } else {
-        &workspace.compilation_target
-    };
-    let mut compiler_arguments = vec![
-        "--target".to_string(),
-        effective_target.as_str().to_string(),
-        "--out-dir".to_string(),
-        path_argument(output_directory)?,
-        "--remap-path-prefix".to_string(),
-        format!("{}=/warp-source", path_argument(&target.source_root)?),
-        "--remap-path-prefix".to_string(),
-        format!("{}=/warp-output", path_argument(output_directory)?),
-    ];
-    compiler_arguments.extend(
-        workspace
-            .profile
-            .rustc_arguments()
-            .iter()
-            .map(|argument| argument.to_string()),
-    );
-    for directory in &workspace.dependency_directories {
-        compiler_arguments.push("-L".to_string());
-        compiler_arguments.push(format!("dependency={}", path_argument(directory)?));
-    }
     let native_directories = workspace.native_directories(target.kind == TargetKind::ProcMacro)?;
-    for directory in native_directories {
-        compiler_arguments.push("-L".to_string());
-        compiler_arguments.push(format!("native={}", path_argument(directory)?));
-    }
-    compiler_arguments.extend(rustc_flags(effective_target));
-
+    let environment = std::env::vars_os()
+        .map(|(name, value)| {
+            (
+                name.to_string_lossy().into_owned(),
+                value.to_string_lossy().into_owned(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
     let rule_configuration = serde_json::json!({
-        "compiler": compiler.to_string_lossy(),
+        "compiler": path_argument(compiler)?,
+        "compilation_target": workspace.compilation_target.as_str(),
+        "host_target": workspace.host_triple.as_str(),
+        "profile": workspace.profile.as_str(),
         "crate_name": target.crate_name,
+        "package_manifest_directory": path_argument(&target.package_root)?,
+        "package_name": target.package_name,
+        "package_version": target.package_version,
         "crate_type": match target.kind {
             TargetKind::Library => "rlib",
             TargetKind::Binary => "bin",
@@ -1756,24 +2436,43 @@ fn compile_target(
             .iter()
             .map(|(alias, _, path)| format!("{alias}={}", path.to_string_lossy()))
             .collect::<Vec<_>>(),
+        "dependency_directories": workspace
+            .dependency_directories
+            .iter()
+            .map(|path| path_argument(path))
+            .collect::<Result<Vec<_>>>()?,
+        "native_directories": native_directories
+            .iter()
+            .map(|path| path_argument(path))
+            .collect::<Result<Vec<_>>>()?,
         "edition": target.edition,
         "features": target.features,
-        "compiler_arguments": compiler_arguments,
+        "environment": serde_json::to_string(&environment)
+            .map_err(|error| WarpError::new(format!("serialize rule environment: {error}")))?,
+        "output_directory": path_argument(output_directory)?,
         "output_name": target.compiler_artifact_name,
-        "source": target.source_file,
+        "source_root": path_argument(&target.source_root)?,
+        "source": path_argument(&target.source_file)?,
     });
     let rule_source = format!(
-        "const configuration = {rule_configuration};\n{}",
-        RUST_TARGET_RULE
+        "const configuration = {rule_configuration};\n{}\n{}",
+        RUST_TOOLCHAIN_RULE, RUST_TARGET_RULE
     );
     let action = warp_build_language::evaluate(&rule_source)
         .map_err(|error| WarpError::new(format!("evaluate Rust build rule: {error}")))?;
-    let action: RustCompilerAction = serde_json::from_value(action)
+    let mut action: RuleAction = serde_json::from_value(action)
         .map_err(|error| WarpError::new(format!("parse Rust build rule action: {error}")))?;
-    if Path::new(&action.program) != compiler {
+    if action.executions.len() != 1 {
+        return Err(WarpError::new(format!(
+            "Rust build rule declared {} commands; expected exactly one",
+            action.executions.len()
+        )));
+    }
+    let execution = action.executions.pop().unwrap();
+    if Path::new(&execution.program) != compiler {
         return Err(WarpError::new(format!(
             "Rust build rule selected unexpected compiler {:?}",
-            action.program
+            execution.program
         )));
     }
     if action.outputs != [target.compiler_artifact_name.as_str()] {
@@ -1782,23 +2481,28 @@ fn compile_target(
             action.outputs
         )));
     }
-    if action.toolchains != ["rustc"] {
-        return Err(WarpError::new(format!(
-            "Rust build rule requires unsupported toolchains: {:?}",
-            action.toolchains
-        )));
-    }
+    validate_toolchain_requirements(
+        &action,
+        &[ResolvedToolchain {
+            name: "rustc",
+            program: compiler,
+        }],
+    )?;
 
-    let mut command = Command::new(&action.program);
+    let mut command = Command::new(&execution.program);
     if target.kind != TargetKind::ProcMacro {
         add_host_native_loader_paths(&mut command, workspace.native_directories(true)?)?;
     }
     command
-        .current_dir(&target.source_root)
-        .args(action.arguments)
-        .env("CARGO_MANIFEST_DIR", &target.package_root)
-        .env("CARGO_PKG_NAME", &target.package_name)
-        .env("CARGO_PKG_VERSION", &target.package_version);
+        .current_dir(
+            execution
+                .cwd
+                .as_deref()
+                .map(Path::new)
+                .unwrap_or(&target.source_root),
+        )
+        .args(execution.arguments)
+        .envs(&execution.env);
 
     let output = command
         .output()
@@ -1855,9 +2559,6 @@ fn target_action_key(
     };
     write_field(&mut hasher, effective_target.as_str().as_bytes());
     write_field(&mut hasher, workspace.profile.as_str().as_bytes());
-    for argument in rustc_flags(effective_target) {
-        write_field(&mut hasher, argument.as_bytes());
-    }
     write_field(&mut hasher, target.package_id.as_bytes());
     write_field(&mut hasher, target.package_version.as_bytes());
     write_field(&mut hasher, target.crate_name.as_bytes());
@@ -2168,6 +2869,138 @@ mod tests {
     use super::*;
 
     #[test]
+    fn cargo_discovery_rule_normalizes_metadata_into_generic_workspace_graph_data() {
+        let metadata = serde_json::json!({
+            "workspace_root": "/tmp/example",
+            "target_directory": "/tmp/example/_build/cargo/stable",
+            "workspace_members": ["root 0.1.0 (path+file:///tmp/example)"],
+            "packages": [
+                {
+                    "id": "root 0.1.0 (path+file:///tmp/example)",
+                    "name": "root",
+                    "version": "0.1.0",
+                    "manifest_path": "/tmp/example/Cargo.toml",
+                    "edition": "2021",
+                    "targets": [
+                        { "name": "root", "kind": ["lib"], "src_path": "/tmp/example/src/lib.rs" },
+                        { "name": "build-script-build", "kind": ["custom-build"], "src_path": "/tmp/example/build.rs" }
+                    ]
+                },
+                {
+                    "id": "dependency 1.0.0 (registry+https://example.invalid)",
+                    "name": "dependency",
+                    "version": "1.0.0",
+                    "manifest_path": "/tmp/cargo/registry/dependency/Cargo.toml",
+                    "edition": "2021",
+                    "targets": [
+                        { "name": "dependency", "kind": ["lib"], "src_path": "/tmp/cargo/registry/dependency/src/lib.rs" }
+                    ]
+                }
+            ],
+            "resolve": {
+                "nodes": [
+                    {
+                        "id": "root 0.1.0 (path+file:///tmp/example)",
+                        "features": ["default", "extra"],
+                        "deps": [
+                            { "name": "dependency-alias", "pkg": "dependency 1.0.0 (registry+https://example.invalid)", "dep_kinds": [{ "kind": null }] },
+                            { "name": "build-only", "pkg": "dependency 1.0.0 (registry+https://example.invalid)", "dep_kinds": [{ "kind": "build" }] }
+                        ]
+                    },
+                    { "id": "dependency 1.0.0 (registry+https://example.invalid)" }
+                ]
+            }
+        });
+        let workspace = normalize_workspace_metadata(&metadata.to_string()).unwrap();
+        let root = &workspace.packages[0];
+        assert_eq!(root.features, ["default", "extra"]);
+        assert_eq!(root.dependencies.len(), 1);
+        assert_eq!(root.dependencies[0].alias, "dependency-alias");
+        assert_eq!(root.dependencies[0].package_id, workspace.packages[1].id);
+        assert!(matches!(
+            root.targets[0].kind,
+            DiscoveredTargetKind::Library
+        ));
+        assert!(matches!(
+            root.targets[1].kind,
+            DiscoveredTargetKind::CustomBuild
+        ));
+    }
+
+    #[test]
+    fn bun_path_scopes_do_not_require_cargo_workspace_discovery() {
+        let root = std::env::temp_dir().join(format!(
+            "warp-bun-scope-test-{}-{}",
+            std::process::id(),
+            NEXT_WORK.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(root.join("sites/example")).unwrap();
+        fs::write(
+            root.join("sites/example/package.json"),
+            r#"{"name":"example-site"}"#,
+        )
+        .unwrap();
+        let rules = WorkspaceRules::load(&BuildIntent {
+            root: root.clone(),
+            scope: BuildScope::All,
+            output: None,
+            cache: None,
+            compilation_target: CompilationTargetTriple::parse("aarch64-apple-darwin").unwrap(),
+            rust_toolchain: None,
+            profile: BuildProfile::Debug,
+            verbose: false,
+            client: BuildClientConfig::default(),
+        })
+        .unwrap();
+        assert!(is_bun_only_scope(
+            &BuildScope::Labels(vec![Label::parse("./sites/example").unwrap()]),
+            &root,
+            &root.join("work"),
+            &rules,
+        )
+        .unwrap());
+        assert!(!is_bun_only_scope(
+            &BuildScope::Labels(vec![Label::parse("warp-cli::warp").unwrap()]),
+            &root,
+            &root.join("work"),
+            &rules,
+        )
+        .unwrap());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ecosystem_toolchain_rules_declare_manifest_and_lockfile_inputs() {
+        let rules = WorkspaceRules::load(&BuildIntent {
+            root: std::env::current_dir().unwrap(),
+            scope: BuildScope::All,
+            output: None,
+            cache: None,
+            compilation_target: CompilationTargetTriple::parse("aarch64-apple-darwin").unwrap(),
+            rust_toolchain: None,
+            profile: BuildProfile::Debug,
+            verbose: false,
+            client: BuildClientConfig::default(),
+        })
+        .unwrap();
+
+        assert_eq!(rules.discovery.manifest_file, "Cargo.toml");
+        assert!(rules
+            .discovery
+            .workspace_inputs
+            .contains(&"Cargo.lock".to_string()));
+        assert!(rules
+            .discovery
+            .discovery_command
+            .arguments
+            .windows(2)
+            .any(|arguments| arguments == ["--filter-platform", "aarch64-apple-darwin"]));
+        assert_eq!(rules.bun.package_manifest, "package.json");
+        assert_eq!(rules.bun.lockfiles, ["bun.lock", "bun.lockb"]);
+        assert_eq!(rules.bun.cloudflare_config, "cloudflare.config.ts");
+    }
+
+    #[test]
     fn labels_resolve_packages_and_individual_build_targets() {
         let id = "path+file:///example/demo#0.1.0".to_string();
         let workspace_root =
@@ -2175,16 +3008,18 @@ mod tests {
         let package_root = workspace_root.join("crates/demo");
         fs::create_dir_all(package_root.join("src")).unwrap();
         fs::write(package_root.join("Cargo.toml"), "[package]").unwrap();
-        let package = CargoPackage {
+        let package = WorkspacePackage {
             id: id.clone(),
             name: "demo".into(),
             version: "0.1.0".into(),
             manifest_path: package_root.join("Cargo.toml"),
             edition: "2021".into(),
-            targets: vec![CargoTarget {
+            features: Vec::new(),
+            dependencies: Vec::new(),
+            targets: vec![WorkspaceTarget {
                 name: "demo-bin".into(),
-                kind: vec!["bin".into()],
-                src_path: package_root.join("src/main.rs"),
+                kind: DiscoveredTargetKind::Binary,
+                source_path: package_root.join("src/main.rs"),
                 required_features: Vec::new(),
             }],
         };
@@ -2197,6 +3032,7 @@ mod tests {
             &packages,
             &members,
             &workspace_root,
+            "Cargo.toml",
         )
         .unwrap();
         assert_eq!(
@@ -2209,6 +3045,7 @@ mod tests {
             &packages,
             &members,
             &workspace_root,
+            "Cargo.toml",
         )
         .unwrap();
         assert_eq!(package_selection.get(&id), Some(&None));

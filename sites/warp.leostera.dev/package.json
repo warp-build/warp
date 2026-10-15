@@ -1,0 +1,29 @@
+{
+  "name": "warp.leostera.dev",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "bun@1.4.2",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "deploy": "cf deploy"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^2.0.0-beta.sha-67fa336fd",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "cf": "^1.0.0-beta.17",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}

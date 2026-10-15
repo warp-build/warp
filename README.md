@@ -29,12 +29,16 @@ promoted executable paths. Builds print a `Building` line, per-target `OK` or
 summary. Status labels are green/red in an interactive terminal and respect
 `NO_COLOR`.
 
-Positional arguments are build labels, not compilation target triples. A
-`Label` resolves graph roots; a `BuildTarget` is a labeled build-graph node;
-a `CompilationTargetTriple` is passed to `rustc` and selects platform artifacts.
-A label can name a Cargo package directory, package name, or `package::target`;
-multiple labels select multiple graph roots. Warp includes their workspace
-dependencies:
+Positional arguments are build labels, not compilation target triples. With no
+labels, `warp build` uses `BuildScope::All`: it recursively discovers and builds
+every supported Cargo/Rust target and every locked Bun package target in the
+workspace. Discovery honors nested `.gitignore` rules and configured directory
+exclusions. A `Label` resolves graph roots; a `BuildTarget` is a labeled
+build-graph node; a `CompilationTargetTriple` is passed to `rustc` and selects
+platform artifacts. A label can name a Cargo package directory or package name,
+a Bun package directory, or a Cargo `package::target`; multiple labels select
+multiple graph roots. Cargo roots include their workspace dependencies, while
+Bun installs the dependencies recorded by its lockfile:
 
 ```bash
 ./target/debug/warp build ./crates/warp-rules ./crates/warp-cli -x macos
@@ -67,6 +71,38 @@ A standalone Rust source can also be built by passing its path:
 ```bash
 ./target/debug/warp build src/main.rs -x aarch64-apple-darwin
 ```
+
+## Build the Warp website
+
+The React/Vite site in `sites/warp.leostera.dev` uses Bun 1.4.2, pinned in its
+`package.json`. Install that Bun version with the installer at [bun.sh](https://bun.sh):
+
+```bash
+curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.2"
+```
+
+Then install the site dependencies and start its development server:
+
+```bash
+cd sites/warp.leostera.dev
+bun install --frozen-lockfile
+bun run dev
+```
+
+Warp can also build a locked Bun package directly from the repository root:
+
+```bash
+./target/debug/warp build ./sites/warp.leostera.dev
+```
+
+A Bun target needs `package.json` with a non-empty `scripts.build` entry and a
+`bun.lock` (or `bun.lockb`). Warp honors an exact `packageManager: "bun@..."`
+pin, installs dependencies with `bun install --frozen-lockfile`, and runs
+`bun run build` in an isolated source snapshot. It caches the declared output
+(`dist` for a regular package, `.cloudflare/output` for a package with
+`cloudflare.config.ts`) under the normal `_build/<target>/<profile>/` tree. Warp
+builds but does not deploy the site; use `bun run deploy` from the site directory
+to deploy with Cloudflare's `cf` CLI.
 
 ## Architecture
 

@@ -28,7 +28,8 @@ enum Command {
 
 #[derive(Debug, Args)]
 struct BuildArgs {
-    /// Build targets identified by Cargo package paths, package names, or package::target labels.
+    /// Optional target labels; omit to build every discoverable Rust and Bun target in the workspace.
+    /// Labels may be package paths, Cargo package names, or package::target names.
     targets: Vec<String>,
 
     /// Promoted executable path. Defaults to the selected client-configured binary path.

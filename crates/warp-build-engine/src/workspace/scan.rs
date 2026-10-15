@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 pub(super) fn discover_directory(
     path: &Path,
     excluded_directories: &[String],
-) -> Result<(bool, Vec<PathBuf>)> {
+    cargo_manifest_file: &str,
+    bun_manifest_file: &str,
+) -> Result<(bool, bool, Vec<PathBuf>)> {
     let canonical = path
         .canonicalize()
         .map_err(|error| WarpError::io("resolve workspace scan directory", error))?;
@@ -25,7 +27,8 @@ pub(super) fn discover_directory(
             entry.depth() == 0 || !should_skip_directory(entry.path(), &excluded_directories)
         });
 
-    let mut has_manifest = false;
+    let mut has_cargo_manifest = false;
+    let mut has_bun_manifest = false;
     let mut children = Vec::new();
     for result in walker.build() {
         let entry =
@@ -33,18 +36,19 @@ pub(super) fn discover_directory(
         if entry.depth() != 1 {
             continue;
         }
-        let is_manifest = entry.file_name() == "Cargo.toml"
-            && entry.file_type().is_some_and(|kind| kind.is_file());
+        let is_file = entry.file_type().is_some_and(|kind| kind.is_file());
         let is_directory = entry.file_type().is_some_and(|kind| kind.is_dir());
+        let is_cargo_manifest = entry.file_name() == cargo_manifest_file && is_file;
+        let is_bun_manifest = entry.file_name() == bun_manifest_file && is_file;
         let path = entry.into_path();
-        if is_manifest {
-            has_manifest = true;
-        } else if is_directory {
+        has_cargo_manifest |= is_cargo_manifest;
+        has_bun_manifest |= is_bun_manifest;
+        if is_directory {
             children.push(path);
         }
     }
     children.sort();
-    Ok((has_manifest, children))
+    Ok((has_cargo_manifest, has_bun_manifest, children))
 }
 
 pub(super) fn should_skip_directory(path: &Path, excluded_directories: &[String]) -> bool {
@@ -76,6 +80,7 @@ mod tests {
         fs::create_dir_all(root.join("excluded-cache/generated")).unwrap();
         fs::create_dir_all(root.join("excluded-sources/old")).unwrap();
         fs::write(root.join("Cargo.toml"), "[workspace]").unwrap();
+        fs::write(root.join("package.json"), "{}").unwrap();
         fs::write(root.join("crates/example/Cargo.toml"), "[package]").unwrap();
         fs::write(root.join("_build/generated/Cargo.toml"), "[package]").unwrap();
         fs::write(root.join(".git/objects/Cargo.toml"), "[package]").unwrap();
@@ -92,9 +97,11 @@ mod tests {
         .unwrap();
 
         let excludes = vec!["excluded-sources".to_string()];
-        let (has_manifest, children) = discover_directory(&root, &excludes).unwrap();
+        let (has_cargo_manifest, has_bun_manifest, children) =
+            discover_directory(&root, &excludes, "Cargo.toml", "package.json").unwrap();
 
-        assert!(has_manifest);
+        assert!(has_cargo_manifest);
+        assert!(has_bun_manifest);
         assert!(children.iter().any(|path| path.ends_with("crates")));
         assert!(!children.iter().any(|path| path.ends_with("_build")));
         assert!(!children.iter().any(|path| path.ends_with(".git")));

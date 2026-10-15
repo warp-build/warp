@@ -23,6 +23,90 @@ impl Drop for TestDirectory {
     }
 }
 
+#[cfg(unix)]
+#[test]
+fn default_build_discovers_and_builds_rust_and_bun_targets() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let directory = TestDirectory::new();
+    let project = directory.0.join("project");
+    let cache = directory.0.join("shared-cache");
+    let rust_package = project.join("crates/hello");
+    let site = project.join("sites/example");
+    let fake_bin = directory.0.join("bin");
+    fs::create_dir_all(rust_package.join("src")).unwrap();
+    fs::create_dir_all(&site).unwrap();
+    fs::create_dir_all(&fake_bin).unwrap();
+    fs::write(
+        project.join("Cargo.toml"),
+        r#"[workspace]
+members = ["crates/hello"]
+resolver = "2"
+"#,
+    )
+    .unwrap();
+    fs::write(
+        rust_package.join("Cargo.toml"),
+        r#"[package]
+name = "hello"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+    fs::write(rust_package.join("src/main.rs"), "fn main() {}\n").unwrap();
+    fs::write(
+        site.join("package.json"),
+        r#"{"name":"example-site","version":"1.0.0","packageManager":"bun@1.4.2","scripts":{"build":"fake build"}}"#,
+    )
+    .unwrap();
+    fs::write(site.join("bun.lock"), "{}\n").unwrap();
+    let fake_bun = fake_bin.join("bun");
+    fs::write(
+        &fake_bun,
+        "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 1.4.2; exit 0; fi\nif [ \"$1\" = \"run\" ] && [ \"$2\" = \"build\" ]; then mkdir -p dist; echo site-built > dist/index.html; fi\nexit 0\n",
+    )
+    .unwrap();
+    fs::set_permissions(&fake_bun, fs::Permissions::from_mode(0o755)).unwrap();
+    let lockfile = Command::new("cargo")
+        .args(["generate-lockfile", "--manifest-path"])
+        .arg(project.join("Cargo.toml"))
+        .output()
+        .unwrap();
+    assert_success(&lockfile);
+
+    let original_path = std::env::var_os("PATH").unwrap_or_default();
+    let path = std::iter::once(fake_bin)
+        .chain(std::env::split_paths(&original_path))
+        .collect::<Vec<_>>();
+    let path = std::env::join_paths(path).unwrap();
+    let target = warp_build_engine::host_triple().unwrap();
+    let build = Command::new(env!("CARGO_BIN_EXE_warp"))
+        .current_dir(&project)
+        .args(["build", "--target"])
+        .arg(target.as_str())
+        .arg("--cache")
+        .arg(&cache)
+        .env("PATH", path)
+        .output()
+        .unwrap();
+    assert_success(&build);
+    let output = output_text(&build);
+    assert!(output.contains("example-site::build"), "{output}");
+    assert!(output.contains("hello::hello"), "{output}");
+    assert!(output.contains("FINISHED 2 targets"), "{output}");
+    assert!(project
+        .join("_build")
+        .join(target.as_str())
+        .join("debug/sites/example/dist/index.html")
+        .is_file());
+    assert!(project
+        .join("_build")
+        .join(target.as_str())
+        .join("debug/crates/hello/hello")
+        .is_file());
+}
+
 #[test]
 fn package_path_builds_only_that_crate_and_its_dependencies() {
     let directory = TestDirectory::new();
@@ -264,7 +348,11 @@ fn cargo_built_warp_builds_warp_and_then_reuses_the_workspace_cache() {
         "{}",
         output_text(&warp_built_warp)
     );
-    assert!(output_text(&warp_built_warp).contains("FINISHED 7 targets"));
+    assert!(
+        output_text(&warp_built_warp).contains("FINISHED 7 targets"),
+        "{}",
+        output_text(&warp_built_warp)
+    );
     assert_success(&Command::new(&output).arg("--version").output().unwrap());
 }
 
@@ -279,6 +367,16 @@ fn run_warp(
         .current_dir(workspace_root)
         .env("CARGO_TARGET_DIR", cargo_target_directory)
         .arg("build")
+        // Exercise the full Rust workspace without making Rust-only tests depend on Bun.
+        .args([
+            "./crates/warp-cli",
+            "./crates/warp-server",
+            "./crates/warp-protocol",
+            "./crates/warp-build-engine",
+            "./crates/warp-build-language",
+            "./crates/warp-rules",
+            "./crates/warp-store",
+        ])
         .arg("--output")
         .arg(output)
         .arg("--cache")
